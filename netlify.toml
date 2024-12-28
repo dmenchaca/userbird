@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://userbird.netlify.app; style-src 'self' 'unsafe-inline'; connect-src 'self' https://userbird.netlify.app/.netlify/functions/* https://*.supabase.co *; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+
+[[headers]]
+  for = "/widget.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET"
+    Content-Type = "application/javascript; charset=utf-8"
+    Content-Security-Policy = "default-src 'none'; script-src 'unsafe-inline'; connect-src https://userbird.netlify.app/.netlify/functions/*; style-src 'unsafe-inline';"
