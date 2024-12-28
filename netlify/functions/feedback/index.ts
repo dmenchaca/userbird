@@ -1,9 +1,10 @@
-import { Handler } from '@netlify/functions'
-import { createClient } from '@supabase/supabase-js'
+import { Handler } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
+import { isValidOrigin } from './validation';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL!
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function getCorsHeaders(origin: string | undefined) {
   return {
@@ -11,98 +12,86 @@ function getCorsHeaders(origin: string | undefined) {
     'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Max-Age': '86400',
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+    'Vary': 'Origin'
+  };
 }
 
-function createResponse(statusCode: number, headers: Record<string, string>, body: string = '') {
-  return {
-    statusCode,
-    headers: {
-      ...headers,
-      'Vary': 'Origin'  // Important for CDN caching
-    },
-    body
-  }
-}
-
-async function isAllowedOrigin(origin: string, formId: string): Promise<boolean> {
+async function validateFormId(formId: string, origin: string): Promise<boolean> {
   try {
     const { data: form } = await supabase
       .from('forms')
       .select('url')
       .eq('id', formId)
-      .single()
+      .single();
 
-    if (!form) return false
-
-    // Extract domain from origin and stored URL for comparison
-    const originDomain = new URL(origin).hostname
-    const storedDomain = form.url.toLowerCase()
-
-    return originDomain === storedDomain
+    if (!form) return false;
+    return isValidOrigin(origin, form.url);
   } catch {
-    return false
+    return false;
   }
 }
 
 export const handler: Handler = async (event) => {
-  const origin = event.headers.origin || event.headers.Origin
-  const corsHeaders = getCorsHeaders(origin)
+  const origin = event.headers.origin || event.headers.Origin;
+  const headers = getCorsHeaders(origin);
 
-  // Handle preflight requests
+  // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
-    return createResponse(204, corsHeaders)
-  }
-
-  // Validate request method
-  if (event.httpMethod !== 'POST') {
-    return createResponse(405, corsHeaders, JSON.stringify({ error: 'Method not allowed' }))
-  }
-
-  // Validate Content-Type
-  const contentType = event.headers['content-type'] || ''
-  if (!contentType.includes('application/json')) {
-    return createResponse(415, corsHeaders, JSON.stringify({ error: 'Unsupported Media Type. Please send JSON' }))
+    return { statusCode: 204, headers };
   }
 
   try {
-    // Parse and validate request body
-    let body
-    try {
-      body = JSON.parse(event.body || '{}')
-    } catch {
-      return createResponse(400, corsHeaders, JSON.stringify({ error: 'Invalid JSON' }))
+    // Validate request
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers,
+        body: JSON.stringify({ error: 'Method not allowed' })
+      };
     }
 
-    const { formId, message } = body
+    const body = JSON.parse(event.body || '{}');
+    const { formId, message } = body;
 
-    if (!formId || typeof formId !== 'string') {
-      return createResponse(400, corsHeaders, JSON.stringify({ error: 'Invalid or missing formId' }))
-    }
-
-    if (!message || typeof message !== 'string') {
-      return createResponse(400, corsHeaders, JSON.stringify({ error: 'Invalid or missing message' }))
+    if (!formId || !message?.trim()) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid request data' })
+      };
     }
 
     // Validate origin
     if (origin) {
-      const allowed = await isAllowedOrigin(origin, formId)
-      if (!allowed) {
-        return createResponse(403, corsHeaders, JSON.stringify({ error: 'Origin not allowed' }))
+      const isValid = await validateFormId(formId, origin);
+      if (!isValid) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Origin not allowed' })
+        };
       }
     }
 
     // Store feedback
     const { error: insertError } = await supabase
       .from('feedback')
-      .insert([{ form_id: formId, message }])
+      .insert([{ form_id: formId, message }]);
 
-    if (insertError) throw insertError
+    if (insertError) throw insertError;
 
-    return createResponse(200, corsHeaders, JSON.stringify({ success: true }))
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true })
+    };
   } catch (error) {
-    console.error('Error:', error)
-    return createResponse(500, corsHeaders, JSON.stringify({ error: 'Internal server error' }))
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
   }
-}
+};
