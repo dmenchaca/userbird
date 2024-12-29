@@ -8,10 +8,14 @@ declare global {
       init: (options: { formId: string }) => void
       formId?: string
     }
+    UserBirdWidget: {
+      init: (options: { formId: string }) => void
+    }
   }
 }
 
-window.Userbird = {
+// Export the widget initialization function
+window.UserBirdWidget = {
   init: ({ formId }) => {
     // Create container
     const container = document.createElement('div')

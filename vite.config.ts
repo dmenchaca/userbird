@@ -13,17 +13,13 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-      },
-      output: {
-        manualChunks: undefined,
       }
     },
-    // Separate widget build configuration
     lib: {
       entry: path.resolve(__dirname, 'src/lib/widget-loader.tsx'),
       name: 'UserBirdWidget',
       fileName: 'widget.bundle',
-      formats: ['iife'],
+      formats: ['iife']
     }
   }
 })
