@@ -18,7 +18,8 @@ export default defineConfig({
       output: {
         entryFileNames: (chunkInfo) => {
           return chunkInfo.name === 'widget' ? 'widget.bundle.js' : '[name].[hash].js'
-        }
+        },
+        format: 'iife', // This ensures the widget bundle is built as a regular script
       }
     }
   }
