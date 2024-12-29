@@ -1,6 +1,17 @@
+import { useEffect } from 'react'
 import { FormCreator } from './components/form-creator'
 
 export default function App() {
+  useEffect(() => {
+    // Initialize Userbird
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = "DsJdsOsIxc";
+    
+    const script = document.createElement('script');
+    script.src = 'https://userbird.netlify.app/widget.js';
+    document.head.appendChild(script);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="bg-white border-b shadow-sm">
@@ -17,6 +28,12 @@ export default function App() {
                 <a href="/about" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                   About
                 </a>
+                <button 
+                  id="userbird-trigger-DsJdsOsIxc" 
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Feedback
+                </button>
               </div>
             </div>
           </div>

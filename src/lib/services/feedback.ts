@@ -1,20 +1,7 @@
-import { supabase } from '../supabase'
+import { FeedbackService } from '../core/feedback-service';
 
-interface FeedbackSubmission {
-  formId: string
-  message: string
-}
+export type { FeedbackSubmission } from '../core/types';
 
-export async function submitFeedback({ formId, message }: FeedbackSubmission) {
-  if (!formId || !message.trim()) {
-    throw new Error('Form ID and message are required')
-  }
+const feedbackService = FeedbackService.getInstance();
 
-  const { error } = await supabase
-    .from('feedback')
-    .insert([{ form_id: formId, message }])
-
-  if (error) throw error
-
-  return { success: true }
-}
+export const submitFeedback = feedbackService.submitFeedback.bind(feedbackService);
