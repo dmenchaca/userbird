@@ -18,7 +18,7 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/lib/widget-loader.tsx'),
       name: 'UserBirdWidget',
-      fileName: 'widget.bundle',
+      fileName: 'widget',
       formats: ['iife']
     }
   }
