@@ -16,20 +16,8 @@
 [[headers]]
   for = "/widget.js"
   [headers.values]
-    Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-    Pragma = "no-cache"
-    Expires = "0"
+    Cache-Control = "no-cache"
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET"
     Content-Type = "application/javascript; charset=utf-8"
     Content-Security-Policy = "default-src 'none'; script-src 'unsafe-inline'; connect-src https://userbird.netlify.app/.netlify/functions/*; style-src 'unsafe-inline';"
-
-[[headers]]
-  for = "/widget.bundle.js"
-  [headers.values]
-    Cache-Control = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-    Pragma = "no-cache"
-    Expires = "0"
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET"
-    Content-Type = "application/javascript; charset=utf-8"
