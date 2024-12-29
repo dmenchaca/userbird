@@ -23,7 +23,7 @@ export function FeedbackDialogContent({
     return (
       <div className="text-center py-6 px-4 space-y-4">
         <Dialog.Title className="text-lg font-semibold">
-          Thank you
+          Thank you for your feedback!
         </Dialog.Title>
         <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
         <p className="text-sm text-muted-foreground">
