@@ -13,13 +13,13 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
+        widget: path.resolve(__dirname, 'src/lib/widget-loader.tsx')
+      },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name]-[hash].js',
+        assetFileNames: '[name].[ext]'
       }
-    },
-    lib: {
-      entry: path.resolve(__dirname, 'src/lib/widget-loader.tsx'),
-      name: 'UserBirdWidget',
-      fileName: 'widget',
-      formats: ['iife']
     }
   }
 })
