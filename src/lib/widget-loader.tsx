@@ -4,6 +4,10 @@ import { FeedbackForm } from '@/components/feedback-form'
 
 declare global {
   interface Window {
+    UserBird: {
+      formId: string
+      init?: (options: { formId: string }) => void
+    }
     Userbird: {
       init: (options: { formId: string }) => void
     }
