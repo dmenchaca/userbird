@@ -13,14 +13,17 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        widget: path.resolve(__dirname, 'src/lib/widget-loader.tsx')
       },
       output: {
-        entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === 'widget' ? 'widget.bundle.js' : '[name].[hash].js'
-        },
-        format: 'iife', // This ensures the widget bundle is built as a regular script
+        manualChunks: undefined,
       }
+    },
+    // Separate widget build configuration
+    lib: {
+      entry: path.resolve(__dirname, 'src/lib/widget-loader.tsx'),
+      name: 'UserBirdWidget',
+      fileName: 'widget.bundle',
+      formats: ['iife'],
     }
   }
 })
