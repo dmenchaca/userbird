@@ -3,8 +3,8 @@ import { useEffect } from 'react'
 export default function FooPage() {
   useEffect(() => {
     // Initialize Userbird
-    window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "kkkQN6MVLm";
+    window.Userbird = window.Userbird || {};
+    window.Userbird.formId = "kkkQN6MVLm";
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';

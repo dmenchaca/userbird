@@ -6,6 +6,7 @@ declare global {
   interface Window {
     Userbird: {
       init: (options: { formId: string }) => void
+      formId?: string
     }
   }
 }
