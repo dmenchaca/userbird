@@ -5,7 +5,7 @@ export default function App() {
   useEffect(() => {
     // Initialize Userbird
     window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "DsJdsOsIxc";
+    window.UserBird.formId = "eWOlyuCj97";
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -29,7 +29,7 @@ export default function App() {
                   About
                 </a>
                 <button 
-                  id="userbird-trigger-DsJdsOsIxc" 
+                  id="userbird-trigger-eWOlyuCj97" 
                   className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Feedback
