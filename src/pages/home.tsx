@@ -1,4 +1,3 @@
-import React from 'react'
 import { FormCreator } from '../components/form-creator'
 
 export default function HomePage() {
