@@ -22,8 +22,10 @@ export function FeedbackDialogContent({
   if (state === 'success') {
     return (
       <div className="text-center py-6 px-4 space-y-4">
+        <Dialog.Title className="text-lg font-semibold">
+          Thank you for your feedback!
+        </Dialog.Title>
         <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-        <h2 className="text-lg font-semibold">Thank you for your feedback!</h2>
         <p className="text-sm text-muted-foreground">
           Your message has been received and will be reviewed by our team.
         </p>
@@ -35,8 +37,8 @@ export function FeedbackDialogContent({
   }
 
   return (
-    <>
-      <Dialog.Title className="text-lg font-semibold mb-4">
+    <div className="space-y-4">
+      <Dialog.Title className="text-lg font-semibold">
         Send Feedback
       </Dialog.Title>
       <form onSubmit={onSubmit} className="space-y-4">
@@ -76,6 +78,6 @@ export function FeedbackDialogContent({
           </Button>
         </div>
       </form>
-    </>
+    </div>
   )
 }
