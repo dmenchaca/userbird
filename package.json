@@ -20,6 +20,8 @@
     "@radix-ui/react-tabs": "^1.0.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "final-form": "^4.20.10",
+    "react-final-form": "^6.5.9",
     "lucide-react": "^0.358.0",
     "nanoid": "^5.0.6",
     "tailwind-merge": "^2.2.1",
