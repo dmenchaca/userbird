@@ -1,15 +1,12 @@
-import { useEffect } from 'react'
 import { FormCreator } from './components/form-creator'
+import { useEffect } from 'react'
+import { initFeedbackWidget } from './lib/feedback-widget'
 
 export default function App() {
   useEffect(() => {
-    // Initialize Userbird
-    window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "DsJdsOsIxc";
-    
-    const script = document.createElement('script');
-    script.src = 'https://userbird.netlify.app/widget.js';
-    document.head.appendChild(script);
+    // Initialize the feedback widget
+    const formId = '7swsW33yQE';
+    initFeedbackWidget(formId);
   }, []);
 
   return (
@@ -28,14 +25,14 @@ export default function App() {
                 <a href="/about" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                   About
                 </a>
-                <button 
-                  id="userbird-trigger-DsJdsOsIxc" 
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Feedback
-                </button>
               </div>
             </div>
+            <button 
+              id="userbird-trigger-7swsW33yQE" 
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            >
+            Feedback
+          </button>
           </div>
         </div>
       </nav>
