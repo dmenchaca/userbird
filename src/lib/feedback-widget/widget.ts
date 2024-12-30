@@ -14,7 +14,9 @@ async function getFormStyle(formId: string) {
       .single();
 
     if (error) throw error;
-    return data?.button_color || '#1f2937';
+    const color = data?.button_color || '#1f2937';
+    Logger.debug('Retrieved button color:', color);
+    return color;
   } catch (error) {
     Logger.error('Error fetching form style:', error);
     return '#1f2937';
@@ -28,6 +30,8 @@ export async function createWidget(formId: string) {
   const style = document.createElement('style');
   style.textContent = createStyles(buttonColor);
   document.head.appendChild(style);
+  
+  Logger.debug('Injected custom styles with button color:', buttonColor);
   
   const modal = createModal();
   const trigger = createTrigger(formId);
