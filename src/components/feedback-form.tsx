@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { submitFeedback } from '@/lib/services/feedback'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { FEEDBACK_MESSAGES as MSG } from '@/lib/constants/messages'
 
 interface FeedbackFormProps {
   formId: string
@@ -20,7 +21,6 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // Only close if we're not in success state
       if (dialogState !== 'success') {
         setIsOpen(false)
       }
@@ -31,7 +31,6 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
 
   const handleClose = () => {
     setIsOpen(false)
-    // Reset state after dialog closes
     setTimeout(() => {
       setDialogState('normal')
       setMessage('')
@@ -47,9 +46,8 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
     try {
       await submitFeedback({ formId, message })
       setDialogState('success')
-      // Don't close immediately - let user see success state
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit feedback')
+      setError(err instanceof Error ? err.message : MSG.error.default)
       setDialogState('error')
     } finally {
       setIsSubmitting(false)
@@ -63,16 +61,13 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
           <div className="text-center py-6 px-4 space-y-4">
             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Thank you for your feedback!</h3>
+              <h3 className="text-lg font-semibold">{MSG.success.title}</h3>
               <p className="text-sm text-muted-foreground">
-                Your message has been received and will be reviewed by our team.
+                {MSG.success.description}
               </p>
             </div>
-            <Button
-              onClick={handleClose}
-              className="mt-4"
-            >
-              Close
+            <Button onClick={handleClose} className="mt-4">
+              {MSG.labels.close}
             </Button>
           </div>
         )
@@ -84,7 +79,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="What's on your mind?"
+              placeholder={MSG.placeholders.textarea}
               required
               className="min-h-[100px]"
             />
@@ -97,11 +92,11 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
             <div className="flex justify-end gap-3">
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">
-                  Cancel
+                  {MSG.labels.cancel}
                 </Button>
               </Dialog.Close>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Sending...' : 'Send Feedback'}
+                {isSubmitting ? MSG.labels.submitting : MSG.labels.submit}
               </Button>
             </div>
           </form>
@@ -118,7 +113,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
         <Dialog.Overlay className="fixed inset-0 bg-black/50" />
         <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-6 shadow-lg">
           <Dialog.Title className="text-lg font-semibold mb-4">
-            {dialogState === 'success' ? 'Feedback Sent' : 'Send Feedback'}
+            {dialogState === 'success' ? MSG.success.title : 'Send Feedback'}
           </Dialog.Title>
           {renderContent()}
         </Dialog.Content>

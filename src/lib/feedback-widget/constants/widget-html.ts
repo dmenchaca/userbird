@@ -13,7 +13,7 @@ export const WIDGET_HTML = {
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M22 4L12 14.01l-3-3" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <h3 class="ub-success-title">Thank you for your feedback!</h3>
+        <h3 class="ub-success-title">Thank you</h3>
         <p class="ub-success-message">Your message has been received and will be reviewed by our team.</p>
         <button class="ub-button ub-close">Close</button>
       </div>
