@@ -1,6 +1,5 @@
-// Main widget entry point
 import { createWidget } from './widget';
-import { injectStyles } from './styles';
+import { createStyles } from './styles';
 import { Logger } from './logger';
 
 export function initFeedbackWidget(formId: string) {
@@ -9,7 +8,11 @@ export function initFeedbackWidget(formId: string) {
     return;
   }
 
-  injectStyles();
+  // Inject styles with default color - will be updated when form data is fetched
+  const style = document.createElement('style');
+  style.textContent = createStyles();
+  document.head.appendChild(style);
+  
   createWidget(formId);
 }
 
@@ -18,7 +21,7 @@ declare global {
   interface Window {
     UserBird?: {
       formId?: string;
-      position?: string;
+      buttonColor?: string;
     };
   }
 }
