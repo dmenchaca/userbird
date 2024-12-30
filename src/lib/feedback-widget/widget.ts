@@ -24,15 +24,18 @@ async function getFormStyle(formId: string) {
 }
 
 export async function createWidget(formId: string) {
-  const buttonColor = await getFormStyle(formId);
+  Logger.debug('Initializing widget and fetching form style...');
   
-  // Update styles with correct button color
+  // First get the button color
+  const buttonColor = await getFormStyle(formId);
+  Logger.debug(`Using button color: ${buttonColor}`);
+  
+  // Then inject styles with the correct color
   const style = document.createElement('style');
   style.textContent = createStyles(buttonColor);
   document.head.appendChild(style);
   
-  Logger.debug(`Injected custom styles for .ub-button with color: ${buttonColor}`);
-  Logger.debug(`CSS Rule: .ub-button { background: ${buttonColor}; }`);
+  Logger.debug('Injected styles with custom button color');
   
   const modal = createModal();
   const trigger = createTrigger(formId);
@@ -65,4 +68,6 @@ export async function createWidget(formId: string) {
   });
 
   modal.onClose(() => modal.close());
+  
+  Logger.debug('Widget initialization complete');
 }
