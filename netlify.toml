@@ -20,4 +20,4 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET"
     Content-Type = "application/javascript; charset=utf-8"
-    Content-Security-Policy = "default-src 'none'; script-src 'unsafe-inline'; connect-src https://userbird.netlify.app/.netlify/functions/*; style-src 'unsafe-inline';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://userbird.netlify.app; connect-src https://userbird.netlify.app/.netlify/functions/* https://*.supabase.co; style-src 'unsafe-inline';"
