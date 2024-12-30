@@ -5,8 +5,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { isValidUrl, isValidHexColor } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import { FeedbackTable } from './feedback-table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
+import { FormInstructions } from './form-instructions'
 
 export function FormCreator() {
   const [url, setUrl] = useState('')
