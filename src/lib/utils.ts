@@ -7,9 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 export function isValidUrl(url: string) {
   try {
-    new URL(url);
-    return true;
+    new URL(url)
+    return true
   } catch {
-    return false;
+    return false
   }
+}
+
+export function isValidHexColor(color: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(color)
 }
