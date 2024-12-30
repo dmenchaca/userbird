@@ -32,10 +32,9 @@
     return response.json();
   }
 
-  // Core widget functionality
   const UserBirdWidget = {
     formId: null,
-    state: 'normal', // 'normal' | 'success' | 'error'
+    state: 'normal',
     elements: {
       modal: null,
       backdrop: null,
@@ -157,7 +156,6 @@
     async createElements() {
       Logger.debug('Creating elements');
       
-      // Create form content
       const formContent = `
         <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Send Feedback</h3>
         <textarea class="userbird-textarea" placeholder="What's on your mind?"></textarea>
@@ -168,33 +166,28 @@
         </div>
       `;
 
-      // Create success content
       const successContent = `
         <div class="userbird-success">
           <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M22 4L12 14.01l-3-3" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <h3 class="userbird-success-title">Thank you for your feedback!</h3>
+          <h3 class="userbird-success-title">Thank you</h3>
           <p class="userbird-success-message">Your message has been received and will be reviewed by our team.</p>
           <button class="userbird-button userbird-close">Close</button>
         </div>
       `;
 
-      // Create modal
       this.elements.modal = document.createElement('div');
       this.elements.modal.className = 'userbird-modal';
       this.elements.modal.innerHTML = formContent + successContent;
 
-      // Create backdrop
       this.elements.backdrop = document.createElement('div');
       this.elements.backdrop.className = 'userbird-backdrop';
 
-      // Append elements
       document.body.appendChild(this.elements.backdrop);
       document.body.appendChild(this.elements.modal);
 
-      // Store element references
       this.elements.trigger = document.getElementById(`userbird-trigger-${this.formId}`);
       this.elements.submitButton = this.elements.modal.querySelector('.userbird-submit');
       this.elements.textarea = this.elements.modal.querySelector('.userbird-textarea');
@@ -213,7 +206,6 @@
     setupEventListeners() {
       Logger.debug('Setting up event listeners');
       
-      // Modal events
       const handleEscKey = (e) => {
         if (e.key === 'Escape' && this.elements.modal.classList.contains('open')) {
           Logger.debug('Modal closed: Pressed ESC key');
@@ -233,7 +225,6 @@
         this.closeModal();
       });
       
-      // Add ESC key handler
       document.addEventListener('keydown', handleEscKey);
       
       this.elements.modal?.querySelector('.userbird-close')?.addEventListener('click', () => {
@@ -241,10 +232,8 @@
         this.closeModal();
       });
 
-      // Store the handler for cleanup
       this._escKeyHandler = handleEscKey;
       
-      // Form events
       this.elements.modal?.addEventListener('submit', (e) => e.preventDefault());
       this.elements.submitButton?.addEventListener('click', () => {
         Logger.debug('Submit button clicked');
@@ -349,7 +338,6 @@
     }
   };
 
-  // Initialize the widget
   const formId = window.UserBird?.formId;
   Logger.debug('Starting widget initialization with formId:', formId);
   UserBirdWidget.init({ formId }).catch(error => {
