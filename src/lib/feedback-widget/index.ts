@@ -3,6 +3,9 @@ import { Logger } from './logger';
 import { supabase } from '../supabase';
 
 async function getFormSettings(formId: string) {
+  Logger.debug('Attempting to fetch form settings from Supabase');
+  Logger.debug('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+  
   try {
     const { data, error } = await supabase
       .from('forms')
@@ -10,11 +13,15 @@ async function getFormSettings(formId: string) {
       .eq('id', formId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      Logger.debug('Supabase error:', error);
+      throw error;
+    }
     Logger.debug(`Retrieved form settings:`, data);
     return data;
   } catch (error) {
     Logger.error('Error fetching form settings:', error);
+    Logger.debug('Falling back to default color');
     return { button_color: '#1f2937' };
   }
 }
@@ -26,6 +33,10 @@ export async function initFeedbackWidget(formId: string) {
   }
 
   Logger.debug('Initializing widget with formId:', formId);
+  Logger.debug('Environment check:', {
+    supabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
+    supabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+  });
   
   // Fetch form settings first
   const settings = await getFormSettings(formId);

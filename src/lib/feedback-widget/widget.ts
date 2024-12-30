@@ -7,12 +7,16 @@ import { createStyles } from './styles';
 export async function createWidget(formId: string, buttonColor: string) {
   Logger.debug(`Creating widget with button color: ${buttonColor}`);
   
-  // Inject styles with the correct button color
+  // Log the full CSS being injected
+  const styleContent = createStyles(buttonColor);
+  Logger.debug('Injecting CSS:', styleContent);
+  
   const style = document.createElement('style');
-  style.textContent = createStyles(buttonColor);
+  style.textContent = styleContent;
   document.head.appendChild(style);
   
-  Logger.debug(`Injected custom styles for button with color: ${buttonColor}`);
+  // Verify style was added
+  Logger.debug('Style element added to head:', document.head.contains(style));
   
   const modal = createModal();
   const trigger = createTrigger(formId);
@@ -22,9 +26,22 @@ export async function createWidget(formId: string, buttonColor: string) {
     return;
   }
 
+  // Log the computed styles
+  const computedStyle = window.getComputedStyle(trigger);
+  Logger.debug('Trigger button computed styles:', {
+    background: computedStyle.backgroundColor,
+    color: computedStyle.color,
+    className: trigger.className,
+    id: trigger.id
+  });
+
   trigger.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    Logger.debug('Trigger clicked, current styles:', {
+      background: window.getComputedStyle(trigger).backgroundColor,
+      color: window.getComputedStyle(trigger).color
+    });
     modal.open(trigger);
   });
 
