@@ -15,7 +15,7 @@ async function getFormStyle(formId: string) {
 
     if (error) throw error;
     const color = data?.button_color || '#1f2937';
-    Logger.debug('Retrieved button color:', color);
+    Logger.debug(`Retrieved button color from database: ${color} for form ID: ${formId}`);
     return color;
   } catch (error) {
     Logger.error('Error fetching form style:', error);
@@ -31,7 +31,8 @@ export async function createWidget(formId: string) {
   style.textContent = createStyles(buttonColor);
   document.head.appendChild(style);
   
-  Logger.debug('Injected custom styles with button color:', buttonColor);
+  Logger.debug(`Injected custom styles for .ub-button with color: ${buttonColor}`);
+  Logger.debug(`CSS Rule: .ub-button { background: ${buttonColor}; }`);
   
   const modal = createModal();
   const trigger = createTrigger(formId);
