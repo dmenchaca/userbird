@@ -1,9 +1,13 @@
 import { FormCreator } from './components/form-creator'
 import { useEffect } from 'react'
 import { initFeedbackWidget } from './lib/feedback-widget'
+import { testConnection } from './lib/test-connection'
 
 export default function App() {
   useEffect(() => {
+    // Test Supabase connection
+    testConnection()
+
     // Initialize the feedback widget
     const formId = '7swsW33yQE';
     initFeedbackWidget(formId);
