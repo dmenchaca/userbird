@@ -8,15 +8,11 @@ export function initFeedbackWidget(formId: string) {
     return;
   }
 
-  // Inject styles with default color - will be updated when form data is fetched
-  const style = document.createElement('style');
-  style.textContent = createStyles();
-  document.head.appendChild(style);
-  
-  createWidget(formId);
+  createWidget(formId).catch(error => {
+    Logger.error('Failed to initialize widget:', error);
+  });
 }
 
-// Expose global initialization
 declare global {
   interface Window {
     UserBird?: {

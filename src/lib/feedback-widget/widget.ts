@@ -14,9 +14,7 @@ async function getFormStyle(formId: string) {
       .single();
 
     if (error) throw error;
-    const color = data?.button_color || '#1f2937';
-    Logger.debug(`Retrieved button color from database: ${color} for form ID: ${formId}`);
-    return color;
+    return data?.button_color || '#1f2937';
   } catch (error) {
     Logger.error('Error fetching form style:', error);
     return '#1f2937';
@@ -31,15 +29,13 @@ export async function createWidget(formId: string) {
   style.textContent = createStyles(buttonColor);
   document.head.appendChild(style);
   
-  Logger.debug(`Injected custom styles for .ub-button with color: ${buttonColor}`);
-  Logger.debug(`CSS Rule: .ub-button { background: ${buttonColor}; }`);
+  Logger.debug(`Injected custom styles with button color: ${buttonColor}`);
   
   const modal = createModal();
-  const trigger = createTrigger(formId);
+  const trigger = document.getElementById(`userbird-trigger-${formId}`);
 
   if (!trigger) {
-    Logger.error('Trigger element not found');
-    return;
+    throw new Error('Trigger element not found');
   }
 
   trigger.addEventListener('click', (e) => {
