@@ -2,40 +2,17 @@ import { createModal } from './modal';
 import { createTrigger } from './trigger';
 import { submitFeedback } from '../services/feedback';
 import { Logger } from './logger';
-import { supabase } from '../supabase';
 import { createStyles } from './styles';
 
-async function getFormStyle(formId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('forms')
-      .select('button_color')
-      .eq('id', formId)
-      .single();
-
-    if (error) throw error;
-    const color = data?.button_color || '#1f2937';
-    Logger.debug(`Retrieved button color from database: ${color} for form ID: ${formId}`);
-    return color;
-  } catch (error) {
-    Logger.error('Error fetching form style:', error);
-    return '#1f2937';
-  }
-}
-
-export async function createWidget(formId: string) {
-  Logger.debug('Initializing widget and fetching form style...');
+export async function createWidget(formId: string, buttonColor: string) {
+  Logger.debug(`Creating widget with button color: ${buttonColor}`);
   
-  // First get the button color
-  const buttonColor = await getFormStyle(formId);
-  Logger.debug(`Using button color: ${buttonColor}`);
-  
-  // Then inject styles with the correct color
+  // Inject styles with the correct button color
   const style = document.createElement('style');
   style.textContent = createStyles(buttonColor);
   document.head.appendChild(style);
   
-  Logger.debug('Injected styles with custom button color');
+  Logger.debug(`Injected custom styles for button with color: ${buttonColor}`);
   
   const modal = createModal();
   const trigger = createTrigger(formId);
@@ -68,6 +45,4 @@ export async function createWidget(formId: string) {
   });
 
   modal.onClose(() => modal.close());
-  
-  Logger.debug('Widget initialization complete');
 }
