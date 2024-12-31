@@ -5,25 +5,64 @@ export function createStyles(buttonColor) {
       background-color: ${buttonColor} !important;
       color: white !important;
       border: none !important;
-      padding: 8px 16px !important;
+      padding: 12px 20px !important;
       border-radius: 6px !important;
       cursor: pointer !important;
       font-family: inherit !important;
       font-size: 14px !important;
       transition: opacity 0.2s !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      min-width: 120px !important;
+      font-weight: 500 !important;
     }
     .userbird-button:hover {
       opacity: 0.9 !important;
+    }
+    .userbird-button:disabled {
+      opacity: 0.7 !important;
+      cursor: not-allowed !important;
     }
     .userbird-button-secondary {
       background: transparent !important;
       border: 1px solid #e5e7eb !important;
       color: #6b7280 !important;
+      padding: 11px 19px !important;
     }
     .userbird-button-secondary:hover {
       background: #f3f4f6 !important;
       opacity: 1 !important;
     }
+    .userbird-spinner {
+      display: none;
+      width: 16px !important;
+      height: 16px !important;
+      animation: userbird-spin 1s linear infinite !important;
+    }
+    .userbird-spinner-circle {
+      opacity: 0.25;
+    }
+    .userbird-spinner-circle:nth-child(1) {
+      opacity: 1;
+      stroke-dasharray: 60;
+      stroke-dashoffset: 60;
+      animation: userbird-circle 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .userbird-submit[disabled] .userbird-spinner {
+      display: block !important;
+    }
+    .userbird-submit[disabled] .userbird-submit-text {
+      opacity: 0.8 !important;
+    }
+    @keyframes userbird-spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes userbird-circle {
+      100% { stroke-dashoffset: 0; }
+    }
+    /* Rest of the styles remain unchanged */
     .userbird-modal {
       display: none;
       position: fixed;

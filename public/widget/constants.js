@@ -6,7 +6,7 @@ export const MESSAGES = {
   },
   labels: {
     submit: 'Send Feedback',
-    submitting: 'Sending...',
+    submitting: 'Sending Feedback...',
     close: 'Close',
     cancel: 'Cancel'
   },
@@ -16,6 +16,12 @@ export const MESSAGES = {
 };
 
 export const TEMPLATES = {
+  SPINNER: `
+    <svg class="userbird-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle class="userbird-spinner-circle" cx="12" cy="12" r="10" stroke-width="4"></circle>
+    </svg>
+  `,
+  
   MODAL: `
     <div class="userbird-modal-content">
       <h3 class="userbird-title">Send Feedback</h3>
@@ -23,7 +29,10 @@ export const TEMPLATES = {
       <div class="userbird-error"></div>
       <div class="userbird-buttons">
         <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
-        <button class="userbird-button userbird-submit">${MESSAGES.labels.submit}</button>
+        <button class="userbird-button userbird-submit">
+          <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
+          ${TEMPLATES.SPINNER}
+        </button>
       </div>
       <div class="userbird-success">
         <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
