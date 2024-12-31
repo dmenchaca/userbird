@@ -62,7 +62,6 @@ export function createStyles(buttonColor) {
     @keyframes userbird-circle {
       100% { stroke-dashoffset: 0; }
     }
-    /* Rest of the styles remain unchanged */
     .userbird-modal {
       display: none;
       position: fixed;
@@ -76,6 +75,13 @@ export function createStyles(buttonColor) {
     .userbird-modal.open { display: block; }
     .userbird-modal-content {
       padding: 1.5rem;
+      position: relative;
+    }
+    .userbird-form {
+      transition: opacity 0.2s;
+    }
+    .userbird-form.hidden {
+      display: none;
     }
     .userbird-title {
       font-size: 1.125rem;
@@ -126,7 +132,12 @@ export function createStyles(buttonColor) {
       text-align: center;
       padding: 2rem 1rem;
     }
-    .userbird-success.open { display: block; }
+    .userbird-success.open {
+      display: block;
+    }
+    .userbird-success.open ~ .userbird-form {
+      display: none;
+    }
     .userbird-success-icon {
       width: 48px;
       height: 48px;

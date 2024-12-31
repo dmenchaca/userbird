@@ -24,15 +24,17 @@ export const TEMPLATES = {
   
   MODAL: `
     <div class="userbird-modal-content">
-      <h3 class="userbird-title">Send Feedback</h3>
-      <textarea class="userbird-textarea" placeholder="What's on your mind?"></textarea>
-      <div class="userbird-error"></div>
-      <div class="userbird-buttons">
-        <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
-        <button class="userbird-button userbird-submit">
-          <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
-          ${TEMPLATES.SPINNER}
-        </button>
+      <div class="userbird-form">
+        <h3 class="userbird-title">Send Feedback</h3>
+        <textarea class="userbird-textarea" placeholder="What's on your mind?"></textarea>
+        <div class="userbird-error"></div>
+        <div class="userbird-buttons">
+          <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
+          <button class="userbird-button userbird-submit">
+            <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
+            ${TEMPLATES.SPINNER}
+          </button>
+        </div>
       </div>
       <div class="userbird-success">
         <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
