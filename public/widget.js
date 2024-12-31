@@ -34,10 +34,8 @@
 
   function createModal() {
     const modal = document.createElement('div');
-    const backdrop = document.createElement('div');
     
     modal.className = 'userbird-modal';
-    backdrop.className = 'userbird-backdrop';
     
     modal.innerHTML = `
       <div class="userbird-modal-content">
@@ -67,12 +65,10 @@
       </div>
     `;
 
-    document.body.appendChild(backdrop);
     document.body.appendChild(modal);
 
     return {
       modal,
-      backdrop,
       form: modal.querySelector('.userbird-form'),
       textarea: modal.querySelector('.userbird-textarea'),
       submitButton: modal.querySelector('.userbird-submit'),
@@ -112,14 +108,6 @@
         margin-bottom: 1rem;
         color: #111827;
       }
-      .userbird-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999;
-      }
-      .userbird-backdrop.open { display: block; }
       .userbird-textarea {
         width: 100%;
         min-height: 100px;
@@ -243,13 +231,11 @@
     trigger.addEventListener('click', (e) => {
       e.preventDefault();
       elements.modal.classList.add('open');
-      elements.backdrop.classList.add('open');
       elements.textarea.focus();
     });
 
     const closeModal = () => {
       elements.modal.classList.remove('open');
-      elements.backdrop.classList.remove('open');
       setTimeout(() => {
         elements.textarea.value = '';
         elements.form.classList.remove('hidden');
@@ -262,7 +248,6 @@
     elements.closeButtons.forEach(button => {
       button.addEventListener('click', closeModal);
     });
-    elements.backdrop.addEventListener('click', closeModal);
 
     elements.submitButton.addEventListener('click', async () => {
       const message = elements.textarea.value.trim();
