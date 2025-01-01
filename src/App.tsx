@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { FormCreator } from './components/form-creator'
+import { VERSION } from '@/lib/feedback-widget/version'
 
 export default function App() {
   useEffect(() => {
@@ -8,7 +9,7 @@ export default function App() {
     window.UserBird.formId = "eWOlyuCj97";
     
     const script = document.createElement('script');
-    script.src = 'https://userbird.netlify.app/widget.js';
+    script.src = `https://userbird.netlify.app/widget.js?v=${VERSION}`;
     document.head.appendChild(script);
   }, []);
 
