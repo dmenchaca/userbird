@@ -6,11 +6,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[headers]]
-  for = "/widget.js"
-  [headers.values]
-    Cache-Control = "no-cache"
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET"
-    Content-Type = "application/javascript; charset=utf-8"

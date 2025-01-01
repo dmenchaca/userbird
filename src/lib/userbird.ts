@@ -5,7 +5,6 @@ export function initUserbird(formId: string) {
   window.UserBird.formId = formId;
   
   const script = document.createElement('script');
-  // Add timestamp as cache buster
-  script.src = `https://userbird.netlify.app/widget.js?_=${Date.now()}`;
+  script.src = 'https://userbird.netlify.app/widget.js';
   document.head.appendChild(script);
 }
