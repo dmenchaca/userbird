@@ -26,9 +26,24 @@ export function FormInstructions({ formId, buttonColor }: FormInstructionsProps)
           <TabsContent value="html" className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-2">HTML Integration</h3>
-              <p className="text-sm text-muted-foreground mb-4">Add this button anywhere in your HTML:</p>
+              <p className="text-sm text-muted-foreground mb-4">Add this code to your HTML:</p>
               <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                <code>{`<button id="userbird-trigger-${formId}">Feedback</button>`}</code>
+                <code>{`<!-- Option 1: Use our default trigger button -->
+<button id="userbird-trigger-${formId}">Feedback</button>
+
+<!-- Option 2: Use your own trigger button -->
+<button onclick="UserBird.open()">Custom Feedback Button</button>
+
+<!-- Initialize Userbird -->
+<script>
+  (function(w,d,s){
+    w.UserBird = w.UserBird || {};
+    w.UserBird.formId = "${formId}";
+    s = d.createElement('script');
+    s.src = 'https://userbird.netlify.app/widget.js';
+    d.head.appendChild(s);
+  })(window,document);
+</script>`}</code>
               </pre>
             </div>
           </TabsContent>
@@ -52,9 +67,17 @@ function App() {
   }, []);
 
   return (
-    <button id="userbird-trigger-${formId}">
-      Feedback
-    </button>
+    <>
+      {/* Option 1: Use our default trigger button */}
+      <button id="userbird-trigger-${formId}">
+        Feedback
+      </button>
+
+      {/* Option 2: Use your own trigger button */}
+      <button onClick={() => window.UserBird?.open()}>
+        Custom Feedback Button
+      </button>
+    </>
   );
 }`}</code>
               </pre>
@@ -67,15 +90,20 @@ function App() {
               <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
               <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
                 <code>{`<script>
-  (function(w,d,i,s){
-    w.UserBird=w.UserBird||function(){};
-    w.UserBird.formId="${formId}";
-    w.UserBird.buttonColor="${buttonColor}";
-    s=d.createElement('script');
-    s.src='https://userbird.netlify.app/widget.js';
+  (function(w,d,s){
+    w.UserBird = w.UserBird || {};
+    w.UserBird.formId = "${formId}";
+    s = d.createElement('script');
+    s.src = 'https://userbird.netlify.app/widget.js';
     d.head.appendChild(s);
   })(window,document);
-</script>`}</code>
+</script>
+
+<!-- Option 1: Use our default trigger button -->
+<button id="userbird-trigger-${formId}">Feedback</button>
+
+<!-- Option 2: Use your own trigger button -->
+<button onclick="UserBird.open()">Custom Feedback Button</button>`}</code>
               </pre>
             </div>
           </TabsContent>
@@ -84,8 +112,8 @@ function App() {
         <div className="rounded-lg border p-4 bg-muted/50">
           <h4 className="text-sm font-medium mb-2">Note</h4>
           <p className="text-sm text-muted-foreground">
-            The feedback form will automatically position itself relative to the trigger button,
-            adjusting its placement based on available space in the viewport.
+            You can either use our default trigger button by adding an element with ID "userbird-trigger-{formId}", 
+            or create your own trigger button and call UserBird.open() to show the feedback form.
           </p>
         </div>
 

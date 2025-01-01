@@ -15,7 +15,10 @@
     }
   };
 
-  async function submitFeedback(formId, message) {
+  let modal = null;
+  let formId = null;
+
+  async function submitFeedback(message) {
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
       method: 'POST',
       headers: { 
@@ -210,8 +213,61 @@
     document.head.appendChild(style);
   }
 
-  async function init(formId) {
+  function positionModal(trigger) {
+    if (!modal?.modal) return;
+    
+    const modalElement = modal.modal;
+    const rect = trigger ? trigger.getBoundingClientRect() : null;
+    
+    if (rect) {
+      // Position relative to trigger
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      if (spaceBelow >= 400) {
+        modalElement.style.top = `${rect.bottom + 8}px`;
+        modalElement.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 408))}px`;
+      } else if (spaceAbove >= 400) {
+        modalElement.style.top = `${rect.top - 400 - 8}px`;
+        modalElement.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 408))}px`;
+      } else {
+        // Center if no good position relative to trigger
+        modalElement.style.top = '50%';
+        modalElement.style.left = '50%';
+        modalElement.style.transform = 'translate(-50%, -50%)';
+      }
+    } else {
+      // Center modal if no trigger
+      modalElement.style.top = '50%';
+      modalElement.style.left = '50%';
+      modalElement.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+
+  function openModal(trigger = null) {
+    if (!modal) return;
+    modal.modal.classList.add('open');
+    modal.textarea.focus();
+    positionModal(trigger);
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.modal.classList.remove('open');
+    setTimeout(() => {
+      modal.textarea.value = '';
+      modal.form.classList.remove('hidden');
+      modal.successElement.classList.remove('open');
+      modal.submitButton.disabled = false;
+      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+    }, 200);
+  }
+
+  async function init() {
     // Get form settings including button color
+    formId = window.UserBird?.formId;
+    if (!formId) return;
+
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
     const settings = await response.json();
     const buttonColor = settings.button_color || '#1f2937';
@@ -220,57 +276,47 @@
     injectStyles(buttonColor);
     
     // Create modal
-    const elements = createModal();
+    modal = createModal();
     
-    // Get trigger button
-    const trigger = document.getElementById(`userbird-trigger-${formId}`);
-    if (!trigger) return;
+    // Get default trigger button if it exists
+    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+    if (defaultTrigger) {
+      defaultTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(defaultTrigger);
+      });
+    }
 
     // Event handlers
-    trigger.addEventListener('click', (e) => {
-      e.preventDefault();
-      elements.modal.classList.add('open');
-      elements.textarea.focus();
-    });
-
-    const closeModal = () => {
-      elements.modal.classList.remove('open');
-      setTimeout(() => {
-        elements.textarea.value = '';
-        elements.form.classList.remove('hidden');
-        elements.successElement.classList.remove('open');
-        elements.submitButton.disabled = false;
-        elements.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
-      }, 200);
-    };
-
-    elements.closeButtons.forEach(button => {
+    modal.closeButtons.forEach(button => {
       button.addEventListener('click', closeModal);
     });
 
-    elements.submitButton.addEventListener('click', async () => {
-      const message = elements.textarea.value.trim();
+    modal.submitButton.addEventListener('click', async () => {
+      const message = modal.textarea.value.trim();
       if (!message) return;
 
-      elements.submitButton.disabled = true;
-      elements.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
+      modal.submitButton.disabled = true;
+      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
 
       try {
-        await submitFeedback(formId, message);
-        elements.form.classList.add('hidden');
-        elements.successElement.classList.add('open');
+        await submitFeedback(message);
+        modal.form.classList.add('hidden');
+        modal.successElement.classList.add('open');
       } catch (error) {
-        elements.errorElement.textContent = 'Failed to submit feedback';
-        elements.errorElement.style.display = 'block';
-        elements.submitButton.disabled = false;
-        elements.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+        modal.errorElement.textContent = 'Failed to submit feedback';
+        modal.errorElement.style.display = 'block';
+        modal.submitButton.disabled = false;
+        modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
       }
     });
+
+    // Expose open method globally
+    window.UserBird.open = () => openModal();
   }
 
   // Initialize if form ID is available
-  const formId = window.UserBird?.formId;
-  if (formId) {
-    init(formId).catch(console.error);
+  if (window.UserBird?.formId) {
+    init().catch(console.error);
   }
 })();
