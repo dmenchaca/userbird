@@ -110,6 +110,7 @@
         font-size: 1.125rem;
         font-weight: 600;
         color: #111827;
+        margin: 0;  /* Add this line */
       }
       .userbird-textarea {
         width: 100%;
