@@ -93,6 +93,7 @@
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         width: 400px;
         max-width: calc(100vw - 2rem);
+        border: 1px solid #e5e7eb
       }
       .userbird-modal.open { display: block; }
       .userbird-modal-content {
