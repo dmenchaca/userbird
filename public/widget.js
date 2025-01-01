@@ -97,7 +97,7 @@
       }
       .userbird-modal.open { display: block; }
       .userbird-modal-content {
-        padding: 1.5rem;
+        padding: 1rem;
         position: relative;
       }
       .userbird-form {
@@ -110,7 +110,7 @@
         font-size: 1.125rem;
         font-weight: 600;
         color: #111827;
-        margin: 0;  /* Add this line */
+        padding-bottom: 0.5rem;  /* Add this line */
       }
       .userbird-textarea {
         width: 100%;
