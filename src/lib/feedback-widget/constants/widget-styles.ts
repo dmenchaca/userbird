@@ -14,6 +14,7 @@ export const WIDGET_STYLES = `
   
   .ub-modal-content {
     padding: 1rem;
+    position: relative;
   }
   
   .ub-backdrop {
@@ -105,5 +106,13 @@ export const WIDGET_STYLES = `
     color: #6b7280;
     font-size: 0.875rem;
     margin-bottom: 1.5rem;
+  }
+  .ub-version {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 10px;
+    color: #9ca3af;
+    opacity: 0.7;
   }
 `;
