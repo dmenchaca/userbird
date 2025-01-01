@@ -13,7 +13,6 @@ export function createModal() {
     <div class="ub-modal-content">
       ${FORM_TEMPLATE}
       ${SUCCESS_TEMPLATE}
-      <div class="ub-version"></div>
     </div>
   `
 
@@ -21,7 +20,6 @@ export function createModal() {
   const submitButton = modal.querySelector('.ub-submit') as HTMLButtonElement
   const errorElement = modal.querySelector('.ub-error') as HTMLDivElement
   const closeButton = modal.querySelector('.ub-close') as HTMLButtonElement
-  const versionElement = modal.querySelector('.ub-version') as HTMLDivElement
 
   document.body.appendChild(backdrop)
   document.body.appendChild(modal)
@@ -89,10 +87,6 @@ export function createModal() {
     showError(message: string) {
       errorElement.textContent = message
       errorElement.style.display = 'block'
-    },
-
-    setVersion(version: string) {
-      versionElement.textContent = version
     }
   }
 }

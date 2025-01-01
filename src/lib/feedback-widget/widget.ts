@@ -3,7 +3,6 @@ import { createTrigger } from './trigger';
 import { submitFeedback } from '../services/feedback';
 import { Logger } from './logger';
 import { createStyles } from './styles';
-import { getVersionString } from './version';
 
 export async function createWidget(formId: string, buttonColor: string) {
   Logger.debug(`Creating widget with button color: ${buttonColor}`);
@@ -26,9 +25,6 @@ export async function createWidget(formId: string, buttonColor: string) {
     Logger.error('Trigger element not found');
     return;
   }
-
-  // Add version number
-  modal.setVersion(getVersionString());
 
   // Log the computed styles
   const computedStyle = window.getComputedStyle(trigger);

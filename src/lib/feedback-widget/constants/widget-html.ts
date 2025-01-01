@@ -17,7 +17,6 @@ export const WIDGET_HTML = {
         <p class="ub-success-message">Your message has been received and will be reviewed by our team.</p>
         <button class="ub-button ub-close">Close</button>
       </div>
-      <div class="ub-version"></div>
     </div>
   `
 };
