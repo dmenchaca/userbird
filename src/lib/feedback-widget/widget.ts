@@ -28,10 +28,7 @@ export async function createWidget(formId: string, buttonColor: string) {
   }
 
   // Add version number
-  const versionElement = modal.querySelector('.ub-version');
-  if (versionElement) {
-    versionElement.textContent = getVersionString();
-  }
+  modal.setVersion(getVersionString());
 
   // Log the computed styles
   const computedStyle = window.getComputedStyle(trigger);
