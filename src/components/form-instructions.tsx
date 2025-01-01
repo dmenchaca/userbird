@@ -4,10 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 
 interface FormInstructionsProps {
   formId: string
-  buttonColor: string
 }
 
-export function FormInstructions({ formId, buttonColor }: FormInstructionsProps) {
+export function FormInstructions({ formId }: FormInstructionsProps) {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Installation Instructions</h2>
