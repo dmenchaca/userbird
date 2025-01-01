@@ -108,13 +108,11 @@
       .userbird-title {
         font-size: 1.125rem;
         font-weight: 600;
-        margin-bottom: 1rem;
         color: #111827;
       }
       .userbird-textarea {
         width: 100%;
         min-height: 100px;
-        margin: 1rem 0;
         padding: 0.75rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
