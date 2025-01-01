@@ -132,7 +132,6 @@
         margin-top: 1rem;
       }
       .userbird-button {
-        min-width: 120px;
         padding: 0.75rem 1.25rem;
         border-radius: 6px;
         font-size: 0.875rem;
