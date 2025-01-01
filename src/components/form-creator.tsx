@@ -53,7 +53,7 @@ export function FormCreator() {
   }
 
   if (formId) {
-    return <FormInstructions formId={formId} buttonColor={buttonColor} />
+    return <FormInstructions formId={formId} />
   }
 
   return (
