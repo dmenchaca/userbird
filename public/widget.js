@@ -43,8 +43,8 @@
     modal.innerHTML = `
       <div class="userbird-modal-content">
         <div class="userbird-form">
-          <h3 class="userbird-title">Send Feedback</h3>
-          <textarea class="userbird-textarea" placeholder="Help us improve this page"></textarea>
+          <h3 class="userbird-title">Send feedback</h3>
+          <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
@@ -108,11 +108,11 @@
         display: none;
       }
       .userbird-title {
-        font-size: 1.125rem;
+        font-size: 1rem;
         font-weight: 600;
         color: #111827;
         margin-top: 0;
-        padding-bottom: 0.5rem;  /* Add this line */
+        padding-bottom: 0rem;
       }
       .userbird-textarea {
         width: 100%;
