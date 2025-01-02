@@ -279,6 +279,7 @@
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
     const settings = await response.json();
     const buttonColor = settings.button_color || '#1f2937';
+    const supportText = settings.support_text;
     
     // Inject styles
     injectStyles(buttonColor);
@@ -286,6 +287,19 @@
     // Create modal
     modal = createModal();
     
+    // Handle support text if present
+    const supportTextElement = modal.modal.querySelector('.userbird-support-text');
+    if (supportText) {
+      // Simple markdown link parser: [text](url)
+      const parsedText = supportText.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${buttonColor}; font-weight: 500; text-decoration: none;">$1</a>`
+      );
+      supportTextElement.innerHTML = parsedText;
+    } else {
+      supportTextElement.style.display = 'none';
+    }
+
     // Get default trigger button if it exists
     const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
     if (defaultTrigger) {

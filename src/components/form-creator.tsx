@@ -10,6 +10,7 @@ import { FormInstructions } from './form-instructions'
 export function FormCreator() {
   const [url, setUrl] = useState('')
   const [buttonColor, setButtonColor] = useState('#1f2937')
+  const [supportText, setSupportText] = useState('')
   const [formId, setFormId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
@@ -40,7 +41,8 @@ export function FormCreator() {
         .insert([{ 
           id: newFormId, 
           url,
-          button_color: buttonColor 
+          button_color: buttonColor,
+          support_text: supportText || null
         }])
       
       if (insertError) throw insertError
@@ -93,6 +95,20 @@ export function FormCreator() {
           </div>
           <p className="text-xs text-muted-foreground">
             Choose a color for the feedback button
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="supportText">Support Text (optional)</Label>
+          <Input
+            id="supportText"
+            value={supportText}
+            onChange={(e) => setSupportText(e.target.value)}
+            placeholder="Have a specific issue? [Contact support](https://example.com) or [read our docs](https://docs.example.com)"
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            Add optional support text with markdown links. Example: [Link text](https://example.com)
           </p>
         </div>
 
