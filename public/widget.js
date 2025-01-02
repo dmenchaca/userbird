@@ -55,6 +55,7 @@
               </svg>
             </button>
           </div>
+          <div class="userbird-support-text">Have a specific issue? Contact support or read our docs.</div>
         </div>
         <div class="userbird-success">
           <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -209,6 +210,12 @@
         color: #6b7280;
         font-size: 0.875rem;
         margin-bottom: 1.5rem;
+      }
+      .userbird-support-text {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-align: center;
+        margin-top: 1rem;
       }
     `;
     document.head.appendChild(style);
