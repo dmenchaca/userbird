@@ -64,8 +64,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
       .channel('forms_changes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'forms' },
+       { event: '*', schema: 'public', table: 'forms' },
         (payload) => {
+         if (payload.eventType === 'DELETE') {
+           setForms((current) => current.filter(form => form.id !== payload.old.id))
+           return
+         }
           setForms((current) => [payload.new as Form, ...current])
         }
       )
