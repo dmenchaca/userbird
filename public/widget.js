@@ -86,7 +86,8 @@
     const style = document.createElement('style');
     style.textContent = `
       .userbird-modal {
-        display: none;
+        opacity: 0;
+        visibility: hidden;
         position: fixed;
         z-index: 10000;
         background: white;
@@ -95,8 +96,12 @@
         width: 400px;
         max-width: calc(100vw - 2rem);
         border: 1px solid #e5e7eb;
+        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
       }
-      .userbird-modal.open { display: block; }
+      .userbird-modal.open {
+        opacity: 1;
+        visibility: visible;
+      }
       .userbird-modal-content {
         position: relative;
         padding-top: 0.75rem;
@@ -190,12 +195,19 @@
         margin-top: 0.5rem;
       }
       .userbird-success {
-        display: none;
+        opacity: 0;
+        visibility: hidden;
         text-align: center;
         padding: 2rem 1rem;
+        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
       }
       .userbird-success.open {
-        display: block;
+        opacity: 1;
+        visibility: visible;
       }
       .userbird-success-icon {
         width: 48px;
@@ -271,7 +283,7 @@
       modal.successElement.classList.remove('open');
       modal.submitButton.disabled = false;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
-    }, 200);
+    }, 150);
   }
 
   async function init() {
