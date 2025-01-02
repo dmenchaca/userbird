@@ -66,16 +66,26 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         'postgres_changes',
        { event: '*', schema: 'public', table: 'forms' },
         (payload) => {
+         console.log('Forms change event received:', {
+           eventType: payload.eventType,
+           payload
+         });
+
          if (payload.eventType === 'DELETE') {
+           console.log('Handling DELETE event, removing form:', payload.old.id);
            setForms((current) => current.filter(form => form.id !== payload.old.id))
            return
          }
+         console.log('Handling INSERT/UPDATE event, adding form:', payload.new);
           setForms((current) => [payload.new as Form, ...current])
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      })
 
     return () => {
+     console.log('Cleaning up forms subscription');
       channel.unsubscribe()
     }
   }, [])
