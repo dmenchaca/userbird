@@ -44,7 +44,7 @@
       <div class="userbird-modal-content">
         <div class="userbird-form">
           <h3 class="userbird-title">Send Feedback</h3>
-          <textarea class="userbird-textarea" placeholder="What's on your mind?"></textarea>
+          <textarea class="userbird-textarea" placeholder="How can we improve this page?"></textarea>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
