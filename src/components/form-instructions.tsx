@@ -1,5 +1,5 @@
 import { Button } from './ui/button'
-import { FeedbackTable } from './feedback-table'
+import { ResponsesTable } from './responses-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 
 interface FormInstructionsProps {
@@ -119,8 +119,8 @@ function App() {
         <Button onClick={() => window.location.reload()}>Create Another Form</Button>
 
         <div className="pt-8">
-          <h3 className="text-lg font-semibold mb-4">Feedback Submissions</h3>
-          <FeedbackTable formId={formId} />
+          <h3 className="text-lg font-semibold mb-4">Form Responses</h3>
+          <ResponsesTable formId={formId} />
         </div>
       </div>
     </div>

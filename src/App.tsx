@@ -1,7 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { FormCreator } from './components/form-creator'
+import { FormsList } from './components/forms-list'
+import { ResponsesTable } from './components/responses-table'
 
 export default function App() {
+  const [selectedFormId, setSelectedFormId] = useState<string>()
+
   useEffect(() => {
     // Initialize Userbird
     window.UserBird = window.UserBird || {};
@@ -13,38 +17,46 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="bg-white border-b shadow-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <a href="/" className="text-lg font-semibold text-gray-900">
-                Userbird
-              </a>
-              <div className="hidden md:flex items-center space-x-6">
-                <a href="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Home
-                </a>
-                <a href="/about" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  About
-                </a>
-                <button 
-                  id="userbird-trigger-eWOlyuCj97" 
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Feedback
-                </button>
-              </div>
+    <div className="min-h-screen bg-background flex">
+      <aside className="fixed left-0 w-64 h-screen border-r bg-white">
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-semibold text-gray-900">Userbird</h1>
+              <button 
+                id="userbird-trigger-eWOlyuCj97" 
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Feedback
+              </button>
             </div>
           </div>
+          <div className="flex-1 p-4 space-y-4">
+            <h2 className="font-semibold">Your Forms</h2>
+            <FormsList
+              selectedFormId={selectedFormId}
+              onFormSelect={setSelectedFormId}
+            />
+          </div>
         </div>
-      </nav>
-      <div className="container max-w-2xl py-12 space-y-8">
-        <div className="space-y-2">
-          <p className="text-muted-foreground">Create a feedback form for your website in seconds.</p>
+      </aside>
+      <main className="ml-64 min-h-screen">
+        <div className="container max-w-4xl py-12 px-8 space-y-8">
+          {selectedFormId ? (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">Form Responses</h2>
+              <ResponsesTable formId={selectedFormId} />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <p className="text-muted-foreground">Create a feedback form for your website in seconds.</p>
+              </div>
+              <FormCreator />
+            </>
+          )}
         </div>
-        <FormCreator />
-      </div>
+      </main>
     </div>
   )
 }
