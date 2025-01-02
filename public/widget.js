@@ -334,7 +334,11 @@
     });
 
     // Expose open method globally
-    window.UserBird.open = () => openModal();
+    window.UserBird.open = (triggerElement) => {
+      // If triggerElement is provided, use it, otherwise try to find the default trigger
+      const trigger = triggerElement || document.getElementById(`userbird-trigger-${formId}`);
+      openModal(trigger);
+    };
   }
 
   // Initialize if form ID is available
