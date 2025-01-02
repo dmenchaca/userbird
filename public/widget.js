@@ -127,6 +127,7 @@
         margin-bottom: 0;
         padding: 0;
         line-height: normal;
+        padding-bottom: 1rem;
       }
       .userbird-textarea {
         width: 100%;
