@@ -17,6 +17,7 @@
 
   let modal = null;
   let formId = null;
+  let currentTrigger = null;
 
   async function submitFeedback(message) {
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
@@ -269,6 +270,7 @@
 
   function openModal(trigger = null) {
     if (!modal) return;
+    currentTrigger = trigger;
     modal.modal.classList.add('open');
     modal.textarea.focus();
     positionModal(trigger);
@@ -276,6 +278,7 @@
 
   function closeModal() {
     if (!modal) return;
+    currentTrigger = null;
     modal.modal.classList.remove('open');
     setTimeout(() => {
       modal.textarea.value = '';
@@ -327,6 +330,13 @@
     // Event handlers
     modal.closeButtons.forEach(button => {
       button.addEventListener('click', closeModal);
+    });
+
+    // Add window resize handler
+    window.addEventListener('resize', () => {
+      if (modal.modal.classList.contains('open') && currentTrigger) {
+        positionModal(currentTrigger);
+      }
     });
 
     modal.submitButton.addEventListener('click', async () => {
