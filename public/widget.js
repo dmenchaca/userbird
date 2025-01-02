@@ -196,19 +196,12 @@
         margin-top: 0.5rem;
       }
       .userbird-success {
-        opacity: 0;
-        visibility: hidden;
         text-align: center;
         padding: 2rem 1rem;
-        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        display: none;
       }
       .userbird-success.open {
-        opacity: 1;
-        visibility: visible;
+        display: block;
       }
       .userbird-success-icon {
         width: 48px;
