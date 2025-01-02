@@ -14,12 +14,21 @@ export default function App() {
     
     if (window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
       try {
-        const { error } = await supabase
+        const { error: deleteError } = await supabase
           .from('forms')
           .delete()
           .eq('id', selectedFormId)
         
-        if (error) throw error
+        if (deleteError) throw deleteError
+
+        // Fetch updated forms list
+        const { error: fetchError } = await supabase
+          .from('forms')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (fetchError) throw fetchError
+        
         setSelectedFormId(undefined)
       } catch (error) {
         console.error('Error deleting form:', error)
