@@ -17,7 +17,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex items-start">
       <aside className="fixed left-0 w-64 h-screen border-r bg-white">
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
@@ -40,7 +40,7 @@ export default function App() {
           </div>
         </div>
       </aside>
-      <main className="ml-64 min-h-screen">
+      <main className="ml-64 flex-1 min-h-screen">
         <div className="container max-w-4xl py-12 px-8 space-y-8">
           {selectedFormId ? (
             <div className="space-y-6">
