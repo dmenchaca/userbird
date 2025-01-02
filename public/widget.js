@@ -132,7 +132,7 @@
       }
       .userbird-buttons {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 0.75rem;
         margin-top: 1rem;
       }
@@ -213,8 +213,8 @@
       }
       .userbird-support-text {
         font-size: 0.75rem;
-        color: #6b7280;
-        text-align: center;
+        color: #666666;
+        text-align: left;
         margin-top: 1rem;
       }
     `;
