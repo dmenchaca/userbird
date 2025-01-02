@@ -98,8 +98,11 @@
       }
       .userbird-modal.open { display: block; }
       .userbird-modal-content {
-        padding: 1rem;
         position: relative;
+        padding-top: 0.75rem;
+        padding-right: 1rem;
+        padding-bottom: 1rem;
+        padding-left: 1rem;
       }
       .userbird-form {
         display: block;
