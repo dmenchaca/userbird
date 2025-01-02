@@ -137,8 +137,6 @@
         resize: vertical;
         font-family: inherit;
         font-size: 14px;
-        line-height: 1.5;
-        padding-top; 0.75rem;
       }
       .userbird-textarea:focus {
         outline: none;
