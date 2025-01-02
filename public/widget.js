@@ -117,11 +117,16 @@
         display: none;
       }
       .userbird-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #111827;
+        all: initial;
+        display: block;
+        font-family: inherit;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: #111827 !important;
         margin-top: 0;
-        padding-bottom: 0rem;
+        margin-bottom: 0;
+        padding: 0;
+        line-height: normal;
       }
       .userbird-textarea {
         width: 100%;
