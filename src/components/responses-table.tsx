@@ -89,7 +89,20 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
               <tr key={response.id} className="border-b last:border-0">
                 <td className="py-3 px-4 text-sm">{response.message}</td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
-                  {new Date(response.created_at).toLocaleDateString()}
+                  <span title={new Date(response.created_at).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}>
+                    {new Date(response.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
                 </td>
               </tr>
             ))}

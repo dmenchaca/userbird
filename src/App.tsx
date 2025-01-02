@@ -1,10 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { FormCreator } from './components/form-creator'
 import { FormsList } from './components/forms-list'
 import { ResponsesTable } from './components/responses-table'
+import { Button } from './components/ui/button'
+import { Trash2 } from 'lucide-react'
+import { supabase } from './lib/supabase'
 
 export default function App() {
   const [selectedFormId, setSelectedFormId] = useState<string>()
+  
+  const handleDelete = useCallback(async () => {
+    if (!selectedFormId) return
+    
+    if (window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
+      try {
+        const { error } = await supabase
+          .from('forms')
+          .delete()
+          .eq('id', selectedFormId)
+        
+        if (error) throw error
+        setSelectedFormId(undefined)
+      } catch (error) {
+        console.error('Error deleting form:', error)
+      }
+    }
+  }, [selectedFormId])
 
   useEffect(() => {
     // Initialize Userbird
@@ -44,7 +65,18 @@ export default function App() {
         <div className="container max-w-4xl py-12 px-8 space-y-8">
           {selectedFormId ? (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Form Responses</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Form Responses</h2>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDelete}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Form
+                </Button>
+              </div>
               <ResponsesTable formId={selectedFormId} />
             </div>
           ) : (
