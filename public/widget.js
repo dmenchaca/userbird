@@ -51,8 +51,8 @@
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
             <button class="userbird-button userbird-submit">
               <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
-              <svg class="userbird-spinner" viewBox="0 0 24 24">
-                <circle class="userbird-spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" fill="none" stroke-width="4"/>
+              <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
             </button>
           </div>
@@ -181,7 +181,8 @@
         display: none;
         width: 16px;
         height: 16px;
-        animation: userbird-spin 1s linear infinite;
+        animation: userbird-spin 1.5s linear infinite;
+        stroke-width: 2;
       }
       .userbird-submit[disabled] .userbird-spinner {
         display: block;
