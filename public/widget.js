@@ -24,7 +24,8 @@
   const MESSAGES = {
     success: {
       title: 'Thank you',
-      description: 'Your message has been received and will be reviewed by our team.'
+      description: 'Your message has been received and will be reviewed by our team.',
+      imageError: 'Only JPG and PNG images up to 5MB are allowed.'
     },
     labels: {
       submit: 'Send Feedback',
@@ -36,11 +37,47 @@
 
   let modal = null;
   let formId = null;
+  let selectedImage = null;
   let currentTrigger = null;
+
+  async function uploadImage(file) {
+    if (!file) return null;
+    
+    // Validate file type
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      throw new Error('Only JPG and PNG images are allowed');
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image size must be under 5MB');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('formId', formId);
+    
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return {
+      url: data.url,
+      name: file.name,
+      size: file.size
+    };
+  }
 
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
     const userInfo = window.UserBird?.user || {};
+    const imageData = selectedImage ? await uploadImage(selectedImage) : null;
     
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
       method: 'POST',
@@ -54,7 +91,10 @@
         ...systemInfo,
         user_id: userInfo.id,
         user_email: userInfo.email,
-        user_name: userInfo.name
+        user_name: userInfo.name,
+        image_url: imageData?.url,
+        image_name: imageData?.name,
+        image_size: imageData?.size
       })
     });
 
@@ -75,6 +115,19 @@
         <div class="userbird-form">
           <h3 class="userbird-title">Send feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
+          <div class="userbird-image-upload">
+            <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
+            <button class="userbird-image-button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </button>
+            <div class="userbird-image-preview">
+              <button class="userbird-remove-image">&times;</button>
+            </div>
+          </div>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
@@ -171,7 +224,56 @@
       .userbird-textarea:focus {
         outline: none;
         border-color: ${buttonColor};
-        box-shadow: 0 0 0 2px ${buttonColor}33;
+        box-shadow: 0 0 0 2px ${buttonColor}33
+      }
+      .userbird-image-upload {
+        position: relative;
+        margin-top: 0.5rem;
+      }
+      .userbird-file-input {
+        display: none;
+      }
+      .userbird-image-button {
+        padding: 0.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .userbird-image-button:hover {
+        background: #f3f4f6;
+      }
+      .userbird-image-preview {
+        display: none;
+        position: relative;
+        margin-top: 0.5rem;
+      }
+      .userbird-image-preview.show {
+        display: block;
+      }
+      .userbird-image-preview img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+      .userbird-remove-image {
+        position: absolute;
+        top: -0.5rem;
+        right: -0.5rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+        background: #ef4444;
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        line-height: 1;
       }
       .userbird-buttons {
         display: flex;
@@ -332,6 +434,54 @@
     
     // Create modal
     modal = createModal();
+    
+    // Setup image upload
+    const fileInput = modal.modal.querySelector('.userbird-file-input');
+    const imageButton = modal.modal.querySelector('.userbird-image-button');
+    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+    const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+    
+    imageButton.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Validate file type and size
+      if (!file.type.match(/^image\/(jpeg|png)$/)) {
+        modal.errorElement.textContent = MESSAGES.success.imageError;
+        modal.errorElement.style.display = 'block';
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        modal.errorElement.textContent = MESSAGES.success.imageError;
+        modal.errorElement.style.display = 'block';
+        return;
+      }
+      
+      selectedImage = file;
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        imagePreview.innerHTML = '';
+        imagePreview.appendChild(img);
+        imagePreview.appendChild(removeImageButton);
+        imagePreview.classList.add('show');
+        imageButton.style.display = 'none';
+      };
+      
+      reader.readAsDataURL(file);
+    });
+    
+    removeImageButton.addEventListener('click', () => {
+      selectedImage = null;
+      imagePreview.classList.remove('show');
+      imageButton.style.display = 'block';
+      fileInput.value = '';
+    });
     
     // Handle support text if present
     const supportTextElement = modal.modal.querySelector('.userbird-support-text');

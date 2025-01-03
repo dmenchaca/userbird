@@ -5,6 +5,8 @@ import { Loader } from 'lucide-react'
 interface Response {
   id: string
   message: string
+  image_url: string | null
+  image_name: string | null
   user_id: string | null
   user_email: string | null
   user_name: string | null
@@ -86,6 +88,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Message</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[100px]">Image</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">User ID</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Email</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Name</th>
@@ -98,6 +101,15 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
             {responses.map((response) => (
               <tr key={response.id} className="border-b last:border-0">
                 <td className="py-3 px-4 text-sm">{response.message}</td>
+                <td className="py-3 px-4">
+                  {response.image_url && (
+                    <img 
+                      src={response.image_url} 
+                      alt={response.image_name || 'Feedback image'} 
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   {response.user_id || '-'}
                 </td>

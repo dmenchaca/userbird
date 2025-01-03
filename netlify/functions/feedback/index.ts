@@ -55,6 +55,9 @@ export const handler: Handler = async (event) => {
     const { 
       formId, 
       message, 
+      image_url,
+      image_name,
+      image_size,
       operating_system, 
       screen_category,
       user_id,
@@ -91,6 +94,9 @@ export const handler: Handler = async (event) => {
         operating_system: operating_system || 'Unknown',
         screen_category: screen_category || 'Unknown',
         user_id: user_id || null,
+        image_url: image_url || null,
+        image_name: image_name || null,
+        image_size: image_size || null,
         user_email: user_email || null,
         user_name: user_name || null
       }]);
