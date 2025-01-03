@@ -80,23 +80,26 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           console.log('Forms change event received:', payload);
 
           if (payload.eventType === 'DELETE') {
-            console.log('Handling DELETE event, removing form:', payload.old.id);
             setForms((current) => {
-              console.log('Current forms before DELETE:', current);
-              const updated = current.filter(form => form.id !== payload.old.id);
-              console.log('Updated forms after DELETE:', updated);
-              return updated;
+              return current.filter(form => form.id !== payload.old.id);
             });
             return
           }
 
-          console.log('Handling INSERT/UPDATE event, adding form:', payload.new);
-          setForms((current) => {
-            console.log('Current forms before INSERT/UPDATE:', current);
-            const updated = [payload.new as Form, ...current];
-            console.log('Updated forms after INSERT/UPDATE:', updated);
-            return updated;
-          });
+          if (payload.eventType === 'INSERT') {
+            setForms((current) => {
+              // Check if form already exists to avoid duplicates
+              const exists = current.some(form => form.id === payload.new.id);
+              if (exists) return current;
+              return [payload.new as Form, ...current];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setForms((current) => {
+              return current.map(form => 
+                form.id === payload.new.id ? payload.new as Form : form
+              );
+            });
+          }
         }
       )
       .subscribe((status) => {
