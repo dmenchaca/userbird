@@ -40,6 +40,8 @@
 
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
+    const userInfo = window.UserBird?.user || {};
+    
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
       method: 'POST',
       headers: { 
@@ -49,7 +51,10 @@
       body: JSON.stringify({ 
         formId, 
         message,
-        ...systemInfo
+        ...systemInfo,
+        user_id: userInfo.id,
+        user_email: userInfo.email,
+        user_name: userInfo.name
       })
     });
 

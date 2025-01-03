@@ -52,7 +52,15 @@ export const handler: Handler = async (event) => {
     }
 
     const body = JSON.parse(event.body || '{}');
-    const { formId, message, operating_system, screen_category } = body;
+    const { 
+      formId, 
+      message, 
+      operating_system, 
+      screen_category,
+      user_id,
+      user_email,
+      user_name 
+    } = body;
 
     if (!formId || !message?.trim()) {
       return {
@@ -81,7 +89,10 @@ export const handler: Handler = async (event) => {
         form_id: formId, 
         message,
         operating_system: operating_system || 'Unknown',
-        screen_category: screen_category || 'Unknown'
+        screen_category: screen_category || 'Unknown',
+        user_id: user_id || null,
+        user_email: user_email || null,
+        user_name: user_name || null
       }]);
 
     if (insertError) throw insertError;

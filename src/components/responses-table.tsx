@@ -5,6 +5,9 @@ import { Loader } from 'lucide-react'
 interface Response {
   id: string
   message: string
+  user_id: string | null
+  user_email: string | null
+  user_name: string | null
   operating_system: string
   screen_category: string
   created_at: string
@@ -83,6 +86,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Message</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">User</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">System</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Device</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[180px]">Date</th>
@@ -92,6 +96,9 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
             {responses.map((response) => (
               <tr key={response.id} className="border-b last:border-0">
                 <td className="py-3 px-4 text-sm">{response.message}</td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {response.user_name || response.user_email || response.user_id || '-'}
+                </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   {response.operating_system}
                 </td>

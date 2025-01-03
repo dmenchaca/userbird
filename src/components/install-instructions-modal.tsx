@@ -38,6 +38,12 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
   (function(w,d,s){
     w.UserBird = w.UserBird || {};
     w.UserBird.formId = "${formId}";
+    // Optional: Add user information
+    w.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
     d.head.appendChild(s);
@@ -61,6 +67,12 @@ function App() {
     // Initialize Userbird
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = "${formId}";
+    // Optional: Add user information
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
