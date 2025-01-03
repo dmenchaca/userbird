@@ -5,6 +5,8 @@ import { Loader } from 'lucide-react'
 interface Response {
   id: string
   message: string
+  operating_system: string
+  screen_category: string
   created_at: string
 }
 
