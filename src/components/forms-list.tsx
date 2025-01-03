@@ -41,52 +41,73 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Fetch initial forms data
   useEffect(() => {
     async function fetchForms() {
+      console.log('Fetching initial forms data...');
       try {
         const { data, error } = await supabase
           .from('forms')
           .select('*')
           .order('created_at', { ascending: false })
 
-        if (error) throw error
+        if (error) {
+          console.error('Error fetching initial forms:', error);
+          throw error;
+        }
+        console.log('Initial forms data:', data);
         setForms(data || [])
       } catch (error) {
         console.error('Error fetching forms:', error)
       } finally {
+        console.log('Initial forms fetch complete');
         setLoading(false)
       }
     }
 
     fetchForms()
+  }, [])
 
+  // Set up real-time subscription
+  useEffect(() => {
+    console.log('Setting up real-time subscription...');
     const channel = supabase
       .channel('forms_changes')
       .on(
         'postgres_changes',
-       { event: '*', schema: 'public', table: 'forms' },
+        { event: '*', schema: 'public', table: 'forms' },
         (payload) => {
-         console.log('Forms change event received:', {
-           eventType: payload.eventType,
-           payload
-         });
+          console.log('Forms change event received:', payload);
 
-         if (payload.eventType === 'DELETE') {
-           console.log('Handling DELETE event, removing form:', payload.old.id);
-           setForms((current) => current.filter(form => form.id !== payload.old.id))
-           return
-         }
-         console.log('Handling INSERT/UPDATE event, adding form:', payload.new);
-          setForms((current) => [payload.new as Form, ...current])
+          if (payload.eventType === 'DELETE') {
+            console.log('Handling DELETE event, removing form:', payload.old.id);
+            setForms((current) => {
+              console.log('Current forms before DELETE:', current);
+              const updated = current.filter(form => form.id !== payload.old.id);
+              console.log('Updated forms after DELETE:', updated);
+              return updated;
+            });
+            return
+          }
+
+          console.log('Handling INSERT/UPDATE event, adding form:', payload.new);
+          setForms((current) => {
+            console.log('Current forms before INSERT/UPDATE:', current);
+            const updated = [payload.new as Form, ...current];
+            console.log('Updated forms after INSERT/UPDATE:', updated);
+            return updated;
+          });
         }
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
+        console.log('Subscription channel:', channel);
       })
 
     return () => {
-     console.log('Cleaning up forms subscription');
-      channel.unsubscribe()
+      console.log('Cleaning up forms subscription');
+      console.log('Unsubscribing from channel:', channel);
+      supabase.removeChannel(channel)
     }
   }, [])
 
