@@ -2,6 +2,25 @@
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
   
+  function getSystemInfo() {
+    const ua = navigator.userAgent;
+    let os = 'Unknown';
+    
+    if (ua.includes('Win')) os = 'Windows';
+    else if (ua.includes('Mac')) os = 'macOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    
+    const width = window.innerWidth;
+    let category = 'Desktop';
+    
+    if (width < 768) category = 'Mobile';
+    else if (width < 1024) category = 'Tablet';
+    
+    return { operating_system: os, screen_category: category };
+  }
+
   const MESSAGES = {
     success: {
       title: 'Thank you',
@@ -20,13 +39,18 @@
   let currentTrigger = null;
 
   async function submitFeedback(message) {
+    const systemInfo = getSystemInfo();
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Origin': window.location.origin
       },
-      body: JSON.stringify({ formId, message })
+      body: JSON.stringify({ 
+        formId, 
+        message,
+        ...systemInfo
+      })
     });
 
     if (!response.ok) {

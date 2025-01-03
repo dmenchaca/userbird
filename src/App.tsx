@@ -46,7 +46,7 @@ export default function App() {
     try {
       const { data, error } = await supabase
         .from('feedback')
-        .select('message, created_at')
+        .select('message, operating_system, screen_category, created_at')
         .eq('form_id', selectedFormId)
         .order('created_at', { ascending: false })
 
@@ -54,9 +54,11 @@ export default function App() {
 
       // Convert to CSV
       const csvContent = [
-        ['Message', 'Date'],
+        ['Message', 'Operating System', 'Device', 'Date'],
         ...(data || []).map(row => [
           `"${row.message.replace(/"/g, '""')}"`,
+          row.operating_system,
+          row.screen_category,
           new Date(row.created_at).toLocaleString()
         ])
       ].join('\n')

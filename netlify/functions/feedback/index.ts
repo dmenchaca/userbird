@@ -52,7 +52,7 @@ export const handler: Handler = async (event) => {
     }
 
     const body = JSON.parse(event.body || '{}');
-    const { formId, message } = body;
+    const { formId, message, operating_system, screen_category } = body;
 
     if (!formId || !message?.trim()) {
       return {
@@ -77,7 +77,12 @@ export const handler: Handler = async (event) => {
     // Store feedback
     const { error: insertError } = await supabase
       .from('feedback')
-      .insert([{ form_id: formId, message }]);
+      .insert([{ 
+        form_id: formId, 
+        message,
+        operating_system: operating_system || 'Unknown',
+        screen_category: screen_category || 'Unknown'
+      }]);
 
     if (insertError) throw insertError;
 

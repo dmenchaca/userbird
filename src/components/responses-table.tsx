@@ -81,6 +81,8 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Message</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">System</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Device</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[180px]">Date</th>
             </tr>
           </thead>
@@ -88,6 +90,12 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
             {responses.map((response) => (
               <tr key={response.id} className="border-b last:border-0">
                 <td className="py-3 px-4 text-sm">{response.message}</td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {response.operating_system}
+                </td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {response.screen_category}
+                </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   <span title={new Date(response.created_at).toLocaleString('en-US', {
                     year: 'numeric',
