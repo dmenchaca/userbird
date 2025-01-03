@@ -4,6 +4,10 @@ import busboy from 'busboy';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
+console.log('Supabase config:', { 
+  hasUrl: !!supabaseUrl, 
+  hasKey: !!supabaseKey 
+});
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -21,6 +25,12 @@ function getCorsHeaders(origin: string | undefined) {
 }
 
 export const handler: Handler = async (event) => {
+  console.log('Upload handler started', { 
+    method: event.httpMethod,
+    contentType: event.headers['content-type'],
+    bodyLength: event.body?.length
+  });
+
   const headers = getCorsHeaders(event.headers.origin);
 
   // Handle preflight
@@ -53,10 +63,15 @@ export const handler: Handler = async (event) => {
       let fileType: string;
 
       bb.on('field', (name, val) => {
+        console.log('Field received:', { name, value: val });
         if (name === 'formId') formId = val;
       });
 
       bb.on('file', (name, file, info) => {
+        console.log('File processing started:', { 
+          filename: info.filename,
+          mimeType: info.mimeType 
+        });
         const chunks: Buffer[] = [];
         let size = 0;
 
@@ -74,7 +89,9 @@ export const handler: Handler = async (event) => {
 
         file.on('data', (chunk) => {
           size += chunk.length;
+          console.log('Chunk received:', { size, totalSize: size });
           if (size > MAX_FILE_SIZE) {
+            console.log('File too large:', { size, maxSize: MAX_FILE_SIZE });
             return reject({
               statusCode: 400,
               headers,
@@ -91,6 +108,10 @@ export const handler: Handler = async (event) => {
 
       bb.on('finish', async () => {
         if (!formId || !fileBuffer) {
+          console.log('Missing required fields:', { 
+            hasFormId: !!formId, 
+            hasFileBuffer: !!fileBuffer 
+          });
           return resolve({
             statusCode: 400,
             headers,
@@ -100,6 +121,12 @@ export const handler: Handler = async (event) => {
 
         try {
           // Upload to Supabase Storage
+          console.log('Starting Supabase upload:', { 
+            bucket: 'feedback-images',
+            fileName: fileName,
+            fileSize: fileBuffer.length
+          });
+
           const { data, error } = await supabase.storage
             .from('feedback-images')
             .upload(
@@ -110,6 +137,12 @@ export const handler: Handler = async (event) => {
                 cacheControl: '3600'
               }
             );
+
+          console.log('Upload response:', { 
+            success: !!data,
+            error: error || null,
+            path: data?.path
+          });
 
           if (error) throw error;
 
@@ -128,6 +161,7 @@ export const handler: Handler = async (event) => {
             })
           });
         } catch (error) {
+          console.error('Detailed upload error:', error);
           console.error('Upload error:', error);
           resolve({
             statusCode: 500,
