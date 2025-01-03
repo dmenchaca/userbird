@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "busboy": "^1.6.0",
     "@netlify/functions": "^2.6.0",
     "@supabase/supabase-js": "^2.39.7",
     "@radix-ui/react-dialog": "^1.0.5",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
+    "@types/busboy": "^1.5.3",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react": "^4.2.1",

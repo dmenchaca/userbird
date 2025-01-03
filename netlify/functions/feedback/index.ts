@@ -92,11 +92,11 @@ export const handler: Handler = async (event) => {
         form_id: formId, 
         message,
         operating_system: operating_system || 'Unknown',
-        screen_category: screen_category || 'Unknown',
-        user_id: user_id || null,
         image_url: image_url || null,
         image_name: image_name || null,
         image_size: image_size || null,
+        screen_category: screen_category || 'Unknown',
+        user_id: user_id || null,
         user_email: user_email || null,
         user_name: user_name || null
       }]);
