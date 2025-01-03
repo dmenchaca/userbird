@@ -46,7 +46,7 @@ export default function App() {
     try {
       const { data, error } = await supabase
         .from('feedback')
-        .select('message, operating_system, screen_category, created_at')
+        .select('message, user_id, user_email, user_name, operating_system, screen_category, created_at')
         .eq('form_id', selectedFormId)
         .order('created_at', { ascending: false })
 
@@ -54,9 +54,12 @@ export default function App() {
 
       // Convert to CSV
       const csvContent = [
-        ['Message', 'Operating System', 'Device', 'Date'],
+        ['Message', 'User ID', 'User Email', 'User Name', 'Operating System', 'Device', 'Date'],
         ...(data || []).map(row => [
           `"${row.message.replace(/"/g, '""')}"`,
+          row.user_id || '',
+          row.user_email || '',
+          row.user_name || '',
           row.operating_system,
           row.screen_category,
           new Date(row.created_at).toLocaleString()
@@ -173,7 +176,7 @@ export default function App() {
             )}
           </div>
         </header>
-        <div className="container max-w-4xl py-12 px-8 space-y-8">
+        <div className="container py-12 px-8 space-y-8">
           {selectedFormId ? (
             <div className="space-y-6">
               <ResponsesTable formId={selectedFormId} />

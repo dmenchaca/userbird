@@ -86,7 +86,9 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Message</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">User</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">User ID</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Email</th>
+              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Name</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">System</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Device</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[180px]">Date</th>
@@ -97,7 +99,13 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
               <tr key={response.id} className="border-b last:border-0">
                 <td className="py-3 px-4 text-sm">{response.message}</td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
-                  {response.user_name || response.user_email || response.user_id || '-'}
+                  {response.user_id || '-'}
+                </td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {response.user_email || '-'}
+                </td>
+                <td className="py-3 px-4 text-sm text-muted-foreground">
+                  {response.user_name || '-'}
                 </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   {response.operating_system}
