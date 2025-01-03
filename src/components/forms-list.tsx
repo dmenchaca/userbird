@@ -72,34 +72,34 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   useEffect(() => {
     console.log('Setting up real-time subscription...');
     const channel = supabase
-      .channel('forms_changes')
+      .channel(`forms_changes_${Math.random()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'forms' },
         (payload) => {
           console.log('Forms change event received:', payload);
+          setForms(currentForms => {
+            if (payload.eventType === 'DELETE') {
+              return currentForms.filter(form => form.id !== payload.old.id);
+            }
 
-          if (payload.eventType === 'DELETE') {
-            setForms((current) => {
-              return current.filter(form => form.id !== payload.old.id);
-            });
-            return
-          }
+            if (payload.eventType === 'INSERT') {
+              const newForm = payload.new as Form;
+              // Check if form already exists
+              if (currentForms.some(form => form.id === newForm.id)) {
+                return currentForms;
+              }
+              return [newForm, ...currentForms];
+            }
 
-          if (payload.eventType === 'INSERT') {
-            setForms((current) => {
-              // Check if form already exists to avoid duplicates
-              const exists = current.some(form => form.id === payload.new.id);
-              if (exists) return current;
-              return [payload.new as Form, ...current];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setForms((current) => {
-              return current.map(form => 
+            if (payload.eventType === 'UPDATE') {
+              return currentForms.map(form => 
                 form.id === payload.new.id ? payload.new as Form : form
               );
-            });
-          }
+            }
+            
+            return currentForms;
+          });
         }
       )
       .subscribe((status) => {
