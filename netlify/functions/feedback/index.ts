@@ -2,9 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { isValidOrigin } from './validation';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import supabase from '../../src/lib/supabase';
 
 function getCorsHeaders(origin: string | undefined) {
   return {
