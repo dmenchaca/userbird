@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { FormCreator } from './components/form-creator'
 import { FormsList } from './components/forms-list'
 import { ResponsesTable } from './components/responses-table'
@@ -36,30 +36,12 @@ export default function App() {
     }
   }, [selectedFormId])
 
-  useEffect(() => {
-    // Initialize Userbird
-    window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "eWOlyuCj97";
-    
-    const script = document.createElement('script');
-    script.src = 'https://userbird.netlify.app/widget.js';
-    document.head.appendChild(script);
-  }, []);
-
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="fixed left-0 w-64 h-screen border-r bg-white">
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-gray-900">Userbird</h1>
-              <button 
-                id="userbird-trigger-eWOlyuCj97" 
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Feedback
-              </button>
-            </div>
+            <h1 className="text-lg font-semibold text-gray-900">Userbird</h1>
           </div>
           <div className="flex-1 p-4 space-y-4">
             <h2 className="font-semibold">Your Forms</h2>
