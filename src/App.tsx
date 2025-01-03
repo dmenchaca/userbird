@@ -1,14 +1,17 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { FormCreator } from './components/form-creator'
 import { FormsList } from './components/forms-list'
 import { ResponsesTable } from './components/responses-table'
 import { Button } from './components/ui/button'
-import { Trash2, Bird, Download, Plus } from 'lucide-react'
+import { Trash2, Bird, Download, Plus, Code2 } from 'lucide-react'
 import { supabase } from './lib/supabase'
+import { InstallInstructionsModal } from './components/install-instructions-modal'
 
 export default function App() {
   const [selectedFormId, setSelectedFormId] = useState<string>()
   const [formName, setFormName] = useState<string>('')
+  const [hasResponses, setHasResponses] = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState(false)
   
   // Fetch form name when form is selected
   useEffect(() => {
@@ -20,6 +23,19 @@ export default function App() {
         .single()
         .then(({ data }) => {
           if (data) setFormName(data.url)
+        })
+    }
+  }, [selectedFormId])
+
+  // Check if form has any responses
+  useEffect(() => {
+    if (selectedFormId) {
+      supabase
+        .from('feedback')
+        .select('id', { count: 'exact' })
+        .eq('form_id', selectedFormId)
+        .then(({ count }) => {
+          setHasResponses(!!count && count > 0)
         })
     }
   }, [selectedFormId])
@@ -116,11 +132,22 @@ export default function App() {
       </aside>
       <main className="ml-64 flex-1">
         <header className="border-b border-border">
-          <div className="container max-w-4xl py-4 px-8">
+          <div className="container py-4">
             {selectedFormId && (
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Form Responses</h2>
+                <h2 className="text-base">{formName}</h2>
                 <div className="flex gap-2">
+                  {!hasResponses && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowInstallModal(true)}
+                      className="gap-2"
+                    >
+                      <Code2 className="w-4 h-4" />
+                      Install Instructions
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -158,6 +185,13 @@ export default function App() {
             </>
           )}
         </div>
+        {selectedFormId && (
+          <InstallInstructionsModal
+            formId={selectedFormId}
+            open={showInstallModal}
+            onOpenChange={setShowInstallModal}
+          />
+        )}
       </main>
     </div>
   )
