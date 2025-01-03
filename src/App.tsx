@@ -96,12 +96,12 @@ export default function App() {
           </div>
           <div className="flex-1 p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Forms</h2>
+              <h2 className="text-xs font-medium">Forms</h2>
               <button
                 onClick={() => setSelectedFormId(undefined)}
                 className="w-6 h-6 rounded-full hover:bg-accent flex items-center justify-center group relative"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                   Create new form
                 </span>
@@ -115,9 +115,9 @@ export default function App() {
         </div>
       </aside>
       <main className="ml-64 flex-1">
-        <div className="container max-w-4xl py-12 px-8 space-y-8">
-          {selectedFormId ? (
-            <div className="space-y-6">
+        <header className="border-b border-border">
+          <div className="container max-w-4xl py-4 px-8">
+            {selectedFormId && (
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Form Responses</h2>
                 <div className="flex gap-2">
@@ -141,6 +141,12 @@ export default function App() {
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
+        </header>
+        <div className="container max-w-4xl py-12 px-8 space-y-8">
+          {selectedFormId ? (
+            <div className="space-y-6">
               <ResponsesTable formId={selectedFormId} />
             </div>
           ) : (
