@@ -1,14 +1,62 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { FormCreator } from './components/form-creator'
 import { FormsList } from './components/forms-list'
 import { ResponsesTable } from './components/responses-table'
 import { Button } from './components/ui/button'
-import { Trash2, Bird } from 'lucide-react'
+import { Trash2, Bird, Download, Plus } from 'lucide-react'
 import { supabase } from './lib/supabase'
 
 export default function App() {
   const [selectedFormId, setSelectedFormId] = useState<string>()
+  const [formName, setFormName] = useState<string>('')
   
+  // Fetch form name when form is selected
+  useEffect(() => {
+    if (selectedFormId) {
+      supabase
+        .from('forms')
+        .select('url')
+        .eq('id', selectedFormId)
+        .single()
+        .then(({ data }) => {
+          if (data) setFormName(data.url)
+        })
+    }
+  }, [selectedFormId])
+
+  const handleExport = useCallback(async () => {
+    if (!selectedFormId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('feedback')
+        .select('message, created_at')
+        .eq('form_id', selectedFormId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      // Convert to CSV
+      const csvContent = [
+        ['Message', 'Date'],
+        ...(data || []).map(row => [
+          `"${row.message.replace(/"/g, '""')}"`,
+          new Date(row.created_at).toLocaleString()
+        ])
+      ].join('\n')
+
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const date = new Date().toISOString().split('T')[0]
+      link.href = URL.createObjectURL(blob)
+      link.download = `${formName}-${date}.csv`
+      link.click()
+    } catch (error) {
+      console.error('Error exporting responses:', error)
+    }
+  }, [selectedFormId, formName])
+
   const handleDelete = useCallback(async () => {
     if (!selectedFormId) return
     
@@ -53,21 +101,7 @@ export default function App() {
                 onClick={() => setSelectedFormId(undefined)}
                 className="w-6 h-6 rounded-full hover:bg-accent flex items-center justify-center group relative"
               >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 15 15"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-foreground"
-                >
-                  <path
-                    d="M8 2.75C8 2.47386 7.77614 2.25 7.5 2.25C7.22386 2.25 7 2.47386 7 2.75V7H2.75C2.47386 7 2.25 7.22386 2.25 7.5C2.25 7.77614 2.47386 8 2.75 8H7V12.25C7 12.5261 7.22386 12.75 7.5 12.75C7.77614 12.75 8 12.5261 8 12.25V8H12.25C12.5261 8 12.75 7.77614 12.75 7.5C12.75 7.22386 12.5261 7 12.25 7H8V2.75Z"
-                    fill="currentColor"
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <Plus className="w-4 h-4" />
                 <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                   Create new form
                 </span>
@@ -86,15 +120,26 @@ export default function App() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Form Responses</h2>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDelete}
-                  className="gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Form
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    className="gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Form
+                  </Button>
+                </div>
               </div>
               <ResponsesTable formId={selectedFormId} />
             </div>
