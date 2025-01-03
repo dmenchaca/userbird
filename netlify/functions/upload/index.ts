@@ -5,10 +5,25 @@ import busboy from 'busboy';
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
 console.log('Supabase config:', { 
-  hasUrl: !!supabaseUrl, 
-  hasKey: !!supabaseKey 
+  hasUrl: !!supabaseUrl,
+  hasKey: !!supabaseKey,
+  url: supabaseUrl // Log the actual URL for verification
 });
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Test Supabase connection
+async function testSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.storage.getBucket('feedback-images');
+    console.log('Supabase bucket test:', {
+      success: !!data,
+      error: error || null,
+      bucketData: data
+    });
+  } catch (error) {
+    console.error('Supabase connection test error:', error);
+  }
+}
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
@@ -27,9 +42,12 @@ function getCorsHeaders(origin: string | undefined) {
 export const handler: Handler = async (event) => {
   console.log('Upload handler started', { 
     method: event.httpMethod,
-    contentType: event.headers['content-type'],
+    headers: event.headers,
     bodyLength: event.body?.length
   });
+
+  // Test Supabase connection at the start of each request
+  await testSupabaseConnection();
 
   const headers = getCorsHeaders(event.headers.origin);
 
@@ -124,7 +142,8 @@ export const handler: Handler = async (event) => {
           console.log('Starting Supabase upload:', { 
             bucket: 'feedback-images',
             fileName: fileName,
-            fileSize: fileBuffer.length
+            fileSize: fileBuffer.length,
+            contentType: fileType
           });
 
           const { data, error } = await supabase.storage
@@ -141,7 +160,9 @@ export const handler: Handler = async (event) => {
           console.log('Upload response:', { 
             success: !!data,
             error: error || null,
-            path: data?.path
+            path: data?.path,
+            errorMessage: error?.message,
+            errorDetails: error?.details
           });
 
           if (error) throw error;
