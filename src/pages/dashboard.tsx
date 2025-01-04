@@ -7,6 +7,7 @@ import { Trash2, Bird, Download, Plus, Code2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { useAuth } from '@/lib/auth'
+import { UserMenu } from '@/components/user-menu'
 
 export function Dashboard() {
   const { user } = useAuth()
@@ -128,6 +129,7 @@ export function Dashboard() {
               onFormSelect={setSelectedFormId}
             />
           </div>
+          <UserMenu />
         </div>
       </aside>
       <main className="ml-64 flex-1">
