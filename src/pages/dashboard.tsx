@@ -8,6 +8,10 @@ import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { useAuth } from '@/lib/auth'
 
+interface FormData {
+  url: string;
+}
+
 export function Dashboard() {
   const { user } = useAuth()
   const [selectedFormId, setSelectedFormId] = useState<string>()
@@ -20,14 +24,15 @@ export function Dashboard() {
     if (selectedFormId) {
       supabase
         .from('forms')
-        .select('url')
+        .select<'forms', FormData>('url')
         .eq('id', selectedFormId)
+        .eq('owner_id', user?.id)
         .single()
         .then(({ data }) => {
           if (data) setFormName(data.url)
         })
     }
-  }, [selectedFormId])
+  }, [selectedFormId, user?.id])
 
   // Check if form has any responses
   useEffect(() => {
