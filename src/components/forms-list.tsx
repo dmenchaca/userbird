@@ -36,8 +36,12 @@ function TruncatedUrl({ url }: { url: string }) {
     </span>
   );
 }
+import { Button } from './ui/button'
+import { Plus } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
 
 export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
+  const { user } = useAuth()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -49,6 +53,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         const { data, error } = await supabase
           .from('forms')
           .select('*')
+          .eq('owner_id', user?.id)
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -76,6 +81,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'forms' },
+        { filter: `owner_id=eq.${user?.id}` },
         (payload) => {
           console.log('Forms change event received:', payload);
           setForms(currentForms => {
@@ -124,8 +130,17 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
 
   if (forms.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No forms created yet
+      <div className="text-center py-8 space-y-4">
+        <p className="text-muted-foreground">No forms created yet</p>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => onFormSelect('')}
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New form
+        </Button>
       </div>
     )
   }

@@ -6,8 +6,10 @@ import { Label } from './ui/label'
 import { isValidUrl, isValidHexColor } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { FormInstructions } from './form-instructions'
+import { useAuth } from '@/lib/auth'
 
 export function FormCreator() {
+  const { user } = useAuth()
   const [url, setUrl] = useState('')
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState('')
@@ -41,6 +43,7 @@ export function FormCreator() {
         .insert([{ 
           id: newFormId, 
           url,
+          owner_id: user?.id,
           button_color: buttonColor,
           support_text: supportText || null
         }])
