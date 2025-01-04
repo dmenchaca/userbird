@@ -47,7 +47,7 @@ export function UserMenu() {
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate font-semibold">{user.email}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
@@ -65,7 +65,7 @@ export function UserMenu() {
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold">{user.email}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                 </div>
