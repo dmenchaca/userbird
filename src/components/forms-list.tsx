@@ -79,22 +79,26 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
     const channel = supabase
       .channel(`forms_changes_${Math.random()}`)
       .on(
-        '*',
+        'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'forms',
           filter: `owner_id=eq.${user?.id}`
         },
-        (payload) => {
+        (payload: {
+          eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+          old: Form | null;
+          new: Form | null;
+        }) => {
           console.log('Forms change event received:', payload);
           setForms(currentForms => {
             if (payload.eventType === 'DELETE') {
-              return currentForms.filter(form => form.id !== payload.old?.id);
+              return currentForms.filter(form => form.id !== payload.old!.id);
             }
 
             if (payload.eventType === 'INSERT') {
-              const newForm = payload.new as Form;
+              const newForm = payload.new!;
               // Check if form already exists
               if (currentForms.some(form => form.id === newForm.id)) {
                 return currentForms;
@@ -104,7 +108,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
 
             if (payload.eventType === 'UPDATE') {
               return currentForms.map(form => 
-                form.id === payload.new.id ? payload.new as Form : form
+                form.id === payload.new!.id ? payload.new! : form
               );
             }
             

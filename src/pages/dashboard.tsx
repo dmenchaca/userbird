@@ -24,7 +24,7 @@ export function Dashboard() {
     if (selectedFormId) {
       supabase
         .from('forms')
-        .select<'forms', FormData>('url')
+        .select('url')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
