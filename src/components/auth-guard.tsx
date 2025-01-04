@@ -8,14 +8,14 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { user, loading } = useAuth()
+  const { user, loading, initialized } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (initialized && !loading && !user) {
       navigate('/login')
     }
-  }, [user, loading, navigate])
+  }, [user, loading, initialized, navigate])
 
   if (loading) {
     return (

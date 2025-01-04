@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react'
 export function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,18 +20,29 @@ export function SignupPage() {
     try {
       const { error } = await supabase.auth.signUp({
         email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        password
       })
 
       if (error) throw error
+      setSuccess(true)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to sign up')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-full max-w-md space-y-8 p-8 text-center">
+          <h1 className="text-2xl font-bold">Account Created!</h1>
+          <p className="text-sm text-muted-foreground">
+            You can now <a href="/login" className="text-primary hover:underline">sign in</a> with your email and password.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
