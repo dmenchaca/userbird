@@ -79,13 +79,13 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
     const channel = supabase
       .channel(`forms_changes_${Math.random()}`)
       .on(
-        'postgres_changes',
+        'postgres_changes' as 'system',
         { 
           event: '*',
           schema: 'public',
           table: 'forms',
           filter: `owner_id=eq.${user?.id}`
-        } as any,
+        },
         (payload: {
           eventType: 'INSERT' | 'UPDATE' | 'DELETE';
           old: Form | null;
