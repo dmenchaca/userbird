@@ -8,10 +8,6 @@ import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { useAuth } from '@/lib/auth'
 
-interface FormData {
-  url: string;
-}
-
 export function Dashboard() {
   const { user } = useAuth()
   const [selectedFormId, setSelectedFormId] = useState<string>()
