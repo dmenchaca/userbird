@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
-import type { User } from '@supabase/supabase-js'
+import type { User, Provider } from '@supabase/supabase-js'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    if (error) throw error
+  }
 
   useEffect(() => {
     // Get initial session
@@ -29,6 +39,7 @@ export function useAuth() {
     user,
     loading,
     initialized,
+    signInWithGoogle,
     signOut: () => supabase.auth.signOut(),
   }
 }

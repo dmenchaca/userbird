@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from './components/auth-guard';
 import { LoginPage } from './pages/auth/login';
 import { SignupPage } from './pages/auth/signup';
+import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
 
 export default function App() {
@@ -9,6 +10,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/auth/callback" element={<CallbackPage />} />
       <Route
         path="/"
         element={
