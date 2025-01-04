@@ -80,9 +80,17 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
       .channel(`forms_changes_${Math.random()}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'forms' },
-        { filter: `owner_id=eq.${user?.id}` },
-        (payload) => {
+        {
+          event: '*',
+          schema: 'public',
+          table: 'forms',
+          filter: `owner_id=eq.${user?.id}`
+        },
+        (payload: {
+          eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+          old: { id: string };
+          new: Form;
+        }) => {
           console.log('Forms change event received:', payload);
           setForms(currentForms => {
             if (payload.eventType === 'DELETE') {
