@@ -47,35 +47,34 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
 
   // Fetch initial forms data
   useEffect(() => {
-    async function fetchForms() {
-      console.log('Fetching initial forms data...');
+    if (!user?.id) return;
+
+    const fetchForms = async () => {
       try {
         const { data, error } = await supabase
           .from('forms')
           .select('*')
-          .eq('owner_id', user?.id)
+          .eq('owner_id', user.id)
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.error('Error fetching initial forms:', error);
           throw error;
         }
-        console.log('Initial forms data:', data);
         setForms(data || [])
       } catch (error) {
         console.error('Error fetching forms:', error)
       } finally {
-        console.log('Initial forms fetch complete');
         setLoading(false)
       }
     }
 
     fetchForms()
-  }, [])
+  }, [user?.id])
 
   // Set up real-time subscription
   useEffect(() => {
-    console.log('Setting up real-time subscription...');
+    if (!user?.id) return;
+
     const channel = supabase
       .channel(`forms_changes_${Math.random()}`)
       .on(
@@ -84,14 +83,13 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           event: '*',
           schema: 'public',
           table: 'forms',
-          filter: `owner_id=eq.${user?.id}`
+          filter: `owner_id=eq.${user.id}`
         },
         (payload: {
           eventType: 'INSERT' | 'UPDATE' | 'DELETE';
           old: Form | null;
           new: Form | null;
         }) => {
-          console.log('Forms change event received:', payload);
           setForms(currentForms => {
             if (payload.eventType === 'DELETE') {
               return currentForms.filter(form => form.id !== payload.old!.id);
@@ -115,18 +113,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             return currentForms;
           });
         }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-        console.log('Subscription channel:', channel);
-      })
+      ).subscribe()
 
     return () => {
-      console.log('Cleaning up forms subscription');
-      console.log('Unsubscribing from channel:', channel);
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [user?.id])
 
   if (loading) {
     return (
