@@ -61,7 +61,7 @@ export function DeleteFormDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>
+            <Label className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               Please type <span className="font-medium">{formUrl}</span> to confirm
             </Label>
             <Input
