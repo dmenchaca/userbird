@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2, Bird, Download, Plus, Code2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
+import { DeleteFormDialog } from '@/components/delete-form-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 
@@ -15,6 +16,7 @@ export function Dashboard() {
   const [formName, setFormName] = useState<string>('')
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   
   // Fetch form name when form is selected
   useEffect(() => {
@@ -83,21 +85,17 @@ export function Dashboard() {
   }, [selectedFormId, formName])
 
   const handleDelete = useCallback(async () => {
-    if (!selectedFormId) return
-    
-    if (window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
-      try {
-        const { error: deleteError } = await supabase
-          .from('forms')
-          .delete()
-          .eq('id', selectedFormId)
-        
-        if (deleteError) throw deleteError
-        
-        setSelectedFormId(undefined)
-      } catch (error) {
-        console.error('Error deleting form:', error)
-      }
+    try {
+      const { error: deleteError } = await supabase
+        .from('forms')
+        .delete()
+        .eq('id', selectedFormId)
+      
+      if (deleteError) throw deleteError
+      
+      setSelectedFormId(undefined)
+    } catch (error) {
+      console.error('Error deleting form:', error)
     }
   }, [selectedFormId])
 
@@ -162,7 +160,7 @@ export function Dashboard() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={handleDelete}
+                    onClick={() => setShowDeleteDialog(true)}
                     className="gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -192,6 +190,14 @@ export function Dashboard() {
             formId={selectedFormId}
             open={showInstallModal}
             onOpenChange={setShowInstallModal}
+          />
+        )}
+        {selectedFormId && formName && (
+          <DeleteFormDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+            onConfirm={handleDelete}
+            formUrl={formName}
           />
         )}
       </main>
