@@ -56,14 +56,14 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
   useEffect(() => {
     async function fetchResponses() {
       try {
-        const { data, error } = await supabase
+        const { data: responses, error } = await supabase
           .from('feedback')
           .select('*')
           .eq('form_id', formId)
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setResponses(data || [])
+        setResponses(responses || [])
       } catch (error) {
         console.error('Error fetching responses:', error)
       } finally {
@@ -76,18 +76,23 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
     // Subscribe to new responses
     const channel = supabase
       .channel('responses_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'feedback',
-          filter: `form_id=eq.${formId}`,
-        },
-        (payload) => {
-          setResponses((current) => [payload.new as Response, ...current])
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'feedback',
+        filter: `form_id=eq.${formId}`
+      }, async (payload) => {
+        // Refetch all responses to ensure consistency
+        const { data } = await supabase
+          .from('feedback')
+          .select('*')
+          .eq('form_id', formId)
+          .order('created_at', { ascending: false })
+
+        if (data) {
+          setResponses(data)
         }
-      )
+      })
       .subscribe()
 
     return () => {

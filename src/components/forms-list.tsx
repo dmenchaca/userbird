@@ -80,8 +80,9 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   // Set up real-time subscription
   useEffect(() => {
     if (!user?.id) return;
-
-    const channel = supabase
+    
+    // Subscribe to form changes
+    const formsChannel = supabase
       .channel(`forms_changes_${Math.random()}`)
       .on(
         'postgres_changes' as 'system',
@@ -121,8 +122,38 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         }
       ).subscribe()
 
+    // Subscribe to feedback changes to update counters
+    const feedbackChannel = supabase
+      .channel(`feedback_changes_${Math.random()}`)
+      .on(
+        'postgres_changes' as 'system',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'feedback'
+        },
+        async () => {
+          // Refetch forms to get updated counts
+          const { data } = await supabase
+            .from('forms')
+            .select(`
+              id,
+              url,
+              created_at,
+              feedback:feedback(count)
+            `)
+            .eq('owner_id', user.id)
+            .order('created_at', { ascending: false })
+
+          if (data) {
+            setForms(data)
+          }
+        }
+      ).subscribe()
+
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(formsChannel)
+      supabase.removeChannel(feedbackChannel)
     }
   }, [user?.id])
 
