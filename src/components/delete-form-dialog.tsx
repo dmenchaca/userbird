@@ -28,8 +28,10 @@ export function DeleteFormDialog({
   const [confirmUrl, setConfirmUrl] = useState('')
   const [error, setError] = useState(false)
 
+  const urlMatches = confirmUrl === formUrl
+
   const handleConfirm = () => {
-    if (confirmUrl === formUrl) {
+    if (urlMatches) {
       onConfirm()
       onOpenChange(false)
       setConfirmUrl('')
@@ -60,7 +62,7 @@ export function DeleteFormDialog({
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label>
-              Please type <span className="font-medium">{formUrl}</span> to confirm
+              Please type <span className="font-bold">{formUrl}</span> to confirm
             </Label>
             <Input
               value={confirmUrl}
@@ -88,6 +90,7 @@ export function DeleteFormDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
+            disabled={!urlMatches}
           >
             Delete Form
           </Button>
