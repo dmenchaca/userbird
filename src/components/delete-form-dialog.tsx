@@ -62,7 +62,7 @@ export function DeleteFormDialog({
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label>
-              Please type <span className="font-bold">{formUrl}</span> to confirm
+              Please type <span className="font-medium">{formUrl}</span> to confirm
             </Label>
             <Input
               value={confirmUrl}
@@ -70,6 +70,7 @@ export function DeleteFormDialog({
                 setConfirmUrl(e.target.value)
                 setError(false)
               }}
+              placeholder={formUrl}
               className={error ? 'border-destructive' : ''}
             />
             {error && (
