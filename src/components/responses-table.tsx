@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader, Trash2 } from 'lucide-react'
+import { ResponseDetails } from './response-details'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
   const [responses, setResponses] = useState<Response[]>([])
   const [loading, setLoading] = useState(true)
   const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
+  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null)
 
   const handleDelete = async () => {
     if (!responseToDelete) return
@@ -117,26 +119,32 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-white">
+    <div className="relative rounded-lg border bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Message</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[100px]">Image</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">User ID</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Email</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Name</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">System</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground">Device</th>
-              <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[180px]">Date</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Message</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[100px]">Image</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">User ID</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Email</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">System</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Device</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[180px]">Date</th>
               <th className="py-3 px-4 w-[50px]"></th>
             </tr>
           </thead>
           <tbody>
             {responses.map((response) => (
-              <tr key={response.id} className="border-b last:border-0">
-                <td className="py-3 px-4 text-sm">{response.message}</td>
+              <tr 
+                key={response.id} 
+                className="border-b last:border-0 cursor-pointer hover:bg-muted/50"
+                onClick={() => setSelectedResponse(response)}
+              >
+                <td className="py-3 px-4 text-sm">
+                  <p className="line-clamp-2">{response.message}</p>
+                </td>
                 <td className="py-3 px-4">
                   {response.image_url && (
                     <img 
@@ -178,18 +186,30 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                   </span>
                 </td>
                 <td className="py-3 px-4">
-                  <button
-                    onClick={() => setResponseToDelete(response.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setResponseToDelete(response.id)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      
+      <ResponseDetails 
+        response={selectedResponse} 
+        onClose={() => setSelectedResponse(null)}
+        onDelete={(id) => {
+          setResponseToDelete(id)
+          setSelectedResponse(null)
+        }}
+      />
+      
       <AlertDialog open={!!responseToDelete} onOpenChange={() => setResponseToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
