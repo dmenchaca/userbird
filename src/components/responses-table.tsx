@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader } from 'lucide-react'
+import { Loader, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface Response {
   id: string
@@ -22,6 +32,26 @@ interface ResponsesTableProps {
 export function ResponsesTable({ formId }: ResponsesTableProps) {
   const [responses, setResponses] = useState<Response[]>([])
   const [loading, setLoading] = useState(true)
+  const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
+
+  const handleDelete = async () => {
+    if (!responseToDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .delete()
+        .eq('id', responseToDelete)
+
+      if (error) throw error
+
+      setResponses(current => current.filter(response => response.id !== responseToDelete))
+    } catch (error) {
+      console.error('Error deleting response:', error)
+    } finally {
+      setResponseToDelete(null)
+    }
+  }
 
   useEffect(() => {
     async function fetchResponses() {
@@ -95,6 +125,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">System</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground">Device</th>
               <th className="py-3 px-4 text-left font-medium text-muted-foreground w-[180px]">Date</th>
+              <th className="py-3 px-4 w-[50px]"></th>
             </tr>
           </thead>
           <tbody>
@@ -141,11 +172,38 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                     })}
                   </span>
                 </td>
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => setResponseToDelete(response.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <AlertDialog open={!!responseToDelete} onOpenChange={() => setResponseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Response</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this response? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setResponseToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

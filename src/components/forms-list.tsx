@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 interface Form {
   id: string
   url: string
-  created_at: string
+  created_at: string,
+  feedback: { count: number }
 }
 
 interface FormsListProps {
@@ -53,7 +54,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
       try {
         const { data, error } = await supabase
           .from('forms')
-          .select('*')
+          .select(`
+            id,
+            url,
+            created_at,
+            feedback:feedback(count)
+          `)
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false })
 
@@ -154,9 +160,15 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           className={cn(
             "w-full py-2 text-left rounded-md hover:bg-accent transition-colors font-normal",
             selectedFormId === form.id && "bg-accent"
-          )}>
-          <div className="text-sm font-medium">
+          )}
+        >
+          <div className="flex items-center text-sm">
             <TruncatedUrl url={form.url} />
+            {form.feedback?.count !== undefined && (
+              <span className="text-xs text-muted-foreground ml-2 tabular-nums">
+                {form.feedback.count} {form.feedback.count === 1 ? 'response' : 'responses'}
+              </span>
+            )}
           </div>
         </button>
       ))}
