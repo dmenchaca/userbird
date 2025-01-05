@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader, Trash2 } from 'lucide-react'
 import { ResponseDetails } from './response-details'
+import { FeedbackResponse } from '@/lib/types/feedback'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,28 +14,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-interface Response {
-  id: string
-  message: string
-  image_url: string | null
-  image_name: string | null
-  user_id: string | null
-  user_email: string | null
-  user_name: string | null
-  operating_system: string
-  screen_category: string
-  created_at: string
-}
-
 interface ResponsesTableProps {
   formId: string
 }
 
 export function ResponsesTable({ formId }: ResponsesTableProps) {
-  const [responses, setResponses] = useState<Response[]>([])
+  const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
-  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null)
+  const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
 
   const handleDelete = async () => {
     if (!responseToDelete) return
@@ -83,7 +71,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
         schema: 'public',
         table: 'feedback',
         filter: `form_id=eq.${formId}`
-      }, async (payload) => {
+      }, async () => {
         // Refetch all responses to ensure consistency
         const { data } = await supabase
           .from('feedback')

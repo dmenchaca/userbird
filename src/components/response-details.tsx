@@ -1,21 +1,9 @@
 import { X } from 'lucide-react'
 import { Button } from './ui/button'
-
-interface Response {
-  id: string
-  message: string
-  image_url: string | null
-  image_name: string | null
-  user_id: string | null
-  user_email: string | null
-  user_name: string | null
-  operating_system: string
-  screen_category: string
-  created_at: string
-}
+import { FeedbackResponse } from '@/lib/types/feedback'
 
 interface ResponseDetailsProps {
-  response: Response | null
+  response: FeedbackResponse | null
   onClose: () => void
   onDelete: (id: string) => void
 }
