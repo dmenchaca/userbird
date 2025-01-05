@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils'
 interface Form {
   id: string
   url: string
-  created_at: string,
-  feedback: { count: number }
+  created_at: string
+  feedback: { count: number }[]
 }
 
 interface FormsListProps {
@@ -152,7 +152,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col items-start gap-2 -mx-2">
       {forms.map((form) => (
         <button
           key={form.id}
@@ -160,13 +160,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           className={cn(
             "w-full py-2 text-left rounded-md hover:bg-accent transition-colors font-normal",
             selectedFormId === form.id && "bg-accent"
-          )}
-        >
-          <div className="flex items-center text-sm">
+          )}>
+          <div className="flex items-center justify-between px-2 text-sm">
             <TruncatedUrl url={form.url} />
-            {form.feedback?.count !== undefined && (
-              <span className="text-xs text-muted-foreground ml-2 tabular-nums">
-                {form.feedback.count} {form.feedback.count === 1 ? 'response' : 'responses'}
+            {form.feedback?.[0]?.count !== undefined && (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {form.feedback[0].count}
               </span>
             )}
           </div>
