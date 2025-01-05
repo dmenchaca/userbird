@@ -3,10 +3,10 @@ import { FormCreator } from '@/components/form-creator'
 import { FormsList } from '@/components/forms-list'
 import { ResponsesTable } from '@/components/responses-table'
 import { Button } from '@/components/ui/button'
-import { Trash2, Bird, Download, Plus, Code2 } from 'lucide-react'
+import { Bird, Download, Plus, Code2, Settings2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
-import { DeleteFormDialog } from '@/components/delete-form-dialog'
+import { FormSettingsDialog } from '@/components/form-settings-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 
@@ -14,21 +14,27 @@ export function Dashboard() {
   const { user } = useAuth()
   const [selectedFormId, setSelectedFormId] = useState<string>()
   const [formName, setFormName] = useState<string>('')
+  const [buttonColor, setButtonColor] = useState('#1f2937')
+  const [supportText, setSupportText] = useState<string | null>(null)
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   
   // Fetch form name when form is selected
   useEffect(() => {
     if (selectedFormId) {
       supabase
         .from('forms')
-        .select('url')
+        .select('url, button_color, support_text')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
         .then(({ data }) => {
-          if (data) setFormName(data.url)
+          if (data) {
+            setFormName(data.url)
+            setButtonColor(data.button_color)
+            setSupportText(data.support_text)
+          }
         })
     }
   }, [selectedFormId, user?.id])
@@ -151,20 +157,20 @@ export function Dashboard() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => setShowSettingsDialog(true)}
+                    className="gap-2"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                    Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleExport}
                     className="gap-2"
                   >
                     <Download className="w-4 h-4" />
                     Export CSV
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Form
                   </Button>
                 </div>
               </div>
@@ -192,12 +198,15 @@ export function Dashboard() {
             onOpenChange={setShowInstallModal}
           />
         )}
-        {selectedFormId && formName && (
-          <DeleteFormDialog
-            open={showDeleteDialog}
-            onOpenChange={setShowDeleteDialog}
-            onConfirm={handleDelete}
+        {selectedFormId && (
+          <FormSettingsDialog
+            open={showSettingsDialog}
+            onOpenChange={setShowSettingsDialog}
+            onDelete={handleDelete}
+            formId={selectedFormId}
             formUrl={formName}
+            buttonColor={buttonColor}
+            supportText={supportText}
           />
         )}
       </main>
