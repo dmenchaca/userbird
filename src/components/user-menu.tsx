@@ -30,7 +30,10 @@ export function UserMenu() {
 
   if (!user) return null
 
-  const initials = user.email?.[0].toUpperCase() || 'U'
+  // Get user display name from Google metadata
+  const displayName = user.user_metadata?.full_name || user.email
+  const initials = displayName?.[0].toUpperCase() || 'U'
+  const avatarUrl = user.user_metadata?.avatar_url
 
   return (
     <SidebarMenu>
@@ -42,10 +45,14 @@ export function UserMenu() {
               className="data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover rounded-lg" />
+                ) : (
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                )}
               </Avatar>
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">{user.email}</span>
+                <span className="truncate font-semibold">{displayName}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -60,10 +67,14 @@ export function UserMenu() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover rounded-lg" />
+                  ) : (
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                  )}
                 </Avatar>
                 <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-semibold">{user.email}</span>
+                  <span className="truncate font-semibold">{displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                 </div>
               </div>
