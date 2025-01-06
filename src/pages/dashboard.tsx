@@ -202,6 +202,22 @@ export function Dashboard() {
           <FormSettingsDialog
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
+            onSettingsSaved={() => {
+              // Refetch form data
+              supabase
+                .from('forms')
+                .select('url, button_color, support_text')
+                .eq('id', selectedFormId)
+                .eq('owner_id', user?.id)
+                .single()
+                .then(({ data }) => {
+                  if (data) {
+                    setFormName(data.url);
+                    setButtonColor(data.button_color);
+                    setSupportText(data.support_text);
+                  }
+                });
+            }}
             onDelete={handleDelete}
             formId={selectedFormId}
             formUrl={formName}

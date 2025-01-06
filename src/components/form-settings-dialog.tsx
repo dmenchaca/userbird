@@ -20,6 +20,7 @@ interface FormSettingsDialogProps {
   supportText: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSettingsSaved: () => void
   onDelete: () => void
 }
 
@@ -32,6 +33,7 @@ export function FormSettingsDialog({
   supportText,
   open, 
   onOpenChange,
+  onSettingsSaved,
   onDelete
 }: FormSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('styling')
@@ -56,7 +58,9 @@ export function FormSettingsDialog({
         })
         .eq('id', formId)
 
-      if (error) throw error
+      if (error) throw error;
+      onSettingsSaved();
+      onOpenChange(false);
     } catch (error) {
       console.error('Error updating form:', error)
     } finally {
