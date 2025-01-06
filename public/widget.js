@@ -118,25 +118,27 @@
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
-            <div class="userbird-image-upload">
-              <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
-              <button class="userbird-image-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <circle cx="8.5" cy="8.5" r="1.5"/>
-                  <path d="M21 15l-5-5L5 21"/>
+            <div class="userbird-actions">
+              <div class="userbird-image-upload">
+                <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
+                <button class="userbird-image-button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                </button>
+                <div class="userbird-image-preview">
+                  <button class="userbird-remove-image">&times;</button>
+                </div>
+              </div>
+              <button class="userbird-button userbird-submit">
+                <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
+                <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
               </button>
-              <div class="userbird-image-preview">
-                <button class="userbird-remove-image">&times;</button>
-              </div>
             </div>
-            <button class="userbird-button userbird-submit">
-              <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
-              <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            </button>
           </div>
           <div class="userbird-support-text">Have a specific issue? Contact support or read our docs.</div>
         </div>
@@ -235,13 +237,15 @@
         display: none;
       }
       .userbird-image-button {
-        padding: 0.5rem;
+        padding: 0.5rem 0.75rem;
         margin-right: 0.5rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         color: #6b7280;
         cursor: pointer;
         transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
       }
       .userbird-image-button:hover {
         background: #f3f4f6;
@@ -255,8 +259,8 @@
         display: block;
       }
       .userbird-image-preview img {
-        width: 100px;
-        height: 100px;
+        width: 36px;
+        height: 36px;
         object-fit: cover;
         border-radius: 6px;
       }
