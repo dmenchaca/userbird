@@ -115,22 +115,22 @@
         <div class="userbird-form">
           <h3 class="userbird-title">Send feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
-          <div class="userbird-image-upload">
-            <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
-            <button class="userbird-image-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <path d="M21 15l-5-5L5 21"/>
-              </svg>
-            </button>
-            <div class="userbird-image-preview">
-              <button class="userbird-remove-image">&times;</button>
-            </div>
-          </div>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
             <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
+            <div class="userbird-image-upload">
+              <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
+              <button class="userbird-image-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path d="M21 15l-5-5L5 21"/>
+                </svg>
+              </button>
+              <div class="userbird-image-preview">
+                <button class="userbird-remove-image">&times;</button>
+              </div>
+            </div>
             <button class="userbird-button userbird-submit">
               <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
               <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -228,13 +228,15 @@
       }
       .userbird-image-upload {
         position: relative;
-        margin-top: 0.5rem;
+        display: inline-flex;
+        align-items: center;
       }
       .userbird-file-input {
         display: none;
       }
       .userbird-image-button {
         padding: 0.5rem;
+        margin-right: 0.5rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         color: #6b7280;
@@ -247,7 +249,7 @@
       .userbird-image-preview {
         display: none;
         position: relative;
-        margin-top: 0.5rem;
+        margin-right: 0.5rem;
       }
       .userbird-image-preview.show {
         display: block;
