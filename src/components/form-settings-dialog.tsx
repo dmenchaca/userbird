@@ -58,6 +58,9 @@ export function FormSettingsDialog({
   const handleSave = async () => {
     setSaving(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { error } = await supabase
         .from('forms')
         .update({ 
@@ -65,6 +68,7 @@ export function FormSettingsDialog({
           support_text: text || null
         })
         .eq('id', formId)
+        .eq('owner_id', user.id)
 
       if (error) throw error;
       onSettingsSaved();
