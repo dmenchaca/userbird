@@ -1,6 +1,8 @@
 // Userbird Widget
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
+  const SETTINGS_CACHE_PREFIX = 'userbird_settings_';
+  const SETTINGS_CACHE_TTL = 1000 * 60 * 60; // 1 hour
   
   function getSystemInfo() {
     const ua = navigator.userAgent;
@@ -39,6 +41,32 @@
   let formId = null;
   let selectedImage = null;
   let currentTrigger = null;
+
+  function getCachedSettings(formId) {
+    const cached = localStorage.getItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
+    if (!cached) return null;
+    
+    try {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp > SETTINGS_CACHE_TTL) {
+        localStorage.removeItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
+        return null;
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  function cacheSettings(formId, settings) {
+    localStorage.setItem(
+      `${SETTINGS_CACHE_PREFIX}${formId}`,
+      JSON.stringify({
+        data: settings,
+        timestamp: Date.now()
+      })
+    );
+  }
 
   async function uploadImage(file) {
     if (!file) return null;
@@ -433,17 +461,35 @@
     // Get form settings including button color
     formId = window.UserBird?.formId;
     if (!formId) return;
+    
+    // Try to get cached settings first
+    const cachedSettings = getCachedSettings(formId);
+    if (cachedSettings) {
+      injectStyles(cachedSettings.button_color || '#1f2937');
+      const supportText = cachedSettings.support_text;
+      modal = createModal();
+      
+      // Setup support text if present
+      const supportTextElement = modal.modal.querySelector('.userbird-support-text');
+      if (supportText) {
+        const parsedText = supportText.replace(
+          /\[([^\]]+)\]\(([^)]+)\)/g,
+          `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${cachedSettings.button_color}; font-weight: 500; text-decoration: none;">$1</a>`
+        );
+        supportTextElement.innerHTML = parsedText;
+      } else {
+        supportTextElement.style.display = 'none';
+      }
+    }
 
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
     const settings = await response.json();
-    const buttonColor = settings.button_color || '#1f2937';
-    const supportText = settings.support_text;
+    cacheSettings(formId, settings);
     
-    // Inject styles
-    injectStyles(buttonColor);
+    if (!cachedSettings) {
+      injectStyles(settings.button_color || '#1f2937');
+      modal = createModal();
     
-    // Create modal
-    modal = createModal();
     
     // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
