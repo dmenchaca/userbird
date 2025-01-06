@@ -238,7 +238,6 @@
       }
       .userbird-image-button {
         padding: 0.5rem 0.75rem;
-        margin-right: 0.5rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         color: #6b7280;
@@ -246,6 +245,7 @@
         transition: all 0.2s;
         display: inline-flex;
         align-items: center;
+        background: white;
       }
       .userbird-image-button:hover {
         background: #f3f4f6;
@@ -253,7 +253,6 @@
       .userbird-image-preview {
         display: none;
         position: relative;
-        margin-right: 0.5rem;
       }
       .userbird-image-preview.show {
         display: block;
@@ -284,8 +283,13 @@
       .userbird-buttons {
         display: flex;
         justify-content: space-between;
-        gap: 0.75rem;
+        align-items: center;
         margin-top: 1rem;
+      }
+      .userbird-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
       }
       .userbird-button {
         padding: 0.5rem 0.75rem;
