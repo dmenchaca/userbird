@@ -42,6 +42,14 @@ export function FormSettingsDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Sync state with props when dialog opens
+  useEffect(() => {
+    if (open) {
+      setColor(buttonColor)
+      setText(supportText || '')
+    }
+  }, [open, buttonColor, supportText])
+
   useEffect(() => {
     setColor(buttonColor)
     setText(supportText || '')
