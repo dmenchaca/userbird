@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Palette, Trash2 } from 'lucide-react'
 import {
   Dialog,
@@ -39,6 +39,11 @@ export function FormSettingsDialog({
   const [text, setText] = useState(supportText || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setColor(buttonColor)
+    setText(supportText || '')
+  }, [buttonColor, supportText, open])
 
   const handleSave = async () => {
     setSaving(true)
