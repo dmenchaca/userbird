@@ -179,7 +179,7 @@
         width: 400px;
         max-width: calc(100vw - 2rem);
         border: 1px solid #e5e7eb;
-        transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+        transition: opacity 0.1s ease-in-out, visibility 0.1s ease-in-out;
       }
       .userbird-modal.open {
         opacity: 1;
