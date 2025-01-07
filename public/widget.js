@@ -4,29 +4,6 @@
   const SETTINGS_CACHE_PREFIX = 'userbird_settings_';
   const SETTINGS_CACHE_TTL = 1000 * 60 * 60; // 1 hour
   
-  function cacheSettings(formId, settings) {
-    console.log('[Userbird] Caching settings for form:', formId);
-    if (!formId || !settings) {
-      console.log('[Userbird] Invalid cache data');
-      return;
-    }
-    
-    // Validate required fields
-    if (typeof settings.button_color !== 'string' || !settings.button_color.startsWith('#')) {
-      console.log('[Userbird] Invalid button color');
-      settings.button_color = '#1f2937';
-    }
-    
-    localStorage.setItem(
-      `${SETTINGS_CACHE_PREFIX}${formId}`,
-      JSON.stringify({
-        data: settings,
-        timestamp: Date.now()
-      })
-    );
-    console.log('[Userbird] Settings cached successfully');
-  }
-
   function getSystemInfo() {
     const ua = navigator.userAgent;
     let os = 'Unknown';
@@ -456,11 +433,6 @@
 
   function getCachedSettings(formId) {
     console.log('[Userbird] Checking cache for settings:', formId);
-    if (!formId) {
-      console.log('[Userbird] No form ID provided');
-      return null;
-    }
-    
     const cached = localStorage.getItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
     
     if (!cached) {
@@ -494,79 +466,17 @@
     // Try to get cached settings first
     const cachedSettings = getCachedSettings(formId);
     console.log('[Userbird] Using cached settings:', !!cachedSettings);
-    
-    if (cachedSettings) {
-      console.log('[Userbird] Initializing with cached settings');
-      injectStyles(cachedSettings.button_color || '#1f2937');
-      modal = createModal();
-      
-      // Setup support text if present
-      const supportTextElement = modal.modal.querySelector('.userbird-support-text');
-      if (cachedSettings.support_text) {
-        const parsedText = cachedSettings.support_text.replace(
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${cachedSettings.button_color}; font-weight: 500; text-decoration: none;">$1</a>`
-        );
-        supportTextElement.innerHTML = parsedText;
-      } else {
-        supportTextElement.style.display = 'none';
-      }
-    }
 
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
-    if (!response.ok) {
-      console.log('[Userbird] Failed to fetch settings:', response.status);
-      return;
-    }
-    
     const settings = await response.json();
-    console.log('[Userbird] Fetched fresh settings:', settings);
-    
-    // Cache the new settings
-    cacheSettings(formId, settings);
-    
-    // Update UI if settings changed
-    if (cachedSettings && (
-      cachedSettings.button_color !== settings.button_color ||
-      cachedSettings.support_text !== settings.support_text
-    )) {
-      console.log('[Userbird] Settings changed, updating UI');
-      injectStyles(settings.button_color || '#1f2937');
-      
-      const supportTextElement = modal.modal.querySelector('.userbird-support-text');
-      if (settings.support_text) {
-        const parsedText = settings.support_text.replace(
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${settings.button_color}; font-weight: 500; text-decoration: none;">$1</a>`
-        );
-        supportTextElement.innerHTML = parsedText;
-        supportTextElement.style.display = 'block';
-      } else {
-        supportTextElement.style.display = 'none';
-      }
-    }
-
     const buttonColor = settings.button_color || '#1f2937';
     const supportText = settings.support_text;
     
-    // Only create modal and inject styles if we didn't use cached settings
-    if (!cachedSettings) {
-      console.log('[Userbird] Initializing with fresh settings');
-      injectStyles(buttonColor);
-      modal = createModal();
-      
-      // Setup support text if present
-      const supportTextElement = modal.modal.querySelector('.userbird-support-text');
-      if (supportText) {
-        const parsedText = supportText.replace(
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${buttonColor}; font-weight: 500; text-decoration: none;">$1</a>`
-        );
-        supportTextElement.innerHTML = parsedText;
-      } else {
-        supportTextElement.style.display = 'none';
-      }
-    }
+    // Inject styles
+    injectStyles(buttonColor);
+    
+    // Create modal
+    modal = createModal();
     
     // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
