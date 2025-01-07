@@ -33,10 +33,6 @@ export async function initFeedbackWidget(formId: string) {
   }
 
   Logger.debug('Initializing widget with formId:', formId);
-  Logger.debug('Environment check:', {
-    supabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
-    supabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
-  });
   
   // Fetch form settings first
   const settings = await getFormSettings(formId);
@@ -44,14 +40,4 @@ export async function initFeedbackWidget(formId: string) {
   
   // Initialize widget with settings
   await createWidget(formId, settings.button_color);
-}
-
-// Expose global initialization
-declare global {
-  interface Window {
-    UserBird?: {
-      formId?: string;
-      buttonColor?: string;
-    };
-  }
 }
