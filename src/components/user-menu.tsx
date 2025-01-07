@@ -38,6 +38,11 @@ export function UserMenu() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
+        <SidebarMenuButton size="lg">
+          Feedback
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
