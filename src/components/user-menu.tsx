@@ -30,6 +30,7 @@ export function UserMenu() {
   const { isMobile } = useSidebar()
   
   useEffect(() => {
+    // Initialize Userbird
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = "4hNUB7DVhf";
     
