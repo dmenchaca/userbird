@@ -6,6 +6,17 @@
   
   function cacheSettings(formId, settings) {
     console.log('[Userbird] Caching settings for form:', formId);
+    if (!formId || !settings) {
+      console.log('[Userbird] Invalid cache data');
+      return;
+    }
+    
+    // Validate required fields
+    if (typeof settings.button_color !== 'string' || !settings.button_color.startsWith('#')) {
+      console.log('[Userbird] Invalid button color');
+      settings.button_color = '#1f2937';
+    }
+    
     localStorage.setItem(
       `${SETTINGS_CACHE_PREFIX}${formId}`,
       JSON.stringify({
@@ -445,6 +456,11 @@
 
   function getCachedSettings(formId) {
     console.log('[Userbird] Checking cache for settings:', formId);
+    if (!formId) {
+      console.log('[Userbird] No form ID provided');
+      return null;
+    }
+    
     const cached = localStorage.getItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
     
     if (!cached) {
@@ -498,11 +514,37 @@
     }
 
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
+    if (!response.ok) {
+      console.log('[Userbird] Failed to fetch settings:', response.status);
+      return;
+    }
+    
     const settings = await response.json();
     console.log('[Userbird] Fetched fresh settings:', settings);
     
     // Cache the new settings
     cacheSettings(formId, settings);
+    
+    // Update UI if settings changed
+    if (cachedSettings && (
+      cachedSettings.button_color !== settings.button_color ||
+      cachedSettings.support_text !== settings.support_text
+    )) {
+      console.log('[Userbird] Settings changed, updating UI');
+      injectStyles(settings.button_color || '#1f2937');
+      
+      const supportTextElement = modal.modal.querySelector('.userbird-support-text');
+      if (settings.support_text) {
+        const parsedText = settings.support_text.replace(
+          /\[([^\]]+)\]\(([^)]+)\)/g,
+          `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${settings.button_color}; font-weight: 500; text-decoration: none;">$1</a>`
+        );
+        supportTextElement.innerHTML = parsedText;
+        supportTextElement.style.display = 'block';
+      } else {
+        supportTextElement.style.display = 'none';
+      }
+    }
 
     const buttonColor = settings.button_color || '#1f2937';
     const supportText = settings.support_text;
