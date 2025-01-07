@@ -1,6 +1,8 @@
 // Userbird Widget
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
+  const SETTINGS_CACHE_PREFIX = 'userbird_settings_';
+  const SETTINGS_CACHE_TTL = 1000 * 60 * 60; // 1 hour
   
   function getSystemInfo() {
     const ua = navigator.userAgent;
@@ -429,10 +431,41 @@
     }, 150);
   }
 
+  function getCachedSettings(formId) {
+    console.log('[Userbird] Checking cache for settings:', formId);
+    const cached = localStorage.getItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
+    
+    if (!cached) {
+      console.log('[Userbird] No cached settings found');
+      return null;
+    }
+    
+    try {
+      const { data, timestamp } = JSON.parse(cached);
+      console.log('[Userbird] Found cached settings:', data);
+      console.log('[Userbird] Cache age:', Date.now() - timestamp, 'ms');
+      
+      if (Date.now() - timestamp > SETTINGS_CACHE_TTL) {
+        console.log('[Userbird] Cache expired, removing');
+        localStorage.removeItem(`${SETTINGS_CACHE_PREFIX}${formId}`);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.log('[Userbird] Error parsing cached settings:', error);
+      return null;
+    }
+  }
+
   async function init() {
     // Get form settings including button color
     formId = window.UserBird?.formId;
     if (!formId) return;
+
+    // Try to get cached settings first
+    const cachedSettings = getCachedSettings(formId);
+    console.log('[Userbird] Using cached settings:', !!cachedSettings);
 
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
     const settings = await response.json();
