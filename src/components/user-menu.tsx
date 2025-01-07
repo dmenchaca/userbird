@@ -1,4 +1,5 @@
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth';
+import { useEffect } from 'react';
 import {
   BadgeCheck,
   ChevronsUpDown,
@@ -27,6 +28,15 @@ import {
 export function UserMenu() {
   const { user, signOut } = useAuth()
   const { isMobile } = useSidebar()
+  
+  useEffect(() => {
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = "4hNUB7DVhf";
+    
+    const script = document.createElement('script');
+    script.src = 'https://userbird.netlify.app/widget.js';
+    document.head.appendChild(script);
+  }, []);
 
   if (!user) return null
 
@@ -38,7 +48,10 @@ export function UserMenu() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg">
+        <SidebarMenuButton 
+          size="lg" 
+          onClick={() => window.UserBird?.open()}
+        >
           Feedback
         </SidebarMenuButton>
       </SidebarMenuItem>
