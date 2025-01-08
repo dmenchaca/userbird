@@ -65,6 +65,9 @@ export const handler: Handler = async (event) => {
     // Send email to each recipient
     const emailPromises = settings.map(({ email }) => {
       console.log('Sending email to:', email);
+      const emailEndpoint = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
+      console.log('Calling email endpoint:', emailEndpoint);
+      
       return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
@@ -82,7 +85,18 @@ export const handler: Handler = async (event) => {
             userEmail,
             hasUserInfo: !!(userName || userEmail)
           },
-        }),
+        })
+      }).then(async response => {
+        const text = await response.text();
+        console.log('Email endpoint response:', {
+          status: response.status,
+          ok: response.ok,
+          text: text.slice(0, 200) // Log first 200 chars in case of long response
+        });
+        if (!response.ok) {
+          throw new Error(`Email endpoint failed: ${response.status} ${text}`);
+        }
+        return response;
       });
     });
 
