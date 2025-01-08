@@ -43,6 +43,11 @@ export const handler: Handler = async (event) => {
         body: JSON.stringify({ error: 'Form not found' }) 
       };
     }
+    console.log('Form found:', {
+      formId,
+      url: form.url,
+      hasOwnerId: !!form.owner_id
+    });
 
     // Get notification settings
     const { data: settings } = await supabase
@@ -50,6 +55,9 @@ export const handler: Handler = async (event) => {
       .select('email')
       .eq('form_id', formId)
       .eq('enabled', true);
+    if (settingsError) {
+      console.error('Error fetching notification settings:', settingsError);
+    }
 
     console.log('Notification settings found:', {
       recipientCount: settings?.length || 0
