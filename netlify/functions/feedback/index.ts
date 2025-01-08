@@ -103,6 +103,25 @@ export const handler: Handler = async (event) => {
 
     if (insertError) throw insertError;
 
+    // Send notification
+    try {
+      await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          formId,
+          message,
+          userName: user_name,
+          userEmail: user_email
+        })
+      });
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+      // Don't throw error to avoid affecting feedback submission
+    }
+
     return {
       statusCode: 200,
       headers,

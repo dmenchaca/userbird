@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 20px;">
+      <h1 style="color: #1f2937; margin-bottom: 20px;">New Feedback Received</h1>
+      
+      <div style="margin-bottom: 30px;">
+        <p style="color: #4b5563; line-height: 1.6;">
+          You've received new feedback for <strong>{{formUrl}}</strong>
+        </p>
+      </div>
+
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0;">Message</h2>
+        <p style="color: #4b5563; line-height: 1.6;">{{message}}</p>
+      </div>
+
+      {{#if hasUserInfo}}
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0;">User Information</h2>
+        {{#if userName}}
+        <p style="color: #4b5563; margin: 0;">Name: {{userName}}</p>
+        {{/if}}
+        {{#if userEmail}}
+        <p style="color: #4b5563; margin: 0;">Email: {{userEmail}}</p>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="https://userbird.co/forms/{{formId}}" 
+           style="background: #1f2937; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          View All Responses
+        </a>
+      </div>
+    </div>
+  </body>
+</html>

@@ -15,6 +15,7 @@
     "react-router-dom": "^6.22.3",
     "busboy": "^1.6.0",
     "@netlify/functions": "^2.6.0",
+    "@netlify/plugin-emails": "^1.1.1",
     "@supabase/supabase-js": "^2.39.7",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-alert-dialog": "^1.0.5",

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2 } from 'lucide-react'
+import { Palette, Trash2, Bell } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ interface FormSettingsDialogProps {
   onDelete: () => void
 }
 
-type SettingsTab = 'styling' | 'delete'
+type SettingsTab = 'styling' | 'notifications' | 'delete'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -42,6 +42,74 @@ export function FormSettingsDialog({
   const [text, setText] = useState(supportText || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
+  const [newEmail, setNewEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
+
+  // Fetch notification settings
+  useEffect(() => {
+    if (open && formId) {
+      supabase
+        .from('notification_settings')
+        .select('id, email')
+        .eq('form_id', formId)
+        .eq('enabled', true)
+        .then(({ data }) => {
+          if (data) {
+            setNotifications(data)
+          }
+        })
+    }
+  }, [open, formId])
+
+  const handleAddEmail = async () => {
+    setEmailError('')
+    
+    if (!newEmail.trim()) {
+      setEmailError('Email is required')
+      return
+    }
+    
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(newEmail)) {
+      setEmailError('Invalid email address')
+      return
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .insert([
+          { form_id: formId, email: newEmail }
+        ])
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      if (data) {
+        setNotifications([...notifications, data])
+        setNewEmail('')
+      }
+    } catch (error) {
+      console.error('Error adding email:', error)
+      setEmailError('Failed to add email')
+    }
+  }
+
+  const handleRemoveEmail = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      
+      setNotifications(notifications.filter(n => n.id !== id))
+    } catch (error) {
+      console.error('Error removing email:', error)
+    }
+  }
 
   // Sync state with props when dialog opens
   useEffect(() => {
@@ -102,6 +170,16 @@ export function FormSettingsDialog({
                   Styling
                 </button>
                 <button
+                  onClick={() => setActiveTab('notifications')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'notifications' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Bell className="w-4 h-4" />
+                  Notifications
+                </button>
+                <button
                   onClick={() => setActiveTab('delete')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
@@ -156,6 +234,64 @@ export function FormSettingsDialog({
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </Button>
+                </div>
+              )}
+
+              {activeTab === 'notifications' && (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Email Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Add email addresses to receive notifications when new feedback is submitted.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newEmail}
+                          onChange={(e) => {
+                            setNewEmail(e.target.value)
+                            setEmailError('')
+                          }}
+                          placeholder="email@example.com"
+                          className={emailError ? 'border-destructive' : ''}
+                        />
+                        <Button onClick={handleAddEmail}>
+                          Add Email
+                        </Button>
+                      </div>
+                      {emailError && (
+                        <p className="text-sm text-destructive">{emailError}</p>
+                      )}
+                    </div>
+
+                    {notifications.length > 0 ? (
+                      <div className="space-y-2">
+                        {notifications.map((notification) => (
+                          <div 
+                            key={notification.id}
+                            className="flex items-center justify-between p-2 rounded-md bg-muted"
+                          >
+                            <span className="text-sm">{notification.email}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveEmail(notification.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No notification emails added yet.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
