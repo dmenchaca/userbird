@@ -29,13 +29,6 @@ export function UserMenu() {
   const { user, signOut } = useAuth()
   const { isMobile } = useSidebar()
   
-  // Store UserBird.open reference to ensure type safety
-  const openFeedback = () => {
-    if (typeof window !== 'undefined' && window.UserBird?.open) {
-      window.UserBird.open();
-    }
-  };
-
   useEffect(() => {
     // Initialize Userbird
     window.UserBird = window.UserBird || {};
@@ -57,8 +50,8 @@ export function UserMenu() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton 
+          id="userbird-trigger-4hNUB7DVhf"
           size="lg" 
-          onClick={openFeedback}
         >
           Feedback
         </SidebarMenuButton>
