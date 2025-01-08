@@ -32,7 +32,7 @@ export const handler: Handler = async (event) => {
     // Get form details and notification settings
     const { data: form } = await supabase
       .from('forms')
-      .select('url')
+      .select('url, owner_id')
       .eq('id', formId)
       .single();
 
@@ -50,7 +50,7 @@ export const handler: Handler = async (event) => {
     });
 
     // Get notification settings
-    const { data: settings } = await supabase
+    const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
       .select('email')
       .eq('form_id', formId)
