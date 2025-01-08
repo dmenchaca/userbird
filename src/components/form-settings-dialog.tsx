@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell } from 'lucide-react'
+import { Palette, Trash2, Bell, ToggleLeft, ToggleRight } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ export function FormSettingsDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
   const [emailError, setEmailError] = useState('')
 
@@ -51,12 +52,13 @@ export function FormSettingsDialog({
     if (open && formId) {
       supabase
         .from('notification_settings')
-        .select('id, email')
+        .select('id, email, enabled')
         .eq('form_id', formId)
-        .eq('enabled', true)
         .then(({ data }) => {
           if (data) {
             setNotifications(data)
+            // Check if any notifications are enabled
+            setNotificationsEnabled(data.some(n => n.enabled))
           }
         })
     }
@@ -79,7 +81,7 @@ export function FormSettingsDialog({
       const { data, error } = await supabase
         .from('notification_settings')
         .insert([
-          { form_id: formId, email: newEmail }
+          { form_id: formId, email: newEmail, enabled: notificationsEnabled }
         ])
         .select()
         .single()
@@ -108,6 +110,27 @@ export function FormSettingsDialog({
       setNotifications(notifications.filter(n => n.id !== id))
     } catch (error) {
       console.error('Error removing email:', error)
+    }
+  }
+
+  const handleToggleNotifications = async () => {
+    const newState = !notificationsEnabled
+    setNotificationsEnabled(newState)
+    
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .update({ enabled: newState })
+        .eq('form_id', formId)
+
+      if (error) throw error
+      
+      // Update local state
+      setNotifications(notifications.map(n => ({ ...n, enabled: newState })))
+    } catch (error) {
+      console.error('Error updating notification settings:', error)
+      // Revert state on error
+      setNotificationsEnabled(!newState)
     }
   }
 
@@ -240,11 +263,23 @@ export function FormSettingsDialog({
               {activeTab === 'notifications' && (
                 <div className="space-y-6">
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Email Notifications</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Add email addresses to receive notifications when new feedback is submitted.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label>Email Notifications</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Add email addresses to receive notifications when new feedback is submitted.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleToggleNotifications}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        {notificationsEnabled ? (
+                          <ToggleRight className="w-8 h-8 text-primary" />
+                        ) : (
+                          <ToggleLeft className="w-8 h-8" />
+                        )}
+                      </button>
                     </div>
 
                     <div className="space-y-2">
@@ -288,7 +323,10 @@ export function FormSettingsDialog({
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        No notification emails added yet.
+                        {notificationsEnabled 
+                          ? "No notification emails added yet."
+                          : "Notifications are currently disabled."
+                        }
                       </p>
                     )}
                   </div>

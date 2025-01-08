@@ -55,12 +55,20 @@ export const handler: Handler = async (event) => {
       .select('email')
       .eq('form_id', formId)
       .eq('enabled', true);
+
     if (settingsError) {
       console.error('Error fetching notification settings:', settingsError);
+      // Log the full error details
+      console.error('Notification settings error details:', {
+        message: settingsError.message,
+        details: settingsError.details,
+        hint: settingsError.hint
+      });
     }
 
     console.log('Notification settings found:', {
-      recipientCount: settings?.length || 0
+      recipientCount: settings?.length || 0,
+      settings: settings || []
     });
     if (!settings?.length) {
       console.log('No notification settings found for form:', formId);
