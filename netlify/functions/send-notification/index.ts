@@ -21,6 +21,13 @@ export const handler: Handler = async (event) => {
   try {
     const payload = JSON.parse(event.body || '{}') as EmailPayload;
     const { formId, message, userName, userEmail } = payload;
+    
+    console.log('Processing notification request:', {
+      formId,
+      hasMessage: !!message,
+      hasUserName: !!userName,
+      hasUserEmail: !!userEmail
+    });
 
     // Get form details and notification settings
     const { data: form } = await supabase
@@ -30,6 +37,7 @@ export const handler: Handler = async (event) => {
       .single();
 
     if (!form) {
+      console.log('Form not found:', formId);
       return { 
         statusCode: 404, 
         body: JSON.stringify({ error: 'Form not found' }) 
@@ -43,7 +51,11 @@ export const handler: Handler = async (event) => {
       .eq('form_id', formId)
       .eq('enabled', true);
 
+    console.log('Notification settings found:', {
+      recipientCount: settings?.length || 0
+    });
     if (!settings?.length) {
+      console.log('No notification settings found for form:', formId);
       return { 
         statusCode: 200, 
         body: JSON.stringify({ message: 'No notification settings found' }) 
@@ -52,6 +64,7 @@ export const handler: Handler = async (event) => {
 
     // Send email to each recipient
     const emailPromises = settings.map(({ email }) => {
+      console.log('Sending email to:', email);
       return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
@@ -74,13 +87,17 @@ export const handler: Handler = async (event) => {
     });
 
     await Promise.all(emailPromises);
+    console.log('All notification emails sent successfully');
 
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
     };
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('Error sending notification:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Failed to send notification' })
