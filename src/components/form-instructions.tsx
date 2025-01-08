@@ -25,40 +25,68 @@ export function FormInstructions({ formId }: FormInstructionsProps) {
           <TabsContent value="html" className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-2">HTML Integration</h3>
-              <p className="text-sm text-muted-foreground mb-4">Add this code to your HTML:</p>
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                <code>{`<!-- Option 1: Use our default trigger button -->
+              <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
+                  <p className="text-sm text-muted-foreground mb-2">Choose one of these options:</p>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm mb-2">
+                    <code>{`<!-- Option A: Use our default button -->
 <button id="userbird-trigger-${formId}">Feedback</button>
 
-<!-- Option 2: Use your own trigger button -->
-<button onclick="UserBird.open()">Custom Feedback Button</button>
+<!-- Option B: Use your own custom button -->
+<button onclick="UserBird.open(this)">Custom Feedback</button>`}</code>
+                  </pre>
+                  <p className="text-xs text-muted-foreground">Note: The button can be placed anywhere in your HTML</p>
+                </div>
 
-<!-- Initialize Userbird -->
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Initialize the widget</h4>
+                  <p className="text-sm text-muted-foreground mb-2">Add this initialization code:</p>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                    <code>{`<!-- Initialize Userbird -->
 <script>
   (function(w,d,s){
     w.UserBird = w.UserBird || {};
     w.UserBird.formId = "${formId}";
+    // Optional: Add user information
+    w.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
     d.head.appendChild(s);
   })(window,document);
 </script>`}</code>
-              </pre>
+                  </pre>
+                </div>
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="react" className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-2">React Integration</h3>
-              <p className="text-sm text-muted-foreground mb-4">Initialize the widget in your React component:</p>
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                <code>{`import { useEffect } from 'react';
+              <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Complete React Example</h4>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                    <code>{`import { useEffect } from 'react';
 
 function App() {
   useEffect(() => {
     // Initialize Userbird
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = "${formId}";
+    // Optional: Add user information
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -67,19 +95,21 @@ function App() {
 
   return (
     <>
-      {/* Option 1: Use our default trigger button */}
+      {/* Option A: Use our default trigger button */}
       <button id="userbird-trigger-${formId}">
         Feedback
       </button>
 
-      {/* Option 2: Use your own trigger button */}
-      <button onClick={() => window.UserBird?.open()}>
+      {/* Option B: Use your own trigger button */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         Custom Feedback Button
       </button>
     </>
   );
 }`}</code>
-              </pre>
+                  </pre>
+                </div>
+              </div>
             </div>
           </TabsContent>
 
@@ -102,18 +132,19 @@ function App() {
 <button id="userbird-trigger-${formId}">Feedback</button>
 
 <!-- Option 2: Use your own trigger button -->
-<button onclick="UserBird.open()">Custom Feedback Button</button>`}</code>
+<button onclick="UserBird.open(this)">Custom Feedback Button</button>`}</code>
               </pre>
             </div>
           </TabsContent>
         </Tabs>
 
         <div className="rounded-lg border p-4 bg-muted/50">
-          <h4 className="text-sm font-medium mb-2">Note</h4>
-          <p className="text-sm text-muted-foreground">
-            You can either use our default trigger button by adding an element with ID "userbird-trigger-{formId}", 
-            or create your own trigger button and call UserBird.open() to show the feedback form.
-          </p>
+          <h4 className="text-sm font-medium mb-2">Important Notes</h4>
+          <ul className="text-sm text-muted-foreground space-y-2">
+            <li>• The widget script will automatically handle positioning relative to the trigger button</li>
+            <li>• Always pass the trigger button element to UserBird.open() for proper positioning</li>
+            <li>• User information is optional but recommended for better feedback tracking</li>
+          </ul>
         </div>
 
         <Button onClick={() => window.location.reload()}>Create Another Form</Button>
