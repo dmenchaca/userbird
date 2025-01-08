@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Palette, Trash2, Bell } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { cache } from '@/lib/cache'
 import { DeleteFormDialog } from './delete-form-dialog'
+import { Switch } from './ui/switch'
 
 interface FormSettingsDialogProps {
   formId: string
@@ -43,6 +44,7 @@ export function FormSettingsDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
+  const [notificationsSaving, setNotificationsSaving] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
   const [emailError, setEmailError] = useState('')
@@ -116,21 +118,26 @@ export function FormSettingsDialog({
   const handleToggleNotifications = async () => {
     const newState = !notificationsEnabled
     setNotificationsEnabled(newState)
-    
+  }
+
+  const handleSaveNotifications = async () => {
+    setNotificationsSaving(true)
     try {
       const { error } = await supabase
         .from('notification_settings')
-        .update({ enabled: newState })
+        .update({ enabled: notificationsEnabled })
         .eq('form_id', formId)
 
       if (error) throw error
       
       // Update local state
-      setNotifications(notifications.map(n => ({ ...n, enabled: newState })))
+      setNotifications(notifications.map(n => ({ ...n, enabled: notificationsEnabled })))
     } catch (error) {
       console.error('Error updating notification settings:', error)
       // Revert state on error
-      setNotificationsEnabled(!newState)
+      setNotificationsEnabled(!notificationsEnabled)
+    } finally {
+      setNotificationsSaving(false)
     }
   }
 
@@ -269,17 +276,16 @@ export function FormSettingsDialog({
                         <p className="text-sm text-muted-foreground">
                           Add email addresses to receive notifications when new feedback is submitted.
                         </p>
+                        <div className="flex items-center space-x-2 pt-2">
+                          <Switch
+                            checked={notificationsEnabled}
+                            onCheckedChange={handleToggleNotifications}
+                          />
+                          <Label className="text-sm font-normal">
+                            {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+                          </Label>
+                        </div>
                       </div>
-                      <button
-                        onClick={handleToggleNotifications}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        {notificationsEnabled ? (
-                          <ToggleRight className="w-8 h-8 text-primary" />
-                        ) : (
-                          <ToggleLeft className="w-8 h-8" />
-                        )}
-                      </button>
                     </div>
 
                     <div className="space-y-2">
@@ -329,6 +335,13 @@ export function FormSettingsDialog({
                         }
                       </p>
                     )}
+                    <Button
+                      onClick={handleSaveNotifications}
+                      disabled={notificationsSaving}
+                      className="mt-4"
+                    >
+                      {notificationsSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
                   </div>
                 </div>
               )}
