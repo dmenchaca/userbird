@@ -105,6 +105,13 @@ export const handler: Handler = async (event) => {
 
     // Send notification
     try {
+      console.log('Attempting to send notification:', {
+        url: `${process.env.URL}/.netlify/functions/send-notification`,
+        formId,
+        hasUserName: !!user_name,
+        hasUserEmail: !!user_email
+      });
+
       await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
         method: 'POST',
         headers: {
@@ -117,8 +124,14 @@ export const handler: Handler = async (event) => {
           userEmail: user_email
         })
       });
+
+      console.log('Notification request sent successfully');
     } catch (error) {
-      console.error('Failed to send notification:', error);
+      console.error('Failed to send notification:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        url: process.env.URL,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       // Don't throw error to avoid affecting feedback submission
     }
 
