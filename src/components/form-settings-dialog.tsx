@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { cache } from '@/lib/cache'
 import { DeleteFormDialog } from './delete-form-dialog'
 
 interface FormSettingsDialogProps {
@@ -67,6 +68,10 @@ export function FormSettingsDialog({
         .eq('id', formId)
 
       if (error) throw error;
+      
+      // Invalidate cache when settings are updated
+      cache.invalidate(`form-settings:${formId}`);
+      
       onSettingsSaved();
       onOpenChange(false);
     } catch (error) {

@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import { cache } from '../../src/lib/cache';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -32,6 +33,18 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // Check cache first
+    const cacheKey = `form-settings:${formId}`;
+    const cachedData = cache.get(cacheKey);
+    
+    if (cachedData) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(cachedData)
+      };
+    }
+
     const { data, error } = await supabase
       .from('forms')
       .select('button_color, support_text')
@@ -39,6 +52,9 @@ export const handler: Handler = async (event) => {
       .single();
 
     if (error) throw error;
+
+    // Cache the result for 5 minutes
+    cache.set(cacheKey, data, 300);
 
     return {
       statusCode: 200,
