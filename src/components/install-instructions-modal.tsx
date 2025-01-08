@@ -16,7 +16,7 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
         </DialogHeader>
         
         <Tabs defaultValue="html" className="w-full flex-1 overflow-hidden flex flex-col">
-          <TabsList>
+          <TabsList className="w-fit">
             <TabsTrigger value="html">HTML/JavaScript</TabsTrigger>
             <TabsTrigger value="react">React</TabsTrigger>
           </TabsList>
