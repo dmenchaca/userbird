@@ -380,20 +380,39 @@
   function positionModal(trigger) {
     if (!modal?.modal) return;
     
+    console.group('Userbird Modal Positioning');
+    
     const modalElement = modal.modal;
     modalElement.style.transform = 'none';
     
     const rect = trigger ? trigger.getBoundingClientRect() : null;
     
     if (rect) {
+      console.log('Trigger position:', {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right
+      });
+      
       // Get scroll position
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
+      
+      console.log('Scroll position:', { scrollX, scrollY });
       
       // Calculate available space
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const modalWidth = modalElement.offsetWidth;
+      
+      console.log('Available space:', {
+        spaceBelow,
+        spaceAbove,
+        modalWidth,
+        windowHeight: window.innerHeight,
+        windowWidth: window.innerWidth
+      });
       
       // Calculate position accounting for scroll
       const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
@@ -401,21 +420,33 @@
       if (spaceBelow >= 300) { // Reduced from 400 to account for smaller screens
         modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
         modalElement.style.left = `${leftPosition}px`;
+        console.log('Positioning below trigger:', {
+          top: rect.bottom + scrollY + 8,
+          left: leftPosition
+        });
       } else if (spaceAbove >= 300) { // Reduced from 400 to account for smaller screens
         modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
         modalElement.style.left = `${leftPosition}px`;
+        console.log('Positioning above trigger:', {
+          top: rect.top + scrollY - modalElement.offsetHeight - 8,
+          left: leftPosition
+        });
       } else {
         // Center if no good position relative to trigger
         modalElement.style.top = '50%';
         modalElement.style.left = '50%';
         modalElement.style.transform = 'translate(-50%, -50%)';
+        console.log('Centering modal (not enough space above or below)');
       }
     } else {
       // Center modal if no trigger
       modalElement.style.top = '50%';
       modalElement.style.left = '50%';
       modalElement.style.transform = 'translate(-50%, -50%)';
+      console.log('Centering modal (no trigger)');
     }
+    
+    console.groupEnd();
   }
 
   function openModal(trigger = null) {
