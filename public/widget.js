@@ -381,22 +381,28 @@
     if (!modal?.modal) return;
     
     const modalElement = modal.modal;
-    modalElement.style.transform = 'none'; // Reset any previous transform
+    modalElement.style.transform = 'none';
     
     const rect = trigger ? trigger.getBoundingClientRect() : null;
     
     if (rect) {
-      // Position relative to trigger
+      // Get scroll position
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      // Calculate available space
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const modalWidth = modalElement.offsetWidth;
-      const leftPosition = Math.max(8, Math.min(rect.left, window.innerWidth - modalWidth - 8));
+      
+      // Calculate position accounting for scroll
+      const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
       
       if (spaceBelow >= 300) { // Reduced from 400 to account for smaller screens
-        modalElement.style.top = `${rect.bottom + 8}px`;
+        modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
         modalElement.style.left = `${leftPosition}px`;
       } else if (spaceAbove >= 300) { // Reduced from 400 to account for smaller screens
-        modalElement.style.top = `${rect.top - modalElement.offsetHeight - 8}px`;
+        modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
         modalElement.style.left = `${leftPosition}px`;
       } else {
         // Center if no good position relative to trigger
