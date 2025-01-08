@@ -187,7 +187,9 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
       {forms.map((form) => (
         <button
           key={form.id}
-          onClick={() => onFormSelect(form.id)}
+          onClick={() => {
+            onFormSelect(form.id)
+          }}
           className={cn(
             "w-full py-2 text-left rounded-md hover:bg-accent transition-colors font-normal",
             selectedFormId === form.id && "bg-accent"

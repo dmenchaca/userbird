@@ -4,6 +4,7 @@ import { LoginPage } from './pages/auth/login';
 import { SignupPage } from './pages/auth/signup';
 import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
+import { FormView } from './pages/form-view';
 
 export default function App() {
   return (
@@ -11,6 +12,11 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/auth/callback" element={<CallbackPage />} />
+      <Route path="/forms/:formId" element={
+        <AuthGuard>
+          <FormView />
+        </AuthGuard>
+      } />
       <Route
         path="/"
         element={

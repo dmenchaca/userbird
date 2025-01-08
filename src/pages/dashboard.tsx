@@ -9,10 +9,16 @@ import { InstallInstructionsModal } from '@/components/install-instructions-moda
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
+import { useNavigate } from 'react-router-dom'
 
-export function Dashboard() {
+interface DashboardProps {
+  initialFormId?: string
+}
+
+export function Dashboard({ initialFormId }: DashboardProps) {
   const { user } = useAuth()
-  const [selectedFormId, setSelectedFormId] = useState<string>()
+  const navigate = useNavigate()
+  const [selectedFormId, setSelectedFormId] = useState<string | undefined>(initialFormId)
   const [formName, setFormName] = useState<string>('')
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState<string | null>(null)
@@ -38,6 +44,15 @@ export function Dashboard() {
         })
     }
   }, [selectedFormId, user?.id])
+
+  // Update URL when form selection changes
+  useEffect(() => {
+    if (selectedFormId) {
+      navigate(`/forms/${selectedFormId}`, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
+  }, [selectedFormId, navigate])
 
   // Check if form has any responses
   useEffect(() => {
