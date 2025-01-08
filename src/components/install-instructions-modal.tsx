@@ -10,18 +10,18 @@ interface InstallInstructionsModalProps {
 export function InstallInstructionsModal({ formId, open, onOpenChange }: InstallInstructionsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Installation Instructions</DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="html" className="w-full overflow-hidden">
+        <Tabs defaultValue="html" className="w-full flex-1 overflow-hidden flex flex-col">
           <TabsList>
             <TabsTrigger value="html">HTML/JavaScript</TabsTrigger>
             <TabsTrigger value="react">React</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="html" className="space-y-4">
+          <TabsContent value="html" className="space-y-4 flex-1 overflow-y-auto">
             <div>
               <h3 className="text-lg font-semibold mb-2">HTML Integration</h3>
               <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
@@ -65,7 +65,7 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
             </div>
           </TabsContent>
 
-          <TabsContent value="react" className="space-y-4">
+          <TabsContent value="react" className="space-y-4 flex-1 overflow-y-auto">
             <div>
               <h3 className="text-lg font-semibold mb-2">React Integration</h3>
               <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
@@ -112,7 +112,7 @@ function App() {
             </div>
           </TabsContent>
         </Tabs>
-        <div className="mt-6 rounded-lg border p-4 bg-muted/50">
+        <div className="mt-4 rounded-lg border p-4 bg-muted/50">
           <h4 className="text-sm font-medium mb-2">Important Notes</h4>
           <ul className="text-sm text-muted-foreground space-y-2">
             <li>• The widget script will automatically handle positioning relative to the trigger button</li>
