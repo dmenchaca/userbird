@@ -52,7 +52,7 @@ export const handler: Handler = async (event) => {
     // Get notification settings
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
-      .select('*')
+      .select('id, email')
       .eq('form_id', formId)
       .eq('enabled', true);
 
@@ -68,7 +68,7 @@ export const handler: Handler = async (event) => {
 
     console.log('Notification settings found:', {
       recipientCount: settings?.length || 0,
-      settings: settings || []
+      settings: settings?.map(s => ({ id: s.id, email: s.email })) || []
     });
 
     if (!settings?.length) {
