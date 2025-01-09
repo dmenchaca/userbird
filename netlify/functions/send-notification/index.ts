@@ -52,23 +52,18 @@ export const handler: Handler = async (event) => {
     // Get notification settings
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
-      .select('id, email')
+      .select('email')
       .eq('form_id', formId)
       .eq('enabled', true);
 
     if (settingsError) {
       console.error('Error fetching notification settings:', settingsError);
-      // Log the full error details
-      console.error('Notification settings error details:', {
-        message: settingsError.message,
-        details: settingsError.details,
-        hint: settingsError.hint
-      });
+      throw settingsError;
     }
 
     console.log('Notification settings found:', {
       recipientCount: settings?.length || 0,
-      settings: settings?.map(s => ({ id: s.id, email: s.email })) || []
+      settings: settings || []
     });
 
     if (!settings?.length) {
@@ -82,8 +77,6 @@ export const handler: Handler = async (event) => {
     // Send email to each recipient
     const emailPromises = settings.map(({ email }) => {
       console.log('Sending email to:', email);
-      const emailEndpoint = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
-      console.log('Calling email endpoint:', emailEndpoint);
       
       return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
