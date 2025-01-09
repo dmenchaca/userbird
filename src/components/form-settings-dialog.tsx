@@ -52,17 +52,25 @@ export function FormSettingsDialog({
   // Fetch notification settings
   useEffect(() => {
     if (open && formId) {
-      supabase
+      const fetchSettings = async () => {
+        const { data, error } = await supabase
         .from('notification_settings')
         .select('id, email, enabled')
         .eq('form_id', formId)
-        .then(({ data }) => {
-          if (data) {
-            setNotifications(data)
-            // Check if any notifications are enabled
-            setNotificationsEnabled(data.some(n => n.enabled))
-          }
-        })
+
+        if (error) {
+          console.error('Error fetching notification settings:', error)
+          return
+        }
+
+        if (data) {
+          setNotifications(data)
+          // Check if any notifications are enabled
+          setNotificationsEnabled(data.some(n => n.enabled))
+        }
+      }
+
+      fetchSettings()
     }
   }, [open, formId])
 
@@ -123,15 +131,18 @@ export function FormSettingsDialog({
   const handleSaveNotifications = async () => {
     setNotificationsSaving(true)
     try {
-      const { error } = await supabase
+      // Update all notification settings for this form
+      const { error: updateError } = await supabase
         .from('notification_settings')
         .update({ enabled: notificationsEnabled })
-        .eq('form_id', formId)
+        .eq('form_id', formId);
 
-      if (error) throw error
+      if (updateError) throw updateError;
       
       // Update local state
-      setNotifications(notifications.map(n => ({ ...n, enabled: notificationsEnabled })))
+      setNotifications(current => 
+        current.map(n => ({ ...n, enabled: notificationsEnabled }))
+      );
     } catch (error) {
       console.error('Error updating notification settings:', error)
       // Revert state on error
