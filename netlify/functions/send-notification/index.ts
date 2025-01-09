@@ -6,30 +6,51 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const handler: Handler = async (event) => {
+  console.log('Notification function started');
+  
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
     const { formId, message } = JSON.parse(event.body || '{}');
+    console.log('Request payload:', { formId, hasMessage: !!message });
     
     // Get form details
-    const { data: form } = await supabase
+    const { data: form, error: formError } = await supabase
       .from('forms')
       .select('url')
       .eq('id', formId)
       .single();
+
+    if (formError) {
+      console.error('Form query error:', formError);
+      throw formError;
+    }
+
+    console.log('Form query result:', { found: !!form, url: form?.url });
 
     if (!form) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Form not found' }) };
     }
 
     // Get enabled notification settings
-    const { data: settings } = await supabase
+    const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
       .select('email')
       .eq('form_id', formId)
       .eq('enabled', true);
+
+    if (settingsError) {
+      console.error('Settings query error:', settingsError);
+      throw settingsError;
+    }
+
+    console.log('Notification settings query result:', { 
+      found: !!settings, 
+      count: settings?.length || 0,
+      emails: settings?.map(s => s.email) || []
+    });
 
     if (!settings?.length) {
       return { 
@@ -39,7 +60,9 @@ export const handler: Handler = async (event) => {
     }
 
     // Send emails
-    await Promise.all(settings.map(({ email }) => 
+    console.log('Attempting to send emails to:', settings.length, 'recipients');
+    
+    const emailPromises = settings.map(({ email }) => 
       fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
@@ -55,15 +78,32 @@ export const handler: Handler = async (event) => {
             message
           },
         })
+      }).then(async response => {
+        const text = await response.text();
+        console.log('Email API response:', {
+          status: response.status,
+          ok: response.ok,
+          text: text.slice(0, 200) // Log first 200 chars in case of long response
+        });
+        if (!response.ok) {
+          throw new Error(`Email API failed: ${response.status} ${text}`);
+        }
+        return response;
       })
-    ));
+    );
+
+    await Promise.all(emailPromises);
+    console.log('All notification emails sent successfully');
 
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
     };
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in notification function:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' })
