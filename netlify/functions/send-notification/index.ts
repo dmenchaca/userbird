@@ -52,7 +52,7 @@ export const handler: Handler = async (event) => {
     // Get notification settings
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
-      .select('email')
+      .select('id, email, enabled')
       .eq('form_id', formId)
       .eq('enabled', true);
 
@@ -68,7 +68,7 @@ export const handler: Handler = async (event) => {
 
     console.log('Notification settings found:', {
       recipientCount: settings?.length || 0,
-      settings: settings || []
+      settings: settings?.map(s => ({ email: s.email, enabled: s.enabled })) || []
     });
     if (!settings?.length) {
       console.log('No notification settings found for form:', formId);
@@ -79,7 +79,9 @@ export const handler: Handler = async (event) => {
     }
 
     // Send email to each recipient
-    const emailPromises = settings.map(({ email }) => {
+    const emailPromises = settings
+      .filter(s => s.enabled)
+      .map(({ email }) => {
       console.log('Sending email to:', email);
       const emailEndpoint = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
       console.log('Calling email endpoint:', emailEndpoint);
