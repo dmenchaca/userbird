@@ -67,13 +67,15 @@ export const handler: Handler = async (event) => {
 
     console.log('Notification settings found:', {
       recipientCount: settings?.length || 0,
-      settings: settings?.map(s => ({ 
-        email: s.email, 
-        enabled: s.enabled 
-      })) || []
+      settings: settings || []
     });
     // Filter enabled settings after logging
     const enabledSettings = settings?.filter(s => s.enabled) || [];
+
+    console.log('Enabled notification settings:', {
+      enabledCount: enabledSettings.length,
+      enabledSettings
+    });
 
     if (!enabledSettings.length) {
       console.log('No notification settings found for form:', formId);
