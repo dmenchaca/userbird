@@ -3,10 +3,186 @@
   const API_BASE_URL = 'https://userbird.netlify.app';
   let settingsLoaded = false;
   let settingsPromise = null;
+  
+  // Temporary storage for form data
+  const tempFormData = {
+    message: '',
+    image: null,
+    imagePreviewUrl: null,
+    clear() {
+      this.message = '';
+      this.image = null;
+      this.imagePreviewUrl = null;
+    }
+  };
+  
+  function getSystemInfo() {
+    const ua = navigator.userAgent;
+    let os = 'Unknown';
+    
+    if (ua.includes('Win')) os = 'Windows';
+    else if (ua.includes('Mac')) os = 'macOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    
+    const width = window.innerWidth;
+    let category = 'Desktop';
+    
+    if (width < 768) category = 'Mobile';
+    else if (width < 1024) category = 'Tablet';
+    
+    return { operating_system: os, screen_category: category };
+  }
+
+  const MESSAGES = {
+    success: {
+      title: 'Thank you',
+      description: 'Your message has been received and will be reviewed by our team.',
+      imageError: 'Only JPG and PNG images up to 5MB are allowed.'
+    },
+    labels: {
+      submit: 'Send Feedback',
+      submitting: 'Sending Feedback...',
+      close: 'Close',
+      cancel: 'Cancel'
+    }
+  };
+
   let modal = null;
   let formId = null;
   let selectedImage = null;
   let currentTrigger = null;
+
+  async function uploadImage(file) {
+    if (!file) return null;
+    
+    // Validate file type
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      throw new Error('Only JPG and PNG images are allowed');
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image size must be under 5MB');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('formId', formId);
+    
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return {
+      url: data.url,
+      name: file.name,
+      size: file.size
+    };
+  }
+
+  async function submitFeedback(message) {
+    const systemInfo = getSystemInfo();
+    const userInfo = window.UserBird?.user || {};
+    const imageData = selectedImage ? await uploadImage(selectedImage) : null;
+    
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Origin': window.location.origin
+      },
+      body: JSON.stringify({ 
+        formId, 
+        message,
+        ...systemInfo,
+        user_id: userInfo.id,
+        user_email: userInfo.email,
+        user_name: userInfo.name,
+        image_url: imageData?.url,
+        image_name: imageData?.name,
+        image_size: imageData?.size
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to submit feedback');
+    }
+    
+    return response.json();
+  }
+
+  function createModal() {
+    const modal = document.createElement('div');
+    
+    modal.className = 'userbird-modal';
+    
+    modal.innerHTML = `
+      <div class="userbird-modal-content">
+        <div class="userbird-loading" style="display: none">
+          <div class="userbird-loading-spinner"></div>
+        </div>
+        <div class="userbird-form">
+          <h3 class="userbird-title">Send feedback</h3>
+          <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
+          <div class="userbird-error"></div>
+          <div class="userbird-buttons">
+            <button class="userbird-button userbird-button-secondary userbird-close">${MESSAGES.labels.cancel}</button>
+            <div class="userbird-actions">
+              <div class="userbird-image-upload">
+                <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
+                <button class="userbird-image-button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                </button>
+                <div class="userbird-image-preview">
+                  <button class="userbird-remove-image">&times;</button>
+                </div>
+              </div>
+              <button class="userbird-button userbird-submit">
+                <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
+                <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="userbird-support-text">Have a specific issue? Contact support or read our docs.</div>
+        </div>
+        <div class="userbird-success">
+          <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 4L12 14.01l-3-3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
+          <p class="userbird-success-message">${MESSAGES.success.description}</p>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    return {
+      modal,
+      form: modal.querySelector('.userbird-form'),
+      textarea: modal.querySelector('.userbird-textarea'),
+      submitButton: modal.querySelector('.userbird-submit'),
+      closeButtons: modal.querySelectorAll('.userbird-close'),
+      errorElement: modal.querySelector('.userbird-error'),
+      successElement: modal.querySelector('.userbird-success'),
+      loadingElement: modal.querySelector('.userbird-loading')
+    };
+  }
 
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
@@ -80,8 +256,8 @@
       }
       .userbird-textarea:focus {
         outline: none;
-        border-color: ${buttonColor || '#1f2937'};
-        box-shadow: 0 0 0 1px ${buttonColor || '#1f2937'}15
+        border-color: ${buttonColor};
+        box-shadow: 0 0 0 1px ${buttonColor}15
       }
       .userbird-image-upload {
         position: relative;
@@ -159,7 +335,7 @@
         transition: all 0.2s;
       }
       .userbird-button {
-        background: ${buttonColor || '#1f2937'};
+        background: ${buttonColor};
         color: white;
         border: none;
       }
@@ -231,15 +407,294 @@
     document.head.appendChild(style);
   }
 
-  // ... (rest of the existing code)
+  function positionModal(trigger) {
+    if (!modal?.modal) return;
+    
+    const modalElement = modal.modal;
+    modalElement.style.transform = 'none';
+    
+    const rect = trigger ? trigger.getBoundingClientRect() : null;
+    
+    if (rect) {
+      // Get scroll position
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      // Calculate available space
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const modalWidth = modalElement.offsetWidth;
+      
+      // Calculate position accounting for scroll
+      const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
+      
+      if (spaceBelow >= 300) { // Reduced from 400 to account for smaller screens
+        modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
+        modalElement.style.left = `${leftPosition}px`;
+      } else if (spaceAbove >= 300) { // Reduced from 400 to account for smaller screens
+        modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
+        modalElement.style.left = `${leftPosition}px`;
+      } else {
+        // Center if no good position relative to trigger
+        modalElement.style.top = '50%';
+        modalElement.style.left = '50%';
+        modalElement.style.transform = 'translate(-50%, -50%)';
+      }
+    } else {
+      // Center modal if no trigger
+      modalElement.style.top = '50%';
+      modalElement.style.left = '50%';
+      modalElement.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+
+  function openModal(trigger = null) {
+    if (!settingsLoaded) {
+      if (!modal) {
+        modal = createModal();
+      }
+      
+      modal.form.style.display = 'none';
+      modal.loadingElement.style.display = 'flex';
+      modal.modal.classList.add('open');
+      positionModal(trigger);
+      currentTrigger = trigger;
+      
+      // Wait for settings to load
+      settingsPromise.then(() => {
+        modal.loadingElement.style.display = 'none';
+        modal.form.style.display = 'block';
+        if (tempFormData.message) {
+          modal.textarea.value = tempFormData.message;
+          modal.textarea.focus();
+        }
+      });
+      return;
+    }
+
+    if (!modal) return;
+    currentTrigger = trigger;
+
+    // Restore temp data if exists
+    if (tempFormData.message) {
+      modal.textarea.value = tempFormData.message;
+    }
+    
+    if (tempFormData.image && tempFormData.imagePreviewUrl) {
+      selectedImage = tempFormData.image;
+      const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+      const imageButton = modal.modal.querySelector('.userbird-image-button');
+      const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+      
+      const img = document.createElement('img');
+      img.src = tempFormData.imagePreviewUrl;
+      imagePreview.innerHTML = '';
+      imagePreview.appendChild(img);
+      imagePreview.appendChild(removeImageButton);
+      imagePreview.classList.add('show');
+      imageButton.style.display = 'none';
+    }
+    
+    function handleClickOutside(e) {
+      const modalElement = modal.modal;
+      if (modalElement && !modalElement.contains(e.target) && e.target !== trigger) {
+        closeModal();
+        document.removeEventListener('click', handleClickOutside);
+      }
+    }
+    
+    // Add click outside detection
+    document.addEventListener('click', handleClickOutside);
+    
+    // Add ESC key handler
+    function handleEscKey(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscKey);
+      }
+    }
+    document.addEventListener('keydown', handleEscKey);
+    
+    modal.modal.classList.add('open');
+    positionModal(trigger);
+    // Wait for modal transition to complete before focusing
+    setTimeout(() => {
+      modal.textarea.focus();
+    }, 50);
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    currentTrigger = null;
+    
+    // Save current state before closing
+    tempFormData.message = modal.textarea.value;
+    tempFormData.image = selectedImage;
+    if (selectedImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        tempFormData.imagePreviewUrl = e.target.result;
+      };
+      reader.readAsDataURL(selectedImage);
+    }
+    
+    modal.modal.classList.remove('open');
+    setTimeout(() => {
+      modal.form.classList.remove('hidden');
+      modal.successElement.classList.remove('open');
+      modal.submitButton.disabled = false;
+      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+    }, 150);
+  }
+
+  function setupModal(buttonColor, supportText) {
+    // Setup image upload
+    const fileInput = modal.modal.querySelector('.userbird-file-input');
+    const imageButton = modal.modal.querySelector('.userbird-image-button');
+    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+    const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+    
+    imageButton.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Validate file type and size
+      if (!file.type.match(/^image\/(jpeg|png)$/)) {
+        modal.errorElement.textContent = MESSAGES.success.imageError;
+        modal.errorElement.style.display = 'block';
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        modal.errorElement.textContent = MESSAGES.success.imageError;
+        modal.errorElement.style.display = 'block';
+        return;
+      }
+      
+      selectedImage = file;
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        imagePreview.innerHTML = '';
+        imagePreview.appendChild(img);
+        imagePreview.appendChild(removeImageButton);
+        imagePreview.classList.add('show');
+        imageButton.style.display = 'none';
+      };
+      
+      reader.readAsDataURL(file);
+    });
+    
+    removeImageButton.addEventListener('click', () => {
+      selectedImage = null;
+      imagePreview.classList.remove('show');
+      imageButton.style.display = 'block';
+      fileInput.value = '';
+    });
+    
+    // Handle support text if present
+    const supportTextElement = modal.modal.querySelector('.userbird-support-text');
+    if (supportText) {
+      // Simple markdown link parser: [text](url)
+      const parsedText = supportText.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        `<a href="$2" target="_blank" rel="noopener noreferrer" style="color: ${buttonColor}; font-weight: 500; text-decoration: none;">$1</a>`
+      );
+      supportTextElement.innerHTML = parsedText;
+    } else {
+      supportTextElement.style.display = 'none';
+    }
+
+    // Event handlers
+    modal.closeButtons.forEach(button => {
+      button.addEventListener('click', closeModal);
+    });
+
+    // Add window resize handler
+    window.addEventListener('resize', () => {
+      if (modal.modal.classList.contains('open') && currentTrigger) {
+        positionModal(currentTrigger);
+      }
+    });
+
+    modal.submitButton.addEventListener('click', async () => {
+      const message = modal.textarea.value.trim();
+      if (!message) return;
+
+      modal.submitButton.disabled = true;
+      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
+
+      try {
+        await submitFeedback(message);
+        // Clear form state
+        modal.textarea.value = '';
+        selectedImage = null;
+        const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+        const imageButton = modal.modal.querySelector('.userbird-image-button');
+        imagePreview.classList.remove('show');
+        imagePreview.innerHTML = '';
+        imageButton.style.display = 'block';
+        modal.modal.querySelector('.userbird-file-input').value = '';
+        
+        // Clear temp storage
+        tempFormData.clear();
+        
+        // Show success state
+        modal.form.classList.add('hidden');
+        modal.successElement.classList.add('open');
+      } catch (error) {
+        modal.errorElement.textContent = 'Failed to submit feedback';
+        modal.errorElement.style.display = 'block';
+        modal.submitButton.disabled = false;
+        modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+      }
+    });
+
+    // Expose open method globally
+    window.UserBird.open = (triggerElement) => {
+      // If triggerElement is provided, use it, otherwise try to find the default trigger
+      const trigger = triggerElement || document.getElementById(`userbird-trigger-${formId}`);
+      openModal(trigger);
+    };
+  }
 
   async function init() {
     // Get form settings including button color
     formId = window.UserBird?.formId;
     if (!formId) return;
 
-    // Inject initial styles
+    // Inject styles
     injectStyles();
+    
+    // Start loading settings
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
+      .then(async (response) => {
+        const settings = await response.json();
+        const buttonColor = settings.button_color || '#1f2937';
+        const supportText = settings.support_text;
+        
+        // Update styles with actual button color
+        injectStyles(buttonColor);
+        
+        // Create modal with settings
+        modal = createModal();
+        setupModal(buttonColor, supportText);
+        
+        settingsLoaded = true;
+        return settings;
+      })
+      .catch(error => {
+        console.error('Error loading settings:', error);
+        // Use defaults if settings fail to load
+        injectStyles('#1f2937');
+        modal = createModal();
+        setupModal('#1f2937', null);
+        settingsLoaded = true;
+      });
     
     // Get default trigger button if it exists
     const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
@@ -249,42 +704,8 @@
         openModal(defaultTrigger);
       });
     }
-    
-    // Start loading settings
-    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error('Failed to load settings');
-        }
-        const settings = await response.json();
-        const buttonColor = settings.button_color || '#1f2937';
-        const supportText = settings.support_text;
-        
-        // Update styles with actual button color
-        injectStyles(buttonColor);
-        
-        // Create modal with settings
-        if (!modal) {
-          modal = createModal();
-          setupModal(buttonColor, supportText);
-        }
-        
-        settingsLoaded = true;
-        return settings;
-      })
-      .catch(error => {
-        console.error('Error loading settings:', error);
-        // Use defaults if settings fail to load
-        injectStyles('#1f2937');
-        if (!modal) {
-          modal = createModal();
-          setupModal('#1f2937', null);
-        }
-        settingsLoaded = true;
-        return { button_color: '#1f2937', support_text: null };
-      });
   }
-
+  
   // Initialize if form ID is available
   if (window.UserBird?.formId) {
     init().catch(console.error);
