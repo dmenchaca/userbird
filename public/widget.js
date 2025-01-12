@@ -1,6 +1,8 @@
 // Userbird Widget
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
+  let settingsLoaded = false;
+  let settingsPromise = null;
   
   // Temporary storage for form data
   const tempFormData = {
@@ -181,6 +183,26 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
+      .userbird-loading {
+        position: fixed;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        border: 1px solid #e5e7eb;
+      }
+      .userbird-loading-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #e5e7eb;
+        border-top-color: ${buttonColor || '#1f2937'};
+        border-radius: 50%;
+        animation: userbird-spin 0.6s linear infinite;
+      }
       .userbird-modal {
         opacity: 0;
         visibility: hidden;
@@ -460,6 +482,33 @@
   }
 
   function openModal(trigger = null) {
+    if (!settingsLoaded) {
+      // Create loading spinner
+      const loading = document.createElement('div');
+      loading.className = 'userbird-loading';
+      loading.innerHTML = '<div class="userbird-loading-spinner"></div>';
+      document.body.appendChild(loading);
+      
+      // Position loading spinner
+      if (trigger) {
+        const rect = trigger.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset;
+        loading.style.top = `${rect.bottom + scrollY + 8}px`;
+        loading.style.left = `${rect.left}px`;
+      } else {
+        loading.style.top = '50%';
+        loading.style.left = '50%';
+        loading.style.transform = 'translate(-50%, -50%)';
+      }
+      
+      // Wait for settings to load
+      settingsPromise.then(() => {
+        document.body.removeChild(loading);
+        openModal(trigger);
+      });
+      return;
+    }
+
     if (!modal) return;
     currentTrigger = trigger;
 
@@ -545,16 +594,46 @@
     formId = window.UserBird?.formId;
     if (!formId) return;
 
-    const response = await fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`);
-    const settings = await response.json();
-    const buttonColor = settings.button_color || '#1f2937';
-    const supportText = settings.support_text;
-    
     // Inject styles
-    injectStyles(buttonColor);
+    injectStyles();
     
-    // Create modal
-    modal = createModal();
+    // Start loading settings
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
+      .then(async (response) => {
+        const settings = await response.json();
+        const buttonColor = settings.button_color || '#1f2937';
+        const supportText = settings.support_text;
+        
+        // Update styles with actual button color
+        injectStyles(buttonColor);
+        
+        // Create modal with settings
+        modal = createModal();
+        setupModal(buttonColor, supportText);
+        
+        settingsLoaded = true;
+        return settings;
+      })
+      .catch(error => {
+        console.error('Error loading settings:', error);
+        // Use defaults if settings fail to load
+        injectStyles('#1f2937');
+        modal = createModal();
+        setupModal('#1f2937', null);
+        settingsLoaded = true;
+      });
+    
+    // Get default trigger button if it exists
+    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+    if (defaultTrigger) {
+      defaultTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(defaultTrigger);
+      });
+    }
+  }
+  
+  function setupModal(buttonColor, supportText) {
     
     // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
@@ -615,15 +694,6 @@
       supportTextElement.innerHTML = parsedText;
     } else {
       supportTextElement.style.display = 'none';
-    }
-
-    // Get default trigger button if it exists
-    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
-    if (defaultTrigger) {
-      defaultTrigger.addEventListener('click', (e) => {
-        e.preventDefault();
-        openModal(defaultTrigger);
-      });
     }
 
     // Event handlers
