@@ -126,6 +126,9 @@
     
     modal.innerHTML = `
       <div class="userbird-modal-content">
+        <div class="userbird-loading">
+          <div class="userbird-loading-spinner"></div>
+        </div>
         <div class="userbird-form">
           <h3 class="userbird-title">Send feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
@@ -172,6 +175,7 @@
     return {
       modal,
       form: modal.querySelector('.userbird-form'),
+      loading: modal.querySelector('.userbird-loading'),
       textarea: modal.querySelector('.userbird-textarea'),
       submitButton: modal.querySelector('.userbird-submit'),
       closeButtons: modal.querySelectorAll('.userbird-close'),
@@ -184,16 +188,11 @@
     const style = document.createElement('style');
     style.textContent = `
       .userbird-loading {
-        position: fixed;
-        z-index: 10000;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        border: 1px solid #e5e7eb;
+        min-height: 200px;
+        display: none;
       }
       .userbird-loading-spinner {
         width: 24px;
@@ -483,28 +482,24 @@
 
   function openModal(trigger = null) {
     if (!settingsLoaded) {
-      // Create loading spinner
-      const loading = document.createElement('div');
-      loading.className = 'userbird-loading';
-      loading.innerHTML = '<div class="userbird-loading-spinner"></div>';
-      document.body.appendChild(loading);
-      
-      // Position loading spinner
-      if (trigger) {
-        const rect = trigger.getBoundingClientRect();
-        const scrollY = window.scrollY || window.pageYOffset;
-        loading.style.top = `${rect.bottom + scrollY + 8}px`;
-        loading.style.left = `${rect.left}px`;
-      } else {
-        loading.style.top = '50%';
-        loading.style.left = '50%';
-        loading.style.transform = 'translate(-50%, -50%)';
+      if (!modal) {
+        // Create modal with loading state
+        modal = createModal();
       }
+
+      // Show modal with loading state
+      modal.modal.classList.add('open');
+      modal.loading.style.display = 'flex';
+      modal.form.style.display = 'none';
+      
+      // Position modal
+      positionModal(trigger);
       
       // Wait for settings to load
       settingsPromise.then(() => {
-        document.body.removeChild(loading);
-        openModal(trigger);
+        modal.loading.style.display = 'none';
+        modal.form.style.display = 'block';
+        setupModal(settings.button_color || '#1f2937', settings.support_text);
       });
       return;
     }
@@ -583,6 +578,7 @@
     modal.modal.classList.remove('open');
     setTimeout(() => {
       modal.form.classList.remove('hidden');
+      modal.loading.style.display = 'none';
       modal.successElement.classList.remove('open');
       modal.submitButton.disabled = false;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
