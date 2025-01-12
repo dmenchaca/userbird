@@ -2,6 +2,18 @@
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
   
+  // Temporary storage for form data
+  const tempFormData = {
+    message: '',
+    image: null,
+    imagePreviewUrl: null,
+    clear() {
+      this.message = '';
+      this.image = null;
+      this.imagePreviewUrl = null;
+    }
+  };
+  
   function getSystemInfo() {
     const ua = navigator.userAgent;
     let os = 'Unknown';
@@ -452,6 +464,26 @@
   function openModal(trigger = null) {
     if (!modal) return;
     currentTrigger = trigger;
+
+    // Restore temp data if exists
+    if (tempFormData.message) {
+      modal.textarea.value = tempFormData.message;
+    }
+    
+    if (tempFormData.image && tempFormData.imagePreviewUrl) {
+      selectedImage = tempFormData.image;
+      const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+      const imageButton = modal.modal.querySelector('.userbird-image-button');
+      const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+      
+      const img = document.createElement('img');
+      img.src = tempFormData.imagePreviewUrl;
+      imagePreview.innerHTML = '';
+      imagePreview.appendChild(img);
+      imagePreview.appendChild(removeImageButton);
+      imagePreview.classList.add('show');
+      imageButton.style.display = 'none';
+    }
     
     function handleClickOutside(e) {
       const modalElement = modal.modal;
@@ -480,9 +512,20 @@
   function closeModal() {
     if (!modal) return;
     currentTrigger = null;
+    
+    // Save current state before closing
+    tempFormData.message = modal.textarea.value;
+    tempFormData.image = selectedImage;
+    if (selectedImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        tempFormData.imagePreviewUrl = e.target.result;
+      };
+      reader.readAsDataURL(selectedImage);
+    }
+    
     modal.modal.classList.remove('open');
     setTimeout(() => {
-      modal.textarea.value = '';
       modal.form.classList.remove('hidden');
       modal.successElement.classList.remove('open');
       modal.submitButton.disabled = false;
@@ -591,12 +634,14 @@
     modal.submitButton.addEventListener('click', async () => {
       const message = modal.textarea.value.trim();
       if (!message) return;
-
+      
       modal.submitButton.disabled = true;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
 
       try {
         await submitFeedback(message);
+        // Clear temp data on successful submission
+        tempFormData.clear();
         modal.form.classList.add('hidden');
         modal.successElement.classList.add('open');
       } catch (error) {
@@ -618,5 +663,7 @@
   // Initialize if form ID is available
   if (window.UserBird?.formId) {
     init().catch(console.error);
+    // Clear temp data on page load
+    tempFormData.clear();
   }
 })();
