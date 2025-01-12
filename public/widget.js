@@ -488,14 +488,12 @@
 
   function openModal(trigger = null) {
     if (!settingsLoaded) {
-      // If modal is already open and loading, don't create another one
-      if (modal?.modal.classList.contains('open')) {
+      // If modal is already open, don't create another one
+      if (modal) {
         return;
       }
 
-      if (!modal) {
-        modal = createModal();
-      }
+      modal = createModal();
 
       currentTrigger = trigger;
       modal.modal.classList.add('open');
@@ -507,6 +505,7 @@
       // Wait for settings to load
       settingsPromise.then(() => {
         loading.classList.remove('show');
+        loading.style.display = 'none'; // Ensure it's fully hidden
         setupModal(buttonColor, supportText);
       });
       return;
@@ -571,6 +570,13 @@
   function closeModal() {
     if (!modal) return;
     currentTrigger = null;
+
+    // If we're still loading settings, remove the modal entirely
+    if (!settingsLoaded) {
+      modal.modal.remove();
+      modal = null;
+      return;
+    }
     
     // Save current state before closing
     tempFormData.message = modal.textarea.value;
@@ -603,27 +609,22 @@
     // Start loading settings
     settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
       .then(async (response) => {
+        if (!response.ok) throw new Error('Failed to load settings');
         const settings = await response.json();
         const buttonColor = settings.button_color || '#1f2937';
         const supportText = settings.support_text;
         
         // Update styles with actual button color
         injectStyles(buttonColor);
-        
-        // Create modal with settings
-        modal = createModal();
-        setupModal(buttonColor, supportText);
-        
+
         settingsLoaded = true;
         return settings;
       })
       .catch(error => {
         console.error('Error loading settings:', error);
         // Use defaults if settings fail to load
-        injectStyles('#1f2937');
-        modal = createModal();
-        setupModal('#1f2937', null);
         settingsLoaded = true;
+        return { button_color: '#1f2937', support_text: null };
       });
     
     // Get default trigger button if it exists
