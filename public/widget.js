@@ -126,6 +126,9 @@
     
     modal.innerHTML = `
       <div class="userbird-modal-content">
+        <div class="userbird-loading">
+          <div class="userbird-loading-spinner"></div>
+        </div>
         <div class="userbird-form">
           <h3 class="userbird-title">Send feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
@@ -183,18 +186,6 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
-      .userbird-loading {
-        position: fixed;
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        border: 1px solid #e5e7eb;
-      }
       .userbird-loading-spinner {
         width: 24px;
         height: 24px;
@@ -202,6 +193,19 @@
         border-top-color: ${buttonColor || '#1f2937'};
         border-radius: 50%;
         animation: userbird-spin 0.6s linear infinite;
+      }
+      .userbird-loading {
+        display: none;
+        position: absolute;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: 8px;
+        z-index: 1;
+      }
+      .userbird-loading.show {
+        display: flex;
       }
       .userbird-modal {
         opacity: 0;
@@ -483,28 +487,22 @@
 
   function openModal(trigger = null) {
     if (!settingsLoaded) {
-      // Create loading spinner
-      const loading = document.createElement('div');
-      loading.className = 'userbird-loading';
-      loading.innerHTML = '<div class="userbird-loading-spinner"></div>';
-      document.body.appendChild(loading);
-      
-      // Position loading spinner
-      if (trigger) {
-        const rect = trigger.getBoundingClientRect();
-        const scrollY = window.scrollY || window.pageYOffset;
-        loading.style.top = `${rect.bottom + scrollY + 8}px`;
-        loading.style.left = `${rect.left}px`;
-      } else {
-        loading.style.top = '50%';
-        loading.style.left = '50%';
-        loading.style.transform = 'translate(-50%, -50%)';
+      if (!modal) {
+        modal = createModal();
+        document.body.appendChild(modal.modal);
       }
+
+      currentTrigger = trigger;
+      modal.modal.classList.add('open');
+      positionModal(trigger);
+
+      const loading = modal.modal.querySelector('.userbird-loading');
+      loading.classList.add('show');
       
       // Wait for settings to load
       settingsPromise.then(() => {
-        document.body.removeChild(loading);
-        openModal(trigger);
+        loading.classList.remove('show');
+        setupModal(buttonColor, supportText);
       });
       return;
     }
