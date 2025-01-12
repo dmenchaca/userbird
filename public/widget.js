@@ -126,7 +126,7 @@
     
     modal.innerHTML = `
       <div class="userbird-modal-content">
-        <div class="userbird-loading">
+        <div class="userbird-loading" style="display: none">
           <div class="userbird-loading-spinner"></div>
         </div>
         <div class="userbird-form">
@@ -175,12 +175,12 @@
     return {
       modal,
       form: modal.querySelector('.userbird-form'),
-      loading: modal.querySelector('.userbird-loading'),
       textarea: modal.querySelector('.userbird-textarea'),
       submitButton: modal.querySelector('.userbird-submit'),
       closeButtons: modal.querySelectorAll('.userbird-close'),
       errorElement: modal.querySelector('.userbird-error'),
-      successElement: modal.querySelector('.userbird-success')
+      successElement: modal.querySelector('.userbird-success'),
+      loadingElement: modal.querySelector('.userbird-loading')
     };
   }
 
@@ -192,7 +192,6 @@
         align-items: center;
         justify-content: center;
         min-height: 200px;
-        display: none;
       }
       .userbird-loading-spinner {
         width: 24px;
@@ -483,23 +482,23 @@
   function openModal(trigger = null) {
     if (!settingsLoaded) {
       if (!modal) {
-        // Create modal with loading state
         modal = createModal();
       }
-
-      // Show modal with loading state
-      modal.modal.classList.add('open');
-      modal.loading.style.display = 'flex';
-      modal.form.style.display = 'none';
       
-      // Position modal
+      modal.form.style.display = 'none';
+      modal.loadingElement.style.display = 'flex';
+      modal.modal.classList.add('open');
       positionModal(trigger);
+      currentTrigger = trigger;
       
       // Wait for settings to load
       settingsPromise.then(() => {
-        modal.loading.style.display = 'none';
+        modal.loadingElement.style.display = 'none';
         modal.form.style.display = 'block';
-        setupModal(settings.button_color || '#1f2937', settings.support_text);
+        if (tempFormData.message) {
+          modal.textarea.value = tempFormData.message;
+          modal.textarea.focus();
+        }
       });
       return;
     }
@@ -578,7 +577,6 @@
     modal.modal.classList.remove('open');
     setTimeout(() => {
       modal.form.classList.remove('hidden');
-      modal.loading.style.display = 'none';
       modal.successElement.classList.remove('open');
       modal.submitButton.disabled = false;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
