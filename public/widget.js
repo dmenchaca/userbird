@@ -453,8 +453,11 @@
     if (!modal) return;
     currentTrigger = trigger;
     modal.modal.classList.add('open');
-    modal.textarea.focus();
     positionModal(trigger);
+    // Wait for modal transition to complete before focusing
+    setTimeout(() => {
+      modal.textarea.focus();
+    }, 50);
   }
 
   function closeModal() {
