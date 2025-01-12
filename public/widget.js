@@ -634,14 +634,26 @@
     modal.submitButton.addEventListener('click', async () => {
       const message = modal.textarea.value.trim();
       if (!message) return;
-      
+
       modal.submitButton.disabled = true;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
 
       try {
         await submitFeedback(message);
-        // Clear temp data on successful submission
+        // Clear form state
+        modal.textarea.value = '';
+        selectedImage = null;
+        const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+        const imageButton = modal.modal.querySelector('.userbird-image-button');
+        imagePreview.classList.remove('show');
+        imagePreview.innerHTML = '';
+        imageButton.style.display = 'block';
+        modal.modal.querySelector('.userbird-file-input').value = '';
+        
+        // Clear temp storage
         tempFormData.clear();
+        
+        // Show success state
         modal.form.classList.add('hidden');
         modal.successElement.classList.add('open');
       } catch (error) {
@@ -663,7 +675,5 @@
   // Initialize if form ID is available
   if (window.UserBird?.formId) {
     init().catch(console.error);
-    // Clear temp data on page load
-    tempFormData.clear();
   }
 })();
