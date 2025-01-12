@@ -452,8 +452,8 @@
   function openModal(trigger = null) {
     if (!modal) return;
     currentTrigger = trigger;
-    // Add click outside detection
-    document.addEventListener('click', function handleClickOutside(e) {
+    
+    function handleClickOutside(e) {
       const modalElement = modal.modal;
       if (modalElement && !modalElement.contains(e.target) && e.target !== trigger) {
         console.log('Click detected outside widget:', {
@@ -461,8 +461,14 @@
           clickX: e.clientX,
           clickY: e.clientY
         });
+        closeModal();
+        document.removeEventListener('click', handleClickOutside);
       }
-    });
+    }
+    
+    // Add click outside detection
+    document.addEventListener('click', handleClickOutside);
+    
     modal.modal.classList.add('open');
     positionModal(trigger);
     // Wait for modal transition to complete before focusing
@@ -474,8 +480,6 @@
   function closeModal() {
     if (!modal) return;
     currentTrigger = null;
-    // Remove click outside detection
-    document.removeEventListener('click', handleClickOutside);
     modal.modal.classList.remove('open');
     setTimeout(() => {
       modal.textarea.value = '';
