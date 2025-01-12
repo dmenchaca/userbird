@@ -607,7 +607,11 @@
     injectStyles();
     
     // Start loading settings
-    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error('Failed to load settings');
         const settings = await response.json();
