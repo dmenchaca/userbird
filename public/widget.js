@@ -161,7 +161,6 @@
           </svg>
           <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
           <p class="userbird-success-message">${MESSAGES.success.description}</p>
-          <button class="userbird-button userbird-close">${MESSAGES.labels.close}</button>
         </div>
       </div>
     `;
@@ -377,7 +376,6 @@
       .userbird-success-message {
         color: #6b7280;
         font-size: 0.875rem;
-        margin-bottom: 1.5rem;
       }
       .userbird-support-text {
         font-size: 0.75rem;
@@ -500,6 +498,15 @@
     
     // Add click outside detection
     document.addEventListener('click', handleClickOutside);
+    
+    // Add ESC key handler
+    function handleEscKey(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscKey);
+      }
+    }
+    document.addEventListener('keydown', handleEscKey);
     
     modal.modal.classList.add('open');
     positionModal(trigger);
