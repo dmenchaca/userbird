@@ -170,6 +170,7 @@
       </div>
     `;
 
+    // Append modal to body immediately
     document.body.appendChild(modal);
 
     return {
@@ -487,9 +488,13 @@
 
   function openModal(trigger = null) {
     if (!settingsLoaded) {
+      // If modal is already open and loading, don't create another one
+      if (modal?.modal.classList.contains('open')) {
+        return;
+      }
+
       if (!modal) {
         modal = createModal();
-        document.body.appendChild(modal.modal);
       }
 
       currentTrigger = trigger;
