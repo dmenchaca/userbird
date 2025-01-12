@@ -126,7 +126,7 @@
     
     modal.innerHTML = `
       <div class="userbird-modal-content">
-        <div class="userbird-loading" style="display: none">
+        <div class="userbird-loading-state" style="display: none">
           <div class="userbird-loading-spinner"></div>
         </div>
         <div class="userbird-form">
@@ -180,27 +180,13 @@
       closeButtons: modal.querySelectorAll('.userbird-close'),
       errorElement: modal.querySelector('.userbird-error'),
       successElement: modal.querySelector('.userbird-success'),
-      loadingElement: modal.querySelector('.userbird-loading')
+      loadingElement: modal.querySelector('.userbird-loading-state')
     };
   }
 
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
-      .userbird-loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 200px;
-      }
-      .userbird-loading-spinner {
-        width: 24px;
-        height: 24px;
-        border: 2px solid #e5e7eb;
-        border-top-color: ${buttonColor || '#1f2937'};
-        border-radius: 50%;
-        animation: userbird-spin 0.6s linear infinite;
-      }
       .userbird-modal {
         opacity: 0;
         visibility: hidden;
@@ -224,6 +210,23 @@
         padding-right: 1rem;
         padding-bottom: 1rem;
         padding-left: 1rem;
+      }
+      .userbird-loading-state {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        z-index: 2;
+      }
+      .userbird-loading-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #e5e7eb;
+        border-top-color: ${buttonColor || '#1f2937'};
+        border-radius: 50%;
+        animation: userbird-spin 0.6s linear infinite;
       }
       .userbird-form {
         display: block;
@@ -410,20 +413,39 @@
   function positionModal(trigger) {
     if (!modal?.modal) return;
     
+    console.group('Userbird Modal Positioning');
+    
     const modalElement = modal.modal;
     modalElement.style.transform = 'none';
     
     const rect = trigger ? trigger.getBoundingClientRect() : null;
     
     if (rect) {
+      console.log('Trigger position:', {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right
+      });
+      
       // Get scroll position
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
+      
+      console.log('Scroll position:', { scrollX, scrollY });
       
       // Calculate available space
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const modalWidth = modalElement.offsetWidth;
+      
+      console.log('Available space:', {
+        spaceBelow,
+        spaceAbove,
+        modalWidth,
+        windowHeight: window.innerHeight,
+        windowWidth: window.innerWidth
+      });
       
       // Calculate position accounting for scroll
       const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
@@ -431,42 +453,50 @@
       if (spaceBelow >= 300) { // Reduced from 400 to account for smaller screens
         modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
         modalElement.style.left = `${leftPosition}px`;
+        console.log('Positioning below trigger:', {
+          top: rect.bottom + scrollY + 8,
+          left: leftPosition
+        });
       } else if (spaceAbove >= 300) { // Reduced from 400 to account for smaller screens
         modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
         modalElement.style.left = `${leftPosition}px`;
+        console.log('Positioning above trigger:', {
+          top: rect.top + scrollY - modalElement.offsetHeight - 8,
+          left: leftPosition
+        });
       } else {
         // Center if no good position relative to trigger
         modalElement.style.top = '50%';
         modalElement.style.left = '50%';
         modalElement.style.transform = 'translate(-50%, -50%)';
+        console.log('Centering modal (not enough space above or below)');
       }
     } else {
       // Center modal if no trigger
       modalElement.style.top = '50%';
       modalElement.style.left = '50%';
       modalElement.style.transform = 'translate(-50%, -50%)';
+      console.log('Centering modal (no trigger)');
     }
+    
+    console.groupEnd();
   }
 
   function openModal(trigger = null) {
     if (!settingsLoaded) {
-      if (!modal) {
-        modal = createModal();
+      // Show loading state
+      if (modal) {
+        modal.loadingElement.style.display = 'flex';
+        modal.form.style.visibility = 'hidden';
+        modal.modal.classList.add('open');
+        positionModal(trigger);
       }
-      
-      modal.form.style.display = 'none';
-      modal.loadingElement.style.display = 'flex';
-      modal.modal.classList.add('open');
-      positionModal(trigger);
-      currentTrigger = trigger;
       
       // Wait for settings to load
       settingsPromise.then(() => {
-        modal.loadingElement.style.display = 'none';
-        modal.form.style.display = 'block';
-        if (tempFormData.message) {
-          modal.textarea.value = tempFormData.message;
-          modal.textarea.focus();
+        if (modal) {
+          modal.loadingElement.style.display = 'none';
+          modal.form.style.visibility = 'visible';
         }
       });
       return;
@@ -498,6 +528,11 @@
     function handleClickOutside(e) {
       const modalElement = modal.modal;
       if (modalElement && !modalElement.contains(e.target) && e.target !== trigger) {
+        console.log('Click detected outside widget:', {
+          clickedElement: e.target,
+          clickX: e.clientX,
+          clickY: e.clientY
+        });
         closeModal();
         document.removeEventListener('click', handleClickOutside);
       }
@@ -547,7 +582,52 @@
     }, 150);
   }
 
+  async function init() {
+    // Get form settings including button color
+    formId = window.UserBird?.formId;
+    if (!formId) return;
+
+    // Inject styles
+    injectStyles();
+    
+    // Start loading settings
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
+      .then(async (response) => {
+        const settings = await response.json();
+        const buttonColor = settings.button_color || '#1f2937';
+        const supportText = settings.support_text;
+        
+        // Update styles with actual button color
+        injectStyles(buttonColor);
+        
+        // Create modal with settings
+        modal = createModal();
+        setupModal(buttonColor, supportText);
+        
+        settingsLoaded = true;
+        return settings;
+      })
+      .catch(error => {
+        console.error('Error loading settings:', error);
+        // Use defaults if settings fail to load
+        injectStyles('#1f2937');
+        modal = createModal();
+        setupModal('#1f2937', null);
+        settingsLoaded = true;
+      });
+    
+    // Get default trigger button if it exists
+    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+    if (defaultTrigger) {
+      defaultTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(defaultTrigger);
+      });
+    }
+  }
+  
   function setupModal(buttonColor, supportText) {
+    
     // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
     const imageButton = modal.modal.querySelector('.userbird-image-button');
@@ -662,50 +742,6 @@
     };
   }
 
-  async function init() {
-    // Get form settings including button color
-    formId = window.UserBird?.formId;
-    if (!formId) return;
-
-    // Inject styles
-    injectStyles();
-    
-    // Start loading settings
-    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
-      .then(async (response) => {
-        const settings = await response.json();
-        const buttonColor = settings.button_color || '#1f2937';
-        const supportText = settings.support_text;
-        
-        // Update styles with actual button color
-        injectStyles(buttonColor);
-        
-        // Create modal with settings
-        modal = createModal();
-        setupModal(buttonColor, supportText);
-        
-        settingsLoaded = true;
-        return settings;
-      })
-      .catch(error => {
-        console.error('Error loading settings:', error);
-        // Use defaults if settings fail to load
-        injectStyles('#1f2937');
-        modal = createModal();
-        setupModal('#1f2937', null);
-        settingsLoaded = true;
-      });
-    
-    // Get default trigger button if it exists
-    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
-    if (defaultTrigger) {
-      defaultTrigger.addEventListener('click', (e) => {
-        e.preventDefault();
-        openModal(defaultTrigger);
-      });
-    }
-  }
-  
   // Initialize if form ID is available
   if (window.UserBird?.formId) {
     init().catch(console.error);
