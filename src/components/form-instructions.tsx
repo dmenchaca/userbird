@@ -19,7 +19,6 @@ export function FormInstructions({ formId }: FormInstructionsProps) {
           <TabsList>
             <TabsTrigger value="html">HTML</TabsTrigger>
             <TabsTrigger value="react">React</TabsTrigger>
-            <TabsTrigger value="script">Script Tag</TabsTrigger>
           </TabsList>
 
           <TabsContent value="html" className="space-y-4">
@@ -72,25 +71,51 @@ export function FormInstructions({ formId }: FormInstructionsProps) {
               <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Complete React Example</h4>
+                  <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
                   <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                    <code>{`import { useEffect } from 'react';
-
-function App() {
-  useEffect(() => {
-    // Initialize Userbird
+                    <code>{`// userbird.ts
+export function initUserbird(formId: string) {
+  return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "${formId}";
-    // Optional: Add user information
-    window.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
+    window.UserBird.formId = formId;
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
+    
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+    
     document.head.appendChild(script);
+  });
+}`}</code>
+                  </pre>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                    <code>{`import { useEffect } from 'react';
+import { initUserbird } from './userbird';
+
+function App() {
+  useEffect(() => {
+    async function loadWidget() {
+      try {
+        // Optional: Add user information
+        window.UserBird.user = {
+          id: 'user-123',      // Your user's ID
+          email: 'user@example.com',  // User's email
+          name: 'John Doe'     // User's name
+        };
+        
+        await initUserbird("${formId}");
+        console.log('Userbird widget loaded successfully');
+      } catch (error) {
+        console.error('Failed to load Userbird widget:', error);
+      }
+    }
+    
+    loadWidget();
   }, []);
 
   return (
@@ -110,30 +135,6 @@ function App() {
                   </pre>
                 </div>
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="script" className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Script Tag Integration</h3>
-              <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                <code>{`<script>
-  (function(w,d,s){
-    w.UserBird = w.UserBird || {};
-    w.UserBird.formId = "${formId}";
-    s = d.createElement('script');
-    s.src = 'https://userbird.netlify.app/widget.js';
-    d.head.appendChild(s);
-  })(window,document);
-</script>
-
-<!-- Option 1: Use our default trigger button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
-
-<!-- Option 2: Use your own trigger button -->
-<button onclick="UserBird.open(this)">Custom Feedback Button</button>`}</code>
-              </pre>
             </div>
           </TabsContent>
         </Tabs>

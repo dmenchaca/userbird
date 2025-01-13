@@ -71,25 +71,51 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
               <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Complete React Example</h4>
+                  <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
                   <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                    <code>{`import { useEffect } from 'react';
-
-function App() {
-  useEffect(() => {
-    // Initialize Userbird
+                    <code>{`// userbird.ts
+export function initUserbird(formId: string) {
+  return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "${formId}";
-    // Optional: Add user information
-    w.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
+    window.UserBird.formId = formId;
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
+    
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+    
     document.head.appendChild(script);
+  });
+}`}</code>
+                  </pre>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                    <code>{`import { useEffect } from 'react';
+import { initUserbird } from './userbird';
+
+function App() {
+  useEffect(() => {
+    async function loadWidget() {
+      try {
+        // Optional: Add user information
+        window.UserBird.user = {
+          id: 'user-123',      // Your user's ID
+          email: 'user@example.com',  // User's email
+          name: 'John Doe'     // User's name
+        };
+        
+        await initUserbird("${formId}");
+        console.log('Userbird widget loaded successfully');
+      } catch (error) {
+        console.error('Failed to load Userbird widget:', error);
+      }
+    }
+    
+    loadWidget();
   }, []);
 
   return (
