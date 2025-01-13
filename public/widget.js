@@ -44,26 +44,6 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
-      .userbird-loading {
-        position: fixed;
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        border: 1px solid #e5e7eb;
-      }
-      .userbird-loading-spinner {
-        width: 24px;
-        height: 24px;
-        border: 2px solid #e5e7eb;
-        border-top-color: ${buttonColor || '#1f2937'};
-        border-radius: 50%;
-        animation: userbird-spin 0.6s linear infinite;
-      }
       .userbird-modal {
         opacity: 0;
         visibility: hidden;
@@ -252,6 +232,20 @@
         color: #6b7280;
         font-size: 0.875rem;
       }
+      .userbird-support-text {
+        font-size: 0.75rem;
+        color: #666666;
+        text-align: left;
+        margin-top: 1rem;
+      }
+      .userbird-support-text a {
+        color: ${buttonColor};
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .userbird-support-text a:hover {
+        text-decoration: underline;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -291,6 +285,7 @@
               </button>
             </div>
           </div>
+          <div class="userbird-support-text"></div>
         </div>
         <div class="userbird-success">
           <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -312,7 +307,8 @@
       submitButton: modal.querySelector('.userbird-submit'),
       closeButtons: modal.querySelectorAll('.userbird-close'),
       errorElement: modal.querySelector('.userbird-error'),
-      successElement: modal.querySelector('.userbird-success')
+      successElement: modal.querySelector('.userbird-success'),
+      supportTextElement: modal.querySelector('.userbird-support-text')
     };
   }
 
@@ -479,13 +475,14 @@
       .then(async (response) => {
         const settings = await response.json();
         const buttonColor = settings.button_color || '#1f2937';
+        const supportText = settings.support_text;
         
         // Update styles with actual button color
         injectStyles(buttonColor);
         
         // Create modal with settings
         modal = createModal();
-        setupModal();
+        setupModal(buttonColor, supportText);
         
         settingsLoaded = true;
         return settings;
@@ -495,7 +492,7 @@
         // Use defaults if settings fail to load
         injectStyles('#1f2937');
         modal = createModal();
-        setupModal();
+        setupModal('#1f2937', null);
         settingsLoaded = true;
       });
     
@@ -509,7 +506,7 @@
     }
   }
   
-  function setupModal() {
+  function setupModal(buttonColor, supportText) {
     // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
     const imageButton = modal.modal.querySelector('.userbird-image-button');
@@ -557,6 +554,19 @@
       imageButton.style.display = 'block';
       fileInput.value = '';
     });
+    
+    // Handle support text if present
+    const supportTextElement = modal.supportTextElement;
+    if (supportText) {
+      // Simple markdown link parser: [text](url)
+      const parsedText = supportText.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`
+      );
+      supportTextElement.innerHTML = parsedText;
+    } else {
+      supportTextElement.style.display = 'none';
+    }
 
     // Event handlers
     modal.closeButtons.forEach(button => {
@@ -611,6 +621,7 @@
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
     const userInfo = window.UserBird?.user || {};
+    const imageData = selectedImage ? await uploadImage(selectedImage) : null;
     
     const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
       method: 'POST',
@@ -624,7 +635,10 @@
         ...systemInfo,
         user_id: userInfo.id,
         user_email: userInfo.email,
-        user_name: userInfo.name
+        user_name: userInfo.name,
+        image_url: imageData?.url,
+        image_name: imageData?.name,
+        image_size: imageData?.size
       })
     });
 
@@ -633,6 +647,40 @@
     }
     
     return response.json();
+  }
+
+  async function uploadImage(file) {
+    if (!file) return null;
+    
+    // Validate file type
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      throw new Error('Only JPG and PNG images are allowed');
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image size must be under 5MB');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('formId', formId);
+    
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return {
+      url: data.url,
+      name: file.name,
+      size: file.size
+    };
   }
 
   // Initialize if form ID is available
