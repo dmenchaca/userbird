@@ -106,12 +106,12 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
       </div>
       
       <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
           <div className="relative">
             <img
               src={response.image_url || ''}
               alt={response.image_name || 'Feedback image'}
-              className="w-full h-full object-contain"
+              className="max-w-full max-h-[85vh] object-contain mx-auto"
             />
             <div className="absolute top-4 right-4 flex gap-2">
               <Button
