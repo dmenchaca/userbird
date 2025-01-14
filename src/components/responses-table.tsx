@@ -133,12 +133,12 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                 <td className="py-3 px-4 text-sm">
                   <p className="line-clamp-2">{response.message}</p>
                 </td>
-                <td className="py-3 px-4">
+                <td className="py-3 px-4 h-[60px]">
                   {response.image_url && (
                     <img 
                       src={response.image_url} 
                       alt={response.image_name || 'Feedback image'} 
-                      className="w-12 h-12 object-cover rounded"
+                      className="w-10 h-10 object-cover rounded"
                     />
                   )}
                 </td>
