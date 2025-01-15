@@ -370,41 +370,42 @@ export function FormSettingsDialog({
                           : "Notifications are currently disabled."
                         }
                       </p>
-                      
-                      <div className="space-y-4 mt-6">
-                        <h4 className="text-sm font-medium">Notification Content</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Choose which information to include in notification emails:
-                        </p>
-                        <div className="grid grid-cols-2 gap-4">
-                          {NOTIFICATION_ATTRIBUTES.map(attr => (
-                            <div key={attr.id} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`attr-${attr.id}`}
-                                checked={selectedAttributes.includes(attr.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedAttributes([...selectedAttributes, attr.id])
-                                  } else {
-                                    setSelectedAttributes(
-                                      selectedAttributes.filter(a => a !== attr.id)
-                                    )
-                                  }
-                                }}
-                                className="h-4 w-4 rounded border-gray-300"
-                              />
-                              <label
-                                htmlFor={`attr-${attr.id}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {attr.label}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     )}
+                    
+                    <div className="space-y-4 mt-6">
+                      <h4 className="text-sm font-medium">Notification Content</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Choose which information to include in notification emails:
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        {NOTIFICATION_ATTRIBUTES.map(attr => (
+                          <div key={attr.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`attr-${attr.id}`}
+                              checked={selectedAttributes.includes(attr.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAttributes([...selectedAttributes, attr.id])
+                                } else {
+                                  setSelectedAttributes(
+                                    selectedAttributes.filter(a => a !== attr.id)
+                                  )
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                            <label
+                              htmlFor={`attr-${attr.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {attr.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <Button
                       onClick={handleSaveNotifications}
                       disabled={notificationsSaving}
