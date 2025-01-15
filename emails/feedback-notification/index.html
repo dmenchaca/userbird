@@ -13,19 +13,32 @@
       <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
         <h2 style="color: #1f2937; font-size: 18px; margin-top: 0;">Message</h2>
         <p style="color: #4b5563; line-height: 1.6;">{{message}}</p>
+        {{#if showUserId}}
+        <p style="color: #4b5563; margin: 0;">User ID: {{userId}}</p>
+        {{/if}}
+        {{#if showUserEmail}}
+        <p style="color: #4b5563; margin: 0;">User Email: {{userEmail}}</p>
+        {{/if}}
+        {{#if showUserName}}
+        <p style="color: #4b5563; margin: 0;">User Name: {{userName}}</p>
+        {{/if}}
+        {{#if showOperatingSystem}}
+        <p style="color: #4b5563; margin: 0;">Operating System: {{operatingSystem}}</p>
+        {{/if}}
+        {{#if showScreenCategory}}
+        <p style="color: #4b5563; margin: 0;">Device: {{screenCategory}}</p>
+        {{/if}}
+        {{#if showImageUrl}}
+        <p style="color: #4b5563; margin: 0;">Image URL: {{imageUrl}}</p>
+        {{/if}}
+        {{#if showImageName}}
+        <p style="color: #4b5563; margin: 0;">Image Name: {{imageName}}</p>
+        {{/if}}
+        {{#if showCreatedAt}}
+        <p style="color: #4b5563; margin: 0;">Submitted: {{createdAt}}</p>
+        {{/if}}
       </div>
 
-      {{#if hasUserInfo}}
-      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0;">User Information</h2>
-        {{#if userName}}
-        <p style="color: #4b5563; margin: 0;">Name: {{userName}}</p>
-        {{/if}}
-        {{#if userEmail}}
-        <p style="color: #4b5563; margin: 0;">Email: {{userEmail}}</p>
-        {{/if}}
-      </div>
-      {{/if}}
 
       <div style="text-align: center; margin-top: 30px;">
         <a href="https://userbird.co/forms/{{formId}}" 

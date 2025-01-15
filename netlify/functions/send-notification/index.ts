@@ -17,19 +17,34 @@ export const handler: Handler = async (event) => {
     const { formId, message } = JSON.parse(event.body || '{}');
     console.log('Request payload:', { formId, hasMessage: !!message });
     
-    // Get form details
-    const { data: form, error: formError } = await supabase
+    // Get form details and feedback
+    const [formResult, feedbackResult] = await Promise.all([
+      supabase
       .from('forms')
       .select('url')
       .eq('id', formId)
-      .single();
+      .single(),
+      supabase
+      .from('feedback')
+      .select('*')
+      .eq('form_id', formId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    ]);
 
-    if (formError) {
-      console.error('Form query error:', formError);
-      throw formError;
+    if (formResult.error) {
+      console.error('Form query error:', formResult.error);
+      throw formResult.error;
     }
 
-    console.log('Form query result:', { found: !!form, url: form?.url });
+    if (feedbackResult.error) {
+      console.error('Feedback query error:', feedbackResult.error);
+      throw feedbackResult.error;
+    }
+
+    const form = formResult.data;
+    const feedback = feedbackResult.data;
 
     if (!form) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Form not found' }) };
@@ -38,7 +53,7 @@ export const handler: Handler = async (event) => {
     // Get enabled notification settings
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
-      .select('email')
+      .select('email, notification_attributes')
       .eq('form_id', formId)
       .eq('enabled', true);
 
@@ -64,6 +79,30 @@ export const handler: Handler = async (event) => {
     console.log('Attempting to send emails to:', settings.length, 'recipients');
     
     const emailPromises = settings.map(({ email }) => 
+      // Prepare email parameters based on selected attributes
+      const selectedAttrs = setting.notification_attributes || ['message'];
+      const emailParams = {
+        formUrl: form.url,
+        formId,
+        message: feedback.message,
+        showUserId: selectedAttrs.includes('user_id'),
+        userId: feedback.user_id,
+        showUserEmail: selectedAttrs.includes('user_email'),
+        userEmail: feedback.user_email,
+        showUserName: selectedAttrs.includes('user_name'),
+        userName: feedback.user_name,
+        showOperatingSystem: selectedAttrs.includes('operating_system'),
+        operatingSystem: feedback.operating_system,
+        showScreenCategory: selectedAttrs.includes('screen_category'),
+        screenCategory: feedback.screen_category,
+        showImageUrl: selectedAttrs.includes('image_url'),
+        imageUrl: feedback.image_url,
+        showImageName: selectedAttrs.includes('image_name'),
+        imageName: feedback.image_name,
+        showCreatedAt: selectedAttrs.includes('created_at'),
+        createdAt: new Date(feedback.created_at).toLocaleString()
+      };
+
       fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
@@ -73,11 +112,7 @@ export const handler: Handler = async (event) => {
           from: 'notifications@userbird.co',
           to: email,
           subject: `New feedback received for ${form.url}`,
-          parameters: {
-            formUrl: form.url,
-            formId,
-            message
-          },
+          parameters: emailParams
         })
       }).then(async response => {
         const text = await response.text();

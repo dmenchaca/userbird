@@ -47,7 +47,20 @@ export function FormSettingsDialog({
   const [notificationsSaving, setNotificationsSaving] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
+
+  const NOTIFICATION_ATTRIBUTES = [
+    { id: 'message', label: 'Message' },
+    { id: 'user_id', label: 'User ID' },
+    { id: 'user_email', label: 'User Email' },
+    { id: 'user_name', label: 'User Name' },
+    { id: 'operating_system', label: 'Operating System' },
+    { id: 'screen_category', label: 'Device Category' },
+    { id: 'image_url', label: 'Image URL' },
+    { id: 'image_name', label: 'Image Name' },
+    { id: 'created_at', label: 'Submission Date' }
+  ]
 
   // Fetch notification settings
   useEffect(() => {
@@ -55,7 +68,7 @@ export function FormSettingsDialog({
       const fetchSettings = async () => {
         const { data, error } = await supabase
         .from('notification_settings')
-        .select('id, email, enabled')
+        .select('id, email, enabled, notification_attributes')
         .eq('form_id', formId)
 
         if (error) {
@@ -67,6 +80,10 @@ export function FormSettingsDialog({
           setNotifications(data)
           // Check if any notifications are enabled
           setNotificationsEnabled(data.some(n => n.enabled))
+          // Set selected attributes from first notification setting or default to ['message']
+          if (data[0]?.notification_attributes) {
+            setSelectedAttributes(data[0].notification_attributes)
+          }
         }
       }
 
@@ -91,7 +108,12 @@ export function FormSettingsDialog({
       const { data, error } = await supabase
         .from('notification_settings')
         .insert([
-          { form_id: formId, email: newEmail, enabled: notificationsEnabled }
+          { 
+            form_id: formId, 
+            email: newEmail, 
+            enabled: notificationsEnabled,
+            notification_attributes: selectedAttributes 
+          }
         ])
         .select()
         .single()
@@ -134,7 +156,10 @@ export function FormSettingsDialog({
       // Update all notification settings for this form
       const { error: updateError } = await supabase
         .from('notification_settings')
-        .update({ enabled: notificationsEnabled })
+        .update({ 
+          enabled: notificationsEnabled,
+          notification_attributes: selectedAttributes 
+        })
         .eq('form_id', formId);
 
       if (updateError) throw updateError;
@@ -345,6 +370,40 @@ export function FormSettingsDialog({
                           : "Notifications are currently disabled."
                         }
                       </p>
+                      
+                      <div className="space-y-4 mt-6">
+                        <h4 className="text-sm font-medium">Notification Content</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Choose which information to include in notification emails:
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          {NOTIFICATION_ATTRIBUTES.map(attr => (
+                            <div key={attr.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`attr-${attr.id}`}
+                                checked={selectedAttributes.includes(attr.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAttributes([...selectedAttributes, attr.id])
+                                  } else {
+                                    setSelectedAttributes(
+                                      selectedAttributes.filter(a => a !== attr.id)
+                                    )
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <label
+                                htmlFor={`attr-${attr.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {attr.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                     <Button
                       onClick={handleSaveNotifications}
