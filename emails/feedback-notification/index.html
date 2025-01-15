@@ -9,9 +9,12 @@
       </div>
 
       <div style="margin-bottom: 24px;">
+        {{#if showMessage}}
         <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0 0 8px;">Message</h4>
           <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">{{message}}</p>
         </div>
+        {{/if}}
 
         {{#if showUserInfo}}
         <div style="margin-bottom: 16px;">

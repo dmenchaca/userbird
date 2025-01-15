@@ -84,6 +84,7 @@ export const handler: Handler = async (event) => {
       const emailParams = {
         formUrl: form.url,
         formId,
+        showMessage: selectedAttrs.includes('message'),
         message: feedback.message,
         showUserId: selectedAttrs.includes('user_id'),
         userId: feedback.user_id,
@@ -100,7 +101,14 @@ export const handler: Handler = async (event) => {
         showImageName: selectedAttrs.includes('image_name'),
         imageName: feedback.image_name,
         showCreatedAt: selectedAttrs.includes('created_at'),
-        createdAt: new Date(feedback.created_at).toLocaleString()
+        createdAt: new Date(feedback.created_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
       };
 
       return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
