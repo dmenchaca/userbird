@@ -1,48 +1,58 @@
 <!DOCTYPE html>
 <html>
-  <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px;">
-    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 20px;">
-      <h1 style="color: #1f2937; margin-bottom: 20px;">New Feedback Received</h1>
-      
-      <div style="margin-bottom: 30px;">
-        <p style="color: #4b5563; line-height: 1.6;">
-          You've received new feedback for <strong>{{formUrl}}</strong>
-        </p>
+  <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+      <div style="margin-bottom: 24px;">
+        <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
+          New feedback received for <strong>{{formUrl}}</strong>
+        </h3>
       </div>
 
-      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h2 style="color: #1f2937; font-size: 18px; margin-top: 0;">Message</h2>
-        <p style="color: #4b5563; line-height: 1.6;">{{message}}</p>
-        {{#if showUserId}}
-        <p style="color: #4b5563; margin: 0;">User ID: {{userId}}</p>
+      <div style="margin-bottom: 24px;">
+        <div style="margin-bottom: 16px;">
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">{{message}}</p>
+        </div>
+
+        {{#if showUserInfo}}
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0 0 8px;">User Information</h4>
+          <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
+            {{#if showUserId}}
+            <p style="margin: 0;">ID: {{userId}}</p>
+            {{/if}}
+            {{#if showUserEmail}}
+            <p style="margin: 0;">Email: {{userEmail}}</p>
+            {{/if}}
+            {{#if showUserName}}
+            <p style="margin: 0;">Name: {{userName}}</p>
+            {{/if}}
+          </div>
+        </div>
         {{/if}}
-        {{#if showUserEmail}}
-        <p style="color: #4b5563; margin: 0;">User Email: {{userEmail}}</p>
-        {{/if}}
-        {{#if showUserName}}
-        <p style="color: #4b5563; margin: 0;">User Name: {{userName}}</p>
-        {{/if}}
-        {{#if showOperatingSystem}}
-        <p style="color: #4b5563; margin: 0;">Operating System: {{operatingSystem}}</p>
-        {{/if}}
-        {{#if showScreenCategory}}
-        <p style="color: #4b5563; margin: 0;">Device: {{screenCategory}}</p>
-        {{/if}}
-        {{#if showImageUrl}}
-        <p style="color: #4b5563; margin: 0;">Image URL: {{imageUrl}}</p>
-        {{/if}}
-        {{#if showImageName}}
-        <p style="color: #4b5563; margin: 0;">Image Name: {{imageName}}</p>
-        {{/if}}
+
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0 0 8px;">System Information</h4>
+          <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
+            {{#if showOperatingSystem}}
+            <p style="margin: 0;">OS: {{operatingSystem}}</p>
+            {{/if}}
+            {{#if showScreenCategory}}
+            <p style="margin: 0;">Device: {{screenCategory}}</p>
+            {{/if}}
+          </div>
+        </div>
+
         {{#if showCreatedAt}}
-        <p style="color: #4b5563; margin: 0;">Submitted: {{createdAt}}</p>
+        <div>
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0 0 8px;">Date</h4>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">{{createdAt}}</p>
+        </div>
         {{/if}}
       </div>
 
-
-      <div style="text-align: center; margin-top: 30px;">
+      <div style="text-align: center;">
         <a href="https://userbird.co/forms/{{formId}}" 
-           style="background: #1f2937; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+           style="display: inline-block; background: #1f2937; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
           View All Responses
         </a>
       </div>
