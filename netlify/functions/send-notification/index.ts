@@ -78,7 +78,7 @@ export const handler: Handler = async (event) => {
     // Send emails
     console.log('Attempting to send emails to:', settings.length, 'recipients');
     
-    const emailPromises = settings.map(({ email }) => 
+    const emailPromises = settings.map(setting => {
       // Prepare email parameters based on selected attributes
       const selectedAttrs = setting.notification_attributes || ['message'];
       const emailParams = {
@@ -103,14 +103,14 @@ export const handler: Handler = async (event) => {
         createdAt: new Date(feedback.created_at).toLocaleString()
       };
 
-      fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
+      return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
           'netlify-emails-secret': process.env.NETLIFY_EMAILS_SECRET as string,
         },
         body: JSON.stringify({
           from: 'notifications@userbird.co',
-          to: email,
+          to: setting.email,
           subject: `New feedback received for ${form.url}`,
           parameters: emailParams
         })
@@ -125,8 +125,8 @@ export const handler: Handler = async (event) => {
           throw new Error(`Email API failed: ${response.status} ${text}`);
         }
         return response;
-      })
-    );
+      });
+    });
 
     await Promise.all(emailPromises);
     console.log('All notification emails sent successfully');
