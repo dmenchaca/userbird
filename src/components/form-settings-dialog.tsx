@@ -222,7 +222,7 @@ export function FormSettingsDialog({
           <DialogHeader>
             <DialogTitle>Form Settings</DialogTitle>
           </DialogHeader>
-          <div className="flex gap-6 h-[800px] -mx-6 -mb-6">
+          <div className="flex gap-6 h-[80vh] -mx-6 -mb-6">
             <div className="w-48 border-r">
               <div className="px-2 py-2 space-y-1">
                 <button
