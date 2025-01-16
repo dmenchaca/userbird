@@ -218,11 +218,11 @@ export function FormSettingsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-[56rem]">
           <DialogHeader>
             <DialogTitle>Form Settings</DialogTitle>
           </DialogHeader>
-          <div className="flex gap-6 h-[400px] -mx-6 -mb-6">
+          <div className="flex gap-6 h-[800px] -mx-6 -mb-6">
             <div className="w-48 border-r">
               <div className="px-2 py-2 space-y-1">
                 <button
