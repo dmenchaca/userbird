@@ -501,7 +501,12 @@
     if (defaultTrigger) {
       defaultTrigger.addEventListener('click', (e) => {
         e.preventDefault();
-        openModal(defaultTrigger);
+        // If modal is open and clicked the same trigger, close it
+        if (modal.modal.classList.contains('open') && currentTrigger === defaultTrigger) {
+          closeModal();
+        } else {
+          openModal(defaultTrigger);
+        }
       });
     }
   }
@@ -614,7 +619,12 @@
     window.UserBird.open = (triggerElement) => {
       // If triggerElement is provided, use it, otherwise try to find the default trigger
       const trigger = triggerElement || document.getElementById(`userbird-trigger-${formId}`);
-      openModal(trigger);
+      // If modal is open and clicked the same trigger, close it
+      if (modal.modal.classList.contains('open') && currentTrigger === trigger) {
+        closeModal();
+      } else {
+        openModal(trigger);
+      }
     };
   }
 
