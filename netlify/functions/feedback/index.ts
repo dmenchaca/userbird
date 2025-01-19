@@ -86,7 +86,7 @@ export const handler: Handler = async (event) => {
     }
 
     // Store feedback
-    const { error: insertError } = await supabase
+    const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
       .insert([{ 
         form_id: formId, 
@@ -103,16 +103,17 @@ export const handler: Handler = async (event) => {
 
     if (insertError) throw insertError;
 
-    // Send notification
-    try {
-      console.log('Attempting to send notification:', {
-        url: `${process.env.URL}/.netlify/functions/send-notification`,
-        formId,
-        hasUserName: !!user_name,
-        hasUserEmail: !!user_email
-      });
+    // Send success response immediately
+    const response = {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true })
+    };
 
-      await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
+    // Send notification
+    if (feedbackData) {
+      // Fire and forget notification
+      fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -123,23 +124,16 @@ export const handler: Handler = async (event) => {
           userName: user_name,
           userEmail: user_email
         })
+      }).catch(error => {
+        console.error('Failed to send notification:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          url: process.env.URL,
+          stack: error instanceof Error ? error.stack : undefined
+        });
       });
-
-      console.log('Notification request sent successfully');
-    } catch (error) {
-      console.error('Failed to send notification:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        url: process.env.URL,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      // Don't throw error to avoid affecting feedback submission
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true })
-    };
+    return response;
   } catch (error) {
     console.error('Error:', error);
     return {
