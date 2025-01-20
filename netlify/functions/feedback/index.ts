@@ -114,13 +114,17 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
+      const notificationUrl = process.env.URL 
+        ? `${process.env.URL}/.netlify/functions/send-notification`
+        : 'http://localhost:8888/.netlify/functions/send-notification';
+
       console.log('Sending notification:', {
-        url: `${process.env.URL}/.netlify/functions/send-notification`,
+        url: notificationUrl,
         formId,
         message: message.slice(0, 50) + '...' // Log first 50 chars for debugging
       });
 
-      fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
+      fetch(notificationUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -134,12 +138,12 @@ export const handler: Handler = async (event) => {
       }).catch(error => {
         console.error('Notification error:', {
           error: error instanceof Error ? error.message : 'Unknown error',
-          url: process.env.URL,
+          url: notificationUrl,
           stack: error instanceof Error ? error.stack : undefined
         });
       });
       
-      console.log('Notification request initiated');
+      console.log('Notification request initiated to:', notificationUrl);
     }
 
     return response;
