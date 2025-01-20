@@ -93,8 +93,7 @@ export const handler: Handler = async (event) => {
     console.log('Attempting to send notification:', {
       url: notificationUrl,
       formId,
-      message: message.slice(0, 50) + '...', // Log first 50 chars for debugging
-      }
+      message: message.slice(0, 50) + '...' // Log first 50 chars for debugging
     });
 
     // Log the full notification request
@@ -106,8 +105,9 @@ export const handler: Handler = async (event) => {
         formId,
         messageLength: message?.length,
         hasUserName: !!user_name,
-        hasUserEmail: !!user_email
-      timestamp: new Date().toISOString()
+        hasUserEmail: !!user_email,
+        timestamp: new Date().toISOString()
+      }
     });
 
     // Store feedback
