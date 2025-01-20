@@ -86,6 +86,11 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Define notification URL first
+    const notificationUrl = process.env.URL 
+      ? `${process.env.URL}/.netlify/functions/send-notification`
+      : 'https://userbird.co/.netlify/functions/send-notification';
+
     // Log notification attempt
     console.log('Attempting to send notification:', {
       url: notificationUrl,
@@ -139,10 +144,6 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
-      const notificationUrl = process.env.URL 
-        ? `${process.env.URL}/.netlify/functions/send-notification`
-        : 'https://userbird.co/.netlify/functions/send-notification';
-
       console.log('Sending notification:', {
         url: notificationUrl,
         formId,
@@ -185,12 +186,6 @@ export const handler: Handler = async (event) => {
           headers: Object.fromEntries(response.headers.entries()),
           text: text.slice(0, 200) // Log first 200 chars of response
         });
-        console.log('Notification response:', {
-          status: response.status,
-          ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries()),
-          text: text.slice(0, 200) // Log first 200 chars of response
-        });
         if (!response.ok) {
           throw new Error(`Notification failed: ${response.status} ${text}`);
         }
@@ -204,18 +199,7 @@ export const handler: Handler = async (event) => {
           },
           stack: error instanceof Error ? error.stack : undefined
         });
-        console.error('Notification error:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          url: notificationUrl,
-          env: {
-            hasUrl: !!process.env.URL,
-            url: process.env.URL
-          },
-          stack: error instanceof Error ? error.stack : undefined
-        });
       });
-      
-      console.log('Notification request completed');
       
       console.log('Notification request completed');
     }
