@@ -114,8 +114,9 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
-      const baseUrl = process.env.URL || 'http://localhost:8888';
-      const notificationUrl = `${baseUrl}/.netlify/functions/send-notification`;
+      const notificationUrl = process.env.URL 
+        ? `${process.env.URL}/.netlify/functions/send-notification`
+        : 'http://localhost:8888/.netlify/functions/send-notification';
 
       console.log('Sending notification:', {
         url: notificationUrl,
@@ -123,10 +124,23 @@ export const handler: Handler = async (event) => {
         message: message.slice(0, 50) + '...', // Log first 50 chars for debugging
         env: {
           url: process.env.URL,
+          hasUrl: !!process.env.URL,
           hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
         }
       });
 
+      // Log the full notification request
+      console.log('Notification request:', {
+        method: 'POST',
+        url: notificationUrl,
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          formId,
+          messageLength: message?.length,
+          hasUserName: !!user_name,
+          hasUserEmail: !!user_email
+        }
+      });
       await fetch(notificationUrl, {
         method: 'POST',
         headers: {
@@ -143,6 +157,7 @@ export const handler: Handler = async (event) => {
         console.log('Notification response:', {
           status: response.status,
           ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries()),
           text: text.slice(0, 200) // Log first 200 chars of response
         });
         if (!response.ok) {
@@ -152,6 +167,10 @@ export const handler: Handler = async (event) => {
         console.error('Notification error:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           url: notificationUrl,
+          env: {
+            hasUrl: !!process.env.URL,
+            url: process.env.URL
+          },
           stack: error instanceof Error ? error.stack : undefined
         });
       });
