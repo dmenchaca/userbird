@@ -114,17 +114,20 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
-      const notificationUrl = process.env.URL 
-        ? `${process.env.URL}/.netlify/functions/send-notification`
-        : 'http://localhost:8888/.netlify/functions/send-notification';
+      const baseUrl = process.env.URL || 'http://localhost:8888';
+      const notificationUrl = `${baseUrl}/.netlify/functions/send-notification`;
 
       console.log('Sending notification:', {
         url: notificationUrl,
         formId,
-        message: message.slice(0, 50) + '...' // Log first 50 chars for debugging
+        message: message.slice(0, 50) + '...', // Log first 50 chars for debugging
+        env: {
+          url: process.env.URL,
+          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+        }
       });
 
-      fetch(notificationUrl, {
+      await fetch(notificationUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -135,7 +138,17 @@ export const handler: Handler = async (event) => {
           userName: user_name,
           userEmail: user_email
         })
-      }).catch(error => {
+      }).then(async (response) => {
+        const text = await response.text();
+        console.log('Notification response:', {
+          status: response.status,
+          ok: response.ok,
+          text: text.slice(0, 200) // Log first 200 chars of response
+        });
+        if (!response.ok) {
+          throw new Error(`Notification failed: ${response.status} ${text}`);
+        }
+      }).catch((error) => {
         console.error('Notification error:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           url: notificationUrl,
@@ -143,7 +156,7 @@ export const handler: Handler = async (event) => {
         });
       });
       
-      console.log('Notification request initiated to:', notificationUrl);
+      console.log('Notification request completed');
     }
 
     return response;
