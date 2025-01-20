@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import { isValidOrigin } from './validation';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 function getCorsHeaders(origin: string | undefined) {
@@ -89,7 +89,7 @@ export const handler: Handler = async (event) => {
     // Define notification URL first
     const notificationUrl = process.env.URL 
       ? `${process.env.URL}/.netlify/functions/send-notification`
-      : 'https://userbird.co/.netlify/functions/send-notification';
+      : 'https://userbird.netlify.app/.netlify/functions/send-notification';
 
     // Log notification attempt
     console.log('Attempting to send notification:', {
