@@ -2,33 +2,36 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 
+// Log environment variables at startup
+console.log('Notification function environment:', {
+  hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  hasEmailsSecret: !!process.env.NETLIFY_EMAILS_SECRET,
+  netlifyUrl: process.env.URL,
+  netlifyContext: process.env.CONTEXT
+});
+
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 // Use service role key for backend operations
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-console.log('Notification function initialized with:', {
-  hasSupabaseUrl: !!supabaseUrl,
-  hasServiceKey: !!supabaseKey,
-  netlifyUrl: process.env.URL,
-  netlifyContext: process.env.CONTEXT
-});
-
 export const handler: Handler = async (event) => {
-  console.log('Notification function started');
-  
+  console.log('Notification function triggered:', {
+    method: event.httpMethod,
+    hasBody: !!event.body,
+    bodyLength: event.body?.length
+  });
+
   if (event.httpMethod !== 'POST') {
-    console.log('Invalid method:', event.httpMethod);
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
     const { formId, message } = JSON.parse(event.body || '{}');
-    console.log('Request payload:', { 
-      formId, 
-      hasMessage: !!message,
-      messagePreview: message?.slice(0, 50),
-      bodyLength: event.body?.length
+    console.log('Parsed request:', { 
+      hasFormId: !!formId, 
+      messageLength: message?.length 
     });
     
     // Get form details and feedback
@@ -84,15 +87,23 @@ export const handler: Handler = async (event) => {
     });
 
     if (!settings?.length) {
-      console.log('No notification settings found for form:', formId);
       return { 
         statusCode: 200, 
-        body: JSON.stringify({ message: 'No notification settings found' }) 
+        body: JSON.stringify({ 
+          message: 'No notification settings found',
+          formId,
+          settingsCount: settings?.length || 0
+        }) 
       };
     }
 
     // Send emails
-    console.log('Attempting to send emails to:', settings.length, 'recipients');
+    console.log('Sending emails to:', settings.length, 'recipients');
+    console.log('Email configuration:', {
+      hasEmailsSecret: !!process.env.NETLIFY_EMAILS_SECRET,
+      netlifyUrl: process.env.URL,
+      emailEndpoint: `${process.env.URL}/.netlify/functions/emails/feedback-notification`
+    });
     
     const emailPromises = settings.map(setting => {
       // Prepare email parameters based on selected attributes
@@ -128,13 +139,8 @@ export const handler: Handler = async (event) => {
       };
 
       const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
-      console.log('Sending email request to:', {
-        url: emailUrl,
-        recipient: setting.email,
-        hasSecret: !!process.env.NETLIFY_EMAILS_SECRET
-      });
-
-      return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
+      
+      return fetch(emailUrl, {
         method: 'POST',
         headers: {
           'netlify-emails-secret': process.env.NETLIFY_EMAILS_SECRET as string,
@@ -151,8 +157,7 @@ export const handler: Handler = async (event) => {
         console.log('Email API response:', {
           status: response.status,
           ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries()),
-          text: text.slice(0, 200) // Log first 200 chars in case of long response
+          text: text.slice(0, 200)
         });
         if (!response.ok) {
           throw new Error(`Email API failed: ${response.status} ${text}`);
