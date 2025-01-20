@@ -87,19 +87,13 @@ export const handler: Handler = async (event) => {
     }
 
     // Define notification URL first
-    const notificationUrl = process.env.URL 
-      ? `${process.env.URL}/.netlify/functions/send-notification`
-      : 'https://userbird.netlify.app/.netlify/functions/send-notification';
+    const notificationUrl = 'https://userbird.netlify.app/.netlify/functions/send-notification';
 
     // Log notification attempt
     console.log('Attempting to send notification:', {
       url: notificationUrl,
       formId,
       message: message.slice(0, 50) + '...', // Log first 50 chars for debugging
-      env: {
-        url: process.env.URL,
-        hasUrl: !!process.env.URL,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
       }
     });
 
@@ -113,7 +107,7 @@ export const handler: Handler = async (event) => {
         messageLength: message?.length,
         hasUserName: !!user_name,
         hasUserEmail: !!user_email
-      }
+      timestamp: new Date().toISOString()
     });
 
     // Store feedback
