@@ -86,6 +86,31 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Log notification attempt
+    console.log('Attempting to send notification:', {
+      url: notificationUrl,
+      formId,
+      message: message.slice(0, 50) + '...', // Log first 50 chars for debugging
+      env: {
+        url: process.env.URL,
+        hasUrl: !!process.env.URL,
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+      }
+    });
+
+    // Log the full notification request
+    console.log('Notification request:', {
+      method: 'POST',
+      url: notificationUrl,
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        formId,
+        messageLength: message?.length,
+        hasUserName: !!user_name,
+        hasUserEmail: !!user_email
+      }
+    });
+
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
@@ -116,7 +141,7 @@ export const handler: Handler = async (event) => {
       // Fire and forget notification
       const notificationUrl = process.env.URL 
         ? `${process.env.URL}/.netlify/functions/send-notification`
-        : 'http://localhost:8888/.netlify/functions/send-notification';
+        : 'https://userbird.co/.netlify/functions/send-notification';
 
       console.log('Sending notification:', {
         url: notificationUrl,
@@ -160,6 +185,12 @@ export const handler: Handler = async (event) => {
           headers: Object.fromEntries(response.headers.entries()),
           text: text.slice(0, 200) // Log first 200 chars of response
         });
+        console.log('Notification response:', {
+          status: response.status,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries()),
+          text: text.slice(0, 200) // Log first 200 chars of response
+        });
         if (!response.ok) {
           throw new Error(`Notification failed: ${response.status} ${text}`);
         }
@@ -173,7 +204,18 @@ export const handler: Handler = async (event) => {
           },
           stack: error instanceof Error ? error.stack : undefined
         });
+        console.error('Notification error:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          url: notificationUrl,
+          env: {
+            hasUrl: !!process.env.URL,
+            url: process.env.URL
+          },
+          stack: error instanceof Error ? error.stack : undefined
+        });
       });
+      
+      console.log('Notification request completed');
       
       console.log('Notification request completed');
     }

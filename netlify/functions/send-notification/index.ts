@@ -1,21 +1,35 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 // Use service role key for backend operations
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+console.log('Notification function initialized with:', {
+  hasSupabaseUrl: !!supabaseUrl,
+  hasServiceKey: !!supabaseKey,
+  netlifyUrl: process.env.URL,
+  netlifyContext: process.env.CONTEXT
+});
+
 export const handler: Handler = async (event) => {
   console.log('Notification function started');
   
   if (event.httpMethod !== 'POST') {
+    console.log('Invalid method:', event.httpMethod);
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
     const { formId, message } = JSON.parse(event.body || '{}');
-    console.log('Request payload:', { formId, hasMessage: !!message });
+    console.log('Request payload:', { 
+      formId, 
+      hasMessage: !!message,
+      messagePreview: message?.slice(0, 50),
+      bodyLength: event.body?.length
+    });
     
     // Get form details and feedback
     const [formResult, feedbackResult] = await Promise.all([
@@ -47,6 +61,7 @@ export const handler: Handler = async (event) => {
     const feedback = feedbackResult.data;
 
     if (!form) {
+      console.error('Form not found:', formId);
       return { statusCode: 404, body: JSON.stringify({ error: 'Form not found' }) };
     }
 
@@ -69,6 +84,7 @@ export const handler: Handler = async (event) => {
     });
 
     if (!settings?.length) {
+      console.log('No notification settings found for form:', formId);
       return { 
         statusCode: 200, 
         body: JSON.stringify({ message: 'No notification settings found' }) 
@@ -111,10 +127,18 @@ export const handler: Handler = async (event) => {
         })
       };
 
+      const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
+      console.log('Sending email request to:', {
+        url: emailUrl,
+        recipient: setting.email,
+        hasSecret: !!process.env.NETLIFY_EMAILS_SECRET
+      });
+
       return fetch(`${process.env.URL}/.netlify/functions/emails/feedback-notification`, {
         method: 'POST',
         headers: {
           'netlify-emails-secret': process.env.NETLIFY_EMAILS_SECRET as string,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           from: 'notifications@userbird.co',
@@ -127,6 +151,7 @@ export const handler: Handler = async (event) => {
         console.log('Email API response:', {
           status: response.status,
           ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries()),
           text: text.slice(0, 200) // Log first 200 chars in case of long response
         });
         if (!response.ok) {
@@ -146,6 +171,7 @@ export const handler: Handler = async (event) => {
   } catch (error) {
     console.error('Error in notification function:', {
       error: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error,
       stack: error instanceof Error ? error.stack : undefined
     });
     return {
