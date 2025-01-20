@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
 import { isValidOrigin } from './validation';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
@@ -113,6 +114,12 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
+      console.log('Sending notification:', {
+        url: `${process.env.URL}/.netlify/functions/send-notification`,
+        formId,
+        message: message.slice(0, 50) + '...' // Log first 50 chars for debugging
+      });
+
       fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
         method: 'POST',
         headers: {
@@ -125,12 +132,14 @@ export const handler: Handler = async (event) => {
           userEmail: user_email
         })
       }).catch(error => {
-        console.error('Failed to send notification:', {
+        console.error('Notification error:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           url: process.env.URL,
           stack: error instanceof Error ? error.stack : undefined
         });
       });
+      
+      console.log('Notification request initiated');
     }
 
     return response;
