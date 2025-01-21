@@ -87,7 +87,7 @@ export const handler: Handler = async (event) => {
     }
 
     // Define notification URL first
-    const notificationUrl = 'https://userbird.netlify.app/.netlify/functions/send-notification';
+    const notificationUrl = 'https://userbird.co/.netlify/functions/send-notification';
 
     // Log notification attempt
     console.log('Attempting to send notification:', {
