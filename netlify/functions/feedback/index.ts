@@ -107,13 +107,6 @@ export const handler: Handler = async (event) => {
 
     if (insertError) throw insertError;
 
-    // Send success response immediately
-    const response = {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true })
-    };
-
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
@@ -137,27 +130,30 @@ export const handler: Handler = async (event) => {
       };
 
       console.log('Sending notification with data:', notificationData);
-      
-      await fetch(notificationUrl, {
+
+      try {
+        const notificationResponse = await fetch(notificationUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
         },
         body: JSON.stringify(notificationData)
-      }).then(async (response) => {
-        const text = await response.text();
+        });
+
+        const text = await notificationResponse.text();
         console.log('Notification endpoint response:', {
-          status: response.status,
-          ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries()),
+          status: notificationResponse.status,
+          ok: notificationResponse.ok,
+          headers: Object.fromEntries(notificationResponse.headers.entries()),
           text: text.slice(0, 200), // Log first 200 chars of response
           url: notificationUrl
         });
-        if (!response.ok) {
-          throw new Error(`Notification failed: ${response.status} ${text}`);
+        
+        if (!notificationResponse.ok) {
+          throw new Error(`Notification failed: ${notificationResponse.status} ${text}`);
         }
-      }).catch((error) => {
+      } catch (error) {
         console.error('Notification request failed:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           url: notificationUrl,
@@ -169,12 +165,18 @@ export const handler: Handler = async (event) => {
           },
           stack: error instanceof Error ? error.stack : undefined
         });
-      });
+        // Re-throw the error to be caught by the main try-catch
+        throw error;
+      }
       
       console.log('Notification request completed');
     }
 
-    return response;
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true })
+    };
   } catch (error) {
     console.error('Error:', error);
     return {
