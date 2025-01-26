@@ -115,47 +115,60 @@ export const handler: Handler = async (event) => {
     if (insertError) throw insertError;
 
     if (feedbackData) {
-      // Simple test data
+      // Construct full URL
+      const baseUrl = process.env.URL || 'https://userbird.co';
+      const fullUrl = `${baseUrl}/.netlify/functions/test-endpoint`;
+      
       const testData = {
         formId,
         message,
         timestamp: new Date().toISOString()
       };
 
-      console.log('Sending test request with data:', testData);
+      console.log('Preparing test request:', {
+        url: fullUrl,
+        baseUrl,
+        data: testData
+      });
 
       try {
-        const testResponse = await fetch(`${process.env.URL}${testEndpointUrl}`, {
+        const testResponse = await fetch(fullUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify(testData)
         });
 
-        console.log('Test request details:', {
-          url: `${process.env.URL}${testEndpointUrl}`,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: testData
-        });
-
-        const responseText = await testResponse.text();
-        console.log('Test endpoint response:', {
+        // Log response details before trying to read the body
+        console.log('Test response received:', {
           status: testResponse.status,
           ok: testResponse.ok,
-          text: responseText,
-          headers: Object.fromEntries(testResponse.headers)
+          headers: Object.fromEntries(testResponse.headers),
+          url: fullUrl
         });
+
+        let responseBody;
+        try {
+          responseBody = await testResponse.text();
+          console.log('Test endpoint response body:', responseBody);
+        } catch (bodyError) {
+          console.error('Error reading response body:', bodyError);
+        }
         
         if (!testResponse.ok) {
-          throw new Error(`Test request failed: ${testResponse.status} ${responseText}`);
+          throw new Error(`Test request failed: ${testResponse.status} ${responseBody || 'No response body'}`);
         }
       } catch (error) {
         console.error('Test request failed:', {
           error: error instanceof Error ? error.message : 'Unknown error',
-          url: `${process.env.URL}${testEndpointUrl}`,
+          url: fullUrl,
+          cause: error instanceof Error ? error.cause : undefined,
           stack: error instanceof Error ? error.stack : undefined
         });
-        throw error;
+        // Log error but don't throw to ensure feedback is still saved
+        console.warn('Continuing despite test endpoint error');
       }
       
       console.log('Test request completed');
