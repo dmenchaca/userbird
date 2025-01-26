@@ -117,6 +117,13 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
+      console.log('Environment check:', {
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+        netlifyUrl: process.env.URL,
+        functionUrl: notificationUrl
+      });
+
       const notificationData = {
         formId,
         message,
@@ -133,27 +140,31 @@ export const handler: Handler = async (event) => {
       await fetch(notificationUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
         },
         body: JSON.stringify(notificationData)
       }).then(async (response) => {
         const text = await response.text();
-        console.log('Notification response:', {
+        console.log('Notification endpoint response:', {
           status: response.status,
           ok: response.ok,
           headers: Object.fromEntries(response.headers.entries()),
-          text: text.slice(0, 200) // Log first 200 chars of response
+          text: text.slice(0, 200), // Log first 200 chars of response
+          url: notificationUrl
         });
         if (!response.ok) {
           throw new Error(`Notification failed: ${response.status} ${text}`);
         }
       }).catch((error) => {
-        console.error('Notification error:', {
+        console.error('Notification request failed:', {
           error: error instanceof Error ? error.message : 'Unknown error',
           url: notificationUrl,
           env: {
             hasUrl: !!process.env.URL,
-            url: process.env.URL
+            url: process.env.URL,
+            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL
           },
           stack: error instanceof Error ? error.stack : undefined
         });
