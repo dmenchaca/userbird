@@ -89,6 +89,13 @@ export const handler: Handler = async (event) => {
     // Test endpoint URL - using relative path since we're on the same domain
     const testEndpointUrl = '/.netlify/functions/test-endpoint';
 
+    console.log('Feedback function environment:', {
+      hasUrl: !!process.env.URL,
+      url: process.env.URL,
+      testEndpointUrl,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
@@ -120,10 +127,15 @@ export const handler: Handler = async (event) => {
       try {
         const testResponse = await fetch(`${process.env.URL}${testEndpointUrl}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(testData)
+        });
+
+        console.log('Test request details:', {
+          url: `${process.env.URL}${testEndpointUrl}`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: testData
         });
 
         const responseText = await testResponse.text();
@@ -131,7 +143,7 @@ export const handler: Handler = async (event) => {
           status: testResponse.status,
           ok: testResponse.ok,
           text: responseText,
-          url: `${process.env.URL}${testEndpointUrl}`
+          headers: Object.fromEntries(testResponse.headers)
         });
         
         if (!testResponse.ok) {
