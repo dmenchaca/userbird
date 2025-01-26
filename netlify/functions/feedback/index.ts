@@ -86,8 +86,8 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Define notification URL first
-    const notificationUrl = 'https://userbird.co/.netlify/functions/send-notification';
+    // Get notification URL from environment variable
+    const notificationUrl = process.env.NOTIFICATION_URL || 'https://userbird.co/.netlify/functions/send-notification';
 
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
@@ -121,7 +121,8 @@ export const handler: Handler = async (event) => {
         hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
         hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
         netlifyUrl: process.env.URL,
-        functionUrl: notificationUrl
+        functionUrl: notificationUrl,
+        hasNotificationUrl: !!process.env.NOTIFICATION_URL
       });
 
       const notificationData = {
