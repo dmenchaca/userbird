@@ -86,8 +86,8 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Get notification URL from environment variable
-    const notificationUrl = process.env.NOTIFICATION_URL || 'https://userbird.co/.netlify/functions/test-endpoint';
+    // Test endpoint URL - using relative path since we're on the same domain
+    const testEndpointUrl = '/.netlify/functions/test-endpoint';
 
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
@@ -107,69 +107,46 @@ export const handler: Handler = async (event) => {
 
     if (insertError) throw insertError;
 
-    // Send notification
     if (feedbackData) {
-      // Fire and forget notification
-      console.log('Environment check:', {
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
-        netlifyUrl: process.env.URL,
-        functionUrl: notificationUrl,
-        hasNotificationUrl: !!process.env.NOTIFICATION_URL
-      });
-
-      const notificationData = {
+      // Simple test data
+      const testData = {
         formId,
         message,
-        userName: user_name,
-        userEmail: user_email,
-        operating_system,
-        screen_category,
-        image_url,
-        created_at: feedbackData[0].created_at
+        timestamp: new Date().toISOString()
       };
 
-      console.log('Sending notification with data:', notificationData);
+      console.log('Sending test request with data:', testData);
 
       try {
-        const notificationResponse = await fetch(notificationUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
-        },
-        body: JSON.stringify(notificationData)
+        const testResponse = await fetch(`${process.env.URL}${testEndpointUrl}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(testData)
         });
 
-        const text = await notificationResponse.text();
-        console.log('Notification endpoint response:', {
-          status: notificationResponse.status,
-          ok: notificationResponse.ok,
-          headers: Object.fromEntries(notificationResponse.headers.entries()),
-          text: text.slice(0, 200), // Log first 200 chars of response
-          url: notificationUrl
+        const responseText = await testResponse.text();
+        console.log('Test endpoint response:', {
+          status: testResponse.status,
+          ok: testResponse.ok,
+          text: responseText,
+          url: `${process.env.URL}${testEndpointUrl}`
         });
         
-        if (!notificationResponse.ok) {
-          throw new Error(`Notification failed: ${notificationResponse.status} ${text}`);
+        if (!testResponse.ok) {
+          throw new Error(`Test request failed: ${testResponse.status} ${responseText}`);
         }
       } catch (error) {
-        console.error('Notification request failed:', {
+        console.error('Test request failed:', {
           error: error instanceof Error ? error.message : 'Unknown error',
-          url: notificationUrl,
-          env: {
-            hasUrl: !!process.env.URL,
-            url: process.env.URL,
-            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL
-          },
+          url: `${process.env.URL}${testEndpointUrl}`,
           stack: error instanceof Error ? error.stack : undefined
         });
-        // Re-throw the error to be caught by the main try-catch
         throw error;
       }
       
-      console.log('Notification request completed');
+      console.log('Test request completed');
     }
 
     return {
