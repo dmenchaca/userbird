@@ -89,27 +89,6 @@ export const handler: Handler = async (event) => {
     // Define notification URL first
     const notificationUrl = 'https://userbird.co/.netlify/functions/send-notification';
 
-    // Log notification attempt
-    console.log('Attempting to send notification:', {
-      url: notificationUrl,
-      formId,
-      message: message.slice(0, 50) + '...' // Log first 50 chars for debugging
-    });
-
-    // Log the full notification request
-    console.log('Notification request:', {
-      method: 'POST',
-      url: notificationUrl,
-      headers: { 'Content-Type': 'application/json' },
-      body: {
-        formId,
-        messageLength: message?.length,
-        hasUserName: !!user_name,
-        hasUserEmail: !!user_email,
-        timestamp: new Date().toISOString()
-      }
-    });
-
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
@@ -138,32 +117,25 @@ export const handler: Handler = async (event) => {
     // Send notification
     if (feedbackData) {
       // Fire and forget notification
-      console.log('Sending notification:', {
-        url: notificationUrl,
+      const notificationData = {
         formId,
-        message: message.slice(0, 50) + '...',
-        env: {
-          url: process.env.URL,
-          hasUrl: !!process.env.URL,
-          hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-        }
-      });
+        message,
+        userName: user_name,
+        userEmail: user_email,
+        operating_system,
+        screen_category,
+        image_url,
+        created_at: feedbackData[0].created_at
+      };
+
+      console.log('Sending notification with data:', notificationData);
       
       await fetch(notificationUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          formId,
-          message,
-          userName: user_name,
-          userEmail: user_email,
-          operating_system,
-          screen_category,
-          image_url,
-          created_at: new Date().toISOString()
-        })
+        body: JSON.stringify(notificationData)
       }).then(async (response) => {
         const text = await response.text();
         console.log('Notification response:', {
