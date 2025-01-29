@@ -114,6 +114,11 @@ export const handler: Handler = async (event) => {
 
     if (insertError) throw insertError;
 
+    console.log('Feedback insert result:', {
+      hasData: !!feedbackData,
+      dataLength: feedbackData?.length || 0
+    });
+
     if (feedbackData) {
       // Construct full URL
       const baseUrl = process.env.URL || 'https://userbird.co';
