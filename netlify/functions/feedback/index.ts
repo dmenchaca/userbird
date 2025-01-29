@@ -119,19 +119,27 @@ export const handler: Handler = async (event) => {
       const baseUrl = process.env.URL || 'https://userbird.co';
       const fullUrl = `${baseUrl}/.netlify/functions/test-endpoint`;
       
+      console.log('Attempting to send request to test endpoint:', {
+        url: fullUrl,
+        baseUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
       const testData = {
         formId,
         message,
         timestamp: new Date().toISOString()
       };
-
-      console.log('Preparing test request:', {
-        url: fullUrl,
-        baseUrl,
-        data: testData
-      });
+      
+      console.log('Request payload:', testData);
 
       try {
+        console.log('Sending fetch request...');
+        
         const testResponse = await fetch(fullUrl, {
           method: 'POST',
           headers: {
@@ -140,6 +148,8 @@ export const handler: Handler = async (event) => {
           },
           body: JSON.stringify(testData)
         });
+
+        console.log('Fetch request sent. Awaiting response...');
 
         // Log response details before trying to read the body
         console.log('Test response received:', {
@@ -154,15 +164,19 @@ export const handler: Handler = async (event) => {
           responseBody = await testResponse.text();
           console.log('Test endpoint response body:', responseBody);
         } catch (bodyError) {
-          console.error('Error reading response body:', bodyError);
+          console.error('Error reading response body:', {
+            error: bodyError instanceof Error ? bodyError.message : 'Unknown error',
+            stack: bodyError instanceof Error ? bodyError.stack : undefined
+          });
         }
         
         if (!testResponse.ok) {
           throw new Error(`Test request failed: ${testResponse.status} ${responseBody || 'No response body'}`);
         }
       } catch (error) {
-        console.error('Test request failed:', {
+        console.error('Fetch request failed:', {
           error: error instanceof Error ? error.message : 'Unknown error',
+          type: error instanceof Error ? error.constructor.name : typeof error,
           url: fullUrl,
           cause: error instanceof Error ? error.cause : undefined,
           stack: error instanceof Error ? error.stack : undefined
