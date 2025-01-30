@@ -99,7 +99,7 @@ export const handler: Handler = async (event) => {
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
-      .insert([{ 
+      .insert([{
         form_id: formId, 
         message,
         operating_system: operating_system || 'Unknown',
@@ -110,7 +110,8 @@ export const handler: Handler = async (event) => {
         user_id: user_id || null,
         user_email: user_email || null,
         user_name: user_name || null
-      }]);
+      }])
+      .select();
 
     if (insertError) throw insertError;
 
