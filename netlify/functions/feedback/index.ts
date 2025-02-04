@@ -86,6 +86,34 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Send notification
+    try {
+      const notificationResponse = await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ formId, message })
+      });
+
+      console.log('Notification response:', {
+        status: notificationResponse.status,
+        ok: notificationResponse.ok
+      });
+
+      if (!notificationResponse.ok) {
+        console.error('Notification request failed:', await notificationResponse.text());
+      }
+    } catch (error) {
+      console.error('Error sending notification:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        cause: error instanceof Error ? error.cause : undefined,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+
     // Test endpoint URL - using relative path since we're on the same domain
     const testEndpointUrl = '/.netlify/functions/test-endpoint';
 
