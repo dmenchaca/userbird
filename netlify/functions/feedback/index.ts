@@ -86,6 +86,30 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Store feedback
+    const { error: insertError, data: feedbackData } = await supabase
+      .from('feedback')
+      .insert([{
+        form_id: formId, 
+        message,
+        operating_system: operating_system || 'Unknown',
+        image_url: image_url || null,
+        image_name: image_name || null,
+        image_size: image_size || null,
+        screen_category: screen_category || 'Unknown',
+        user_id: user_id || null,
+        user_email: user_email || null,
+        user_name: user_name || null
+      }])
+      .select();
+
+    if (insertError) throw insertError;
+
+    console.log('Feedback insert result:', {
+      hasData: !!feedbackData,
+      dataLength: feedbackData?.length || 0
+    });
+
     // Send notification
     try {
       const notificationResponse = await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
@@ -122,30 +146,6 @@ export const handler: Handler = async (event) => {
       url: process.env.URL,
       testEndpointUrl,
       nodeEnv: process.env.NODE_ENV
-    });
-
-    // Store feedback
-    const { error: insertError, data: feedbackData } = await supabase
-      .from('feedback')
-      .insert([{
-        form_id: formId, 
-        message,
-        operating_system: operating_system || 'Unknown',
-        image_url: image_url || null,
-        image_name: image_name || null,
-        image_size: image_size || null,
-        screen_category: screen_category || 'Unknown',
-        user_id: user_id || null,
-        user_email: user_email || null,
-        user_name: user_name || null
-      }])
-      .select();
-
-    if (insertError) throw insertError;
-
-    console.log('Feedback insert result:', {
-      hasData: !!feedbackData,
-      dataLength: feedbackData?.length || 0
     });
 
     if (feedbackData) {
