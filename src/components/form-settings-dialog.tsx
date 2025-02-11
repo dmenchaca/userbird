@@ -146,8 +146,7 @@ export function FormSettingsDialog({
   }
 
   const handleToggleNotifications = async () => {
-    const newState = !notificationsEnabled
-    setNotificationsEnabled(newState)
+    setNotificationsEnabled(!notificationsEnabled)
   }
 
   const handleSaveNotifications = async () => {
@@ -315,16 +314,23 @@ export function FormSettingsDialog({
                         <div className="flex items-center space-x-2 pt-2">
                           <Switch
                             checked={notificationsEnabled}
-                            onCheckedChange={handleToggleNotifications}
+                            onCheckedChange={(checked) => setNotificationsEnabled(checked)}
                           />
                           <Label className="text-sm font-normal">
                             {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
                           </Label>
                         </div>
+                        <Button
+                          onClick={handleSaveNotifications}
+                          disabled={notificationsSaving}
+                          className="mt-4"
+                        >
+                          {notificationsSaving ? 'Saving...' : 'Save Changes'}
+                        </Button>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                       <div className="flex gap-2">
                         <Input
                           value={newEmail}
@@ -372,7 +378,7 @@ export function FormSettingsDialog({
                       </p>
                     )}
                     
-                    <div className="space-y-4 mt-6">
+                    <div className="space-y-4">
                       <h4 className="text-sm font-medium">Notification Content</h4>
                       <p className="text-sm text-muted-foreground">
                         Choose which information to include in notification emails:
@@ -404,15 +410,15 @@ export function FormSettingsDialog({
                           </div>
                         ))}
                       </div>
+                      
+                      <Button
+                        onClick={handleSaveNotifications}
+                        disabled={notificationsSaving}
+                        className="mt-4"
+                      >
+                        {notificationsSaving ? 'Saving...' : 'Save Changes'}
+                      </Button>
                     </div>
-
-                    <Button
-                      onClick={handleSaveNotifications}
-                      disabled={notificationsSaving}
-                      className="mt-4"
-                    >
-                      {notificationsSaving ? 'Saving...' : 'Save Changes'}
-                    </Button>
                   </div>
                 </div>
               )}
