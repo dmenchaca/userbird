@@ -409,16 +409,13 @@ export function FormSettingsDialog({
                         }
                       </p>
                     )}
-                    
-                    {hasEmailChanges && (
-                      <Button
-                        onClick={handleSaveEmails}
-                        disabled={emailsSaving}
-                        className="mt-4"
-                      >
-                        {emailsSaving ? 'Saving...' : 'Save Email Changes'}
-                      </Button>
-                    )}
+                    <Button
+                      onClick={handleSaveEmails}
+                      disabled={emailsSaving}
+                      className="mt-4"
+                    >
+                      {emailsSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
 
                     <div className="space-y-4">
                       <h4 className="text-sm font-medium">Notification Content</h4>
