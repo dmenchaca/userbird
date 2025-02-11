@@ -52,7 +52,6 @@ export function FormSettingsDialog({
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
   const [pendingRemovals, setPendingRemovals] = useState<string[]>([])
-  const [hasEmailChanges, setHasEmailChanges] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -111,13 +110,11 @@ export function FormSettingsDialog({
     // Add to notifications state but don't save to database yet
     setNotifications(current => [...current, { id: `temp-${Date.now()}`, email: newEmail }])
     setNewEmail('')
-    setHasEmailChanges(true)
   }
 
   const handleRemoveEmail = (id: string) => {
     setPendingRemovals(current => [...current, id])
     setNotifications(current => current.filter(n => n.id !== id))
-    setHasEmailChanges(true)
   }
 
   const handleSaveEmails = async () => {
@@ -162,7 +159,6 @@ export function FormSettingsDialog({
 
       // Reset change tracking
       setPendingRemovals([])
-      setHasEmailChanges(false)
     } catch (error) {
       console.error('Error saving email changes:', error)
       setEmailError('Failed to save changes')
