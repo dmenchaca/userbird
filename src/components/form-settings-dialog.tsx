@@ -108,13 +108,27 @@ export function FormSettingsDialog({
       return
     }
     
+    // Add to notifications state but don't save to database yet
+    setNotifications(current => [...current, { id: `temp-${Date.now()}`, email: newEmail }])
+    setNewEmail('')
+    setHasEmailChanges(true)
+  }
+
+  const handleRemoveEmail = (id: string) => {
+    setPendingRemovals(current => [...current, id])
+    setNotifications(current => current.filter(n => n.id !== id))
+    setHasEmailChanges(true)
+  }
+
+  const handleSaveEmails = async () => {
+    setEmailsSaving(true)
     try {
-      // Process removals
+      // Process removals first
       if (pendingRemovals.length > 0) {
         const { error: deleteError } = await supabase
           .from('notification_settings')
           .delete()
-          .in('id', pendingRemovals)
+          .in('id', pendingRemovals.filter(id => !id.startsWith('temp-')))
 
         if (deleteError) throw deleteError
       }
@@ -123,22 +137,18 @@ export function FormSettingsDialog({
       const newEmails = notifications.filter(n => n.id.startsWith('temp-'))
       if (newEmails.length > 0) {
         const { error: insertError } = await supabase
-        .from('notification_settings')
-        .insert(
-          newEmails.map(n => ({
-            form_id: formId,
-            email: n.email,
-            enabled: notificationsEnabled,
-            notification_attributes: selectedAttributes
-          }))
-        )
+          .from('notification_settings')
+          .insert(
+            newEmails.map(n => ({
+              form_id: formId,
+              email: n.email,
+              enabled: notificationsEnabled,
+              notification_attributes: selectedAttributes
+            }))
+          )
 
         if (insertError) throw insertError
       }
-
-      // Reset change tracking
-      setPendingRemovals([])
-      setHasEmailChanges(false)
 
       // Refresh notifications list
       const { data: refreshedData } = await supabase
@@ -149,6 +159,10 @@ export function FormSettingsDialog({
       if (refreshedData) {
         setNotifications(refreshedData)
       }
+
+      // Reset change tracking
+      setPendingRemovals([])
+      setHasEmailChanges(false)
     } catch (error) {
       console.error('Error saving email changes:', error)
       setEmailError('Failed to save changes')
