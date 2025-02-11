@@ -45,6 +45,7 @@ export function FormSettingsDialog({
   const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
   const [notificationsSaving, setNotificationsSaving] = useState(false)
+  const [enabledStateSaving, setEnabledStateSaving] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
@@ -145,28 +146,38 @@ export function FormSettingsDialog({
     }
   }
 
-  const handleSaveNotifications = async () => {
-    setNotificationsSaving(true)
+  const handleSaveEnabledState = async () => {
+    setEnabledStateSaving(true)
     try {
-      // Update all notification settings for this form
       const { error: updateError } = await supabase
         .from('notification_settings')
-        .update({ 
-          enabled: notificationsEnabled,
-          notification_attributes: selectedAttributes 
-        })
+        .update({ enabled: notificationsEnabled })
         .eq('form_id', formId);
 
       if (updateError) throw updateError;
       
-      // Update local state
       setNotifications(current => 
         current.map(n => ({ ...n, enabled: notificationsEnabled }))
       );
     } catch (error) {
       console.error('Error updating notification settings:', error)
-      // Revert state on error
       setNotificationsEnabled(!notificationsEnabled)
+    } finally {
+      setEnabledStateSaving(false)
+    }
+  }
+
+  const handleSaveNotificationContent = async () => {
+    setNotificationsSaving(true)
+    try {
+      const { error: updateError } = await supabase
+        .from('notification_settings')
+        .update({ notification_attributes: selectedAttributes })
+        .eq('form_id', formId);
+
+      if (updateError) throw updateError;
+    } catch (error) {
+      console.error('Error updating notification settings:', error)
     } finally {
       setNotificationsSaving(false)
     }
@@ -317,11 +328,11 @@ export function FormSettingsDialog({
                           </Label>
                         </div>
                         <Button
-                          onClick={handleSaveNotifications}
-                          disabled={notificationsSaving}
+                          onClick={handleSaveEnabledState}
+                          disabled={enabledStateSaving}
                           className="mt-4"
                         >
-                          {notificationsSaving ? 'Saving...' : 'Save Changes'}
+                          {enabledStateSaving ? 'Saving...' : 'Save Changes'}
                         </Button>
                       </div>
                     </div>
@@ -408,7 +419,7 @@ export function FormSettingsDialog({
                       </div>
                       
                       <Button
-                        onClick={handleSaveNotifications}
+                        onClick={handleSaveNotificationContent}
                         disabled={notificationsSaving}
                         className="mt-4"
                       >
