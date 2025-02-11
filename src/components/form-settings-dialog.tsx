@@ -46,10 +46,13 @@ export function FormSettingsDialog({
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
   const [notificationsSaving, setNotificationsSaving] = useState(false)
   const [enabledStateSaving, setEnabledStateSaving] = useState(false)
+  const [emailsSaving, setEmailsSaving] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
+  const [pendingRemovals, setPendingRemovals] = useState<string[]>([])
+  const [hasEmailChanges, setHasEmailChanges] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -106,43 +109,51 @@ export function FormSettingsDialog({
     }
     
     try {
-      const { data, error } = await supabase
-        .from('notification_settings')
-        .insert([
-          { 
-            form_id: formId, 
-            email: newEmail, 
-            enabled: notificationsEnabled,
-            notification_attributes: selectedAttributes 
-          }
-        ])
-        .select()
-        .single()
+      // Process removals
+      if (pendingRemovals.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('notification_settings')
+          .delete()
+          .in('id', pendingRemovals)
 
-      if (error) throw error
-      
-      if (data) {
-        setNotifications([...notifications, data])
-        setNewEmail('')
+        if (deleteError) throw deleteError
+      }
+
+      // Process additions
+      const newEmails = notifications.filter(n => n.id.startsWith('temp-'))
+      if (newEmails.length > 0) {
+        const { error: insertError } = await supabase
+        .from('notification_settings')
+        .insert(
+          newEmails.map(n => ({
+            form_id: formId,
+            email: n.email,
+            enabled: notificationsEnabled,
+            notification_attributes: selectedAttributes
+          }))
+        )
+
+        if (insertError) throw insertError
+      }
+
+      // Reset change tracking
+      setPendingRemovals([])
+      setHasEmailChanges(false)
+
+      // Refresh notifications list
+      const { data: refreshedData } = await supabase
+        .from('notification_settings')
+        .select('id, email, enabled, notification_attributes')
+        .eq('form_id', formId)
+
+      if (refreshedData) {
+        setNotifications(refreshedData)
       }
     } catch (error) {
-      console.error('Error adding email:', error)
-      setEmailError('Failed to add email')
-    }
-  }
-
-  const handleRemoveEmail = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('notification_settings')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      
-      setNotifications(notifications.filter(n => n.id !== id))
-    } catch (error) {
-      console.error('Error removing email:', error)
+      console.error('Error saving email changes:', error)
+      setEmailError('Failed to save changes')
+    } finally {
+      setEmailsSaving(false)
     }
   }
 
@@ -385,6 +396,16 @@ export function FormSettingsDialog({
                       </p>
                     )}
                     
+                    {hasEmailChanges && (
+                      <Button
+                        onClick={handleSaveEmails}
+                        disabled={emailsSaving}
+                        className="mt-4"
+                      >
+                        {emailsSaving ? 'Saving...' : 'Save Email Changes'}
+                      </Button>
+                    )}
+
                     <div className="space-y-4">
                       <h4 className="text-sm font-medium">Notification Content</h4>
                       <p className="text-sm text-muted-foreground">
