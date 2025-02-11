@@ -145,10 +145,6 @@ export function FormSettingsDialog({
     }
   }
 
-  const handleToggleNotifications = async () => {
-    setNotificationsEnabled(!notificationsEnabled)
-  }
-
   const handleSaveNotifications = async () => {
     setNotificationsSaving(true)
     try {
