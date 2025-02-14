@@ -88,6 +88,7 @@ export function FormSettingsDialog({
   // Fetch notification settings
   useEffect(() => {
     if (open && formId) {
+      console.log('Fetching notification settings...');
       const fetchSettings = async () => {
         const { data, error } = await supabase
         .from('notification_settings')
@@ -107,12 +108,35 @@ export function FormSettingsDialog({
           if (data[0]?.notification_attributes) {
             setSelectedAttributes(data[0].notification_attributes)
           }
+          
+          // Set original values AFTER we have the notification data
+          setOriginalValues({
+            styling: {
+              buttonColor,
+              supportText: supportText || ''
+            },
+            notifications: {
+              enabled: data.some(n => n.enabled),
+              emails: data,
+              attributes: data[0]?.notification_attributes || ['message']
+            }
+          })
+          
+          // Reset dirty state
+          setIsDirty({
+            styling: false,
+            notifications: {
+              enabled: false,
+              emails: false,
+              attributes: false
+            }
+          })
         }
       }
 
       fetchSettings()
     }
-  }, [open, formId])
+  }, [open, formId, buttonColor, supportText])
 
   const handleAddEmail = async () => {
     setEmailError('')
@@ -259,40 +283,6 @@ export function FormSettingsDialog({
     }
   }
 
-  // Sync state with props when dialog opens
-  useEffect(() => {
-    if (open) {
-      console.log('Dialog opened, setting initial values:', {
-        notifications,
-        notificationsEnabled,
-        selectedAttributes
-      });
-
-      // Store initial values
-      setOriginalValues({
-        styling: {
-          buttonColor,
-          supportText: supportText || ''
-        },
-        notifications: {
-          enabled: notificationsEnabled,
-          emails: notifications,
-          attributes: selectedAttributes
-        }
-      })
-      // Reset dirty state
-      setIsDirty({
-        styling: false,
-        notifications: {
-          enabled: false,
-          emails: false,
-          attributes: false
-        }
-      })
-      setColor(buttonColor)
-      setText(supportText || '')
-    }
-  }, [open, buttonColor, supportText])
 
   // Track styling changes
   useEffect(() => {
