@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react'
 import { Palette, Trash2, Bell, X } from 'lucide-react'
 import { areArraysEqual } from '@/lib/utils'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -73,6 +83,11 @@ export function FormSettingsDialog({
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
   const [pendingRemovals, setPendingRemovals] = useState<string[]>([])
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'tab-switch' | 'close'
+    payload?: SettingsTab
+  } | null>(null)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -318,6 +333,71 @@ export function FormSettingsDialog({
     }))
   }, [notificationsEnabled, notifications, selectedAttributes, originalValues.notifications, pendingRemovals])
 
+  const hasUnsavedChanges = () => {
+    switch (activeTab) {
+      case 'styling':
+        return isDirty.styling
+      case 'notifications':
+        return isDirty.notifications.enabled || 
+               isDirty.notifications.emails || 
+               isDirty.notifications.attributes
+      default:
+        return false
+    }
+  }
+
+  const handleTabSwitch = (newTab: SettingsTab) => {
+    if (hasUnsavedChanges()) {
+      setPendingAction({ type: 'tab-switch', payload: newTab })
+      setShowWarningDialog(true)
+    } else {
+      setActiveTab(newTab)
+    }
+  }
+
+  const handleDialogClose = () => {
+    if (hasUnsavedChanges()) {
+      setPendingAction({ type: 'close' })
+      setShowWarningDialog(true)
+    } else {
+      onOpenChange(false)
+    }
+  }
+
+  const handleWarningAction = async (action: 'save' | 'discard' | 'cancel') => {
+    if (!pendingAction) return
+
+    if (action === 'cancel') {
+      setShowWarningDialog(false)
+      setPendingAction(null)
+      return
+    }
+
+    if (action === 'save') {
+      // Save changes based on current tab
+      switch (activeTab) {
+        case 'styling':
+          await handleSave()
+          break
+        case 'notifications':
+          if (isDirty.notifications.enabled) await handleSaveEnabledState()
+          if (isDirty.notifications.emails) await handleSaveEmails()
+          if (isDirty.notifications.attributes) await handleSaveNotificationContent()
+          break
+      }
+    }
+
+    // After save/discard, execute the pending action
+    if (pendingAction.type === 'tab-switch') {
+      setActiveTab(pendingAction.payload!)
+    } else if (pendingAction.type === 'close') {
+      onOpenChange(false)
+    }
+
+    setShowWarningDialog(false)
+    setPendingAction(null)
+  }
+
   useEffect(() => {
     setColor(buttonColor)
     setText(supportText || '')
@@ -364,7 +444,11 @@ export function FormSettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={(newOpen) => {
+        if (!newOpen) {
+          handleDialogClose()
+        }
+      }}>
         <DialogContent className="max-w-[56rem]">
           <DialogHeader>
             <DialogTitle>Form Settings</DialogTitle>
@@ -377,7 +461,7 @@ export function FormSettingsDialog({
             <div className="w-48 border-r">
               <div className="px-2 py-2 space-y-1">
                 <button
-                  onClick={() => setActiveTab('styling')}
+                  onClick={() => handleTabSwitch('styling')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
                     activeTab === 'styling' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
@@ -387,7 +471,7 @@ export function FormSettingsDialog({
                   Styling
                 </button>
                 <button
-                  onClick={() => setActiveTab('notifications')}
+                  onClick={() => handleTabSwitch('notifications')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
                     activeTab === 'notifications' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
@@ -397,7 +481,7 @@ export function FormSettingsDialog({
                   Notifications
                 </button>
                 <button
-                  onClick={() => setActiveTab('delete')}
+                  onClick={() => handleTabSwitch('delete')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
                     activeTab === 'delete' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
@@ -618,6 +702,36 @@ export function FormSettingsDialog({
         }}
         formUrl={formUrl}
       />
+
+      <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to close this page with unsaved changes. Would you like to save these changes before closing?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="destructive"
+              onClick={() => handleWarningAction('discard')}
+            >
+              Discard Changes
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => handleWarningAction('cancel')}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleWarningAction('save')}
+            >
+              Save Changes
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
