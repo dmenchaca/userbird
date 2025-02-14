@@ -190,7 +190,6 @@ export function FormSettingsDialog({
   const handleSaveEnabledState = async () => {
     setEnabledStateSaving(true)
     try {
-      const originalEnabled = originalValues.notifications.enabled
       const { error: updateError } = await supabase
         .from('notification_settings')
         .update({ enabled: notificationsEnabled })
@@ -228,7 +227,6 @@ export function FormSettingsDialog({
   const handleSaveNotificationContent = async () => {
     setNotificationsSaving(true)
     try {
-      const originalAttributes = originalValues.notifications.attributes
       const { error: updateError } = await supabase
         .from('notification_settings')
         .update({ notification_attributes: selectedAttributes })
