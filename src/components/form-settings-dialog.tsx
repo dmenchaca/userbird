@@ -297,15 +297,18 @@ export function FormSettingsDialog({
 
   // Track notification changes
   useEffect(() => {
+    const currentEmails = notifications.map(n => ({ id: n.id, email: n.email }));
+    const originalEmails = originalValues.notifications.emails.map(n => ({ id: n.id, email: n.email }));
+    
     setIsDirty(current => ({
       ...current,
       notifications: {
         enabled: notificationsEnabled !== originalValues.notifications.enabled,
-        emails: !areArraysEqual(notifications, originalValues.notifications.emails),
+        emails: !areArraysEqual(currentEmails, originalEmails) || pendingRemovals.length > 0,
         attributes: !areArraysEqual(selectedAttributes, originalValues.notifications.attributes)
       }
     }))
-  }, [notificationsEnabled, notifications, selectedAttributes, originalValues.notifications])
+  }, [notificationsEnabled, notifications, selectedAttributes, originalValues.notifications, pendingRemovals])
 
   useEffect(() => {
     setColor(buttonColor)
