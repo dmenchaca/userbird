@@ -442,10 +442,11 @@ export function FormSettingsDialog({
                   </div>
 
                   <Button 
+                    variant="secondary"
                     onClick={handleSave}
                     disabled={saving || !isDirty.styling}
                   >
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {saving ? 'Saving...' : 'Save'}
                   </Button>
                 </div>
               )}
@@ -469,11 +470,12 @@ export function FormSettingsDialog({
                           </Label>
                         </div>
                         <Button
+                          variant="secondary"
                           onClick={handleSaveEnabledState}
                           disabled={enabledStateSaving || !isDirty.notifications.enabled}
                           className="mt-4"
                         >
-                          {enabledStateSaving ? 'Saving...' : 'Save Changes'}
+                          {enabledStateSaving ? 'Saving...' : 'Save'}
                         </Button>
                       </div>
                     </div>
@@ -526,11 +528,12 @@ export function FormSettingsDialog({
                       </p>
                     )}
                     <Button
+                      variant="secondary"
                       onClick={handleSaveEmails}
                       disabled={emailsSaving || !isDirty.notifications.emails}
                       className="mt-4"
                     >
-                      {emailsSaving ? 'Saving...' : 'Save Changes'}
+                      {emailsSaving ? 'Saving...' : 'Save'}
                     </Button>
 
                     <div className="space-y-4">
@@ -567,11 +570,12 @@ export function FormSettingsDialog({
                       </div>
                       
                       <Button
+                        variant="secondary"
                         onClick={handleSaveNotificationContent}
                         disabled={notificationsSaving || !isDirty.notifications.attributes}
                         className="mt-4"
                       >
-                        {notificationsSaving ? 'Saving...' : 'Save Changes'}
+                        {notificationsSaving ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   </div>
