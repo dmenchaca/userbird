@@ -117,6 +117,8 @@ export function FormSettingsDialog({
   const handleAddEmail = async () => {
     setEmailError('')
     
+    console.log('Adding email:', newEmail);
+    
     if (!newEmail.trim()) {
       setEmailError('Email is required')
       return
@@ -133,6 +135,7 @@ export function FormSettingsDialog({
   }
 
   const handleRemoveEmail = (id: string) => {
+    console.log('Removing email:', id);
     setPendingRemovals(current => [...current, id])
     setNotifications(current => current.filter(n => n.id !== id))
   }
@@ -259,6 +262,12 @@ export function FormSettingsDialog({
   // Sync state with props when dialog opens
   useEffect(() => {
     if (open) {
+      console.log('Dialog opened, setting initial values:', {
+        notifications,
+        notificationsEnabled,
+        selectedAttributes
+      });
+
       // Store initial values
       setOriginalValues({
         styling: {
@@ -299,6 +308,14 @@ export function FormSettingsDialog({
   useEffect(() => {
     const currentEmails = notifications.map(n => ({ id: n.id, email: n.email }));
     const originalEmails = originalValues.notifications.emails.map(n => ({ id: n.id, email: n.email }));
+
+    console.log('Email comparison:', {
+      current: currentEmails,
+      original: originalEmails,
+      pendingRemovals,
+      areEqual: areArraysEqual(currentEmails, originalEmails),
+      isDirty: !areArraysEqual(currentEmails, originalEmails) || pendingRemovals.length > 0
+    });
     
     setIsDirty(current => ({
       ...current,
