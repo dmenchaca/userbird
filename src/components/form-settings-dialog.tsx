@@ -712,23 +712,22 @@ export function FormSettingsDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button
-              variant="destructive"
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => handleWarningAction('discard')}
             >
               Discard Changes
-            </Button>
-            <Button
-              variant="secondary"
+            </AlertDialogAction>
+            <AlertDialogCancel
               onClick={() => handleWarningAction('cancel')}
             >
               Cancel
-            </Button>
-            <Button
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => handleWarningAction('save')}
             >
               Save Changes
-            </Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
