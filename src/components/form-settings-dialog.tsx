@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Palette, Trash2, Bell } from 'lucide-react'
+import { areArraysEqual } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,25 @@ export function FormSettingsDialog({
   onDelete
 }: FormSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('styling')
+  const [originalValues, setOriginalValues] = useState({
+    styling: {
+      buttonColor: '',
+      supportText: ''
+    },
+    notifications: {
+      enabled: false,
+      emails: [] as { id: string; email: string }[],
+      attributes: [] as string[]
+    }
+  })
+  const [isDirty, setIsDirty] = useState({
+    styling: false,
+    notifications: {
+      enabled: false,
+      emails: false,
+      attributes: false
+    }
+  })
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -170,6 +190,7 @@ export function FormSettingsDialog({
   const handleSaveEnabledState = async () => {
     setEnabledStateSaving(true)
     try {
+      const originalEnabled = originalValues.notifications.enabled
       const { error: updateError } = await supabase
         .from('notification_settings')
         .update({ enabled: notificationsEnabled })
@@ -180,6 +201,22 @@ export function FormSettingsDialog({
       setNotifications(current => 
         current.map(n => ({ ...n, enabled: notificationsEnabled }))
       );
+
+      // Update original values and reset dirty state
+      setOriginalValues(current => ({
+        ...current,
+        notifications: {
+          ...current.notifications,
+          enabled: notificationsEnabled
+        }
+      }))
+      setIsDirty(current => ({
+        ...current,
+        notifications: {
+          ...current.notifications,
+          enabled: false
+        }
+      }))
     } catch (error) {
       console.error('Error updating notification settings:', error)
       setNotificationsEnabled(!notificationsEnabled)
@@ -191,12 +228,29 @@ export function FormSettingsDialog({
   const handleSaveNotificationContent = async () => {
     setNotificationsSaving(true)
     try {
+      const originalAttributes = originalValues.notifications.attributes
       const { error: updateError } = await supabase
         .from('notification_settings')
         .update({ notification_attributes: selectedAttributes })
         .eq('form_id', formId);
 
       if (updateError) throw updateError;
+
+      // Update original values and reset dirty state
+      setOriginalValues(current => ({
+        ...current,
+        notifications: {
+          ...current.notifications,
+          attributes: selectedAttributes
+        }
+      }))
+      setIsDirty(current => ({
+        ...current,
+        notifications: {
+          ...current.notifications,
+          attributes: false
+        }
+      }))
     } catch (error) {
       console.error('Error updating notification settings:', error)
     } finally {
@@ -207,10 +261,53 @@ export function FormSettingsDialog({
   // Sync state with props when dialog opens
   useEffect(() => {
     if (open) {
+      // Store initial values
+      setOriginalValues({
+        styling: {
+          buttonColor,
+          supportText: supportText || ''
+        },
+        notifications: {
+          enabled: notificationsEnabled,
+          emails: notifications,
+          attributes: selectedAttributes
+        }
+      })
+      // Reset dirty state
+      setIsDirty({
+        styling: false,
+        notifications: {
+          enabled: false,
+          emails: false,
+          attributes: false
+        }
+      })
       setColor(buttonColor)
       setText(supportText || '')
     }
   }, [open, buttonColor, supportText])
+
+  // Track styling changes
+  useEffect(() => {
+    setIsDirty(current => ({
+      ...current,
+      styling: 
+        color !== originalValues.styling.buttonColor ||
+        text !== originalValues.styling.supportText
+    }))
+  }, [color, text, originalValues.styling])
+
+  // Track notification changes
+  useEffect(() => {
+    setIsDirty(current => ({
+      ...current,
+      notifications: {
+        enabled: notificationsEnabled !== originalValues.notifications.enabled,
+        emails: !areArraysEqual(notifications, originalValues.notifications.emails),
+        attributes: !areArraysEqual(selectedAttributes, originalValues.notifications.attributes)
+      }
+    }))
+  }, [notificationsEnabled, notifications, selectedAttributes, originalValues.notifications])
 
   useEffect(() => {
     setColor(buttonColor)
@@ -232,6 +329,20 @@ export function FormSettingsDialog({
       
       // Invalidate cache when settings are updated
       cache.invalidate(`form-settings:${formId}`);
+
+      // Update original values after successful save
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          buttonColor: color,
+          supportText: text
+        }
+      }))
+      // Reset dirty state for styling
+      setIsDirty(current => ({
+        ...current,
+        styling: false
+      }))
       
       onSettingsSaved();
       onOpenChange(false);
@@ -318,12 +429,13 @@ export function FormSettingsDialog({
                     />
                     <p className="text-xs text-muted-foreground">
                       Add optional support text with markdown links. Example: [Link text](https://example.com)
+                      )
                     </p>
                   </div>
 
                   <Button 
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || !isDirty.styling}
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </Button>
@@ -350,7 +462,7 @@ export function FormSettingsDialog({
                         </div>
                         <Button
                           onClick={handleSaveEnabledState}
-                          disabled={enabledStateSaving}
+                          disabled={enabledStateSaving || !isDirty.notifications.enabled}
                           className="mt-4"
                         >
                           {enabledStateSaving ? 'Saving...' : 'Save Changes'}
@@ -407,7 +519,7 @@ export function FormSettingsDialog({
                     )}
                     <Button
                       onClick={handleSaveEmails}
-                      disabled={emailsSaving}
+                      disabled={emailsSaving || !isDirty.notifications.emails}
                       className="mt-4"
                     >
                       {emailsSaving ? 'Saving...' : 'Save Changes'}
@@ -448,7 +560,7 @@ export function FormSettingsDialog({
                       
                       <Button
                         onClick={handleSaveNotificationContent}
-                        disabled={notificationsSaving}
+                        disabled={notificationsSaving || !isDirty.notifications.attributes}
                         className="mt-4"
                       >
                         {notificationsSaving ? 'Saving...' : 'Save Changes'}
