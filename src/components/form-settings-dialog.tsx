@@ -3,6 +3,8 @@ import { Palette, Trash2, Bell, X } from 'lucide-react'
 import { areArraysEqual } from '@/lib/utils'
 import {
   AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -710,25 +712,23 @@ export function FormSettingsDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <button
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => handleWarningAction('discard')}
             >
               Discard Changes
-            </button>
+            </AlertDialogAction>
             <div className="flex gap-2">
-              <button
-                className="border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
+              <AlertDialogCancel
                 onClick={() => handleWarningAction('cancel')}
               >
                 Cancel
-              </button>
-              <button
-                className="bg-primary text-primary-foreground shadow hover:bg-primary/90"
+              </AlertDialogCancel>
+              <AlertDialogAction
                 onClick={() => handleWarningAction('save')}
               >
                 Save Changes
-              </button>
+              </AlertDialogAction>
             </div>
           </AlertDialogFooter>
         </AlertDialogContent>
