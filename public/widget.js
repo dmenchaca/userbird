@@ -194,16 +194,10 @@
         display: none;
         width: 16px !important;
         height: 16px !important;
-        animation: userbird-spin 0.6s linear infinite !important;
+        animation: userbird-spin 0.6s linear infinite;
       }
-      .userbird-spinner-circle {
-        opacity: 0.25;
-      }
-      .userbird-spinner-circle:nth-child(1) {
-        opacity: 1;
-        stroke-dasharray: 60;
-        stroke-dashoffset: 60;
-        animation: userbird-circle 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      @keyframes userbird-spin {
+        to { transform: rotate(360deg); }
       }
       .userbird-button-secondary:hover {
         background: #f3f4f6;
@@ -245,6 +239,13 @@
       }
       .userbird-support-text a:hover {
         text-decoration: underline;
+      }
+      .userbird-submit[disabled] .userbird-spinner {
+        display: block;
+        color: currentColor;
+      }
+      .userbird-submit[disabled] .userbird-submit-text {
+        opacity: 0.8;
       }
     `;
     document.head.appendChild(style);
