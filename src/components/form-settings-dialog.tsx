@@ -3,8 +3,6 @@ import { Palette, Trash2, Bell, X } from 'lucide-react'
 import { areArraysEqual } from '@/lib/utils'
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
