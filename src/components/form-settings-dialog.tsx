@@ -712,22 +712,24 @@ export function FormSettingsDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => handleWarningAction('cancel')}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
+          <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => handleWarningAction('discard')}
             >
               Discard Changes
             </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => handleWarningAction('save')}
-            >
-              Save Changes
-            </AlertDialogAction>
+            <div className="flex gap-2">
+              <AlertDialogCancel
+                onClick={() => handleWarningAction('cancel')}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => handleWarningAction('save')}
+              >
+                Save Changes
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
