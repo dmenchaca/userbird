@@ -192,21 +192,21 @@
       }
       .userbird-spinner {
         display: none;
-        width: 16px;
-        height: 16px;
-        animation: userbird-spin 1.5s linear infinite;
+        width: 16px !important;
+        height: 16px !important;
+        animation: userbird-spin 0.6s linear infinite !important;
       }
-      .userbird-submit[disabled] .userbird-spinner {
-        display: block;
+      .userbird-spinner-circle {
+        opacity: 0.25;
       }
-      @keyframes userbird-spin {
-        to { transform: rotate(360deg); }
+      .userbird-spinner-circle:nth-child(1) {
+        opacity: 1;
+        stroke-dasharray: 60;
+        stroke-dashoffset: 60;
+        animation: userbird-circle 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
-      .userbird-error {
-        display: none;
-        color: #dc2626;
-        font-size: 0.875rem;
-        margin-top: 0.5rem;
+      .userbird-button-secondary:hover {
+        background: #f3f4f6;
       }
       .userbird-success {
         text-align: center;
