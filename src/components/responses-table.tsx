@@ -114,7 +114,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
             <tr className="border-b bg-muted/50">
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Message</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[100px]">Image</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">User ID</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[120px]">User ID</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Email</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">System</th>
@@ -142,8 +142,21 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                     />
                   )}
                 </td>
-                <td className="py-3 px-4 text-sm text-muted-foreground">
-                  {response.user_id || '-'}
+                <td className="py-3 px-4 text-sm text-muted-foreground relative group">
+                  {response.user_id ? (
+                    <span className="group relative">
+                      <span>
+                        {response.user_id.length > 12 
+                          ? `${response.user_id.slice(0, 4)}...${response.user_id.slice(-4)}`
+                          : response.user_id}
+                      </span>
+                      <span className="invisible group-hover:visible absolute left-0 -top-8 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+                        {response.user_id}
+                      </span>
+                    </span>
+                  ) : (
+                    '-'
+                  )}
                 </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   {response.user_email || '-'}
