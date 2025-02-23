@@ -1,6 +1,6 @@
 // Userbird Widget
 (function() {
-  const API_BASE_URL = 'https://userbird.netlify.app';
+  const API_BASE_URL = 'https://app.userbird.co';
   let settingsLoaded = false;
   let settingsPromise = null;
   let selectedImage = null;

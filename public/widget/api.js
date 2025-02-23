@@ -1,5 +1,5 @@
 // API functionality
-const API_BASE_URL = 'https://userbird.netlify.app';
+const API_BASE_URL = 'https://app.userbird.co';
 
 export async function getFormSettings(formId) {
   try {
