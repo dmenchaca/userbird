@@ -33,9 +33,17 @@ export function UserMenu() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Initialize Userbird
-        window.UserBird = window.UserBird || {};
-        window.UserBird.formId = "4hNUB7DVhf";
+        if (user) {
+          // Add user information
+          window.UserBird = {
+            formId: "4hNUB7DVhf",
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.user_metadata?.full_name || user.email
+            }
+          };
+        }
         
         await initUserbird("4hNUB7DVhf");
         console.log('Userbird widget loaded successfully');
@@ -45,7 +53,7 @@ export function UserMenu() {
     }
     
     loadWidget();
-  }, []);
+  }, [user]);
 
   if (!user) return null
 
