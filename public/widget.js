@@ -194,7 +194,7 @@
         display: none;
         width: 16px !important;
         height: 16px !important;
-        animation: userbird-spin 0.6s linear infinite;
+        animation: userbird-spin 1s linear infinite;
       }
       @keyframes userbird-spin {
         to { transform: rotate(360deg); }
@@ -280,7 +280,7 @@
               </div>
               <button class="userbird-button userbird-submit">
                 <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
-                <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
               </button>
