@@ -54,7 +54,8 @@ export function FormSettingsDialog({
   const [originalValues, setOriginalValues] = useState({
     styling: {
       buttonColor: '',
-      supportText: ''
+      supportText: '',
+      url: ''
     },
     notifications: {
       enabled: false,
@@ -72,6 +73,7 @@ export function FormSettingsDialog({
   })
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
+  const [url, setUrl] = useState(formUrl)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
@@ -129,7 +131,8 @@ export function FormSettingsDialog({
           setOriginalValues({
             styling: {
               buttonColor,
-              supportText: supportText || ''
+              supportText: supportText || '',
+              url: formUrl
             },
             notifications: {
               enabled: data.some(n => n.enabled),
@@ -306,9 +309,10 @@ export function FormSettingsDialog({
       ...current,
       styling: 
         color !== originalValues.styling.buttonColor ||
-        text !== originalValues.styling.supportText
+        text !== originalValues.styling.supportText ||
+        url !== formUrl
     }))
-  }, [color, text, originalValues.styling])
+  }, [color, text, url, originalValues.styling])
 
   // Track notification changes
   useEffect(() => {
@@ -401,7 +405,8 @@ export function FormSettingsDialog({
   useEffect(() => {
     setColor(buttonColor)
     setText(supportText || '')
-  }, [buttonColor, supportText, open])
+    setUrl(formUrl)
+  }, [buttonColor, supportText, formUrl, open])
 
   const handleSave = async () => {
     setSaving(true)
@@ -409,6 +414,7 @@ export function FormSettingsDialog({
       const { error } = await supabase
         .from('forms')
         .update({ 
+          url,
           button_color: color,
           support_text: text || null
         })
@@ -424,7 +430,8 @@ export function FormSettingsDialog({
         ...current,
         styling: {
           buttonColor: color,
-          supportText: text
+          supportText: text,
+          url: url
         }
       }))
       // Reset dirty state for styling
@@ -495,6 +502,22 @@ export function FormSettingsDialog({
             <div className="flex-1 overflow-auto px-6">
               {activeTab === 'styling' && (
                 <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="url">Website URL</Label>
+                    <div className="flex gap-2">
+                      <span className="flex items-center text-sm text-muted-foreground">https://</span>
+                      <Input
+                        id="url"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="app.userbird.co"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      The domain where your widget is installed
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="buttonColor">Button Color</Label>
                     <div className="flex gap-2">
