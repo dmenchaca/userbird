@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
@@ -9,8 +9,6 @@ import { FEEDBACK_MESSAGES as MSG } from '@/lib/constants/messages'
 interface FeedbackFormProps {
   formId: string
 }
-
-type DialogState = 'normal' | 'success' | 'error'
 
 export function FeedbackForm({ formId }: FeedbackFormProps) {
   const [message, setMessage] = useState('')
@@ -106,7 +104,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
         <Dialog.Overlay className="fixed inset-0 bg-black/50" />
         <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-6 shadow-lg">
           <Dialog.Title className="text-lg font-semibold mb-4">
-            {dialogState === 'success' ? MSG.success.title : 'Send Feedback'}
+            {state === 'success' ? MSG.success.title : 'Send Feedback'}
           </Dialog.Title>
           {renderContent()}
         </Dialog.Content>
