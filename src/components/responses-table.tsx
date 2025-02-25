@@ -112,14 +112,14 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
         <table className="w-full table-fixed">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[200px]">Message</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">Image</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">User ID</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">Email</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">Name</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">System</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">Device</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-full">Date</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Message</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[100px]">Image</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[120px]">User ID</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Email</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">System</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Device</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[180px]">Date</th>
               <th className="py-3 px-4 w-[50px]"></th>
             </tr>
           </thead>

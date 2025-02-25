@@ -650,10 +650,10 @@ export function FormSettingsDialog({
 
                     <div className="space-y-4">
                       <h4 className="text-sm font-medium">Notification Content</h4>
-                      <p className="text-sm text-muted-foreground space-y-4">
+                      <p className="text-sm text-muted-foreground">
                         Choose which information to include in notification emails:
                       </p>
-                      <div className="grid grid-cols-2 gap-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         {NOTIFICATION_ATTRIBUTES.map(attr => (
                           <div key={attr.id} className="flex items-center space-x-2">
                             <input
