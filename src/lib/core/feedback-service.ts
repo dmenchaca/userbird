@@ -1,6 +1,13 @@
 import { FeedbackSubmission, FeedbackResponse, FeedbackState } from './types';
 import { supabase } from '../supabase';
 
+type StateTransition = {
+  state: FeedbackState;
+  submissionStatus: 'idle' | 'pending' | 'completed' | 'failed';
+  message?: string;
+  error?: string;
+};
+
 interface FeedbackServiceState {
   state: FeedbackState;
   submissionStatus: 'idle' | 'pending' | 'completed' | 'failed';
@@ -8,13 +15,15 @@ interface FeedbackServiceState {
   error?: string;
 }
 
+const INITIAL_STATE: FeedbackServiceState = {
+  state: 'normal',
+  submissionStatus: 'idle',
+  message: ''
+};
+
 export class FeedbackService {
   private static instance: FeedbackService;
-  private state: FeedbackServiceState = {
-    state: 'normal',
-    submissionStatus: 'idle',
-    message: ''
-  };
+  private state: FeedbackServiceState = INITIAL_STATE;
   private listeners: Set<(state: FeedbackServiceState) => void> = new Set();
 
   private constructor() {}
@@ -35,15 +44,26 @@ export class FeedbackService {
     return () => this.listeners.delete(listener);
   }
 
-  private setState(newState: Partial<FeedbackServiceState>) {
-    const updatedState = { ...this.state, ...newState };
+  private transition(transition: StateTransition) {
+    const updatedState = {
+      ...this.state,
+      ...transition,
+      message: transition.message ?? this.state.message
+    };
+    
+    console.log('Feedback state transition:', {
+      from: this.state.state,
+      to: transition.state,
+      status: transition.submissionStatus
+    });
+    
     this.state = updatedState;
     this.listeners.forEach(listener => listener(updatedState));
   }
 
   async submitFeedback({ formId, message }: FeedbackSubmission): Promise<FeedbackResponse> {
     if (!formId || !message.trim()) {
-      this.setState({ 
+      this.transition({ 
         state: 'error',
         submissionStatus: 'failed',
         error: 'Form ID and message are required'
@@ -51,7 +71,7 @@ export class FeedbackService {
       throw new Error('Form ID and message are required');
     }
 
-    this.setState({ 
+    this.transition({ 
       state: 'submitting',
       submissionStatus: 'pending',
       message
@@ -63,7 +83,7 @@ export class FeedbackService {
         .insert([{ form_id: formId, message }]);
 
       if (error) {
-        this.setState({
+        this.transition({
           state: 'error',
           submissionStatus: 'failed',
           error: error.message
@@ -71,13 +91,13 @@ export class FeedbackService {
         throw error;
       }
 
-      this.setState({
+      this.transition({
         state: 'success',
         submissionStatus: 'completed'
       });
       return { success: true };
     } catch (error) {
-      this.setState({
+      this.transition({
         state: 'error',
         submissionStatus: 'failed',
         error: error instanceof Error ? error.message : 'Failed to submit feedback'
@@ -87,11 +107,7 @@ export class FeedbackService {
   }
 
   reset() {
-    this.setState({
-      state: 'normal',
-      submissionStatus: 'idle',
-      message: '',
-      error: undefined
-    });
+    this.state = INITIAL_STATE;
+    this.listeners.forEach(listener => listener(this.state));
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FeedbackService } from '../feedback-service';
 import { FeedbackState, SubmissionStatus } from '../types';
 
@@ -20,12 +20,22 @@ export function useFeedback() {
     return () => unsubscribe();
   }, []);
 
+  const submit = useCallback(async (params) => {
+    try {
+      await feedbackService.submitFeedback(params);
+      return true;
+    } catch (error) {
+      console.error('Feedback submission failed:', error);
+      return false;
+    }
+  }, []);
+
   return {
     state,
     submissionStatus,
     message,
     error,
-    submitFeedback: feedbackService.submitFeedback.bind(feedbackService),
+    submitFeedback: submit,
     reset: feedbackService.reset.bind(feedbackService)
   };
 }
