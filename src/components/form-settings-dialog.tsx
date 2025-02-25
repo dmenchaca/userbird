@@ -648,7 +648,7 @@ export function FormSettingsDialog({
                       {emailsSaving ? 'Saving...' : 'Save'}
                     </Button>
 
-                    <div className="space-y-4">
+                    <div>
                       <h4 className="text-sm font-medium">Notification Content</h4>
                       <p className="text-sm text-muted-foreground">
                         Choose which information to include in notification emails:
