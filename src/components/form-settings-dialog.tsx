@@ -557,6 +557,7 @@ export function FormSettingsDialog({
                     variant="secondary"
                     onClick={handleSave}
                     disabled={saving || !isDirty.styling}
+                    className="mt-6"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </Button>
@@ -585,7 +586,7 @@ export function FormSettingsDialog({
                           variant="secondary"
                           onClick={handleSaveEnabledState}
                           disabled={enabledStateSaving || !isDirty.notifications.enabled}
-                          className="mt-4"
+                          className="mt-6"
                         >
                           {enabledStateSaving ? 'Saving...' : 'Save'}
                         </Button>
@@ -643,17 +644,17 @@ export function FormSettingsDialog({
                       variant="secondary"
                       onClick={handleSaveEmails}
                       disabled={emailsSaving || !isDirty.notifications.emails}
-                      className="mt-4"
+                      className="mt-6"
                     >
                       {emailsSaving ? 'Saving...' : 'Save'}
                     </Button>
 
-                    <div className="space-y-4">
+                    <div>
                       <h4 className="text-sm font-medium">Notification Content</h4>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mt-2">
                         Choose which information to include in notification emails:
                       </p>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4 mt-4">
                         {NOTIFICATION_ATTRIBUTES.map(attr => (
                           <div key={attr.id} className="flex items-center space-x-2">
                             <input
@@ -685,7 +686,7 @@ export function FormSettingsDialog({
                         variant="secondary"
                         onClick={handleSaveNotificationContent}
                         disabled={notificationsSaving || !isDirty.notifications.attributes}
-                        className="mt-4"
+                        className="mt-6"
                       >
                         {notificationsSaving ? 'Saving...' : 'Save'}
                       </Button>
