@@ -1,10 +1,21 @@
 import { FeedbackSubmission, FeedbackResponse, FeedbackState } from './types';
 import { supabase } from '../supabase';
 
+interface FeedbackServiceState {
+  state: FeedbackState;
+  submissionStatus: 'idle' | 'pending' | 'completed' | 'failed';
+  message: string;
+  error?: string;
+}
+
 export class FeedbackService {
   private static instance: FeedbackService;
-  private state: FeedbackState = 'normal';
-  private listeners: Set<(state: FeedbackState) => void> = new Set();
+  private state: FeedbackServiceState = {
+    state: 'normal',
+    submissionStatus: 'idle',
+    message: ''
+  };
+  private listeners: Set<(state: FeedbackServiceState) => void> = new Set();
 
   private constructor() {}
 
@@ -15,41 +26,71 @@ export class FeedbackService {
     return FeedbackService.instance;
   }
 
-  getState(): FeedbackState {
+  getState(): FeedbackServiceState {
     return this.state;
   }
 
-  subscribe(listener: (state: FeedbackState) => void): () => void {
+  subscribe(listener: (state: FeedbackServiceState) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  private setState(newState: FeedbackState) {
-    this.state = newState;
+  private setState(newState: Partial<FeedbackServiceState>) {
+    this.state = { ...this.state, ...newState };
     this.listeners.forEach(listener => listener(newState));
   }
 
   async submitFeedback({ formId, message }: FeedbackSubmission): Promise<FeedbackResponse> {
     if (!formId || !message.trim()) {
+      this.setState({ 
+        state: 'error',
+        submissionStatus: 'failed',
+        error: 'Form ID and message are required'
+      });
       throw new Error('Form ID and message are required');
     }
+
+    this.setState({ 
+      state: 'submitting',
+      submissionStatus: 'pending',
+      message
+    });
 
     try {
       const { error } = await supabase
         .from('feedback')
         .insert([{ form_id: formId, message }]);
 
-      if (error) throw error;
+      if (error) {
+        this.setState({
+          state: 'error',
+          submissionStatus: 'failed',
+          error: error.message
+        });
+        throw error;
+      }
 
-      this.setState('success');
+      this.setState({
+        state: 'success',
+        submissionStatus: 'completed'
+      });
       return { success: true };
     } catch (error) {
-      this.setState('error');
+      this.setState({
+        state: 'error',
+        submissionStatus: 'failed',
+        error: error instanceof Error ? error.message : 'Failed to submit feedback'
+      });
       throw new Error('Failed to submit feedback');
     }
   }
 
   reset() {
-    this.setState('normal');
+    this.setState({
+      state: 'normal',
+      submissionStatus: 'idle',
+      message: '',
+      error: undefined
+    });
   }
 }
