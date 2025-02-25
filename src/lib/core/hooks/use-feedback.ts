@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { FeedbackService } from '../feedback-service';
 import { FeedbackState, SubmissionStatus } from '../types';
 

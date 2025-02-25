@@ -36,8 +36,9 @@ export class FeedbackService {
   }
 
   private setState(newState: Partial<FeedbackServiceState>) {
-    this.state = { ...this.state, ...newState };
-    this.listeners.forEach(listener => listener(newState));
+    const updatedState = { ...this.state, ...newState };
+    this.state = updatedState;
+    this.listeners.forEach(listener => listener(updatedState));
   }
 
   async submitFeedback({ formId, message }: FeedbackSubmission): Promise<FeedbackResponse> {
