@@ -45,15 +45,16 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
     setShowSuccess(true)
     
     // Submit in background
-    await supabase
+    const { error: submitError } = await supabase
       .from('feedback')
       .insert([{ form_id: formId, message: feedbackMessage }])
-      .catch(err => {
-        // If submission fails, show error and restore message
-        setShowSuccess(false)
-        setMessage(feedbackMessage)
-        setError(err instanceof Error ? err.message : MSG.error.default)
-      });
+
+    // If submission fails, show error and restore message
+    if (submitError) {
+      setShowSuccess(false)
+      setMessage(feedbackMessage)
+      setError(submitError.message || MSG.error.default)
+    }
   }
 
   const renderContent = () => {
