@@ -37,26 +37,23 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
     const feedbackMessage = message
     
-    // Show success immediately
-    setShowSuccess(true)
+    // Immediately show success and clear form
+    setError(null)
     setMessage('')
-
+    setShowSuccess(true)
+    
     // Submit in background
-    try {
-      const { error } = await supabase
-        .from('feedback')
-        .insert([{ form_id: formId, message: feedbackMessage }])
-
-      if (error) throw error
-    } catch (err) {
-      // If submission fails, show error and restore message
-      setShowSuccess(false)
-      setMessage(feedbackMessage)
-      setError(err instanceof Error ? err.message : 'Failed to submit feedback')
-    }
+    await supabase
+      .from('feedback')
+      .insert([{ form_id: formId, message: feedbackMessage }])
+      .catch(err => {
+        // If submission fails, show error and restore message
+        setShowSuccess(false)
+        setMessage(feedbackMessage)
+        setError(err instanceof Error ? err.message : MSG.error.default)
+      });
   }
 
   const renderContent = () => {
