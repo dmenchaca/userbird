@@ -2,9 +2,9 @@ import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { useFeedback } from '@/lib/core/hooks/use-feedback'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { FEEDBACK_MESSAGES as MSG } from '@/lib/constants/messages'
+import { supabase } from '@/lib/supabase'
 
 interface FeedbackFormProps {
   formId: string
@@ -13,11 +13,12 @@ interface FeedbackFormProps {
 export function FeedbackForm({ formId }: FeedbackFormProps) {
   const [message, setMessage] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  const { state, submissionStatus, error, submitFeedback, reset } = useFeedback()
+  const [error, setError] = useState<string | null>(null)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      if (state !== 'success') {
+      if (!showSuccess) {
         setIsOpen(false)
       }
     } else {
@@ -28,24 +29,38 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
   const handleClose = () => {
     setIsOpen(false)
     setTimeout(() => {
-      reset()
+      setShowSuccess(false)
       setMessage('')
+      setError(null)
     }, 150)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+    const feedbackMessage = message
+    
+    // Show success immediately
+    setShowSuccess(true)
+    setMessage('')
 
+    // Submit in background
     try {
-      await submitFeedback({ formId, message })
+      const { error } = await supabase
+        .from('feedback')
+        .insert([{ form_id: formId, message: feedbackMessage }])
+
+      if (error) throw error
     } catch (err) {
-      console.error('Failed to submit feedback:', err)
+      // If submission fails, show error and restore message
+      setShowSuccess(false)
+      setMessage(feedbackMessage)
+      setError(err instanceof Error ? err.message : 'Failed to submit feedback')
     }
   }
 
   const renderContent = () => {
-    switch (state) {
-      case 'success':
+    if (showSuccess) {
         return (
           <div className="text-center py-6 px-4 space-y-4">
             <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
@@ -61,16 +76,13 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
           </div>
         )
 
-      case 'normal':
-      case 'submitting':
-      case 'error':
+    } else {
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={MSG.placeholders.textarea}
-              disabled={submissionStatus === 'pending'}
               required
               className="min-h-[100px]"
             />
@@ -86,8 +98,8 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
                   {MSG.labels.cancel}
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={submissionStatus === 'pending'}>
-                {submissionStatus === 'pending' ? MSG.labels.submitting : MSG.labels.submit}
+              <Button type="submit">
+                {MSG.labels.submit}
               </Button>
             </div>
           </form>
@@ -104,7 +116,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
         <Dialog.Overlay className="fixed inset-0 bg-black/50" />
         <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-6 shadow-lg">
           <Dialog.Title className="text-lg font-semibold mb-4">
-            {state === 'success' ? MSG.success.title : 'Send Feedback'}
+            {showSuccess ? MSG.success.title : 'Send Feedback'}
           </Dialog.Title>
           {renderContent()}
         </Dialog.Content>

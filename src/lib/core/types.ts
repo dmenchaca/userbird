@@ -1,17 +1,8 @@
-export type FeedbackState = 'normal' | 'submitting' | 'success' | 'error';
-
-export type SubmissionStatus = 'idle' | 'pending' | 'completed' | 'failed';
+export type FeedbackState = 'normal' | 'success' | 'error';
 
 export interface FeedbackSubmission {
   formId: string;
   message: string;
-}
-
-export interface FeedbackContext {
-  state: FeedbackState;
-  submissionStatus: SubmissionStatus;
-  message: string;
-  error?: string;
 }
 
 export interface FeedbackError {
