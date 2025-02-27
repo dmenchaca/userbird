@@ -4,7 +4,7 @@ import { submitFeedback } from '../services/feedback';
 import { Logger } from './logger';
 import { createStyles } from './styles';
 
-export async function createWidget(formId: string, buttonColor: string) {
+export async function createWidget(formId: string, buttonColor: string, supportText: string | null) {
   Logger.debug(`Creating widget with button color: ${buttonColor}`);
   
   // Log the full CSS being injected
@@ -18,7 +18,7 @@ export async function createWidget(formId: string, buttonColor: string) {
   // Verify style was added
   Logger.debug('Style element added to head:', document.head.contains(style));
   
-  const modal = createModal();
+  const modal = createModal(supportText);
   const trigger = createTrigger(formId);
 
   if (!trigger) {

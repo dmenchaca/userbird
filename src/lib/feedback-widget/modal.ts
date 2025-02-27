@@ -2,17 +2,26 @@ import { Logger } from './logger'
 import { FORM_TEMPLATE, SUCCESS_TEMPLATE } from '../constants/html-templates'
 import { FEEDBACK_MESSAGES as MSG } from '../constants/messages'
 
-export function createModal() {
+export function createModal(supportText: string | null) {
   const modal = document.createElement('div')
   const backdrop = document.createElement('div')
   
   modal.className = 'ub-modal'
   backdrop.className = 'ub-backdrop'
   
+  // Parse markdown links in support text if present
+  const parsedSupportText = supportText 
+    ? supportText.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+    : null;
+
   modal.innerHTML = `
     <div class="ub-modal-content">
       ${FORM_TEMPLATE}
       ${SUCCESS_TEMPLATE}
+      ${parsedSupportText ? `<div class="ub-support-text">${parsedSupportText}</div>` : ''}
     </div>
   `
 
