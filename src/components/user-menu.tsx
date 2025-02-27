@@ -33,26 +33,24 @@ export function UserMenu() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        if (user) {
-          // Add user information
-          window.UserBird = {
-            formId: "4hNUB7DVhf",
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.user_metadata?.full_name || user.email
-            }
-          };
-        }
+        // Add user information
+        window.UserBird = window.UserBird || {};
+        window.UserBird.formId = "4hNUB7DVhf";
+        window.UserBird.user = user ? {
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.full_name || user.email
+        } : undefined;
         
         await initUserbird("4hNUB7DVhf");
-        console.log('Userbird widget loaded successfully');
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
       }
     }
     
-    loadWidget();
+    if (user) {
+      loadWidget();
+    }
   }, [user]);
 
   if (!user) return null
