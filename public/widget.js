@@ -215,16 +215,55 @@
         height: 48px;
         margin: 0 auto 1rem;
         color: #22c55e;
+        opacity: 0;
+        transform: scale(0.8);
+        animation: userbird-success-icon 0.4s ease-out forwards;
       }
       .userbird-success-title {
         font-size: 1.125rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
         color: #111827;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: userbird-success-title 0.4s ease-out 0.2s forwards;
       }
       .userbird-success-message {
         color: #6b7280;
         font-size: 0.875rem;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: userbird-success-message 0.4s ease-out 0.4s forwards;
+      }
+      @keyframes userbird-success-icon {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes userbird-success-title {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes userbird-success-message {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       .userbird-support-text {
         font-size: 0.75rem;
