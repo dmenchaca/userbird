@@ -463,18 +463,31 @@
   async function init() {
     console.log('Initializing widget');
     formId = window.UserBird?.formId;
+    const user = window.UserBird?.user;
+    
     if (!formId) {
       console.error('No form ID provided');
       return;
     }
 
+    console.log('Initializing with:', { formId, user });
+
     // Inject styles
     injectStyles();
     
     // Start loading settings
-    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`)
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
       .then(async (response) => {
+        console.log('Settings response:', response.status);
+        if (!response.ok) {
+          throw new Error(`Failed to load settings: ${response.status}`);
+        }
         const settings = await response.json();
+        console.log('Loaded settings:', settings);
         const buttonColor = settings.button_color || '#1f2937';
         const supportText = settings.support_text;
         
@@ -489,7 +502,7 @@
         return settings;
       })
       .catch(error => {
-        console.error('Error loading settings:', error);
+        console.warn('Using default settings:', error);
         // Use defaults if settings fail to load
         injectStyles('#1f2937');
         modal = createModal();
@@ -632,32 +645,54 @@
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
     const userInfo = window.UserBird?.user || {};
-    const imageData = selectedImage ? await uploadImage(selectedImage) : null;
     
-    const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Origin': window.location.origin
-      },
-      body: JSON.stringify({ 
-        formId, 
-        message,
-        ...systemInfo,
-        user_id: userInfo.id,
-        user_email: userInfo.email,
-        user_name: userInfo.name,
-        image_url: imageData?.url,
-        image_name: imageData?.name,
-        image_size: imageData?.size
-      })
+    // Show success state immediately
+    modal.form.classList.add('hidden');
+    modal.successElement.classList.add('open');
+    
+    console.log('Submitting feedback in background:', {
+      formId,
+      message,
+      userInfo
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to submit feedback');
-    }
     
-    return response.json();
+    try {
+      // Upload image first if present
+      const imageData = selectedImage ? await uploadImage(selectedImage) : null;
+      console.log('Image upload result:', imageData);
+    
+      // Submit feedback
+      const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({ 
+          formId, 
+          message,
+          ...systemInfo,
+          user_id: userInfo.id,
+          user_email: userInfo.email,
+          user_name: userInfo.name,
+          image_url: imageData?.url,
+          image_name: imageData?.name,
+          image_size: imageData?.size
+        })
+      });
+
+      console.log('Feedback submission response:', response.status);
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback');
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Background submission failed:', error);
+      // Don't revert success state, just log the error
+      return { success: false, error };
+    }
   }
 
   async function uploadImage(file) {

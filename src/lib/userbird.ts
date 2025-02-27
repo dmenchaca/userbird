@@ -1,9 +1,18 @@
 // Userbird initialization
 export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[src="https://userbird.netlify.app/widget.js"]');
+    
     // Check if script is already loaded
-    if (document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
+    if (existingScript) {
       console.log('Widget script already loaded, skipping initialization');
+      
+      // If script exists but UserBird not initialized, wait for it
+      if (!window.UserBird?.open) {
+        existingScript.addEventListener('load', () => resolve(true));
+        return;
+      }
+      
       resolve(true);
       return;
     }

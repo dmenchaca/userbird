@@ -33,6 +33,8 @@ export function UserMenu() {
   useEffect(() => {
     async function loadWidget() {
       try {
+        console.log('Loading widget with user:', user?.id);
+
         // Add user information
         window.UserBird = window.UserBird || {};
         window.UserBird.formId = "4hNUB7DVhf";
@@ -42,6 +44,7 @@ export function UserMenu() {
           name: user.user_metadata?.full_name || user.email
         } : undefined;
         
+        console.log('UserBird config:', window.UserBird);
         await initUserbird("4hNUB7DVhf");
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);

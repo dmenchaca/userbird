@@ -24,7 +24,7 @@ export const handler: Handler = async (event) => {
   try {
     const formId = event.queryStringParameters?.id;
     
-    if (!formId) {
+    if (!formId?.trim()) {
       return {
         statusCode: 400,
         headers,
@@ -35,7 +35,7 @@ export const handler: Handler = async (event) => {
     const { data, error } = await supabase
       .from('forms')
       .select('button_color, support_text')
-      .eq('id', formId)
+      .eq('id', formId.trim())
       .single();
 
     if (error) throw error;
