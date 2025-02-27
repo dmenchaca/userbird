@@ -38,22 +38,30 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const feedbackMessage = message
+    console.log('1. Starting submission, showing success immediately')
     
     // Immediately show success and clear form
     setError(null)
     setMessage('')
     setShowSuccess(true)
+    console.log('2. Success state shown, form cleared')
     
     // Submit in background
+    console.log('3. Making API request in background...')
     const { error: submitError } = await supabase
       .from('feedback')
       .insert([{ form_id: formId, message: feedbackMessage }])
 
+    console.log('4. API request completed:', { success: !submitError })
+    
     // If submission fails, show error and restore message
     if (submitError) {
+      console.log('5. Error occurred, reverting to form state:', submitError)
       setShowSuccess(false)
       setMessage(feedbackMessage)
       setError(submitError.message || MSG.error.default)
+    } else {
+      console.log('5. Submission successful')
     }
   }
 
