@@ -25,12 +25,18 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialFormId) // Only show loading if no initialFormId
   const [hasAnyForms, setHasAnyForms] = useState(false)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
     if (!user?.id) return;
+    
+    // If initialFormId is provided, we don't need to fetch the latest form
+    if (initialFormId) {
+      setLoading(false);
+      return;
+    }
     
     const fetchLatestForm = async () => {
       setLoading(true);
@@ -46,10 +52,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         
         if (data && data.length > 0) {
           setHasAnyForms(true);
-          // Only set the form ID if no initialFormId was provided
-          if (!initialFormId) {
-            setSelectedFormId(data[0].id);
-          }
+          setSelectedFormId(data[0].id);
         } else {
           setHasAnyForms(false);
         }

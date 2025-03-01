@@ -33,10 +33,6 @@ export function UserMenu() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        if (window.UserBird?.open) {
-          return; // Widget already initialized
-        }
-
         // Add user information
         window.UserBird = window.UserBird || {};
         window.UserBird.formId = "4hNUB7DVhf";
