@@ -638,25 +638,24 @@
     }
   }
   
-  // Load html-to-image library dynamically
-  function loadHtmlToImage() {
+  // Load html2canvas library dynamically
+  function loadHtml2Canvas() {
     return new Promise((resolve, reject) => {
-      if (window.htmlToImage) {
-        resolve(window.htmlToImage);
+      if (window.html2canvas) {
+        resolve(window.html2canvas);
         return;
       }
       
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
       script.async = true;
       
       script.onload = () => {
-        window.htmlToImage = window.htmlToImage || {};
-        resolve(window.htmlToImage);
+        resolve(window.html2canvas);
       };
       
       script.onerror = () => {
-        reject(new Error('Failed to load html-to-image library'));
+        reject(new Error('Failed to load html2canvas library'));
       };
       
       document.head.appendChild(script);
@@ -744,17 +743,16 @@
         modalElement.style.visibility = 'hidden';
       }
       
-      // Load html-to-image library if not already loaded
-      const htmlToImage = await loadHtmlToImage();
+      // Load html2canvas library if not already loaded
+      const html2canvas = await loadHtml2Canvas();
       
       // Capture the entire document body
-      const dataUrl = await htmlToImage.toPng(document.body, {
-        quality: 0.85,
+      const canvas = await html2canvas(document.body, {
+        logging: false,
+        allowTaint: true,
+        useCORS: true,
         backgroundColor: 'white',
-        skipAutoScale: true,
-        style: {
-          transform: 'none'
-        }
+        scale: 1
       });
       
       // Show the modal again
@@ -762,9 +760,8 @@
         modalElement.style.visibility = 'visible';
       }
       
-      // Convert data URL to File object
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
+      // Convert canvas to blob
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.85));
       const file = new File([blob], 'screenshot.png', { type: 'image/png' });
       
       // Compress the screenshot to target size
