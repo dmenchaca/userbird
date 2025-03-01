@@ -30,7 +30,8 @@
     "lucide-react": "^0.358.0",
     "nanoid": "^5.0.6",
     "tailwind-merge": "^2.2.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "html-to-image": "^1.11.11"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",

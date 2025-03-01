@@ -7,6 +7,7 @@
   let currentTrigger = null;
   let modal = null;
   let formId = null;
+  let dropdownVisible = false;
   
   const MESSAGES = {
     success: {
@@ -18,7 +19,9 @@
       submit: 'Send Feedback',
       submitting: 'Sending Feedback...',
       close: 'Close',
-      cancel: 'Cancel'
+      cancel: 'Cancel',
+      uploadScreenshot: 'Upload screenshot',
+      captureScreenshot: 'Capture screenshot'
     }
   };
 
@@ -286,6 +289,53 @@
       .userbird-submit[disabled] .userbird-submit-text {
         opacity: 0.8;
       }
+      
+      /* Dropdown styles */
+      .userbird-dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .userbird-dropdown-content {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        margin-bottom: 4px;
+        background-color: white;
+        min-width: 180px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        z-index: 10001;
+      }
+      .userbird-dropdown-content.show {
+        display: block;
+      }
+      .userbird-dropdown-item {
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #4b5563;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .userbird-dropdown-item:first-child {
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+      }
+      .userbird-dropdown-item:last-child {
+        border-bottom-left-radius: 6px;
+        border-bottom-right-radius: 6px;
+      }
+      .userbird-dropdown-item:hover {
+        background-color: #f3f4f6;
+      }
+      .userbird-dropdown-item svg {
+        width: 16px;
+        height: 16px;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -306,13 +356,32 @@
             <div class="userbird-actions">
               <div class="userbird-image-upload">
                 <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
-                <button class="userbird-image-button">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <path d="M21 15l-5-5L5 21"/>
-                  </svg>
-                </button>
+                <div class="userbird-dropdown">
+                  <button class="userbird-image-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                  </button>
+                  <div class="userbird-dropdown-content">
+                    <div class="userbird-dropdown-item userbird-upload-option">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                      ${MESSAGES.labels.uploadScreenshot}
+                    </div>
+                    <div class="userbird-dropdown-item userbird-capture-option">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                      </svg>
+                      ${MESSAGES.labels.captureScreenshot}
+                    </div>
+                  </div>
+                </div>
                 <div class="userbird-image-preview">
                   <button class="userbird-remove-image">&times;</button>
                 </div>
@@ -348,7 +417,12 @@
       closeButtons: modal.querySelectorAll('.userbird-close'),
       errorElement: modal.querySelector('.userbird-error'),
       successElement: modal.querySelector('.userbird-success'),
-      supportTextElement: modal.querySelector('.userbird-support-text')
+      supportTextElement: modal.querySelector('.userbird-support-text'),
+      imageButton: modal.querySelector('.userbird-image-button'),
+      dropdownContent: modal.querySelector('.userbird-dropdown-content'),
+      uploadOption: modal.querySelector('.userbird-upload-option'),
+      captureOption: modal.querySelector('.userbird-capture-option'),
+      fileInput: modal.querySelector('.userbird-file-input')
     };
   }
 
@@ -565,14 +639,48 @@
   }
   
   function setupModal(buttonColor, supportText) {
-    // Setup image upload
-    const fileInput = modal.modal.querySelector('.userbird-file-input');
-    const imageButton = modal.modal.querySelector('.userbird-image-button');
+    // Setup dropdown toggle
+    const imageButton = modal.imageButton;
+    const dropdownContent = modal.dropdownContent;
+    const uploadOption = modal.uploadOption;
+    const captureOption = modal.captureOption;
+    const fileInput = modal.fileInput;
     const imagePreview = modal.modal.querySelector('.userbird-image-preview');
     const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
     
-    imageButton.addEventListener('click', () => fileInput.click());
+    // Toggle dropdown when clicking the image button
+    imageButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownContent.classList.toggle('show');
+      dropdownVisible = !dropdownVisible;
+    });
     
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+      if (dropdownVisible) {
+        dropdownContent.classList.remove('show');
+        dropdownVisible = false;
+      }
+    });
+    
+    // Upload option
+    uploadOption.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+      dropdownContent.classList.remove('show');
+      dropdownVisible = false;
+    });
+    
+    // Capture option
+    captureOption.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // This will be implemented in the next step
+      console.log('Capture screenshot option clicked');
+      dropdownContent.classList.remove('show');
+      dropdownVisible = false;
+    });
+    
+    // File input change
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
