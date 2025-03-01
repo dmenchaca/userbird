@@ -664,15 +664,17 @@
   }
 
   async function performCapture() {
-    // Hide the modal temporarily for the screenshot
+    // Store modal state
     const modalElement = modal.modal;
     const wasOpen = modalElement.classList.contains('open');
-    
-    if (wasOpen) {
-      modalElement.style.visibility = 'hidden';
-    }
+    const originalVisibility = modalElement.style.visibility;
+    const originalOpacity = modalElement.style.opacity;
     
     try {
+      // Hide the modal temporarily for the screenshot
+      modalElement.style.visibility = 'hidden';
+      modalElement.style.opacity = '0';
+      
       // Capture the entire page
       const dataUrl = await htmlToImage.toJpeg(document.documentElement, {
         quality: 0.8,
@@ -688,7 +690,13 @@
     } finally {
       // Restore modal visibility
       if (wasOpen) {
-        modalElement.style.visibility = 'visible';
+        modalElement.style.visibility = originalVisibility || 'visible';
+        modalElement.style.opacity = originalOpacity || '1';
+        
+        // Ensure modal stays open
+        if (!modalElement.classList.contains('open')) {
+          modalElement.classList.add('open');
+        }
       }
     }
   }
