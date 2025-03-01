@@ -7,7 +7,9 @@ export function initUserbird(formId: string) {
     // Check if widget is already initialized
     if (isInitialized) {
       console.log('Widget script already loaded, updating formId');
-      window.UserBird.formId = formId;
+      if (window.UserBird) {
+        window.UserBird.formId = formId;
+      }
       resolve(true);
       return;
     }
@@ -15,7 +17,9 @@ export function initUserbird(formId: string) {
     // If script exists but not initialized, wait for it
     if (existingScript) {
       existingScript.addEventListener('load', () => {
-        window.UserBird.formId = formId;
+        if (window.UserBird) {
+          window.UserBird.formId = formId;
+        }
         resolve(true);
       });
       return;
