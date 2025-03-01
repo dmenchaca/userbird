@@ -638,6 +638,95 @@
     }
   }
   
+  // Load html-to-image library dynamically
+  function loadHtmlToImage() {
+    return new Promise((resolve, reject) => {
+      if (window.htmlToImage) {
+        resolve(window.htmlToImage);
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
+      script.async = true;
+      
+      script.onload = () => {
+        window.htmlToImage = window.htmlToImage || {};
+        resolve(window.htmlToImage);
+      };
+      
+      script.onerror = () => {
+        reject(new Error('Failed to load html-to-image library'));
+      };
+      
+      document.head.appendChild(script);
+    });
+  }
+  
+  // Capture screenshot function
+  async function captureScreenshot() {
+    try {
+      // Hide the modal temporarily to capture the screen without it
+      const modalElement = modal.modal;
+      const wasOpen = modalElement.classList.contains('open');
+      
+      if (wasOpen) {
+        modalElement.style.visibility = 'hidden';
+      }
+      
+      // Load html-to-image library if not already loaded
+      const htmlToImage = await loadHtmlToImage();
+      
+      // Capture the entire document body
+      const dataUrl = await htmlToImage.toPng(document.body, {
+        quality: 0.85,
+        backgroundColor: 'white',
+        skipAutoScale: true,
+        style: {
+          transform: 'none'
+        }
+      });
+      
+      // Show the modal again
+      if (wasOpen) {
+        modalElement.style.visibility = 'visible';
+      }
+      
+      // Convert data URL to File object
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'screenshot.png', { type: 'image/png' });
+      
+      return file;
+    } catch (error) {
+      console.error('Error capturing screenshot:', error);
+      throw error;
+    }
+  }
+  
+  // Process captured screenshot
+  function processScreenshot(file) {
+    if (!file) return;
+    
+    selectedImage = file;
+    const reader = new FileReader();
+    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+    const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+    const imageButton = modal.imageButton;
+    
+    reader.onload = (e) => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      imagePreview.innerHTML = '';
+      imagePreview.appendChild(img);
+      imagePreview.appendChild(removeImageButton);
+      imagePreview.classList.add('show');
+      imageButton.style.display = 'none';
+    };
+    
+    reader.readAsDataURL(file);
+  }
+  
   function setupModal(buttonColor, supportText) {
     // Setup dropdown toggle
     const imageButton = modal.imageButton;
@@ -672,12 +761,19 @@
     });
     
     // Capture option
-    captureOption.addEventListener('click', (e) => {
+    captureOption.addEventListener('click', async (e) => {
       e.stopPropagation();
-      // This will be implemented in the next step
-      console.log('Capture screenshot option clicked');
       dropdownContent.classList.remove('show');
       dropdownVisible = false;
+      
+      try {
+        const screenshot = await captureScreenshot();
+        processScreenshot(screenshot);
+      } catch (error) {
+        console.error('Failed to capture screenshot:', error);
+        modal.errorElement.textContent = 'Failed to capture screenshot';
+        modal.errorElement.style.display = 'block';
+      }
     });
     
     // File input change
@@ -698,20 +794,7 @@
         return;
       }
       
-      selectedImage = file;
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const img = document.createElement('img');
-        img.src = e.target.result;
-        imagePreview.innerHTML = '';
-        imagePreview.appendChild(img);
-        imagePreview.appendChild(removeImageButton);
-        imagePreview.classList.add('show');
-        imageButton.style.display = 'none';
-      };
-      
-      reader.readAsDataURL(file);
+      processScreenshot(file);
     });
     
     removeImageButton.addEventListener('click', () => {
