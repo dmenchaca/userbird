@@ -722,10 +722,7 @@
       const blob = await res.blob();
       const file = new File([blob], 'screenshot.png', { type: 'image/png' });
       
-      // Compress the screenshot to target size
-      const compressedFile = await compressImage(file, 3);
-      
-      return compressedFile;
+      return file;
     } catch (error) {
       console.error('Error capturing screenshot:', error);
       throw error;
@@ -745,9 +742,13 @@
     reader.onload = (e) => {
       const img = document.createElement('img');
       img.src = e.target.result;
+      
+      // Create a new container for the preview
       imagePreview.innerHTML = '';
       imagePreview.appendChild(img);
       imagePreview.appendChild(removeImageButton);
+      
+      // Show the preview and hide the button
       imagePreview.classList.add('show');
       imageButton.style.display = 'none';
     };
@@ -795,12 +796,39 @@
       dropdownVisible = false;
       
       try {
+        // Show a loading indicator in the image button
+        imageButton.innerHTML = `
+          <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+        `;
+        
         const screenshot = await captureScreenshot();
+        
+        // Process the screenshot immediately
         processScreenshot(screenshot);
+        
+        // If the screenshot is large, compress it in the background for upload
+        if (screenshot.size > 3 * 1024 * 1024) {
+          compressImage(screenshot, 3).then(compressedFile => {
+            selectedImage = compressedFile;
+          }).catch(error => {
+            console.error('Error compressing screenshot:', error);
+          });
+        }
       } catch (error) {
         console.error('Failed to capture screenshot:', error);
         modal.errorElement.textContent = 'Failed to capture screenshot';
         modal.errorElement.style.display = 'block';
+        
+        // Reset the image button
+        imageButton.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        `;
       }
     });
     
@@ -816,18 +844,19 @@
         return;
       }
       
+      // Process the image immediately to show the thumbnail
+      processScreenshot(file);
+      
+      // If the file is too large, compress it in the background for upload
       if (file.size > 5 * 1024 * 1024) {
-        // Compress the file if it's too large
         try {
           const compressedFile = await compressImage(file, 3);
-          processScreenshot(compressedFile);
+          selectedImage = compressedFile; // Update the selected image with the compressed version
         } catch (error) {
           console.error('Error compressing image:', error);
           modal.errorElement.textContent = MESSAGES.success.imageError;
           modal.errorElement.style.display = 'block';
         }
-      } else {
-        processScreenshot(file);
       }
     });
     
@@ -836,6 +865,15 @@
       imagePreview.classList.remove('show');
       imageButton.style.display = 'block';
       fileInput.value = '';
+      
+      // Reset the image button to its original state
+      imageButton.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+      `;
     });
     
     // Handle support text if present
@@ -881,6 +919,15 @@
         imagePreview.innerHTML = '';
         imageButton.style.display = 'block';
         modal.modal.querySelector('.userbird-file-input').value = '';
+        
+        // Reset the image button to its original state
+        imageButton.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        `;
         
         // Show success state
         modal.form.classList.add('hidden');
