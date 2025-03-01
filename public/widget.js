@@ -573,24 +573,25 @@
     }, 150);
   }
 
-  // Load html2canvas library dynamically
-  function loadHtml2Canvas() {
+  // Load html-to-image library dynamically
+  function loadHtmlToImage() {
     return new Promise((resolve, reject) => {
-      if (window.html2canvas) {
-        resolve(window.html2canvas);
+      if (window.htmlToImage) {
+        resolve(window.htmlToImage);
         return;
       }
       
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
       script.async = true;
       
       script.onload = () => {
-        resolve(window.html2canvas);
+        window.htmlToImage = window.htmlToImage || {};
+        resolve(window.htmlToImage);
       };
       
       script.onerror = () => {
-        reject(new Error('Failed to load html2canvas library'));
+        reject(new Error('Failed to load html-to-image library'));
       };
       
       document.head.appendChild(script);
@@ -674,20 +675,22 @@
       const modalElement = modal.modal;
       const wasOpen = modalElement.classList.contains('open');
       
-      // Load html2canvas library if not already loaded
-      const html2canvas = await loadHtml2Canvas();
+      // Load html-to-image library if not already loaded
+      const htmlToImage = await loadHtmlToImage();
       
       // Capture the entire document body
-      const canvas = await html2canvas(document.body, {
-        logging: false,
-        allowTaint: true,
-        useCORS: true,
+      const dataUrl = await htmlToImage.toPng(document.body, {
+        quality: 0.85,
         backgroundColor: 'white',
-        scale: 1
+        skipAutoScale: true,
+        style: {
+          transform: 'none'
+        }
       });
       
-      // Convert canvas to blob
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.85));
+      // Convert data URL to File object
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
       const file = new File([blob], 'screenshot.png', { type: 'image/png' });
       
       // Compress the screenshot to target size
