@@ -663,6 +663,76 @@
     });
   }
   
+  // Compress image to target size
+  async function compressImage(file, maxSizeMB = 3) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate initial dimensions while maintaining aspect ratio
+          const maxDimension = 1920; // Start with a reasonable max dimension
+          if (width > height && width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Start with high quality
+          let quality = 0.9;
+          const maxSize = maxSizeMB * 1024 * 1024;
+          
+          function compressWithQuality() {
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            const bytes = Math.ceil((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
+            
+            console.log(`Compressed image: ${(bytes / (1024 * 1024)).toFixed(2)}MB with quality ${quality}`);
+            
+            if (bytes > maxSize && quality > 0.1) {
+              // Reduce quality and try again
+              quality -= 0.1;
+              compressWithQuality();
+            } else {
+              // Convert data URL to Blob
+              fetch(dataUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                  const compressedFile = new File([blob], file.name || 'screenshot.jpg', { 
+                    type: 'image/jpeg',
+                    lastModified: new Date().getTime()
+                  });
+                  resolve(compressedFile);
+                })
+                .catch(reject);
+            }
+          }
+          
+          compressWithQuality();
+        };
+        
+        img.onerror = reject;
+      };
+      
+      reader.onerror = reject;
+    });
+  }
+  
   // Capture screenshot function
   async function captureScreenshot() {
     try {
@@ -697,7 +767,10 @@
       const blob = await res.blob();
       const file = new File([blob], 'screenshot.png', { type: 'image/png' });
       
-      return file;
+      // Compress the screenshot to target size
+      const compressedFile = await compressImage(file, 3);
+      
+      return compressedFile;
     } catch (error) {
       console.error('Error capturing screenshot:', error);
       throw error;
@@ -777,7 +850,7 @@
     });
     
     // File input change
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
@@ -789,12 +862,18 @@
       }
       
       if (file.size > 5 * 1024 * 1024) {
-        modal.errorElement.textContent = MESSAGES.success.imageError;
-        modal.errorElement.style.display = 'block';
-        return;
+        // Compress the file if it's too large
+        try {
+          const compressedFile = await compressImage(file, 3);
+          processScreenshot(compressedFile);
+        } catch (error) {
+          console.error('Error compressing image:', error);
+          modal.errorElement.textContent = MESSAGES.success.imageError;
+          modal.errorElement.style.display = 'block';
+        }
+      } else {
+        processScreenshot(file);
       }
-      
-      processScreenshot(file);
     });
     
     removeImageButton.addEventListener('click', () => {
