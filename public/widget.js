@@ -638,68 +638,6 @@
     }
   }
   
-  // Function to capture screenshot using html-to-image
-  async function captureScreenshot() {
-    // Check if html-to-image is loaded
-    if (typeof htmlToImage === 'undefined') {
-      // Load html-to-image dynamically
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
-        script.onload = async () => {
-          try {
-            const dataUrl = await performCapture();
-            resolve(dataUrl);
-          } catch (error) {
-            reject(error);
-          }
-        };
-        script.onerror = () => reject(new Error('Failed to load html-to-image library'));
-        document.head.appendChild(script);
-      });
-    } else {
-      return performCapture();
-    }
-  }
-
-  async function performCapture() {
-    // Store modal state
-    const modalElement = modal.modal;
-    const wasOpen = modalElement.classList.contains('open');
-    const originalVisibility = modalElement.style.visibility;
-    const originalOpacity = modalElement.style.opacity;
-    
-    try {
-      // Hide the modal temporarily for the screenshot
-      modalElement.style.visibility = 'hidden';
-      modalElement.style.opacity = '0';
-      
-      // Capture the entire page
-      const dataUrl = await htmlToImage.toJpeg(document.documentElement, {
-        quality: 0.8,
-        backgroundColor: 'white'
-      });
-      
-      // Convert data URL to File object
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
-      
-      return file;
-    } finally {
-      // Restore modal visibility
-      if (wasOpen) {
-        modalElement.style.visibility = originalVisibility || 'visible';
-        modalElement.style.opacity = originalOpacity || '1';
-        
-        // Ensure modal stays open
-        if (!modalElement.classList.contains('open')) {
-          modalElement.classList.add('open');
-        }
-      }
-    }
-  }
-  
   function setupModal(buttonColor, supportText) {
     // Setup dropdown toggle
     const imageButton = modal.imageButton;
@@ -734,33 +672,12 @@
     });
     
     // Capture option
-    captureOption.addEventListener('click', async (e) => {
+    captureOption.addEventListener('click', (e) => {
       e.stopPropagation();
+      // This will be implemented in the next step
+      console.log('Capture screenshot option clicked');
       dropdownContent.classList.remove('show');
       dropdownVisible = false;
-      
-      try {
-        // Capture screenshot
-        const file = await captureScreenshot();
-        selectedImage = file;
-        
-        // Display the captured screenshot
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = document.createElement('img');
-          img.src = e.target.result;
-          imagePreview.innerHTML = '';
-          imagePreview.appendChild(img);
-          imagePreview.appendChild(removeImageButton);
-          imagePreview.classList.add('show');
-          imageButton.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error('Error capturing screenshot:', error);
-        modal.errorElement.textContent = 'Failed to capture screenshot';
-        modal.errorElement.style.display = 'block';
-      }
     });
     
     // File input change
