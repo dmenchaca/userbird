@@ -21,7 +21,8 @@
       close: 'Close',
       cancel: 'Cancel',
       uploadScreenshot: 'Upload screenshot',
-      captureScreenshot: 'Capture screenshot'
+      captureScreenshot: 'Capture screenshot',
+      capturingScreenshot: 'Capturing...'
     }
   };
 
@@ -638,6 +639,60 @@
     }
   }
   
+  // Function to capture screenshot using html-to-image
+  async function captureScreenshot() {
+    // Check if html-to-image is loaded
+    if (typeof htmlToImage === 'undefined') {
+      // Load html-to-image dynamically
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
+        script.onload = async () => {
+          try {
+            const dataUrl = await performCapture();
+            resolve(dataUrl);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        script.onerror = () => reject(new Error('Failed to load html-to-image library'));
+        document.head.appendChild(script);
+      });
+    } else {
+      return performCapture();
+    }
+  }
+
+  async function performCapture() {
+    // Hide the modal temporarily for the screenshot
+    const modalElement = modal.modal;
+    const wasOpen = modalElement.classList.contains('open');
+    
+    if (wasOpen) {
+      modalElement.style.visibility = 'hidden';
+    }
+    
+    try {
+      // Capture the entire page
+      const dataUrl = await htmlToImage.toJpeg(document.documentElement, {
+        quality: 0.8,
+        backgroundColor: 'white'
+      });
+      
+      // Convert data URL to File object
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
+      
+      return file;
+    } finally {
+      // Restore modal visibility
+      if (wasOpen) {
+        modalElement.style.visibility = 'visible';
+      }
+    }
+  }
+  
   function setupModal(buttonColor, supportText) {
     // Setup dropdown toggle
     const imageButton = modal.imageButton;
@@ -672,12 +727,49 @@
     });
     
     // Capture option
-    captureOption.addEventListener('click', (e) => {
+    captureOption.addEventListener('click', async (e) => {
       e.stopPropagation();
-      // This will be implemented in the next step
-      console.log('Capture screenshot option clicked');
       dropdownContent.classList.remove('show');
       dropdownVisible = false;
+      
+      // Show capturing state
+      const originalText = imageButton.innerHTML;
+      imageButton.innerHTML = `
+        <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        ${MESSAGES.labels.capturingScreenshot}
+      `;
+      imageButton.style.width = 'auto';
+      imageButton.disabled = true;
+      
+      try {
+        // Capture screenshot
+        const file = await captureScreenshot();
+        selectedImage = file;
+        
+        // Display the captured screenshot
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          imagePreview.innerHTML = '';
+          imagePreview.appendChild(img);
+          imagePreview.appendChild(removeImageButton);
+          imagePreview.classList.add('show');
+          imageButton.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error capturing screenshot:', error);
+        modal.errorElement.textContent = 'Failed to capture screenshot';
+        modal.errorElement.style.display = 'block';
+      } finally {
+        // Restore button state
+        imageButton.innerHTML = originalText;
+        imageButton.style.width = '';
+        imageButton.disabled = false;
+      }
     });
     
     // File input change
