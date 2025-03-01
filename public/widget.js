@@ -21,8 +21,7 @@
       close: 'Close',
       cancel: 'Cancel',
       uploadScreenshot: 'Upload screenshot',
-      captureScreenshot: 'Capture screenshot',
-      capturingScreenshot: 'Capturing...'
+      captureScreenshot: 'Capture screenshot'
     }
   };
 
@@ -740,17 +739,6 @@
       dropdownContent.classList.remove('show');
       dropdownVisible = false;
       
-      // Show capturing state
-      const originalText = imageButton.innerHTML;
-      imageButton.innerHTML = `
-        <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-        </svg>
-        ${MESSAGES.labels.capturingScreenshot}
-      `;
-      imageButton.style.width = 'auto';
-      imageButton.disabled = true;
-      
       try {
         // Capture screenshot
         const file = await captureScreenshot();
@@ -772,11 +760,6 @@
         console.error('Error capturing screenshot:', error);
         modal.errorElement.textContent = 'Failed to capture screenshot';
         modal.errorElement.style.display = 'block';
-      } finally {
-        // Restore button state
-        imageButton.innerHTML = originalText;
-        imageButton.style.width = '';
-        imageButton.disabled = false;
       }
     });
     
