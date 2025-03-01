@@ -3,7 +3,7 @@ import { FormCreator } from '@/components/form-creator'
 import { FormsList } from '@/components/forms-list'
 import { ResponsesTable } from '@/components/responses-table'
 import { Button } from '@/components/ui/button'
-import { Bird, Download, Plus, Code2, Settings2 } from 'lucide-react'
+import { Bird, Download, Plus, Code2, Settings2, Loader } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -25,10 +25,47 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [hasAnyForms, setHasAnyForms] = useState(false)
   
+  // Fetch latest form if no form is selected
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const fetchLatestForm = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('id')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setHasAnyForms(true);
+          // Only set the form ID if no initialFormId was provided
+          if (!initialFormId) {
+            setSelectedFormId(data[0].id);
+          }
+        } else {
+          setHasAnyForms(false);
+        }
+      } catch (error) {
+        console.error('Error fetching latest form:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchLatestForm();
+  }, [user?.id, initialFormId]);
+
   // Fetch form name when form is selected
   useEffect(() => {
-    if (selectedFormId) {
+    if (selectedFormId && user?.id) {
       supabase
         .from('forms')
         .select('url, button_color, support_text')
@@ -49,10 +86,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   useEffect(() => {
     if (selectedFormId) {
       navigate(`/forms/${selectedFormId}`, { replace: true })
-    } else {
+    } else if (!loading && !hasAnyForms) {
       navigate('/', { replace: true })
     }
-  }, [selectedFormId, navigate])
+  }, [selectedFormId, navigate, loading, hasAnyForms])
 
   // Check if form has any responses
   useEffect(() => {
@@ -114,11 +151,32 @@ export function Dashboard({ initialFormId }: DashboardProps) {
       
       if (deleteError) throw deleteError
       
-      setSelectedFormId(undefined)
+      // After deleting, fetch the next latest form
+      const { data } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('owner_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        setSelectedFormId(data[0].id);
+      } else {
+        setSelectedFormId(undefined);
+        setHasAnyForms(false);
+      }
     } catch (error) {
       console.error('Error deleting form:', error)
     }
-  }, [selectedFormId])
+  }, [selectedFormId, user?.id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
