@@ -573,71 +573,6 @@
     }, 150);
   }
 
-  async function init() {
-    console.log('Initializing widget');
-    formId = window.UserBird?.formId;
-    const user = window.UserBird?.user;
-    
-    if (!formId) {
-      console.error('No form ID provided');
-      return;
-    }
-
-    console.log('Initializing with:', { formId, user });
-
-    // Inject styles
-    injectStyles();
-    
-    // Start loading settings
-    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-      .then(async (response) => {
-        console.log('Settings response:', response.status);
-        if (!response.ok) {
-          throw new Error(`Failed to load settings: ${response.status}`);
-        }
-        const settings = await response.json();
-        console.log('Loaded settings:', settings);
-        const buttonColor = settings.button_color || '#1f2937';
-        const supportText = settings.support_text;
-        
-        // Update styles with actual button color
-        injectStyles(buttonColor);
-        
-        // Create modal with settings
-        modal = createModal();
-        setupModal(buttonColor, supportText);
-        
-        settingsLoaded = true;
-        return settings;
-      })
-      .catch(error => {
-        console.warn('Using default settings:', error);
-        // Use defaults if settings fail to load
-        injectStyles('#1f2937');
-        modal = createModal();
-        setupModal('#1f2937', null);
-        settingsLoaded = true;
-      });
-    
-    // Get default trigger button if it exists
-    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
-    if (defaultTrigger) {
-      defaultTrigger.addEventListener('click', (e) => {
-        e.preventDefault();
-        // If modal is open and clicked the same trigger, close it
-        if (modal.modal.classList.contains('open') && currentTrigger === defaultTrigger) {
-          closeModal();
-        } else {
-          openModal(defaultTrigger);
-        }
-      });
-    }
-  }
-  
   // Load html2canvas library dynamically
   function loadHtml2Canvas() {
     return new Promise((resolve, reject) => {
@@ -735,13 +670,9 @@
   // Capture screenshot function
   async function captureScreenshot() {
     try {
-      // Hide the modal temporarily to capture the screen without it
+      // We're not hiding the modal anymore as requested
       const modalElement = modal.modal;
       const wasOpen = modalElement.classList.contains('open');
-      
-      if (wasOpen) {
-        modalElement.style.visibility = 'hidden';
-      }
       
       // Load html2canvas library if not already loaded
       const html2canvas = await loadHtml2Canvas();
@@ -754,11 +685,6 @@
         backgroundColor: 'white',
         scale: 1
       });
-      
-      // Show the modal again
-      if (wasOpen) {
-        modalElement.style.visibility = 'visible';
-      }
       
       // Convert canvas to blob
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.85));
@@ -1033,6 +959,71 @@
       name: file.name,
       size: file.size
     };
+  }
+
+  async function init() {
+    console.log('Initializing widget');
+    formId = window.UserBird?.formId;
+    const user = window.UserBird?.user;
+    
+    if (!formId) {
+      console.error('No form ID provided');
+      return;
+    }
+
+    console.log('Initializing with:', { formId, user });
+
+    // Inject styles
+    injectStyles();
+    
+    // Start loading settings
+    settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+      .then(async (response) => {
+        console.log('Settings response:', response.status);
+        if (!response.ok) {
+          throw new Error(`Failed to load settings: ${response.status}`);
+        }
+        const settings = await response.json();
+        console.log('Loaded settings:', settings);
+        const buttonColor = settings.button_color || '#1f2937';
+        const supportText = settings.support_text;
+        
+        // Update styles with actual button color
+        injectStyles(buttonColor);
+        
+        // Create modal with settings
+        modal = createModal();
+        setupModal(buttonColor, supportText);
+        
+        settingsLoaded = true;
+        return settings;
+      })
+      .catch(error => {
+        console.warn('Using default settings:', error);
+        // Use defaults if settings fail to load
+        injectStyles('#1f2937');
+        modal = createModal();
+        setupModal('#1f2937', null);
+        settingsLoaded = true;
+      });
+    
+    // Get default trigger button if it exists
+    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+    if (defaultTrigger) {
+      defaultTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        // If modal is open and clicked the same trigger, close it
+        if (modal.modal.classList.contains('open') && currentTrigger === defaultTrigger) {
+          closeModal();
+        } else {
+          openModal(defaultTrigger);
+        }
+      });
+    }
   }
 
   // Initialize if form ID is available
