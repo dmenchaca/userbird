@@ -678,8 +678,34 @@
       // Load html-to-image library if not already loaded
       const htmlToImage = await loadHtmlToImage();
       
-      // Capture the entire document body
-      const dataUrl = await htmlToImage.toPng(document.body, {
+      // Capture only the visible viewport
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Create a div that's exactly the size of the viewport
+      const viewportContainer = document.createElement('div');
+      viewportContainer.style.position = 'absolute';
+      viewportContainer.style.top = '0';
+      viewportContainer.style.left = '0';
+      viewportContainer.style.width = `${viewportWidth}px`;
+      viewportContainer.style.height = `${viewportHeight}px`;
+      viewportContainer.style.overflow = 'hidden';
+      viewportContainer.style.zIndex = '-1';
+      
+      // Clone the body content into this container
+      const bodyClone = document.body.cloneNode(true);
+      viewportContainer.appendChild(bodyClone);
+      document.body.appendChild(viewportContainer);
+      
+      // Position the clone to match current scroll position
+      bodyClone.style.position = 'absolute';
+      bodyClone.style.top = `-${window.scrollY}px`;
+      bodyClone.style.left = `-${window.scrollX}px`;
+      bodyClone.style.width = document.body.scrollWidth + 'px';
+      bodyClone.style.height = document.body.scrollHeight + 'px';
+      
+      // Capture the viewport container
+      const dataUrl = await htmlToImage.toPng(viewportContainer, {
         quality: 0.85,
         backgroundColor: 'white',
         skipAutoScale: true,
@@ -687,6 +713,9 @@
           transform: 'none'
         }
       });
+      
+      // Remove the temporary container
+      document.body.removeChild(viewportContainer);
       
       // Convert data URL to File object
       const res = await fetch(dataUrl);
