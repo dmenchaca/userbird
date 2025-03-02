@@ -573,25 +573,25 @@
     }, 150);
   }
 
-  // Load html-to-image library dynamically
-  function loadHtmlToImage() {
+  // Load html2canvas library dynamically
+  function loadHtml2Canvas() {
     return new Promise((resolve, reject) => {
-      if (window.htmlToImage) {
-        resolve(window.htmlToImage);
+      if (window.html2canvas) {
+        resolve(window.html2canvas);
         return;
       }
       
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
       script.async = true;
       
       script.onload = () => {
-        window.htmlToImage = window.htmlToImage || {};
-        resolve(window.htmlToImage);
+        window.html2canvas = window.html2canvas || {};
+        resolve(window.html2canvas);
       };
       
       script.onerror = () => {
-        reject(new Error('Failed to load html-to-image library'));
+        reject(new Error('Failed to load html2canvas library'));
       };
       
       document.head.appendChild(script);
@@ -675,49 +675,33 @@
       const modalElement = modal.modal;
       const wasOpen = modalElement.classList.contains('open');
       
-      // Load html-to-image library if not already loaded
-      const htmlToImage = await loadHtmlToImage();
+      // Load html2canvas library if not already loaded
+      const html2canvas = await loadHtml2Canvas();
       
-      // Capture only the visible viewport
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      // Create a viewport-sized canvas to capture only what's visible
+      const viewportCanvas = document.createElement('canvas');
+      viewportCanvas.width = window.innerWidth;
+      viewportCanvas.height = window.innerHeight;
       
-      // Create a div that's exactly the size of the viewport
-      const viewportContainer = document.createElement('div');
-      viewportContainer.style.position = 'absolute';
-      viewportContainer.style.top = '0';
-      viewportContainer.style.left = '0';
-      viewportContainer.style.width = `${viewportWidth}px`;
-      viewportContainer.style.height = `${viewportHeight}px`;
-      viewportContainer.style.overflow = 'hidden';
-      viewportContainer.style.zIndex = '-1';
-      
-      // Clone the body content into this container
-      const bodyClone = document.body.cloneNode(true);
-      viewportContainer.appendChild(bodyClone);
-      document.body.appendChild(viewportContainer);
-      
-      // Position the clone to match current scroll position
-      bodyClone.style.position = 'absolute';
-      bodyClone.style.top = `-${window.scrollY}px`;
-      bodyClone.style.left = `-${window.scrollX}px`;
-      bodyClone.style.width = document.body.scrollWidth + 'px';
-      bodyClone.style.height = document.body.scrollHeight + 'px';
-      
-      // Capture the viewport container
-      const dataUrl = await htmlToImage.toPng(viewportContainer, {
-        quality: 0.85,
+      // Capture the current viewport
+      const canvas = await html2canvas(document.documentElement, {
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        x: window.scrollX,
+        y: window.scrollY,
+        scrollX: 0,
+        scrollY: 0,
+        scale: 1,
+        allowTaint: true,
+        useCORS: true,
         backgroundColor: 'white',
-        skipAutoScale: true,
-        style: {
-          transform: 'none'
-        }
+        logging: false
       });
       
-      // Remove the temporary container
-      document.body.removeChild(viewportContainer);
-      
-      // Convert data URL to File object
+      // Convert canvas to blob
+      const dataUrl = canvas.toDataURL('image/png');
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], 'screenshot.png', { type: 'image/png' });
