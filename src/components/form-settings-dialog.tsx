@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -29,7 +29,7 @@ interface FormSettingsDialogProps {
   onDelete: () => void
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'delete'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'delete'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -52,6 +52,10 @@ export function FormSettingsDialog({
       enabled: false,
       emails: [] as { id: string; email: string }[],
       attributes: [] as string[]
+    },
+    webhooks: {
+      enabled: false,
+      url: ''
     }
   })
   const [color, setColor] = useState(buttonColor)
@@ -64,6 +68,8 @@ export function FormSettingsDialog({
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
   const [isInitialMount, setIsInitialMount] = useState(true)
+  const [webhookEnabled, setWebhookEnabled] = useState(false)
+  const [webhookUrl, setWebhookUrl] = useState('')
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -85,10 +91,151 @@ export function FormSettingsDialog({
         buttonColor,
         supportText: supportText || '',
         url: formUrl
-      }
+      },
+      webhooks: current.webhooks
     }))
     setIsInitialMount(false)
   }, [buttonColor, supportText, formUrl])
+
+  // Fetch webhook settings
+  useEffect(() => {
+    let mounted = true;
+
+    if (open && formId) {
+      const fetchWebhookSettings = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('webhook_settings')
+            .select('enabled, url')
+            .eq('form_id', formId)
+            .single();
+
+          if (!mounted) return;
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching webhook settings:', error);
+            return;
+          }
+
+          if (data) {
+            setWebhookEnabled(data.enabled);
+            setWebhookUrl(data.url);
+            setOriginalValues(current => ({
+              ...current,
+              webhooks: {
+                enabled: data.enabled,
+                url: data.url
+              }
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching webhook settings:', error);
+        }
+      };
+
+      fetchWebhookSettings();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, formId]);
+
+  // Auto-save webhook settings
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // If the enabled state changed, save immediately
+    if (!isInitialMount && webhookEnabled !== originalValues.webhooks.enabled) {
+      const saveWebhookSettings = async () => {
+        try {
+          const { error } = await supabase
+            .from('webhook_settings')
+            .upsert({
+              form_id: formId,
+              enabled: webhookEnabled,
+              url: webhookUrl || '',
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'form_id'
+            });
+
+          if (error) throw error;
+
+          setOriginalValues(current => ({
+            ...current,
+            webhooks: {
+              enabled: webhookEnabled,
+              url: webhookUrl
+            }
+          }));
+
+          toast.success(
+            webhookEnabled 
+              ? 'Webhook enabled successfully' 
+              : 'Webhook disabled successfully'
+          );
+        } catch (error) {
+          console.error('Error updating webhook settings:', error);
+          setWebhookEnabled(originalValues.webhooks.enabled);
+          toast.error('Failed to update webhook settings');
+        }
+      };
+
+      saveWebhookSettings();
+      return;
+    }
+
+    // For URL changes, use debounce
+    if (!isInitialMount && webhookUrl !== originalValues.webhooks.url && webhookEnabled) {
+      timeoutId = setTimeout(async () => {
+        try {
+          if (webhookEnabled && (!webhookUrl || !isValidUrl(webhookUrl))) {
+            toast.error('Please enter a valid webhook URL');
+            return;
+          }
+
+          const { error } = await supabase
+            .from('webhook_settings')
+            .upsert({
+              form_id: formId,
+              enabled: webhookEnabled,
+              url: webhookUrl,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'form_id'
+            });
+
+          if (error) throw error;
+
+          setOriginalValues(current => ({
+            ...current,
+            webhooks: {
+              enabled: webhookEnabled,
+              url: webhookUrl
+            }
+          }));
+
+          toast.success(
+            webhookEnabled 
+              ? 'Webhook enabled successfully' 
+              : 'Webhook disabled successfully'
+          );
+        } catch (error) {
+          console.error('Error updating webhook settings:', error);
+          setWebhookEnabled(originalValues.webhooks.enabled);
+          setWebhookUrl(originalValues.webhooks.url);
+          toast.error('Failed to update webhook settings');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [webhookEnabled, webhookUrl, formId, originalValues.webhooks, isInitialMount]);
 
   // Auto-save color changes
   useEffect(() => {
@@ -500,6 +647,9 @@ export function FormSettingsDialog({
     setColor(buttonColor);
     setText(supportText || '');
     setUrl(formUrl);
+    // Reset webhook state when dialog opens or form changes
+    setWebhookEnabled(false);
+    setWebhookUrl('');
   }, [buttonColor, supportText, formUrl, open]);
 
   return (
@@ -535,6 +685,16 @@ export function FormSettingsDialog({
                 >
                   <Bell className="w-4 h-4" />
                   Notifications
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('webhooks')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'webhooks' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Webhook className="w-4 h-4" />
+                  Webhooks
                 </button>
                 <button
                   onClick={() => handleTabSwitch('delete')}
@@ -704,6 +864,43 @@ export function FormSettingsDialog({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'webhooks' && (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <Label>Webhook Integration</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Send feedback submissions to your webhook URL.
+                      </p>
+                      <div className="flex items-center space-x-2 pt-2">
+                        <Switch
+                          checked={webhookEnabled}
+                          onCheckedChange={(checked) => setWebhookEnabled(checked)}
+                        />
+                        <Label className="text-sm font-normal">
+                          {webhookEnabled ? 'Webhook enabled' : 'Webhook disabled'}
+                        </Label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="webhookUrl">Webhook URL</Label>
+                      <Input
+                        id="webhookUrl"
+                        value={webhookUrl}
+                        onChange={(e) => setWebhookUrl(e.target.value)}
+                        placeholder="https://hooks.zapier.com/..."
+                        disabled={!webhookEnabled}
+                        className={cn(!webhookEnabled && "opacity-50")}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter the URL where feedback submissions should be sent.
+                      </p>
                     </div>
                   </div>
                 </div>
