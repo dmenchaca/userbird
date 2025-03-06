@@ -7,6 +7,7 @@ import { Bird, Download, Plus, Code2, Settings2, Loader } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
+import { NewFormDialog } from '@/components/new-form-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +26,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
+  const [showNewFormDialog, setShowNewFormDialog] = useState(false)
   const [loading, setLoading] = useState(!initialFormId) // Only show loading if no initialFormId
   const [hasAnyForms, setHasAnyForms] = useState(false)
   
@@ -89,7 +91,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   useEffect(() => {
     if (selectedFormId) {
       navigate(`/forms/${selectedFormId}`, { replace: true })
-    } else if (!loading && !hasAnyForms) {
+    } else if (!loading) {
       navigate('/', { replace: true })
     }
   }, [selectedFormId, navigate, loading, hasAnyForms])
@@ -195,7 +197,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-medium">Forms</h2>
               <button
-                onClick={() => setSelectedFormId(undefined)}
+                onClick={() => setShowNewFormDialog(true)}
                 className="w-6 h-6 rounded-full hover:bg-accent flex items-center justify-center group relative"
               >
                 <Plus className="w-5 h-5" />
@@ -301,6 +303,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             supportText={supportText}
           />
         )}
+        <NewFormDialog
+          open={showNewFormDialog}
+          onOpenChange={setShowNewFormDialog}
+        />
       </main>
     </div>
   )
