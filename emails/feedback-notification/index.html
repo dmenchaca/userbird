@@ -9,7 +9,7 @@
       </div>
 
       <div style="margin-bottom: 24px;">
-        {{#if showMessage}}
+        {{#if message}}
         <div style="margin-bottom: 16px;">
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Message</h4>
           <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">{{message}}</p>
@@ -20,35 +20,49 @@
         <div style="margin-bottom: 16px;">
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">User Information</h4>
           <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
-            {{#if showUserId}}
-            <p style="margin: 0;">ID: {{userId}}</p>
+            {{#if user_id}}
+            <p style="margin: 0;">ID: {{user_id}}</p>
             {{/if}}
-            {{#if showUserEmail}}
-            <p style="margin: 0;">Email: {{userEmail}}</p>
+            {{#if user_email}}
+            <p style="margin: 0;">Email: {{user_email}}</p>
             {{/if}}
-            {{#if showUserName}}
-            <p style="margin: 0;">Name: {{userName}}</p>
+            {{#if user_name}}
+            <p style="margin: 0;">Name: {{user_name}}</p>
             {{/if}}
           </div>
         </div>
         {{/if}}
 
+        {{#if showSystemInfo}}
         <div style="margin-bottom: 16px;">
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">System Information</h4>
           <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
-            {{#if showOperatingSystem}}
-            <p style="margin: 0;">OS: {{operatingSystem}}</p>
+            {{#if operating_system}}
+            <p style="margin: 0;">OS: {{operating_system}}</p>
             {{/if}}
-            {{#if showScreenCategory}}
-            <p style="margin: 0;">Device: {{screenCategory}}</p>
+            {{#if screen_category}}
+            <p style="margin: 0;">Device: {{screen_category}}</p>
             {{/if}}
           </div>
         </div>
+        {{/if}}
 
-        {{#if showCreatedAt}}
+        {{#if image_url}}
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Image</h4>
+          <div style="margin-top: 8px;">
+            <img src="{{image_url}}" alt="Feedback image" style="max-width: 100%; border-radius: 4px;" />
+            {{#if image_name}}
+            <p style="color: #6b7280; font-size: 12px; margin: 4px 0 0;">{{image_name}}</p>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if created_at}}
         <div>
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Date</h4>
-          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">{{createdAt}}</p>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">{{created_at}}</p>
         </div>
         {{/if}}
       </div>

@@ -108,35 +108,50 @@ export const handler: Handler = async (event) => {
     const emailPromises = settings.map(setting => {
       // Prepare email parameters based on selected attributes
       const selectedAttrs = setting.notification_attributes || ['message'];
-      const emailParams = {
+      
+      // Create email parameters object with only selected attributes
+      const emailParams: Record<string, any> = {
         formUrl: form.url,
         formId,
-        showMessage: selectedAttrs.includes('message'),
-        message: feedback.message,
-        showUserId: selectedAttrs.includes('user_id'),
-        userId: feedback.user_id,
-        showUserEmail: selectedAttrs.includes('user_email'),
-        userEmail: feedback.user_email,
-        showUserName: selectedAttrs.includes('user_name'),
-        userName: feedback.user_name,
-        showOperatingSystem: selectedAttrs.includes('operating_system'),
-        operatingSystem: feedback.operating_system,
-        showScreenCategory: selectedAttrs.includes('screen_category'),
-        screenCategory: feedback.screen_category,
-        showImageUrl: selectedAttrs.includes('image_url'),
-        imageUrl: feedback.image_url,
-        showImageName: selectedAttrs.includes('image_name'),
-        imageName: feedback.image_name,
-        showCreatedAt: selectedAttrs.includes('created_at'),
-        createdAt: new Date(feedback.created_at).toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
       };
+
+      // Add selected attributes to email parameters
+      selectedAttrs.forEach(attr => {
+        if (attr === 'message') {
+          emailParams.message = feedback.message;
+        } else if (attr === 'user_id') {
+          emailParams.user_id = feedback.user_id;
+        } else if (attr === 'user_email') {
+          emailParams.user_email = feedback.user_email;
+        } else if (attr === 'user_name') {
+          emailParams.user_name = feedback.user_name;
+        } else if (attr === 'operating_system') {
+          emailParams.operating_system = feedback.operating_system;
+        } else if (attr === 'screen_category') {
+          emailParams.screen_category = feedback.screen_category;
+        } else if (attr === 'image_url') {
+          emailParams.image_url = feedback.image_url;
+        } else if (attr === 'image_name') {
+          emailParams.image_name = feedback.image_name;
+        } else if (attr === 'created_at') {
+          emailParams.created_at = new Date(feedback.created_at).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        }
+      });
+
+      // Add flags for showing sections based on selected attributes
+      emailParams.showUserInfo = ['user_id', 'user_email', 'user_name'].some(attr => 
+        selectedAttrs.includes(attr)
+      );
+      emailParams.showSystemInfo = ['operating_system', 'screen_category'].some(attr => 
+        selectedAttrs.includes(attr)
+      );
 
       const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
       
