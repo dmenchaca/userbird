@@ -110,6 +110,24 @@ export const handler: Handler = async (event) => {
       dataLength: feedbackData?.length || 0
     });
 
+    // Trigger webhook delivery
+    try {
+      await fetch(`${process.env.URL}/.netlify/functions/send-webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          formId, 
+          feedback: feedbackData?.[0] 
+        })
+      });
+    } catch (error) {
+      console.error('Error triggering webhook:', error);
+      // Don't fail the feedback submission if webhook fails
+    }
+
     // Send notification
     try {
       const notificationResponse = await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {
