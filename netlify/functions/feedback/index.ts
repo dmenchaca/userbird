@@ -63,7 +63,8 @@ export const handler: Handler = async (event) => {
       screen_category,
       user_id,
       user_email,
-      user_name 
+      user_name,
+      url_path
     } = body;
 
     if (!formId || !message?.trim()) {
@@ -99,7 +100,8 @@ export const handler: Handler = async (event) => {
         screen_category: screen_category || 'Unknown',
         user_id: user_id || null,
         user_email: user_email || null,
-        user_name: user_name || null
+        user_name: user_name || null,
+        url_path: url_path || null
       }])
       .select();
 

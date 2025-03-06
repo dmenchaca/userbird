@@ -25,6 +25,7 @@
   function getSystemInfo() {
     const ua = navigator.userAgent;
     let os = 'Unknown';
+    let urlPath = window.location.pathname + window.location.search;
     
     if (ua.includes('Win')) os = 'Windows';
     else if (ua.includes('Mac')) os = 'macOS';
@@ -38,7 +39,7 @@
     if (width < 768) category = 'Mobile';
     else if (width < 1024) category = 'Tablet';
     
-    return { operating_system: os, screen_category: category };
+    return { operating_system: os, screen_category: category, url_path: urlPath };
   }
 
   function injectStyles(buttonColor) {
@@ -775,7 +776,8 @@
           user_name: userInfo.name,
           image_url: imageData?.url,
           image_name: imageData?.name,
-          image_size: imageData?.size
+          image_size: imageData?.size,
+          url_path: systemInfo.url_path
         })
       });
 
