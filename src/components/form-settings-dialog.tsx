@@ -647,9 +647,6 @@ export function FormSettingsDialog({
     setColor(buttonColor);
     setText(supportText || '');
     setUrl(formUrl);
-    // Reset webhook state when dialog opens or form changes
-    setWebhookEnabled(false);
-    setWebhookUrl('');
   }, [buttonColor, supportText, formUrl, open]);
 
   return (
