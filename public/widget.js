@@ -42,14 +42,6 @@
   }
 
   function injectStyles(buttonColor) {
-    // Log initial color scheme
-    console.log('Initial color scheme:', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    
-    // Watch for color scheme changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      console.log('System color scheme changed:', e.matches ? 'dark' : 'light');
-    });
-
     const style = document.createElement('style');
     style.textContent = `
       /* Light mode defaults */
@@ -62,12 +54,21 @@
       }
 
       /* Dark mode detection */
+      :root[data-theme="dark"] .userbird-modal,
+      :root.dark .userbird-modal,
+      :root[data-mode="dark"] .userbird-modal,
+      :root[data-color-mode="dark"] .userbird-modal,
+      .dark-theme .userbird-modal,
+      :root[data-color-scheme="dark"] .userbird-modal {
+        --ub-background: #1f1f1f;
+        --ub-border-color: #2e2e2e;
+        --ub-text: #e5e5e5;
+        --ub-text-muted: #a1a1a1;
+        --ub-hover-background: #2e2e2e;
+      }
+
       @media (prefers-color-scheme: dark) {
-        :root[data-theme="dark"] .userbird-modal,
-        :root.dark .userbird-modal,
-        :root[data-mode="dark"] .userbird-modal,
-        :root[data-color-mode="dark"] .userbird-modal,
-        .dark-theme .userbird-modal {
+        :root:not([data-theme="light"]):not([data-color-scheme="light"]):not(.light) .userbird-modal {
           --ub-background: #1f1f1f;
           --ub-border-color: #2e2e2e;
           --ub-text: #e5e5e5;
@@ -457,17 +458,6 @@
   }
 
   function openModal(trigger = null) {
-    // Log current theme state
-    console.log('Theme detection:', {
-      systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
-      htmlTheme: document.documentElement.getAttribute('data-theme'),
-      hasRootDarkClass: document.documentElement.classList.contains('dark'),
-      hasRootDarkMode: document.documentElement.getAttribute('data-mode') === 'dark',
-      hasRootColorMode: document.documentElement.getAttribute('data-color-mode') === 'dark',
-      hasDarkThemeClass: document.body.classList.contains('dark-theme'),
-      computedBackground: window.getComputedStyle(document.documentElement).getPropertyValue('--ub-background').trim()
-    });
-
     if (!settingsLoaded) {
       // Create loading spinner
       const loading = document.createElement('div');
@@ -555,6 +545,19 @@
 
   async function init() {
     console.log('Initializing widget');
+    
+    // Log initial theme detection state
+    console.log('Theme detection:', {
+      systemPreference: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      htmlTheme: document.documentElement.getAttribute('data-theme'),
+      htmlColorScheme: document.documentElement.getAttribute('data-color-scheme'),
+      rootClass: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      explicitThemeSet: document.documentElement.hasAttribute('data-theme') || 
+                        document.documentElement.hasAttribute('data-color-scheme') ||
+                        document.documentElement.classList.contains('dark') ||
+                        document.documentElement.classList.contains('light')
+    });
+
     formId = window.UserBird?.formId;
     const user = window.UserBird?.user;
     
