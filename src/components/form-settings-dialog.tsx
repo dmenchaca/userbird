@@ -65,14 +65,6 @@ export function FormSettingsDialog({
       attributes: [] as string[]
     }
   })
-  const [isDirty, setIsDirty] = useState({
-    styling: false,
-    notifications: {
-      enabled: false,
-      emails: false,
-      attributes: false
-    }
-  })
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
@@ -82,12 +74,6 @@ export function FormSettingsDialog({
   const [newEmail, setNewEmail] = useState('')
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
   const [emailError, setEmailError] = useState('')
-  const [pendingRemovals, setPendingRemovals] = useState<string[]>([])
-  const [showWarningDialog, setShowWarningDialog] = useState(false)
-  const [pendingAction, setPendingAction] = useState<{
-    type: 'tab-switch' | 'close'
-    payload?: SettingsTab
-  } | null>(null)
   const [isInitialMount, setIsInitialMount] = useState(true)
 
   const NOTIFICATION_ATTRIBUTES = [
