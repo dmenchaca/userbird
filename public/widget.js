@@ -44,17 +44,37 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
+      /* Dark mode detection */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ub-background: #1f1f1f;
+          --ub-border-color: #2e2e2e;
+          --ub-text: #e5e5e5;
+          --ub-text-muted: #a1a1a1;
+          --ub-hover-background: #2e2e2e;
+        }
+      }
+      
+      /* Light mode defaults */
+      :root {
+        --ub-background: white;
+        --ub-border-color: #e5e7eb;
+        --ub-text: #111827;
+        --ub-text-muted: #6b7280;
+        --ub-hover-background: #f3f4f6;
+      }
+
       .userbird-modal {
         opacity: 0;
         visibility: hidden;
         position: fixed;
         z-index: 10000;
-        background: var(--ub-background, white);
+        background: var(--ub-background);
         border-radius: 8px;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2);
         width: 400px; 
         max-width: calc(100vw - 2rem);
-        border: 1px solid var(--ub-border-color, #e5e7eb);
+        border: 1px solid var(--ub-border-color);
         transition: opacity 0.05s ease-in-out, visibility 0.05s ease-in-out;
       }
       .userbird-modal.open {
@@ -74,7 +94,7 @@
       .userbird-title {
         font-size: 1rem !important;
         font-weight: 600 !important;
-        color: #111827 !important;
+        color: var(--ub-text) !important;
         margin-top: 0;
         margin-bottom: 1rem;
         padding: 0;
@@ -107,15 +127,15 @@
         padding: 0.5rem 0.75rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
-        color: var(--ub-text-muted, #6b7280);
+        color: var(--ub-text-muted);
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
         align-items: center;
-        background: var(--ub-background, white);
+        background: var(--ub-background);
       }
       .userbird-image-button:hover {
-        background: var(--ub-hover-background, #f3f4f6);
+        background: var(--ub-hover-background);
       }
       .userbird-image-preview {
         display: none;
@@ -184,11 +204,11 @@
       }
       .userbird-button-secondary {
         background: transparent;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
+        color: var(--ub-text-muted);
+        border: 1px solid var(--ub-border-color);
       }
       .userbird-button-secondary:hover {
-        background: #f3f4f6;
+        background: var(--ub-hover-background);
       }
       .userbird-spinner {
         display: none;
@@ -200,7 +220,7 @@
         to { transform: rotate(360deg); }
       }
       .userbird-button-secondary:hover {
-        background: #f3f4f6;
+        background: var(--ub-hover-background);
       }
       .userbird-success {
         text-align: center;
@@ -223,13 +243,13 @@
         font-size: 1.125rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
-        color: #111827;
+        color: var(--ub-text);
         opacity: 0;
         transform: translateY(10px);
         animation: userbird-success-title 0.4s ease-out 0.2s forwards;
       }
       .userbird-success-message {
-        color: #6b7280;
+        color: var(--ub-text-muted);
         font-size: 0.875rem;
         opacity: 0;
         transform: translateY(10px);
@@ -267,7 +287,7 @@
       }
       .userbird-support-text {
         font-size: 0.75rem;
-        color: #666666;
+        color: var(--ub-text-muted);
         text-align: left;
         margin-top: 1rem;
       }
