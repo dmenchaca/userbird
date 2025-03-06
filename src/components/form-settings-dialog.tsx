@@ -2,17 +2,6 @@ import { useState, useEffect } from 'react'
 import { Palette, Trash2, Bell, X } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail } from '@/lib/utils'
 import { toast } from 'sonner'
-import debounce from 'lodash.debounce'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
