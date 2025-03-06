@@ -42,8 +42,17 @@
   }
 
   function injectStyles(buttonColor) {
+    // Log initial color scheme
+    console.log('Initial color scheme:', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    
+    // Watch for color scheme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      console.log('System color scheme changed:', e.matches ? 'dark' : 'light');
+    });
+
     const style = document.createElement('style');
     style.textContent = `
+      /* Light mode defaults */
       .userbird-modal {
         --ub-background: white;
         --ub-border-color: #e5e7eb;
@@ -54,28 +63,17 @@
 
       /* Dark mode detection */
       @media (prefers-color-scheme: dark) {
-        html[data-theme="dark"] .userbird-modal,
-        .dark .userbird-modal,
-        [data-mode="dark"] .userbird-modal,
-        [data-color-mode="dark"] .userbird-modal {
+        :root[data-theme="dark"] .userbird-modal,
+        :root.dark .userbird-modal,
+        :root[data-mode="dark"] .userbird-modal,
+        :root[data-color-mode="dark"] .userbird-modal,
+        .dark-theme .userbird-modal {
           --ub-background: #1f1f1f;
           --ub-border-color: #2e2e2e;
           --ub-text: #e5e5e5;
           --ub-text-muted: #a1a1a1;
           --ub-hover-background: #2e2e2e;
         }
-      }
-
-      /* Explicit dark mode classes */
-      html[data-theme="dark"] .userbird-modal,
-      .dark .userbird-modal,
-      [data-mode="dark"] .userbird-modal,
-      [data-color-mode="dark"] .userbird-modal {
-        --ub-background: white;
-        --ub-border-color: #e5e7eb;
-        --ub-text: #111827;
-        --ub-text-muted: #6b7280;
-        --ub-hover-background: #f3f4f6;
       }
 
       .userbird-modal {
@@ -459,6 +457,17 @@
   }
 
   function openModal(trigger = null) {
+    // Log current theme state
+    console.log('Theme detection:', {
+      systemDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+      htmlTheme: document.documentElement.getAttribute('data-theme'),
+      hasRootDarkClass: document.documentElement.classList.contains('dark'),
+      hasRootDarkMode: document.documentElement.getAttribute('data-mode') === 'dark',
+      hasRootColorMode: document.documentElement.getAttribute('data-color-mode') === 'dark',
+      hasDarkThemeClass: document.body.classList.contains('dark-theme'),
+      computedBackground: window.getComputedStyle(document.documentElement).getPropertyValue('--ub-background').trim()
+    });
+
     if (!settingsLoaded) {
       // Create loading spinner
       const loading = document.createElement('div');
@@ -516,6 +525,15 @@
     
     modal.modal.classList.add('open');
     positionModal(trigger);
+    
+    // Log modal styles after opening
+    const modalElement = modal.modal;
+    console.log('Modal styles:', {
+      background: window.getComputedStyle(modalElement).background,
+      color: window.getComputedStyle(modalElement).color,
+      borderColor: window.getComputedStyle(modalElement).borderColor
+    });
+    
     // Wait for modal transition to complete before focusing
     setTimeout(() => {
       modal.textarea.focus();
