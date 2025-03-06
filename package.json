@@ -30,12 +30,15 @@
     "lucide-react": "^0.358.0",
     "nanoid": "^5.0.6",
     "tailwind-merge": "^2.2.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "sonner": "^1.4.3",
+    "lodash.debounce": "^4.0.8"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@types/busboy": "^1.5.3",
+    "@types/lodash.debounce": "^4.0.9",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react": "^4.2.1",

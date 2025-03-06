@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Palette, Trash2, Bell, X } from 'lucide-react'
-import { areArraysEqual } from '@/lib/utils'
+import { areArraysEqual, isValidUrl, isValidEmail } from '@/lib/utils'
+import { toast } from 'sonner'
+import debounce from 'lodash.debounce'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,11 +77,7 @@ export function FormSettingsDialog({
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
-  const [notificationsSaving, setNotificationsSaving] = useState(false)
-  const [enabledStateSaving, setEnabledStateSaving] = useState(false)
-  const [emailsSaving, setEmailsSaving] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [newEmail, setNewEmail] = useState('')
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>(['message'])
@@ -90,6 +88,7 @@ export function FormSettingsDialog({
     type: 'tab-switch' | 'close'
     payload?: SettingsTab
   } | null>(null)
+  const [isInitialMount, setIsInitialMount] = useState(true)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -103,359 +102,434 @@ export function FormSettingsDialog({
     { id: 'created_at', label: 'Submission Date' }
   ]
 
+  // Initialize original values
+  useEffect(() => {
+    setOriginalValues(current => ({
+      ...current,
+      styling: {
+        buttonColor,
+        supportText: supportText || '',
+        url: formUrl
+      }
+    }))
+    setIsInitialMount(false)
+  }, [buttonColor, supportText, formUrl])
+
+  // Auto-save color changes
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && color !== originalValues.styling.buttonColor) {
+      console.log('Color changed:', { 
+        newColor: color, 
+        originalColor: originalValues.styling.buttonColor 
+      });
+
+      timeoutId = setTimeout(async () => {
+        console.log('Starting color update...');
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ button_color: color })
+            .eq('id', formId);
+
+          if (error) throw error;
+          
+          console.log('Color update successful');
+          
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              buttonColor: color
+            }
+          }));
+          
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+          
+          toast.success('Button color updated successfully');
+        } catch (error) {
+          console.error('Error updating button color:', error);
+          setColor(originalValues.styling.buttonColor);
+          toast.error('Failed to update button color');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [color, formId, originalValues.styling.buttonColor, onSettingsSaved, isInitialMount]);
+
+  // Auto-save support text changes
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && text !== originalValues.styling.supportText) {
+      console.log('Support text changed:', {
+        newText: text,
+        originalText: originalValues.styling.supportText
+      });
+
+      timeoutId = setTimeout(async () => {
+        console.log('Starting support text update...');
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ support_text: text || null })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          console.log('Support text update successful');
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              supportText: text
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success('Support text updated successfully');
+        } catch (error) {
+          console.error('Error updating support text:', error);
+          setText(originalValues.styling.supportText);
+          toast.error('Failed to update support text');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [text, formId, originalValues.styling.supportText, onSettingsSaved, isInitialMount]);
+
+  // Auto-save URL changes
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && url !== originalValues.styling.url) {
+      console.log('URL changed:', {
+        newUrl: url,
+        originalUrl: originalValues.styling.url
+      });
+
+      timeoutId = setTimeout(async () => {
+        // Validate URL first
+        if (!isValidUrl(url)) {
+          console.log('Invalid URL, reverting...');
+          setUrl(originalValues.styling.url);
+          toast.error('Please enter a valid URL');
+          return;
+        }
+
+        console.log('Starting URL update...');
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ url })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          console.log('URL update successful');
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              url
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success('Website URL updated successfully');
+        } catch (error) {
+          console.error('Error updating URL:', error);
+          setUrl(originalValues.styling.url);
+          toast.error('Failed to update website URL');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [url, formId, originalValues.styling.url, onSettingsSaved, isInitialMount]);
+
+  // Auto-save notification enabled state
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && 
+        notificationsEnabled !== originalValues.notifications.enabled && 
+        originalValues.notifications.emails.length > 0) {
+      console.log('Notifications enabled state changed:', {
+        newState: notificationsEnabled,
+        originalState: originalValues.notifications.enabled,
+        isInitialMount
+      });
+
+      timeoutId = setTimeout(async () => {
+        console.log('Starting notifications enabled state update...');
+        try {
+          const { error } = await supabase
+            .from('notification_settings')
+            .update({ enabled: notificationsEnabled })
+            .eq('form_id', formId);
+
+          if (error) throw error;
+
+          setNotifications(current => 
+            current.map(n => ({ ...n, enabled: notificationsEnabled }))
+          );
+
+          setOriginalValues(current => ({
+            ...current,
+            notifications: {
+              ...current.notifications,
+              enabled: notificationsEnabled,
+              emails: current.notifications.emails.map(n => ({
+                ...n,
+                enabled: notificationsEnabled
+              }))
+            }
+          }));
+
+          console.log('Notifications enabled state update successful');
+          
+          toast.success(
+            notificationsEnabled 
+              ? 'Notifications enabled successfully' 
+              : 'Notifications disabled successfully'
+          );
+
+        } catch (error) {
+          console.error('Error updating notifications state:', error);
+          setNotificationsEnabled(originalValues.notifications.enabled);
+          toast.error('Failed to update notification settings');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [notificationsEnabled, formId, originalValues.notifications.enabled, isInitialMount, originalValues.notifications.emails.length]);
+
+  // Auto-save notification attributes
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && 
+        !areArraysEqual(selectedAttributes, originalValues.notifications.attributes) &&
+        originalValues.notifications.attributes.length > 0) {
+      
+      console.log('Notification attributes changed:', {
+        newAttributes: selectedAttributes,
+        originalAttributes: originalValues.notifications.attributes,
+        isInitialMount
+      });
+
+      timeoutId = setTimeout(async () => {
+        console.log('Starting notification attributes update...');
+        try {
+          const { error } = await supabase
+            .from('notification_settings')
+            .update({ notification_attributes: selectedAttributes })
+            .eq('form_id', formId);
+
+          if (error) throw error;
+
+          console.log('Notification attributes update successful');
+
+          setOriginalValues(current => ({
+            ...current,
+            notifications: {
+              ...current.notifications,
+              attributes: selectedAttributes
+            }
+          }));
+
+          toast.success('Notification content settings updated successfully');
+
+        } catch (error) {
+          console.error('Error updating notification attributes:', error);
+          setSelectedAttributes(originalValues.notifications.attributes);
+          toast.error('Failed to update notification content settings');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [selectedAttributes, formId, originalValues.notifications.attributes, isInitialMount]);
+
   // Fetch notification settings
   useEffect(() => {
+    let mounted = true;
+
     if (open && formId) {
       console.log('Fetching notification settings...');
       const fetchSettings = async () => {
+        setIsInitialMount(true); // Set initial mount before fetching
+
         const { data, error } = await supabase
-        .from('notification_settings')
-        .select('id, email, enabled, notification_attributes')
-        .eq('form_id', formId)
+          .from('notification_settings')
+          .select('id, email, enabled, notification_attributes')
+          .eq('form_id', formId);
+
+        if (!mounted) return;
 
         if (error) {
-          console.error('Error fetching notification settings:', error)
-          return
+          console.error('Error fetching notification settings:', error);
+          setIsInitialMount(false);
+          return;
         }
 
         if (data) {
-          setNotifications(data)
-          // Check if any notifications are enabled
-          setNotificationsEnabled(data.some(n => n.enabled))
-          // Set selected attributes from first notification setting or default to ['message']
-          if (data[0]?.notification_attributes) {
-            setSelectedAttributes(data[0].notification_attributes)
-          }
+          // Get the enabled state from the first notification setting
+          // If no settings exist, default to false
+          const isEnabled = data.length > 0 ? data[0].enabled : false;
           
-          // Set original values AFTER we have the notification data
-          setOriginalValues({
-            styling: {
-              buttonColor,
-              supportText: supportText || '',
-              url: formUrl
-            },
-            notifications: {
-              enabled: data.some(n => n.enabled),
-              emails: data,
-              attributes: data[0]?.notification_attributes || ['message']
+          // Set all values in a batch
+          const updates = () => {
+            setNotifications(data);
+            setNotificationsEnabled(isEnabled);
+            if (data[0]?.notification_attributes) {
+              setSelectedAttributes(data[0].notification_attributes);
             }
-          })
-          
-          // Reset dirty state
-          setIsDirty({
-            styling: false,
+            setOriginalValues(current => ({
+              ...current,
+              notifications: {
+                enabled: isEnabled,
+                emails: data,
+                attributes: data[0]?.notification_attributes || ['message']
+              }
+            }));
+          };
+
+          // Batch the updates
+          updates();
+
+          // Reset isInitialMount after all state updates are complete
+          requestAnimationFrame(() => {
+            if (mounted) {
+              setIsInitialMount(false);
+            }
+          });
+        } else {
+          // If no data exists, set defaults
+          setNotificationsEnabled(false);
+          setOriginalValues(current => ({
+            ...current,
             notifications: {
               enabled: false,
-              emails: false,
-              attributes: false
+              emails: [],
+              attributes: ['message']
             }
-          })
+          }));
+          setIsInitialMount(false);
         }
-      }
+      };
 
-      fetchSettings()
+      fetchSettings();
     }
-  }, [open, formId, buttonColor, supportText])
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, formId]);
 
   const handleAddEmail = async () => {
-    setEmailError('')
-    
-    console.log('Adding email:', newEmail);
+    setEmailError('');
     
     if (!newEmail.trim()) {
-      setEmailError('Email is required')
-      return
+      setEmailError('Email is required');
+      return;
     }
     
-    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(newEmail)) {
-      setEmailError('Invalid email address')
-      return
+    if (!isValidEmail(newEmail)) {
+      setEmailError('Invalid email address');
+      return;
     }
-    
-    // Add to notifications state but don't save to database yet
-    setNotifications(current => [...current, { id: `temp-${Date.now()}`, email: newEmail }])
-    setNewEmail('')
-  }
 
-  const handleRemoveEmail = (id: string) => {
-    console.log('Removing email:', id);
-    setPendingRemovals(current => [...current, id])
-    setNotifications(current => current.filter(n => n.id !== id))
-  }
-
-  const handleSaveEmails = async () => {
-    setEmailsSaving(true)
     try {
-      // Process removals first
-      if (pendingRemovals.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('notification_settings')
-          .delete()
-          .in('id', pendingRemovals.filter(id => !id.startsWith('temp-')))
-
-        if (deleteError) throw deleteError
-      }
-
-      // Process additions
-      const newEmails = notifications.filter(n => n.id.startsWith('temp-'))
-      if (newEmails.length > 0) {
-        const { error: insertError } = await supabase
-          .from('notification_settings')
-          .insert(
-            newEmails.map(n => ({
-              form_id: formId,
-              email: n.email,
-              enabled: notificationsEnabled,
-              notification_attributes: selectedAttributes
-            }))
-          )
-
-        if (insertError) throw insertError
-      }
-
-      // Refresh notifications list
-      const { data: refreshedData } = await supabase
+      const { error, data } = await supabase
         .from('notification_settings')
-        .select('id, email, enabled, notification_attributes')
-        .eq('form_id', formId)
-
-      if (refreshedData) {
-        setNotifications(refreshedData)
-      }
-
-      // Reset change tracking
-      setPendingRemovals([])
-    } catch (error) {
-      console.error('Error saving email changes:', error)
-      setEmailError('Failed to save changes')
-    } finally {
-      setEmailsSaving(false)
-    }
-  }
-
-  const handleSaveEnabledState = async () => {
-    setEnabledStateSaving(true)
-    try {
-      const { error: updateError } = await supabase
-        .from('notification_settings')
-        .update({ enabled: notificationsEnabled })
-        .eq('form_id', formId);
-
-      if (updateError) throw updateError;
-      
-      setNotifications(current => 
-        current.map(n => ({ ...n, enabled: notificationsEnabled }))
-      );
-
-      // Update original values and reset dirty state
-      setOriginalValues(current => ({
-        ...current,
-        notifications: {
-          ...current.notifications,
-          enabled: notificationsEnabled
-        }
-      }))
-      setIsDirty(current => ({
-        ...current,
-        notifications: {
-          ...current.notifications,
-          enabled: false
-        }
-      }))
-    } catch (error) {
-      console.error('Error updating notification settings:', error)
-      setNotificationsEnabled(!notificationsEnabled)
-    } finally {
-      setEnabledStateSaving(false)
-    }
-  }
-
-  const handleSaveNotificationContent = async () => {
-    setNotificationsSaving(true)
-    try {
-      const { error: updateError } = await supabase
-        .from('notification_settings')
-        .update({ notification_attributes: selectedAttributes })
-        .eq('form_id', formId);
-
-      if (updateError) throw updateError;
-
-      // Update original values and reset dirty state
-      setOriginalValues(current => ({
-        ...current,
-        notifications: {
-          ...current.notifications,
-          attributes: selectedAttributes
-        }
-      }))
-      setIsDirty(current => ({
-        ...current,
-        notifications: {
-          ...current.notifications,
-          attributes: false
-        }
-      }))
-    } catch (error) {
-      console.error('Error updating notification settings:', error)
-    } finally {
-      setNotificationsSaving(false)
-    }
-  }
-
-
-  // Track styling changes
-  useEffect(() => {
-    setIsDirty(current => ({
-      ...current,
-      styling: 
-        color !== originalValues.styling.buttonColor ||
-        text !== originalValues.styling.supportText ||
-        url !== formUrl
-    }))
-  }, [color, text, url, originalValues.styling])
-
-  // Track notification changes
-  useEffect(() => {
-    const currentEmails = notifications.map(n => ({ id: n.id, email: n.email }));
-    const originalEmails = originalValues.notifications.emails.map(n => ({ id: n.id, email: n.email }));
-
-    console.log('Email comparison:', {
-      current: currentEmails,
-      original: originalEmails,
-      pendingRemovals,
-      areEqual: areArraysEqual(currentEmails, originalEmails),
-      isDirty: !areArraysEqual(currentEmails, originalEmails) || pendingRemovals.length > 0
-    });
-    
-    setIsDirty(current => ({
-      ...current,
-      notifications: {
-        enabled: notificationsEnabled !== originalValues.notifications.enabled,
-        emails: !areArraysEqual(currentEmails, originalEmails) || pendingRemovals.length > 0,
-        attributes: !areArraysEqual(selectedAttributes, originalValues.notifications.attributes)
-      }
-    }))
-  }, [notificationsEnabled, notifications, selectedAttributes, originalValues.notifications, pendingRemovals])
-
-  const hasUnsavedChanges = () => {
-    switch (activeTab) {
-      case 'styling':
-        return isDirty.styling
-      case 'notifications':
-        return isDirty.notifications.enabled || 
-               isDirty.notifications.emails || 
-               isDirty.notifications.attributes
-      default:
-        return false
-    }
-  }
-
-  const handleTabSwitch = (newTab: SettingsTab) => {
-    if (hasUnsavedChanges()) {
-      setPendingAction({ type: 'tab-switch', payload: newTab })
-      setShowWarningDialog(true)
-    } else {
-      setActiveTab(newTab)
-    }
-  }
-
-  const handleDialogClose = () => {
-    if (hasUnsavedChanges()) {
-      setPendingAction({ type: 'close' })
-      setShowWarningDialog(true)
-    } else {
-      onOpenChange(false)
-    }
-  }
-
-  const handleWarningAction = async (action: 'save' | 'discard' | 'cancel') => {
-    if (!pendingAction) return
-
-    if (action === 'cancel') {
-      setShowWarningDialog(false)
-      setPendingAction(null)
-      return
-    }
-
-    if (action === 'save') {
-      // Save changes based on current tab
-      switch (activeTab) {
-        case 'styling':
-          await handleSave()
-          break
-        case 'notifications':
-          if (isDirty.notifications.enabled) await handleSaveEnabledState()
-          if (isDirty.notifications.emails) await handleSaveEmails()
-          if (isDirty.notifications.attributes) await handleSaveNotificationContent()
-          break
-      }
-    }
-
-    // After save/discard, execute the pending action
-    if (pendingAction.type === 'tab-switch') {
-      setActiveTab(pendingAction.payload!)
-    } else if (pendingAction.type === 'close') {
-      onOpenChange(false)
-    }
-
-    setShowWarningDialog(false)
-    setPendingAction(null)
-  }
-
-  useEffect(() => {
-    setColor(buttonColor)
-    setText(supportText || '')
-    setUrl(formUrl)
-  }, [buttonColor, supportText, formUrl, open])
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const { error } = await supabase
-        .from('forms')
-        .update({ 
-          url,
-          button_color: color,
-          support_text: text || null
+        .insert({
+          form_id: formId,
+          email: newEmail,
+          enabled: notificationsEnabled,
+          notification_attributes: selectedAttributes
         })
-        .eq('id', formId)
+        .select()
+        .single();
 
       if (error) throw error;
-      
-      // Invalidate cache when settings are updated
-      cache.invalidate(`form-settings:${formId}`);
 
-      // Update original values after successful save
-      setOriginalValues(current => ({
-        ...current,
-        styling: {
-          buttonColor: color,
-          supportText: text,
-          url: url
-        }
-      }))
-      // Reset dirty state for styling
-      setIsDirty(current => ({
-        ...current,
-        styling: false
-      }))
-      
-      onSettingsSaved();
-      onOpenChange(false);
+      setNotifications(current => [...current, data]);
+      setNewEmail('');
+      toast.success('Email added successfully');
     } catch (error) {
-      console.error('Error updating form:', error)
-    } finally {
-      setSaving(false)
+      console.error('Error adding email:', error);
+      setEmailError('Failed to add email');
+      toast.error('Failed to add email');
     }
-  }
+  };
+
+  const handleRemoveEmail = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setNotifications(current => current.filter(n => n.id !== id));
+      toast.success('Email removed successfully');
+    } catch (error) {
+      console.error('Error removing email:', error);
+      toast.error('Failed to remove email');
+    }
+  };
+
+  const handleTabSwitch = (newTab: SettingsTab) => {
+    setActiveTab(newTab);
+  };
+
+  const handleDialogClose = () => {
+    onOpenChange(false);
+  };
+
+  useEffect(() => {
+    setColor(buttonColor);
+    setText(supportText || '');
+    setUrl(formUrl);
+  }, [buttonColor, supportText, formUrl, open]);
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(newOpen) => {
-        if (!newOpen) {
-          handleDialogClose()
-        }
-      }}>
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-[56rem]">
           <DialogHeader>
             <DialogTitle>Form Settings</DialogTitle>
@@ -549,18 +623,8 @@ export function FormSettingsDialog({
                     />
                     <p className="text-xs text-muted-foreground">
                       Add optional support text with markdown links. Example: [Link text](https://example.com)
-                      )
                     </p>
                   </div>
-
-                  <Button 
-                    variant="secondary"
-                    onClick={handleSave}
-                    disabled={saving || !isDirty.styling}
-                    className="mt-6"
-                  >
-                    {saving ? 'Saving...' : 'Save'}
-                  </Button>
                 </div>
               )}
 
@@ -582,14 +646,6 @@ export function FormSettingsDialog({
                             {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
                           </Label>
                         </div>
-                        <Button
-                          variant="secondary"
-                          onClick={handleSaveEnabledState}
-                          disabled={enabledStateSaving || !isDirty.notifications.enabled}
-                          className="mt-6"
-                        >
-                          {enabledStateSaving ? 'Saving...' : 'Save'}
-                        </Button>
                       </div>
                     </div>
 
@@ -598,8 +654,8 @@ export function FormSettingsDialog({
                         <Input
                           value={newEmail}
                           onChange={(e) => {
-                            setNewEmail(e.target.value)
-                            setEmailError('')
+                            setNewEmail(e.target.value);
+                            setEmailError('');
                           }}
                           placeholder="email@example.com"
                           className={emailError ? 'border-destructive' : ''}
@@ -640,14 +696,6 @@ export function FormSettingsDialog({
                         }
                       </p>
                     )}
-                    <Button
-                      variant="secondary"
-                      onClick={handleSaveEmails}
-                      disabled={emailsSaving || !isDirty.notifications.emails}
-                      className="mt-6"
-                    >
-                      {emailsSaving ? 'Saving...' : 'Save'}
-                    </Button>
 
                     <div>
                       <h4 className="text-sm font-medium">Notification Content</h4>
@@ -663,11 +711,11 @@ export function FormSettingsDialog({
                               checked={selectedAttributes.includes(attr.id)}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedAttributes([...selectedAttributes, attr.id])
+                                  setSelectedAttributes([...selectedAttributes, attr.id]);
                                 } else {
                                   setSelectedAttributes(
                                     selectedAttributes.filter(a => a !== attr.id)
-                                  )
+                                  );
                                 }
                               }}
                               className="h-4 w-4 rounded border-gray-300"
@@ -681,15 +729,6 @@ export function FormSettingsDialog({
                           </div>
                         ))}
                       </div>
-                      
-                      <Button
-                        variant="secondary"
-                        onClick={handleSaveNotificationContent}
-                        disabled={notificationsSaving || !isDirty.notifications.attributes}
-                        className="mt-6"
-                      >
-                        {notificationsSaving ? 'Saving...' : 'Save'}
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -721,42 +760,11 @@ export function FormSettingsDialog({
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={() => {
-          onDelete()
-          onOpenChange(false)
+          onDelete();
+          onOpenChange(false);
         }}
         formUrl={formUrl}
       />
-
-      <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are about to close this page with unsaved changes. Would you like to save these changes before closing?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => handleWarningAction('discard')}
-            >
-              Discard Changes
-            </AlertDialogAction>
-            <div className="flex gap-2">
-              <AlertDialogCancel
-                onClick={() => handleWarningAction('cancel')}
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => handleWarningAction('save')}
-              >
-                Save Changes
-              </AlertDialogAction>
-            </div>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
-  )
+  );
 }

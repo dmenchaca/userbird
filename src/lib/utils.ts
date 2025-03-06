@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function isValidUrl(url: string) {
   try {
-    new URL(url)
+    new URL(`https://${url}`)
     return true
   } catch {
     return false
@@ -29,4 +29,8 @@ export function areArraysEqual<T>(a: T[], b: T[]): boolean {
   
   // For primitive arrays, we can use simple comparison
   return a.every((item, index) => item === b[index]);
+}
+
+export function isValidEmail(email: string): boolean {
+  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email);
 }
