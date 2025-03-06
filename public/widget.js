@@ -44,8 +44,7 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
-      /* Light mode defaults */
-      :root {
+      .userbird-modal {
         --ub-background: white;
         --ub-border-color: #e5e7eb;
         --ub-text: #111827;
@@ -53,9 +52,12 @@
         --ub-hover-background: #f3f4f6;
       }
 
-      /* Dark mode via media query */
+      /* Dark mode detection */
       @media (prefers-color-scheme: dark) {
-        :root:not(.light) {
+        html[data-theme="dark"] .userbird-modal,
+        .dark .userbird-modal,
+        [data-mode="dark"] .userbird-modal,
+        [data-color-mode="dark"] .userbird-modal {
           --ub-background: #1f1f1f;
           --ub-border-color: #2e2e2e;
           --ub-text: #e5e5e5;
@@ -63,14 +65,17 @@
           --ub-hover-background: #2e2e2e;
         }
       }
-      
-      /* Dark mode via class */
-      :root.dark {
-        --ub-background: #1f1f1f;
-        --ub-border-color: #2e2e2e;
-        --ub-text: #e5e5e5;
-        --ub-text-muted: #a1a1a1;
-        --ub-hover-background: #2e2e2e;
+
+      /* Explicit dark mode classes */
+      html[data-theme="dark"] .userbird-modal,
+      .dark .userbird-modal,
+      [data-mode="dark"] .userbird-modal,
+      [data-color-mode="dark"] .userbird-modal {
+        --ub-background: white;
+        --ub-border-color: #e5e7eb;
+        --ub-text: #111827;
+        --ub-text-muted: #6b7280;
+        --ub-hover-background: #f3f4f6;
       }
 
       .userbird-modal {
