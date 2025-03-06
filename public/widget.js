@@ -53,29 +53,19 @@
         --ub-hover-background: #f3f4f6;
       }
 
-      /* Explicit website dark mode settings take priority */
+      /* Website dark mode settings */
       :root[data-theme="dark"] .userbird-modal,
       :root.dark .userbird-modal,
       :root[data-mode="dark"] .userbird-modal,
       :root[data-color-mode="dark"] .userbird-modal,
+      :root[data-color-scheme="dark"] .userbird-modal,
       .dark-theme .userbird-modal,
-      :root[data-color-scheme="dark"] .userbird-modal {
+      html[class*="dark"] .userbird-modal {
         --ub-background: #1f1f1f;
         --ub-border-color: #2e2e2e;
         --ub-text: #e5e5e5;
         --ub-text-muted: #a1a1a1;
         --ub-hover-background: #2e2e2e;
-      }
-
-      /* Only consider system preference if no explicit theme is set */
-      @media (prefers-color-scheme: dark) {
-        :root:not([data-theme]):not([data-mode]):not([data-color-scheme]):not(.dark):not(.light):not(.dark-theme) .userbird-modal {
-          --ub-background: #1f1f1f;
-          --ub-border-color: #2e2e2e;
-          --ub-text: #e5e5e5;
-          --ub-text-muted: #a1a1a1;
-          --ub-hover-background: #2e2e2e;
-        }
       }
 
       .userbird-modal {
@@ -547,29 +537,27 @@
   async function init() {
     console.log('Initializing widget');
     
-    // Check for explicit website theme settings first
-    const hasExplicitTheme = 
+    // Check for website theme settings
+    const isDarkMode = 
       document.documentElement.hasAttribute('data-theme') ||
       document.documentElement.hasAttribute('data-mode') ||
       document.documentElement.hasAttribute('data-color-scheme') ||
       document.documentElement.classList.contains('dark') ||
-      document.documentElement.classList.contains('light') ||
-      document.documentElement.classList.contains('dark-theme');
+      document.documentElement.classList.contains('dark-theme') ||
+      document.documentElement.getAttribute('class')?.includes('dark');
 
     // Log theme detection details
     console.log('Theme detection:', {
-      hasExplicitTheme,
+      isDarkMode,
       htmlTheme: document.documentElement.getAttribute('data-theme'),
       htmlMode: document.documentElement.getAttribute('data-mode'),
       htmlColorScheme: document.documentElement.getAttribute('data-color-scheme'),
       rootClasses: {
         dark: document.documentElement.classList.contains('dark'),
         light: document.documentElement.classList.contains('light'),
-        darkTheme: document.documentElement.classList.contains('dark-theme')
-      },
-      systemPreference: !hasExplicitTheme ? 
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
-        'ignored'
+        darkTheme: document.documentElement.classList.contains('dark-theme'),
+        allClasses: document.documentElement.getAttribute('class')
+      }
     });
 
     formId = window.UserBird?.formId;
