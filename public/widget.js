@@ -44,9 +44,18 @@
   function injectStyles(buttonColor) {
     const style = document.createElement('style');
     style.textContent = `
-      /* Dark mode detection */
+      /* Light mode defaults */
+      :root {
+        --ub-background: white;
+        --ub-border-color: #e5e7eb;
+        --ub-text: #111827;
+        --ub-text-muted: #6b7280;
+        --ub-hover-background: #f3f4f6;
+      }
+
+      /* Dark mode via media query */
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not(.light) {
           --ub-background: #1f1f1f;
           --ub-border-color: #2e2e2e;
           --ub-text: #e5e5e5;
@@ -55,13 +64,13 @@
         }
       }
       
-      /* Light mode defaults */
-      :root {
-        --ub-background: white;
-        --ub-border-color: #e5e7eb;
-        --ub-text: #111827;
-        --ub-text-muted: #6b7280;
-        --ub-hover-background: #f3f4f6;
+      /* Dark mode via class */
+      :root.dark {
+        --ub-background: #1f1f1f;
+        --ub-border-color: #2e2e2e;
+        --ub-text: #e5e5e5;
+        --ub-text-muted: #a1a1a1;
+        --ub-hover-background: #2e2e2e;
       }
 
       .userbird-modal {
@@ -103,12 +112,14 @@
       .userbird-textarea {
         width: 100%;
         min-height: 100px;
-        padding: 0.75rem;
-        border: 1px solid #e5e7eb;
+        padding: 0.75rem; 
+        border: 1px solid var(--ub-border-color);
         border-radius: 6px;
         resize: vertical;
         font-family: inherit;
         font-size: 14px;
+        background: var(--ub-background);
+        color: var(--ub-text);
       }
       .userbird-textarea:focus {
         outline: none;
@@ -125,7 +136,7 @@
       }
       .userbird-image-button {
         padding: 0.5rem 0.75rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--ub-border-color);
         border-radius: 6px;
         color: var(--ub-text-muted);
         cursor: pointer;
