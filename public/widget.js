@@ -49,12 +49,12 @@
         visibility: hidden;
         position: fixed;
         z-index: 10000;
-        background: white;
+        background: var(--ub-background, white);
         border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        width: 400px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2);
+        width: 400px; 
         max-width: calc(100vw - 2rem);
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--ub-border-color, #e5e7eb);
         transition: opacity 0.05s ease-in-out, visibility 0.05s ease-in-out;
       }
       .userbird-modal.open {
@@ -107,15 +107,15 @@
         padding: 0.5rem 0.75rem;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
-        color: #6b7280;
+        color: var(--ub-text-muted, #6b7280);
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
         align-items: center;
-        background: white;
+        background: var(--ub-background, white);
       }
       .userbird-image-button:hover {
-        background: #f3f4f6;
+        background: var(--ub-hover-background, #f3f4f6);
       }
       .userbird-image-preview {
         display: none;
