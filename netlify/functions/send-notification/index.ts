@@ -113,6 +113,7 @@ export const handler: Handler = async (event) => {
       const emailParams: Record<string, any> = {
         formUrl: form.url,
         formId,
+        url_path: feedback.url_path,
       };
 
       // Add selected attributes to email parameters

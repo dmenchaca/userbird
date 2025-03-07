@@ -20,6 +20,9 @@
         <div style="margin-bottom: 16px;">
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">User Information</h4>
           <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
+            {{#if url_path}}
+            <p style="margin: 0;">Page URL: {{url_path}}</p>
+            {{/if}}
             {{#if user_id}}
             <p style="margin: 0;">ID: {{user_id}}</p>
             {{/if}}
