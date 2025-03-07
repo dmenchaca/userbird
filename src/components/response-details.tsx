@@ -68,6 +68,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                   <p>ID: {response.user_id || '-'}</p>
                   <p>Email: {response.user_email || '-'}</p>
                   <p>Name: {response.user_name || '-'}</p>
+                  <p>Page URL: {response.url_path || '-'}</p>
                 </div>
               </div>
 

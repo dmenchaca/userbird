@@ -76,6 +76,7 @@ export function FormSettingsDialog({
     { id: 'user_id', label: 'User ID' },
     { id: 'user_email', label: 'User Email' },
     { id: 'user_name', label: 'User Name' },
+    { id: 'url_path', label: 'Page URL' },
     { id: 'operating_system', label: 'Operating System' },
     { id: 'screen_category', label: 'Device Category' },
     { id: 'image_url', label: 'Image URL' },

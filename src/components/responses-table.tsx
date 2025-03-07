@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader, Trash2 } from 'lucide-react'
+import { Loader, Trash2, Smartphone, Tablet, Monitor } from 'lucide-react'
 import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import {
@@ -118,6 +118,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Email</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">System</th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Page URL</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground">Device</th>
               <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground w-[180px]">Date</th>
               <th className="py-3 px-4 w-[50px]"></th>
@@ -167,8 +168,37 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   {response.operating_system}
                 </td>
-                <td className="py-3 px-4 text-sm text-muted-foreground">
-                  {response.screen_category}
+                <td className="py-3 px-4 text-sm text-muted-foreground relative group">
+                  {response.url_path ? (
+                    <span className="group relative">
+                      <span>
+                        {response.url_path.length > 15
+                          ? `${response.url_path.slice(0, 12)}...`
+                          : response.url_path}
+                      </span>
+                      <span className="invisible group-hover:visible absolute left-0 -top-8 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+                        {response.url_path}
+                      </span>
+                    </span>
+                  ) : (
+                    '-'
+                  )}
+                </td>
+                <td className="py-3 px-4 text-sm text-muted-foreground relative group">
+                  <span className="group relative">
+                    {response.screen_category === 'Mobile' && (
+                      <Smartphone className="w-4 h-4" />
+                    )}
+                    {response.screen_category === 'Tablet' && (
+                      <Tablet className="w-4 h-4" />
+                    )}
+                    {response.screen_category === 'Desktop' && (
+                      <Monitor className="w-4 h-4" />
+                    )}
+                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 -top-8 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap">
+                      {response.screen_category}
+                    </span>
+                  </span>
                 </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   <span title={new Date(response.created_at).toLocaleString('en-US', {
