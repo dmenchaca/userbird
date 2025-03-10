@@ -709,25 +709,12 @@
     modal.submitButton.addEventListener('click', async () => {
       const message = modal.textarea.value.trim();
       if (!message) return;
-
+      
       modal.submitButton.disabled = true;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
 
       try {
         await submitFeedback(message);
-        // Clear form state
-        modal.textarea.value = '';
-        selectedImage = null;
-        const imagePreview = modal.modal.querySelector('.userbird-image-preview');
-        const imageButton = modal.modal.querySelector('.userbird-image-button');
-        imagePreview.classList.remove('show');
-        imagePreview.innerHTML = '';
-        imageButton.style.display = 'block';
-        modal.modal.querySelector('.userbird-file-input').value = '';
-        
-        // Show success state
-        modal.form.classList.add('hidden');
-        modal.successElement.classList.add('open');
       } catch (error) {
         modal.errorElement.textContent = 'Failed to submit feedback';
         modal.errorElement.style.display = 'block';
@@ -759,19 +746,30 @@
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
     console.log('2. Success state shown immediately');
+
+    // Reset form state immediately after showing success
+    modal.textarea.value = '';
+    selectedImage = null;
+    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+    const imageButton = modal.modal.querySelector('.userbird-image-button');
+    imagePreview.classList.remove('show');
+    imagePreview.innerHTML = '';
+    imageButton.style.display = 'block';
+    modal.modal.querySelector('.userbird-file-input').value = '';
+    console.log('3. Form state reset completed');
     
     console.log('Submitting feedback in background:', {
       formId,
       message,
       userInfo
     });
-    console.log('3. Starting background submission');
+    console.log('4. Starting background submission');
     
     try {
       // Upload image first if present
       const imageData = selectedImage ? await uploadImage(selectedImage) : null;
       console.log('Image upload result:', imageData);
-      console.log('4. Image upload completed (if any)');
+      console.log('5. Image upload completed (if any)');
     
       // Submit feedback
       const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
@@ -795,20 +793,20 @@
       });
 
       console.log('Feedback submission response:', response.status);
-      console.log('5. API request completed:', { status: response.status });
+      console.log('6. API request completed:', { status: response.status });
       
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
       }
       
-      console.log('6. Submission successful');
+      console.log('7. Submission successful');
       return response.json();
     } catch (error) {
       console.error('Background submission failed:', error);
-      console.log('6. Submission failed:', error);
+      console.log('7. Submission failed:', error);
       // Don't revert success state, just log the error
       return { success: false, error };
-      console.log('7. Submit flow completed');
+      console.log('8. Submit flow completed');
       console.groupEnd();
     }
   }
