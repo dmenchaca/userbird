@@ -15,55 +15,11 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
           <DialogTitle>Installation Instructions</DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="html" className="w-full flex-1 overflow-hidden flex flex-col">
+        <Tabs defaultValue="react" className="w-full flex-1 overflow-hidden flex flex-col">
           <TabsList className="w-fit">
-            <TabsTrigger value="html">HTML/JavaScript</TabsTrigger>
             <TabsTrigger value="react">React</TabsTrigger>
+            <TabsTrigger value="html">HTML/JavaScript</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="html" className="space-y-4 flex-1 overflow-y-auto">
-            <div>
-              <h3 className="text-base font-medium mb-2">HTML Integration</h3>
-              <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
-              <div className="space-y-4">
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
-                  <p className="text-sm text-muted-foreground mb-2">Choose one of these options:</p>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono mb-2">
-                    <code>{`<!-- Option A: Use our default button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
-
-<!-- Option B: Use your own custom button -->
-<button onclick="UserBird.open(this)">Custom Feedback</button>`}</code>
-                  </pre>
-                  <p className="text-xs text-muted-foreground">Note: The button can be placed anywhere in your HTML</p>
-                </div>
-
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Step 2: Initialize the widget</h4>
-                  <p className="text-sm text-muted-foreground mb-2">Add this initialization code:</p>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
-                    <code>{`<!-- Initialize Userbird -->
-<script>
-  (function(w,d,s){
-    w.UserBird = w.UserBird || {};
-    w.UserBird.formId = "${formId}";
-    // Optional: Add user information
-    w.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
-    s = d.createElement('script');
-    s.src = 'https://userbird.netlify.app/widget.js';
-    d.head.appendChild(s);
-  })(window,document);
-</script>`}</code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
 
           <TabsContent value="react" className="space-y-4 flex-1 overflow-y-auto">
             <div>
@@ -72,7 +28,7 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm leading-relaxed font-mono">
                     <code>{`// userbird.ts
 export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
@@ -93,7 +49,7 @@ export function initUserbird(formId: string) {
 
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm leading-relaxed font-mono">
                     <code>{`import { useEffect } from 'react';
 import { initUserbird } from './userbird';
 
@@ -132,6 +88,50 @@ function App() {
     </>
   );
 }`}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="html" className="space-y-4 flex-1 overflow-y-auto">
+            <div>
+              <h3 className="text-base font-medium mb-2">HTML Integration</h3>
+              <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
+                  <p className="text-sm text-muted-foreground mb-2">Choose one of these options:</p>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm leading-relaxed font-mono mb-2">
+                    <code>{`<!-- Option A: Use our default button -->
+<button id="userbird-trigger-${formId}">Feedback</button>
+
+<!-- Option B: Use your own custom button -->
+<button onclick="UserBird.open(this)">Custom Feedback</button>`}</code>
+                  </pre>
+                  <p className="text-xs text-muted-foreground">Note: The button can be placed anywhere in your HTML</p>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Initialize the widget</h4>
+                  <p className="text-sm text-muted-foreground mb-2">Add this initialization code:</p>
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm leading-relaxed font-mono">
+                    <code>{`<!-- Initialize Userbird -->
+<script>
+  (function(w,d,s){
+    w.UserBird = w.UserBird || {};
+    w.UserBird.formId = "${formId}";
+    // Optional: Add user information
+    w.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
+    s = d.createElement('script');
+    s.src = 'https://userbird.netlify.app/widget.js';
+    d.head.appendChild(s);
+  })(window,document);
+</script>`}</code>
                   </pre>
                 </div>
               </div>
