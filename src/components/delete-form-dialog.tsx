@@ -60,10 +60,12 @@ export function DeleteFormDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 pb-2">
-              <span className="font-normal">Please type</span> <span className="font-medium">{formUrl}</span> <span className="font-normal">to confirm:</span>
-            </Label>
+          <div className="grid gap-2 pb-2">
+            <div className="text-sm">
+              <span className="font-normal">Please type </span>
+              <span className="font-medium select-text">{formUrl}</span>
+              <span className="font-normal"> to confirm:</span>
+            </div>
             <Input
               value={confirmUrl}
               onChange={(e) => {

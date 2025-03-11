@@ -23,13 +23,13 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
 
           <TabsContent value="html" className="space-y-4 flex-1 overflow-y-auto">
             <div>
-              <h3 className="text-lg font-semibold mb-2">HTML Integration</h3>
+              <h3 className="text-base font-medium mb-2">HTML Integration</h3>
               <p className="text-sm text-muted-foreground mb-4">Add this code just before the closing <code>&lt;/body&gt;</code> tag:</p>
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
                   <p className="text-sm text-muted-foreground mb-2">Choose one of these options:</p>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm mb-2">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono mb-2">
                     <code>{`<!-- Option A: Use our default button -->
 <button id="userbird-trigger-${formId}">Feedback</button>
 
@@ -42,7 +42,7 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 2: Initialize the widget</h4>
                   <p className="text-sm text-muted-foreground mb-2">Add this initialization code:</p>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
                     <code>{`<!-- Initialize Userbird -->
 <script>
   (function(w,d,s){
@@ -67,12 +67,12 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
 
           <TabsContent value="react" className="space-y-4 flex-1 overflow-y-auto">
             <div>
-              <h3 className="text-lg font-semibold mb-2">React Integration</h3>
+              <h3 className="text-base font-medium mb-2">React Integration</h3>
               <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
                     <code>{`// userbird.ts
 export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
@@ -93,7 +93,7 @@ export function initUserbird(formId: string) {
 
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
-                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-[13px] leading-relaxed font-mono">
                     <code>{`import { useEffect } from 'react';
 import { initUserbird } from './userbird';
 

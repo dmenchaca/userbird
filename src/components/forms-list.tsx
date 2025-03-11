@@ -45,12 +45,13 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const { user } = useAuth()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
+  const [subscription, setSubscription] = useState<ReturnType<typeof supabase.channel> | null>(null)
 
   // Fetch initial forms data
   useEffect(() => {
     if (!user?.id) return;
 
-    const fetchForms = async () => {
+    async function fetchForms() {
       try {
         const { data, error } = await supabase
           .from('forms')
@@ -75,12 +76,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
     }
 
     fetchForms()
-  }, [user?.id])
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user?.id) return;
-    
     // Subscribe to form changes
     const formsChannel = supabase
       .channel(`forms_changes_${Math.random()}`)
@@ -99,11 +95,24 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         }) => {
           setForms(currentForms => {
             if (payload.eventType === 'DELETE') {
-              return currentForms.filter(form => form.id !== payload.old!.id);
+              const updatedForms = currentForms.filter(form => form.id !== payload.old?.id);
+              
+              // If the deleted form was selected, select another form
+              if (selectedFormId === payload.old?.id) {
+                if (updatedForms.length > 0) {
+                  // Select the first available form
+                  onFormSelect(updatedForms[0].id);
+                } else {
+                  // No forms left, clear selection
+                  onFormSelect('');
+                }
+              }
+              
+              return updatedForms;
             }
 
             if (payload.eventType === 'INSERT') {
-              const newForm = payload.new!;
+              const newForm = payload.new;
               // Check if form already exists
               if (currentForms.some(form => form.id === newForm.id)) {
                 return currentForms;
@@ -112,8 +121,9 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             }
 
             if (payload.eventType === 'UPDATE') {
+              if (!payload.new) return currentForms;
               return currentForms.map(form => 
-                form.id === payload.new!.id ? payload.new! : form
+                form.id === payload.new.id ? payload.new : form
               );
             }
             
@@ -150,12 +160,15 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           }
         }
       ).subscribe()
+    
+    setSubscription(formsChannel)
 
     return () => {
-      supabase.removeChannel(formsChannel)
-      supabase.removeChannel(feedbackChannel)
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
     }
-  }, [user?.id])
+  }, [user?.id, selectedFormId, onFormSelect])
 
   if (loading) {
     return (

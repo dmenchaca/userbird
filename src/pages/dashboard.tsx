@@ -269,6 +269,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             </>
           )}
         </div>
+        <NewFormDialog
+          open={showNewFormDialog}
+          onOpenChange={setShowNewFormDialog}
+          onFormSelect={setSelectedFormId}
+        />
         {selectedFormId && (
           <InstallInstructionsModal
             formId={selectedFormId}
@@ -303,10 +308,6 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             supportText={supportText}
           />
         )}
-        <NewFormDialog
-          open={showNewFormDialog}
-          onOpenChange={setShowNewFormDialog}
-        />
       </main>
     </div>
   )
