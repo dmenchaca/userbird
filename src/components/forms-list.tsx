@@ -75,7 +75,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
     }
 
     fetchForms()
-  }, [user?.id])
+  }, [user?.id, selectedFormId])
 
   // Set up subscriptions
   useEffect(() => {
@@ -101,14 +101,14 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             if (payload.eventType === 'DELETE') {
               if (!payload.old) return currentForms;
               
-              const updatedForms = currentForms.filter(form => form.id !== payload.old!.id);
+              const updatedForms = currentForms.filter(form => form.id !== payload.old?.id);
               
               // If the deleted form was selected, select another form
-              if (selectedFormId === payload.old!.id) {
+              if (selectedFormId === payload.old?.id) {
                 if (updatedForms.length > 0) {
                   // Select the first available form
                   onFormSelect(updatedForms[0].id);
-                } else {
+                } else if (updatedForms.length === 0) {
                   // No forms left, clear selection
                   onFormSelect('');
                 }
