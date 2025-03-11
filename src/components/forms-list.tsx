@@ -45,7 +45,6 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const { user } = useAuth()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
-  const [subscription, setSubscription] = useState<ReturnType<typeof supabase.channel> | null>(null)
 
   // Fetch initial forms data
   useEffect(() => {
@@ -61,7 +60,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             created_at,
             feedback:feedback(count)
           `)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user?.id)
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -76,7 +75,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
     }
 
     fetchForms()
+  }, [user?.id])
 
+  // Set up subscriptions
+  useEffect(() => {
+    if (!user?.id) return;
+    
     // Subscribe to form changes
     const formsChannel = supabase
       .channel(`forms_changes_${Math.random()}`)
@@ -95,10 +99,12 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         }) => {
           setForms(currentForms => {
             if (payload.eventType === 'DELETE') {
-              const updatedForms = currentForms.filter(form => form.id !== payload.old?.id);
+              if (!payload.old) return currentForms;
+              
+              const updatedForms = currentForms.filter(form => form.id !== payload.old!.id);
               
               // If the deleted form was selected, select another form
-              if (selectedFormId === payload.old?.id) {
+              if (selectedFormId === payload.old!.id) {
                 if (updatedForms.length > 0) {
                   // Select the first available form
                   onFormSelect(updatedForms[0].id);
@@ -112,18 +118,19 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             }
 
             if (payload.eventType === 'INSERT') {
-              const newForm = payload.new;
+              if (!payload.new) return currentForms;
+              
               // Check if form already exists
-              if (currentForms.some(form => form.id === newForm.id)) {
+              if (currentForms.some(form => form.id === payload.new!.id)) {
                 return currentForms;
               }
-              return [newForm, ...currentForms];
+              return [payload.new as Form, ...currentForms];
             }
 
             if (payload.eventType === 'UPDATE') {
               if (!payload.new) return currentForms;
               return currentForms.map(form => 
-                form.id === payload.new.id ? payload.new : form
+                form.id === payload.new?.id ? (payload.new as Form) : form
               );
             }
             
@@ -132,41 +139,8 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         }
       ).subscribe()
 
-    // Subscribe to feedback changes to update counters
-    const feedbackChannel = supabase
-      .channel(`feedback_changes_${Math.random()}`)
-      .on(
-        'postgres_changes' as 'system',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'feedback'
-        },
-        async () => {
-          // Refetch forms to get updated counts
-          const { data } = await supabase
-            .from('forms')
-            .select(`
-              id,
-              url,
-              created_at,
-              feedback:feedback(count)
-            `)
-            .eq('owner_id', user.id)
-            .order('created_at', { ascending: false })
-
-          if (data) {
-            setForms(data)
-          }
-        }
-      ).subscribe()
-    
-    setSubscription(formsChannel)
-
     return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription)
-      }
+      supabase.removeChannel(formsChannel)
     }
   }, [user?.id, selectedFormId, onFormSelect])
 
