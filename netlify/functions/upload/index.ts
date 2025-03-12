@@ -6,6 +6,14 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Log environment configuration
+console.log('Upload function configuration:', {
+  hasSupabaseUrl: !!supabaseUrl,
+  hasServiceKey: !!supabaseKey,
+  maxFileSize: MAX_FILE_SIZE,
+  allowedTypes: ALLOWED_TYPES
+});
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
 
@@ -59,9 +67,19 @@ export const handler: Handler = async (event) => {
       bb.on('file', (name, file, info) => {
         const chunks: Buffer[] = [];
         let size = 0;
+        
+        console.log('Processing file:', {
+          filename: info.filename,
+          mimeType: info.mimeType,
+          encoding: info.encoding
+        });
 
         // Validate file type
         if (!ALLOWED_TYPES.includes(info.mimeType)) {
+          console.warn('Invalid file type:', {
+            received: info.mimeType,
+            allowed: ALLOWED_TYPES
+          });
           return reject({
             statusCode: 400,
             headers,
@@ -75,6 +93,11 @@ export const handler: Handler = async (event) => {
         file.on('data', (chunk) => {
           size += chunk.length;
           if (size > MAX_FILE_SIZE) {
+            console.warn('File size exceeded:', {
+              size,
+              maxSize: MAX_FILE_SIZE,
+              filename: fileName
+            });
             return reject({
               statusCode: 400,
               headers,
@@ -91,6 +114,10 @@ export const handler: Handler = async (event) => {
 
       bb.on('finish', async () => {
         if (!formId || !fileBuffer) {
+          console.warn('Missing required fields:', {
+            hasFormId: !!formId,
+            hasFileBuffer: !!fileBuffer
+          });
           return resolve({
             statusCode: 400,
             headers,
@@ -99,6 +126,12 @@ export const handler: Handler = async (event) => {
         }
 
         try {
+          console.log('Starting upload to Supabase:', {
+            formId,
+            fileName,
+            fileSize: fileBuffer.length
+          });
+
           // Upload to Supabase Storage
           const { data, error } = await supabase.storage
             .from('feedback-images')
@@ -111,7 +144,19 @@ export const handler: Handler = async (event) => {
               }
             );
 
-          if (error) throw error;
+          if (error) {
+            console.error('Supabase upload error:', {
+              error,
+              formId,
+              fileName
+            });
+            throw error;
+          }
+
+          console.log('Upload successful:', {
+            path: data.path,
+            formId
+          });
 
           // Get public URL
           const { data: { publicUrl } } = supabase.storage
@@ -129,6 +174,11 @@ export const handler: Handler = async (event) => {
           });
         } catch (error) {
           console.error('Upload error:', error);
+          console.error('Upload error:', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            type: error instanceof Error ? error.constructor.name : typeof error,
+            stack: error instanceof Error ? error.stack : undefined
+          });
           resolve({
             statusCode: 500,
             headers,
