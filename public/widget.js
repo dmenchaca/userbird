@@ -120,7 +120,7 @@
       .userbird-textarea:focus {
         outline: none;
         border-color: ${buttonColor};
-        box-shadow: 0 0 0 2px rgb(0 0 0 / 0.05), 0 0 0 1px ${buttonColor}
+        box-shadow: 0 0 0 1px ${buttonColor}
       }
       .userbird-image-upload {
         position: relative;
