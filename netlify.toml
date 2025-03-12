@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "dist"
 
+# Force redirect from apex to subdomain
+[[redirects]]
+  from = "https://userbird.co/*"
+  to = "https://app.userbird.co/:splat"
+  status = 301
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-emails"
 
