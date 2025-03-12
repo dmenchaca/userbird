@@ -70,14 +70,14 @@ function App() {
 
   return (
     <>
-      {/* Option A: Use our default trigger button */}
-      <button id="userbird-trigger-${formId}">
-        Feedback
-      </button>
-
-      {/* Option B: Use your own trigger button */}
+      {/* Option A: Use your own trigger button (Recommended) */}
       <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         Custom Feedback Button
+      </button>
+
+      {/* Option B: Use our default trigger button */}
+      <button id="userbird-trigger-${formId}">
+        Feedback
       </button>
     </>
   );
@@ -236,14 +236,14 @@ function App() {
 
   return (
     <>
-      {/* Option A: Use our default trigger button */}
-      <button id="userbird-trigger-${formId}">
-        Feedback
-      </button>
-
-      {/* Option B: Use your own trigger button */}
+      {/* Option A: Use your own trigger button (Recommended) */}
       <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         Custom Feedback Button
+      </button>
+
+      {/* Option B: Use our default trigger button */}
+      <button id="userbird-trigger-${formId}">
+        Feedback
       </button>
     </>
   );
@@ -288,14 +288,14 @@ function App() {
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
-                  <p className="text-sm text-muted-foreground mb-2">Choose one of these options:</p>
+                  <p className="text-sm text-muted-foreground mb-2">We recommend using your own custom button for better integration with your UI:</p>
                   <CodeBlock
                     id="html-button"
-                    code={`<!-- Option A: Use our default button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
+                    code={`<!-- Option A: Use your own custom button (Recommended) -->
+<button onclick="UserBird.open(this)">Custom Feedback</button>
 
-<!-- Option B: Use your own custom button -->
-<button onclick="UserBird.open(this)">Custom Feedback</button>`}
+<!-- Option B: Use our default button -->
+<button id="userbird-trigger-${formId}">Feedback</button>`}
                   />
                   <p className="text-xs text-muted-foreground">Note: The button can be placed anywhere in your HTML</p>
                 </div>
