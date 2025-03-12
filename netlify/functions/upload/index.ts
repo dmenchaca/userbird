@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import busboy from 'busboy';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
