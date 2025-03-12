@@ -188,10 +188,12 @@ export function Dashboard({ initialFormId }: DashboardProps) {
       <aside className="fixed left-0 w-64 h-screen border-r bg-[#FAFAFA]">
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <h1 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Bird className="w-5 h-5" />
+            <a href="/" className="flex items-center gap-2 font-medium">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Bird className="size-4" />
+              </div>
               Userbird
-            </h1>
+            </a>
           </div>
           <div className="flex-1 p-4 space-y-4">
             <div className="flex items-center justify-between">
