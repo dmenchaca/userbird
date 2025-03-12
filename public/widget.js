@@ -739,13 +739,28 @@
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
     const userInfo = window.UserBird?.user || {};
+    let imageData = null;
+
     console.group('Widget Submit Flow');
     console.log('1. Starting feedback submission');
     
+    // Handle image upload first if present
+    if (selectedImage) {
+      try {
+        console.log('2. Starting image upload');
+        imageData = await uploadImage(selectedImage);
+        console.log('3. Image upload completed:', imageData);
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        modal.showError('Failed to upload image. Please try again.');
+        return;
+      }
+    }
+
     // Show success state immediately
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
-    console.log('2. Success state shown immediately');
+    console.log('4. Success state shown');
 
     // Reset form state immediately after showing success
     modal.textarea.value = '';
@@ -756,21 +771,17 @@
     imagePreview.innerHTML = '';
     imageButton.style.display = 'block';
     modal.modal.querySelector('.userbird-file-input').value = '';
-    console.log('3. Form state reset completed');
+    console.log('5. Form state reset completed');
     
     console.log('Submitting feedback in background:', {
       formId,
       message,
-      userInfo
+      userInfo,
+      hasImage: !!imageData
     });
-    console.log('4. Starting background submission');
+    console.log('6. Starting feedback submission');
     
     try {
-      // Upload image first if present
-      const imageData = selectedImage ? await uploadImage(selectedImage) : null;
-      console.log('Image upload result:', imageData);
-      console.log('5. Image upload completed (if any)');
-    
       // Submit feedback
       const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
         method: 'POST',
@@ -793,20 +804,20 @@
       });
 
       console.log('Feedback submission response:', response.status);
-      console.log('6. API request completed:', { status: response.status });
+      console.log('7. API request completed:', { status: response.status });
       
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
       }
       
-      console.log('7. Submission successful');
+      console.log('8. Submission successful');
       return response.json();
     } catch (error) {
       console.error('Background submission failed:', error);
-      console.log('7. Submission failed:', error);
+      console.log('8. Submission failed:', error);
       // Don't revert success state, just log the error
       return { success: false, error };
-      console.log('8. Submit flow completed');
+      console.log('9. Submit flow completed');
       console.groupEnd();
     }
   }
