@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { nanoid } from 'nanoid'
 import { Button } from './ui/button' 
 import { Input } from './ui/input'
@@ -8,18 +8,51 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
+import { isValidUrl } from '@/lib/utils'
 
 interface FormCreatorProps {
   onFormCreated?: (formId: string) => void;
+  onFormChange?: (hasChanges: boolean) => void;
 }
 
-export function FormCreator({ onFormCreated }: FormCreatorProps) {
+export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [url, setUrl] = useState('')
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState('')
   const [error, setError] = useState('')
+  const [isValidDomain, setIsValidDomain] = useState(false)
+
+  // Validate URL as user types
+  useEffect(() => {
+    const trimmedUrl = url.trim()
+    if (!trimmedUrl) {
+      setIsValidDomain(false)
+      return
+    }
+
+    // Remove any protocol and www prefix for validation
+    const cleanUrl = trimmedUrl
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .toLowerCase()
+
+    // Basic URL format validation
+    const isValid = (
+      cleanUrl === 'localhost' ||
+      (/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(cleanUrl) &&
+      cleanUrl.includes('.') &&
+      !['example.com', 'test.com', 'domain.com'].includes(cleanUrl))
+    )
+
+    setIsValidDomain(isValid)
+  }, [url])
+
+  // Notify parent about form changes
+  useEffect(() => {
+    onFormChange?.(url !== '' || buttonColor !== '#1f2937' || supportText !== '')
+  }, [url, buttonColor, supportText, onFormChange])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -149,7 +182,7 @@ export function FormCreator({ onFormCreated }: FormCreatorProps) {
         </div>
 
       </div>
-      <Button type="submit" size="lg">Create Form</Button>
+      <Button type="submit" size="lg" disabled={!isValidDomain}>Create Form</Button>
     </form>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NewFormDialog } from './new-form-dialog'
 
 interface Form {
   id: string
@@ -45,6 +46,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const { user } = useAuth()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
+  const [showNewFormDialog, setShowNewFormDialog] = useState(false)
 
   // Fetch initial forms data
   useEffect(() => {
@@ -154,19 +156,15 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
 
   if (forms.length === 0) {
     return (
-      <div className="text-center py-8 space-y-4">
-        <p className="text-muted-foreground">No forms created yet</p>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => onFormSelect('')}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          New form
-        </Button>
+      <div className="flex flex-col items-center justify-center py-8">
+        <p className="text-sm text-muted-foreground">No forms yet</p>
+        <NewFormDialog
+          open={showNewFormDialog}
+          onOpenChange={setShowNewFormDialog}
+          onFormSelect={onFormSelect}
+        />
       </div>
-    )
+    );
   }
 
   return (
