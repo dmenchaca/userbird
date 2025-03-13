@@ -13,9 +13,11 @@ import { useNavigate } from 'react-router-dom'
 
 interface DashboardProps {
   initialFormId?: string
+  showInstallInstructions?: boolean
+  onInstructionsClose?: () => void
 }
 
-export function Dashboard({ initialFormId }: DashboardProps) {
+export function Dashboard({ initialFormId, showInstallInstructions, onInstructionsClose }: DashboardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(initialFormId)
@@ -23,7 +25,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState<string | null>(null)
   const [hasResponses, setHasResponses] = useState(false)
-  const [showInstallModal, setShowInstallModal] = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState(showInstallInstructions || false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
   const [loading, setLoading] = useState(!initialFormId) // Only show loading if no initialFormId
@@ -305,8 +307,13 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         {selectedFormId && (
           <InstallInstructionsModal
             formId={selectedFormId}
-            open={showInstallModal}
-            onOpenChange={setShowInstallModal}
+            open={showInstallModal} 
+            onOpenChange={(open) => {
+              setShowInstallModal(open);
+              if (!open && onInstructionsClose) {
+                onInstructionsClose();
+              }
+            }}
           />
         )}
         {selectedFormId && (
