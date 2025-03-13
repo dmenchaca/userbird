@@ -155,7 +155,7 @@ function App() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-base font-medium">React Integration</h3>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   className="gap-2"
                   onClick={() => {
@@ -259,7 +259,7 @@ function App() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-base font-medium">HTML Integration</h3>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   className="gap-2"
                   onClick={() => {
