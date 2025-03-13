@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NewFormDialog } from './new-form-dialog'
+import { useAuth } from '@/lib/auth'
 
 interface Form {
   id: string
@@ -38,9 +39,6 @@ function TruncatedUrl({ url }: { url: string }) {
     </span>
   );
 }
-import { Button } from './ui/button'
-import { Plus } from 'lucide-react'
-import { useAuth } from '@/lib/auth'
 
 export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const { user } = useAuth()
