@@ -758,6 +758,18 @@ export function FormSettingsDialog({
                       Add optional support text with markdown links. Example: [Link text](https://example.com)
                     </p>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="shortcut">Keyboard Shortcut</Label>
+                    <Input
+                      id="shortcut"
+                      placeholder="e.g. Control+Shift+F"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Define a custom keyboard shortcut to open the feedback widget
+                    </p>
+                  </div>
                 </div>
               )}
 
