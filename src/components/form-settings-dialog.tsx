@@ -65,6 +65,8 @@ export function FormSettingsDialog({
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
   const [shortcut, setShortcut] = useState(keyboardShortcut || '')
+  const [isEditingShortcut, setIsEditingShortcut] = useState(false)
+  const [previousShortcut, setPreviousShortcut] = useState(keyboardShortcut || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
@@ -817,45 +819,93 @@ export function FormSettingsDialog({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Label htmlFor="shortcut">Keyboard Shortcut</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
+                      <div className="relative flex items-center">
+                        <input
                           type="text"
-                          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono w-32"
+                          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono w-32 caret-transparent"
                           id="shortcut"
                           placeholder="Press keys..."
-                          value={shortcut}
+                          value={isEditingShortcut ? '' : shortcut}
+                          onFocus={() => {
+                            setIsEditingShortcut(true);
+                            setPreviousShortcut(shortcut);
+                          }}
+                          onBlur={() => {
+                            if (isEditingShortcut) {
+                              setIsEditingShortcut(false);
+                            }
+                          }}
                           onKeyDown={(e) => {
                             e.preventDefault();
                             // Ignore Backspace key
                             if (e.key === 'Backspace') return;
                             
-                            const keys = [];
-                            if (e.metaKey) keys.push('Meta');
-                            if (e.ctrlKey) keys.push('Control');
-                            if (e.shiftKey) keys.push('Shift');
-                            if (e.altKey) keys.push('Alt');
-                            // Only add regular keys that aren't modifiers or Backspace
-                            if (!['Control', 'Shift', 'Alt', 'Meta', 'Backspace'].includes(e.key)) {
-                              keys.push(e.key.toUpperCase());
+                            // Keep track of pressed keys
+                            const pressedKeys = new Set();
+
+                            // Handle modifier keys
+                            const modifiers = {
+                              Command: e.metaKey || (e.key === 'Meta'),
+                              Control: e.ctrlKey,
+                              Shift: e.shiftKey,
+                              Alt: e.altKey
+                            };
+
+                            // Add active modifiers to pressed keys
+                            Object.entries(modifiers).forEach(([key, active]) => {
+                              if (active) pressedKeys.add(key);
+                            });
+
+                            // Handle the actual key
+                            const key = e.key;
+                            // Don't add modifier keys when pressed alone
+                            if (!['Control', 'Shift', 'Alt', 'Meta', 'Command', 'Backspace', 'Tab'].includes(key)) {
+                              let formattedKey;
+                              if (key.length === 1) {
+                                formattedKey = key.toUpperCase();
+                              } else {
+                                formattedKey = key
+                                  .replace('Arrow', '')  // ArrowUp -> Up
+                                  .replace('Digit', '')  // Digit1 -> 1
+                                  .replace('Key', '');   // KeyA -> A
+                              }
+                              pressedKeys.add(formattedKey);
                             }
-                            if (keys.length > 0) {
-                              setShortcut(keys.join('+'));
-                            }
+
+                            // Show current combination in input
+                            const currentKeys = Array.from(pressedKeys);
+                            e.currentTarget.value = currentKeys.join('+');
                           }}
                           onKeyUp={(e) => {
                             e.preventDefault();
+                            
+                            // When all keys are released, save the shortcut
+                            const allKeysReleased = !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey;
+                            if (allKeysReleased) {
+                              const newShortcut = e.currentTarget.value;
+                              if (newShortcut) {
+                                setShortcut(newShortcut);
+                                setIsEditingShortcut(false);
+                                console.log('Saving shortcut:', newShortcut);
+                              }
+                            }
                           }}
                         />
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => setShortcut('')}
-                      >
-                        Clear
-                      </Button>
+                      {!isEditingShortcut && shortcut && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setShortcut('');
+                            setPreviousShortcut('');
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
