@@ -23,6 +23,7 @@ interface FormSettingsDialogProps {
   formUrl: string
   buttonColor: string
   supportText: string | null
+  keyboardShortcut: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
@@ -36,6 +37,7 @@ export function FormSettingsDialog({
   formUrl,
   buttonColor,
   supportText,
+  keyboardShortcut,
   open, 
   onOpenChange,
   onSettingsSaved,
@@ -62,7 +64,7 @@ export function FormSettingsDialog({
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
-  const [shortcut, setShortcut] = useState('')
+  const [shortcut, setShortcut] = useState(keyboardShortcut || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
@@ -94,12 +96,12 @@ export function FormSettingsDialog({
         buttonColor,
         supportText: supportText || '',
         url: formUrl,
-        keyboardShortcut: ''
+        keyboardShortcut: keyboardShortcut || ''
       },
       webhooks: current.webhooks
     }))
     setIsInitialMount(false)
-  }, [buttonColor, supportText, formUrl])
+  }, [buttonColor, supportText, formUrl, keyboardShortcut])
 
   // Fetch webhook settings
   useEffect(() => {
@@ -700,7 +702,8 @@ export function FormSettingsDialog({
     setColor(buttonColor);
     setText(supportText || '');
     setUrl(formUrl);
-  }, [buttonColor, supportText, formUrl, open]);
+    setShortcut(keyboardShortcut || '');
+  }, [buttonColor, supportText, formUrl, keyboardShortcut]);
 
   return (
     <>

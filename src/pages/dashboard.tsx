@@ -22,6 +22,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [formName, setFormName] = useState<string>('')
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState<string | null>(null)
+  const [keyboardShortcut, setKeyboardShortcut] = useState<string | null>(null)
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
@@ -103,7 +104,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     if (selectedFormId && user?.id) {
       supabase
         .from('forms')
-        .select('url, button_color, support_text')
+        .select('url, button_color, support_text, keyboard_shortcut')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
@@ -112,6 +113,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             setFormName(data.url)
             setButtonColor(data.button_color)
             setSupportText(data.support_text)
+            setKeyboardShortcut(data.keyboard_shortcut)
           }
         })
     }
@@ -372,7 +374,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               // Refetch form data
               supabase
                 .from('forms')
-                .select('url, button_color, support_text')
+                .select('url, button_color, support_text, keyboard_shortcut')
                 .eq('id', selectedFormId)
                 .eq('owner_id', user?.id)
                 .single()
@@ -381,6 +383,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     setFormName(data.url);
                     setButtonColor(data.button_color);
                     setSupportText(data.support_text);
+                    setKeyboardShortcut(data.keyboard_shortcut);
                   }
                 });
             }}
@@ -389,6 +392,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             formUrl={formName}
             buttonColor={buttonColor}
             supportText={supportText}
+            keyboardShortcut={keyboardShortcut}
           />
         )}
       </main>
