@@ -34,7 +34,7 @@ export const handler: Handler = async (event) => {
 
     const { data, error } = await supabase
       .from('forms')
-      .select('url, button_color, support_text')
+      .select('url, button_color, support_text, keyboard_shortcut')
       .eq('id', formId.trim())
       .single();
 

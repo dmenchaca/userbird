@@ -46,7 +46,8 @@ export function FormSettingsDialog({
     styling: {
       buttonColor: '',
       supportText: '',
-      url: ''
+      url: '',
+      keyboardShortcut: ''
     },
     notifications: {
       enabled: false,
@@ -61,6 +62,7 @@ export function FormSettingsDialog({
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
+  const [shortcut, setShortcut] = useState('')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
@@ -91,7 +93,8 @@ export function FormSettingsDialog({
       styling: {
         buttonColor,
         supportText: supportText || '',
-        url: formUrl
+        url: formUrl,
+        keyboardShortcut: ''
       },
       webhooks: current.webhooks
     }))
@@ -335,6 +338,55 @@ export function FormSettingsDialog({
       }
     };
   }, [text, formId, originalValues.styling.supportText, onSettingsSaved, isInitialMount]);
+
+  // Auto-save keyboard shortcut changes
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && shortcut !== originalValues.styling.keyboardShortcut) {
+      console.log('Keyboard shortcut changed:', {
+        newShortcut: shortcut,
+        originalShortcut: originalValues.styling.keyboardShortcut
+      });
+
+      timeoutId = setTimeout(async () => {
+        console.log('Starting keyboard shortcut update...');
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ keyboard_shortcut: shortcut || null })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          console.log('Keyboard shortcut update successful');
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              keyboardShortcut: shortcut
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success('Keyboard shortcut updated successfully');
+        } catch (error) {
+          console.error('Error updating keyboard shortcut:', error);
+          setShortcut(originalValues.styling.keyboardShortcut);
+          toast.error('Failed to update keyboard shortcut');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [shortcut, formId, originalValues.styling.keyboardShortcut, onSettingsSaved, isInitialMount]);
 
   // Auto-save URL changes
   useEffect(() => {
@@ -763,6 +815,8 @@ export function FormSettingsDialog({
                     <Label htmlFor="shortcut">Keyboard Shortcut</Label>
                     <Input
                       id="shortcut"
+                      value={shortcut}
+                      onChange={(e) => setShortcut(e.target.value)}
                       placeholder="e.g. Control+Shift+F"
                       className="font-mono"
                     />
