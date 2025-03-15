@@ -815,17 +815,48 @@ export function FormSettingsDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="shortcut">Keyboard Shortcut</Label>
-                    <Input
-                      id="shortcut"
-                      value={shortcut}
-                      onChange={(e) => setShortcut(e.target.value)}
-                      placeholder="e.g. Control+Shift+F"
-                      className="font-mono"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Define a custom keyboard shortcut to open the feedback widget
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="shortcut">Keyboard Shortcut</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="text"
+                          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono w-32"
+                          id="shortcut"
+                          placeholder="Press keys..."
+                          value={shortcut}
+                          onKeyDown={(e) => {
+                            e.preventDefault();
+                            // Ignore Backspace key
+                            if (e.key === 'Backspace') return;
+                            
+                            const keys = [];
+                            if (e.metaKey) keys.push('Meta');
+                            if (e.ctrlKey) keys.push('Control');
+                            if (e.shiftKey) keys.push('Shift');
+                            if (e.altKey) keys.push('Alt');
+                            // Only add regular keys that aren't modifiers or Backspace
+                            if (!['Control', 'Shift', 'Alt', 'Meta', 'Backspace'].includes(e.key)) {
+                              keys.push(e.key.toUpperCase());
+                            }
+                            if (keys.length > 0) {
+                              setShortcut(keys.join('+'));
+                            }
+                          }}
+                          onKeyUp={(e) => {
+                            e.preventDefault();
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setShortcut('')}
+                      >
+                        Clear
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
