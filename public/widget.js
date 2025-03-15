@@ -3,6 +3,7 @@
   const API_BASE_URL = 'https://app.userbird.co';
   let settingsLoaded = false;
   let settingsPromise = null;
+  let keyboardShortcut = null;
   let selectedImage = null;
   let currentTrigger = null;
   let modal = null;
@@ -40,6 +41,44 @@
     else if (width < 1024) category = 'Tablet';
     
     return { operating_system: os, screen_category: category, url_path: urlPath };
+  }
+
+  function parseShortcut(shortcut) {
+    if (!shortcut) return null;
+    return shortcut.split('+').map(key => key.trim());
+  }
+
+  function handleKeyDown(e) {
+    if (!keyboardShortcut) return;
+    
+    const keys = parseShortcut(keyboardShortcut);
+    if (!keys) return;
+
+    // Check if all required modifier keys are pressed
+    const modifierMap = {
+      'Control': e.ctrlKey,
+      'Command': e.metaKey,
+      'Shift': e.shiftKey,
+      'Alt': e.altKey
+    };
+
+    // Get the last key (non-modifier)
+    const targetKey = keys[keys.length - 1];
+    const modifiers = keys.slice(0, -1);
+
+    // Check if all required modifiers are pressed and no extra modifiers are pressed
+    const modifiersMatch = modifiers.every(mod => modifierMap[mod]) &&
+      Object.entries(modifierMap).every(([mod, pressed]) => 
+        !pressed || modifiers.includes(mod)
+      );
+
+    // Check if the target key matches
+    const keyMatches = e.key.toUpperCase() === targetKey;
+
+    if (modifiersMatch && keyMatches) {
+      e.preventDefault();
+      openModal();
+    }
   }
 
   function injectStyles(buttonColor) {
@@ -817,45 +856,4 @@
       return { success: false, error };
       console.log('9. Submit flow completed');
       console.groupEnd();
-    }
-  }
-
-  async function uploadImage(file) {
-    if (!file) return null;
     
-    // Validate file type
-    if (!file.type.match(/^image\/(jpeg|png)$/)) {
-      throw new Error('Only JPG and PNG images are allowed');
-    }
-    
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Image size must be under 5MB');
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('formId', formId);
-    
-    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-    
-    const data = await response.json();
-    return {
-      url: data.url,
-      name: file.name,
-      size: file.size
-    };
-  }
-
-  // Initialize if form ID is available
-  if (window.UserBird?.formId) {
-    init().catch(console.error);
-  }
-})();
