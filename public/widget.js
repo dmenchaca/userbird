@@ -97,6 +97,15 @@
       .userbird-form.hidden {
         display: none;
       }
+      .userbird-title {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: var(--ub-text) !important;
+        margin-top: 0;
+        margin-bottom: 1rem;
+        padding: 0;
+        line-height: normal;
+      }
       .userbird-textarea {
         width: 100%;
         min-height: 100px;
@@ -315,6 +324,7 @@
     modal.innerHTML = `
       <div class="userbird-modal-content">
         <div class="userbird-form">
+          <h3 class="userbird-title">Send feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
