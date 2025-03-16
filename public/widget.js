@@ -324,7 +324,7 @@
     modal.innerHTML = `
       <div class="userbird-modal-content">
         <div class="userbird-form">
-          <h3 class="userbird-title">Send feedback</h3>
+          <h3 class="userbird-title">Feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
           <div class="userbird-error"></div>
           <div class="userbird-buttons">
@@ -714,6 +714,19 @@
     });
 
     modal.submitButton.addEventListener('click', async () => {
+      handleSubmit();
+    });
+
+    // Add keyboard shortcut for submission
+    modal.textarea.addEventListener('keydown', (e) => {
+      // Check for Cmd+Enter (Mac) or Ctrl+Enter (non-Mac)
+      if (e.key === 'Enter' && (navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey)) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    });
+
+    async function handleSubmit() {
       const message = modal.textarea.value.trim();
       if (!message) return;
       
@@ -728,7 +741,7 @@
         modal.submitButton.disabled = false;
         modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
       }
-    });
+    }
 
     // Expose open method globally
     window.UserBird.open = (triggerElement) => {
