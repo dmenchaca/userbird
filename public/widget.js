@@ -791,26 +791,6 @@
       }
     }
 
-    const systemInfo = getSystemInfo();
-    const userInfo = window.UserBird?.user || {};
-    let imageData = null;
-
-    console.group('Widget Submit Flow');
-    console.log('1. Starting feedback submission');
-    
-    // Handle image upload first if present
-    if (selectedImage) {
-      try {
-        console.log('2. Starting image upload');
-        imageData = await uploadImage(selectedImage);
-        console.log('3. Image upload completed:', imageData);
-      } catch (error) {
-        console.error('Image upload failed:', error);
-        modal.showError('Failed to upload image. Please try again.');
-        return;
-      }
-    }
-
     // Show success state immediately
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
@@ -846,10 +826,6 @@
         body: JSON.stringify({ 
           formId, 
           message,
-          ...systemInfo,
-          user_id: userInfo.id,
-          user_email: userInfo.email,
-          user_name: userInfo.name,
           ...systemInfo,
           user_id: userInfo.id,
           user_email: userInfo.email,
