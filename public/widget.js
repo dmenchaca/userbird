@@ -860,3 +860,6 @@
 
   function handleKeyDown(e) {
     // Only block shortcuts if a text input or textarea has focus
+  }
+}
+)
