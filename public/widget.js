@@ -872,6 +872,9 @@
     
     if (currentKeys === shortcutKeys) {
       console.log('Shortcut match!', shortcutKeys);
+      // Get default trigger or create a centered trigger
+      const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+      openModal(defaultTrigger);
     }
   }
 
