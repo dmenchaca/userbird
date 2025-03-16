@@ -846,7 +846,15 @@
   }
 
   function handleKeyDown(e) {
-    if (document.activeElement !== document.body) {
+    // Only ignore shortcuts if an input/editable element has focus
+    const activeElement = document.activeElement;
+    if (activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.tagName === 'SELECT' ||
+      activeElement.isContentEditable ||
+      activeElement.tagName === 'BUTTON'
+    )) {
       return;
     }
     
@@ -856,6 +864,11 @@
     // Get current shortcut from settings
     const shortcut = window.UserBird?.shortcut;
     if (!shortcut) return;
+    
+    // Prevent default behavior when shortcut matches
+    if (shortcut.split('+').every(key => pressedKeys.has(normalizeKey(key)))) {
+      e.preventDefault();
+    }
     
     // Convert current pressed keys to sorted array for comparison
     const currentKeys = Array.from(pressedKeys).sort().join('+');
