@@ -846,6 +846,11 @@
   }
 
   function handleKeyDown(e) {
+    // Don't handle shortcuts if any element has focus
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.add(normalizedKey);
     
@@ -871,6 +876,11 @@
   }
 
   function handleKeyUp(e) {
+    // Only handle keyup if no element has focus
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.delete(normalizedKey);
   }
