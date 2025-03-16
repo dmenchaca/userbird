@@ -859,6 +859,16 @@
   }
 
   function handleKeyDown(e) {
+    // Check if an input field or text area is focused
+    const activeElement = document.activeElement;
+    if (activeElement && (
+      activeElement.tagName === 'INPUT' || 
+      activeElement.tagName === 'TEXTAREA' || 
+      activeElement.isContentEditable
+    )) {
+      return; // Do nothing if a text input field is focused
+    }
+    
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.add(normalizedKey);
     
@@ -885,48 +895,5 @@
       openModal(defaultTrigger);
     }
   }
-
-  function handleKeyUp(e) {
-    const normalizedKey = normalizeKey(e.key);
-    pressedKeys.delete(normalizedKey);
-  }
-
-  async function uploadImage(file) {
-    if (!file) return null;
-    
-    // Validate file type
-    if (!file.type.match(/^image\/(jpeg|png)$/)) {
-      throw new Error('Only JPG and PNG images are allowed');
-    }
-    
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Image size must be under 5MB');
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('formId', formId);
-    
-    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-    
-    const data = await response.json();
-    return {
-      url: data.url,
-      name: file.name,
-      size: file.size
-    };
-  }
-
-  // Initialize if form ID is available
-  if (window.UserBird?.formId) {
-    init().catch(console.error);
-  }
-})();
+}
+)
