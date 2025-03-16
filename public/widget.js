@@ -846,7 +846,6 @@
   }
 
   function handleKeyDown(e) {
-    // Don't handle shortcuts if any element has focus
     if (document.activeElement !== document.body) {
       return;
     }
@@ -879,8 +878,15 @@
   }
 
   function handleKeyUp(e) {
-    // Only handle keyup if no element has focus
-    if (document.activeElement !== document.body) {
+    // Only ignore keyup if an input/editable element has focus
+    const activeElement = document.activeElement;
+    if (activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.tagName === 'SELECT' ||
+      activeElement.isContentEditable ||
+      activeElement.tagName === 'BUTTON'
+    )) {
       return;
     }
     

@@ -68,6 +68,7 @@ export function UserMenu() {
           size="lg" 
         >
           Feedback
+          <span className="ml-2 px-2 py-1 text-sm rounded bg-muted text-muted-foreground">L</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
