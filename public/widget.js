@@ -6,6 +6,7 @@
   let selectedImage = null;
   let currentTrigger = null;
   let modal = null;
+  let pressedKeys = new Set();
   let formId = null;
   
   const MESSAGES = {
@@ -595,6 +596,7 @@
         console.log('Loaded settings:', settings);
         const buttonColor = settings.button_color || '#1f2937';
         const supportText = settings.support_text;
+        const keyboardShortcut = settings.keyboard_shortcut;
         
         // Update styles with actual button color
         injectStyles(buttonColor);
@@ -602,6 +604,13 @@
         // Create modal with settings
         modal = createModal();
         setupModal(buttonColor, supportText);
+        
+        // Store shortcut in UserBird object
+        window.UserBird.shortcut = keyboardShortcut;
+        
+        // Add keyboard event listeners
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
         
         settingsLoaded = true;
         return settings;
@@ -818,6 +827,52 @@
       console.log('9. Submit flow completed');
       console.groupEnd();
     }
+  }
+
+  function normalizeKey(key) {
+    // Normalize special keys
+    switch (key) {
+      case ' ':
+        return 'Space';
+      case 'Control':
+      case 'Shift':
+      case 'Alt':
+      case 'Meta':
+        return key;
+      default:
+        // Convert other keys to uppercase for case-insensitive comparison
+        return key.toUpperCase();
+    }
+  }
+
+  function handleKeyDown(e) {
+    const normalizedKey = normalizeKey(e.key);
+    pressedKeys.add(normalizedKey);
+    
+    // Get current shortcut from settings
+    const shortcut = window.UserBird?.shortcut;
+    if (!shortcut) return;
+    
+    // Convert current pressed keys to sorted array for comparison
+    const currentKeys = Array.from(pressedKeys).sort().join('+');
+    
+    // Normalize and sort shortcut keys for comparison
+    const shortcutKeys = shortcut.split('+')
+      .map(k => normalizeKey(k))
+      .sort()
+      .join('+');
+    
+    console.log('Keys pressed:', currentKeys);
+    console.log('Shortcut:', shortcutKeys);
+    
+    if (currentKeys === shortcutKeys) {
+      console.log('Shortcut match!', shortcutKeys);
+    }
+  }
+
+  function handleKeyUp(e) {
+    const normalizedKey = normalizeKey(e.key);
+    pressedKeys.delete(normalizedKey);
   }
 
   async function uploadImage(file) {
