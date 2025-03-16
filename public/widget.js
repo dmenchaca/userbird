@@ -449,6 +449,21 @@
   }
 
   function openModal(trigger = null) {
+    // Check for existing modals/dialogs
+    const hasVisibleModal = Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [aria-modal="true"]')).some(modal => {
+      // Skip our own modal
+      if (modal.classList.contains('userbird-modal')) return false;
+      
+      // Check if the modal is visible
+      const styles = window.getComputedStyle(modal);
+      return styles.display !== 'none' && styles.visibility !== 'hidden';
+    });
+
+    if (hasVisibleModal) {
+      console.log('Widget prevented from opening: Another modal is visible');
+      return;
+    }
+
     if (!settingsLoaded) {
       // Create loading spinner
       const loading = document.createElement('div');
