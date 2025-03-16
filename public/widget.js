@@ -895,5 +895,14 @@
       openModal(defaultTrigger);
     }
   }
-}
-)
+
+  function handleKeyUp(e) {
+    const normalizedKey = normalizeKey(e.key);
+    pressedKeys.delete(normalizedKey);
+  }
+
+  // Initialize if form ID is available
+  if (window.UserBird?.formId) {
+    init().catch(console.error);
+  }
+})();
