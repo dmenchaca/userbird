@@ -859,7 +859,84 @@
   }
 
   function handleKeyDown(e) {
-    // Only block shortcuts if a text input or textarea has focus
+    // Don't handle shortcuts if any element has focus
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    
+    const normalizedKey = normalizeKey(e.key);
+    pressedKeys.add(normalizedKey);
+    
+    // Get current shortcut from settings
+    const shortcut = window.UserBird?.shortcut;
+    if (!shortcut) return;
+    
+    // Convert current pressed keys to sorted array for comparison
+    const currentKeys = Array.from(pressedKeys).sort().join('+');
+    
+    // Normalize and sort shortcut keys for comparison
+    const shortcutKeys = shortcut.split('+')
+      .map(k => normalizeKey(k))
+      .sort()
+      .join('+');
+    
+    console.log('Keys pressed:', currentKeys);
+    console.log('Shortcut:', shortcutKeys);
+    
+    if (currentKeys === shortcutKeys) {
+      console.log('Shortcut match!', shortcutKeys);
+      // Get default trigger or create a centered trigger
+      const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+      openModal(defaultTrigger);
+    }
   }
-}
-)
+
+  function handleKeyUp(e) {
+    // Only handle keyup if no element has focus
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    
+    const normalizedKey = normalizeKey(e.key);
+    pressedKeys.delete(normalizedKey);
+  }
+
+  async function uploadImage(file) {
+    if (!file) return null;
+    
+    // Validate file type
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      throw new Error('Only JPG and PNG images are allowed');
+    }
+    
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image size must be under 5MB');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('formId', formId);
+    
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return {
+      url: data.url,
+      name: file.name,
+      size: file.size
+    };
+  }
+
+  // Initialize if form ID is available
+  if (window.UserBird?.formId) {
+    init().catch(console.error);
+  }
+})();
