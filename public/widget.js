@@ -787,6 +787,25 @@
         console.log('3. Image upload completed:', imageData);
       } catch (error) {
         console.error('Image upload failed:', error);
+        throw new Error('Failed to upload image');
+      }
+    }
+
+    const systemInfo = getSystemInfo();
+    const userInfo = window.UserBird?.user || {};
+    let imageData = null;
+
+    console.group('Widget Submit Flow');
+    console.log('1. Starting feedback submission');
+    
+    // Handle image upload first if present
+    if (selectedImage) {
+      try {
+        console.log('2. Starting image upload');
+        imageData = await uploadImage(selectedImage);
+        console.log('3. Image upload completed:', imageData);
+      } catch (error) {
+        console.error('Image upload failed:', error);
         modal.showError('Failed to upload image. Please try again.');
         return;
       }
@@ -831,10 +850,13 @@
           user_id: userInfo.id,
           user_email: userInfo.email,
           user_name: userInfo.name,
+          ...systemInfo,
+          user_id: userInfo.id,
+          user_email: userInfo.email,
+          user_name: userInfo.name,
           image_url: imageData?.url,
           image_name: imageData?.name,
-          image_size: imageData?.size,
-          url_path: systemInfo.url_path
+          image_size: imageData?.size
         })
       });
 
@@ -914,6 +936,23 @@
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.delete(normalizedKey);
+  }
+
+  async function uploadImage(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('formId', formId);
+
+    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    return response.json();
   }
 
   // Initialize if form ID is available
