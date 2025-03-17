@@ -252,7 +252,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             <img 
               src="/try-me.svg" 
               alt="Try me!"
-              className="text-muted-foreground pb-[0.2rem] translate-x-[3.5rem] w-24 rotate-[10deg]"
+              className="text-muted-foreground pb-[0.6rem] translate-x-[5.5rem] w-44 rotate-[10deg]"
             />
             <svg 
               width="50" 
