@@ -114,12 +114,17 @@ export const handler: Handler = async (event) => {
     });
 
     // Track feedback submission
-    await trackEvent('feedback_submit', formId, {
-      form_id: formId,
-      has_user_info: !!user_id || !!user_email,
-      has_image: !!image_url
-    });
-    await shutdownPostHog();
+    try {
+      await trackEvent('feedback_submit', formId, {
+        form_id: formId,
+        has_user_info: !!user_id || !!user_email,
+        has_image: !!image_url
+      });
+      await shutdownPostHog();
+    } catch (error) {
+      console.error('Error tracking feedback:', error);
+      // Don't fail feedback submission if tracking fails
+    }
 
     // Trigger webhook delivery
     try {

@@ -26,14 +26,6 @@ export const handler: Handler = async (event) => {
     const formId = event.queryStringParameters?.id;
     
     if (!formId?.trim()) {
-      // Track form creation
-      if (event.httpMethod === 'POST') {
-        await trackEvent('form_create', data.id, {
-          url: data.url
-        });
-        await shutdownPostHog();
-      }
-      
       return {
         statusCode: 400,
         headers,
