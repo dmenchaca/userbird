@@ -109,6 +109,7 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
       if (insertError) throw insertError
       
       toast.success('Form created successfully')
+      
       if (onFormCreated) {
         onFormCreated(newFormId)
       } else {

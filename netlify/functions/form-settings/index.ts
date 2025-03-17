@@ -41,6 +41,18 @@ export const handler: Handler = async (event) => {
 
     if (error) throw error;
 
+    // Track form creation server-side
+    try {
+      await trackEvent('form_create', data.owner_id || 'anonymous', {
+        form_id: formId,
+        url: data.url
+      });
+      await shutdownPostHog();
+    } catch (error) {
+      console.error('Error tracking form creation:', error);
+      // Don't fail the request if tracking fails
+    }
+
     return {
       statusCode: 200,
       headers,
