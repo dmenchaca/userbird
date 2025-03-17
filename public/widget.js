@@ -78,7 +78,7 @@
         background: var(--ub-background);
         border-radius: 8px;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2);
-        width: 320px;
+        width: 360px;
         max-width: calc(100vw - 2rem);
         border: 1px solid var(--ub-border-color);
         transition: opacity 0.05s ease-in-out, visibility 0.05s ease-in-out;
