@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
+import { trackEvent } from '@/lib/posthog'
 
 interface FormCreatorProps {
   onFormCreated?: (formId: string) => void;
@@ -109,6 +110,14 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
       if (insertError) throw insertError
       
       toast.success('Form created successfully')
+      
+      // Track form creation event
+      await trackEvent('form_create', user?.id || 'anonymous', {
+        form_id: newFormId,
+        url: cleanUrl,
+        has_support_text: !!supportText,
+        has_custom_color: buttonColor !== '#1f2937'
+      })
       
       if (onFormCreated) {
         onFormCreated(newFormId)
