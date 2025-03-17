@@ -1,10 +1,10 @@
-import PostHog from 'posthog-node'
+import PostHogNode from 'posthog-node'
 
 // Initialize PostHog client
-const client = new PostHog(
+const client = new PostHogNode(
   process.env.VITE_PUBLIC_POSTHOG_KEY || '',
   { 
-    host: process.env.VITE_PUBLIC_POSTHOG_HOST,
+    host: process.env.VITE_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
     flushAt: 1, // Flush immediately since we're in a serverless function
     flushInterval: 0 // Disable automatic flushing
   }
@@ -30,6 +30,7 @@ export async function trackEvent(
 export async function shutdownPostHog() {
   try {
     await client.flush()
+    await client.shutdown()
   } catch (error) {
     console.error('PostHog shutdown error:', error)
   }
