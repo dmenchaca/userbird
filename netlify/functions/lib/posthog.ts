@@ -1,12 +1,13 @@
-import PostHogNode from 'posthog-node'
+const { PostHog } = require('posthog-node')
 
 // Initialize PostHog client
-const client = new PostHogNode(
+const client = new PostHog(
   process.env.VITE_PUBLIC_POSTHOG_KEY || '',
   { 
     host: process.env.VITE_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
     flushAt: 1, // Flush immediately since we're in a serverless function
-    flushInterval: 0 // Disable automatic flushing
+    flushInterval: 0, // Disable automatic flushing
+    personalApiKey: process.env.VITE_PUBLIC_POSTHOG_KEY // Required for server-side
   }
 )
 

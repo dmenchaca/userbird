@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 import { isValidOrigin } from './validation';
-import { trackEvent, shutdownPostHog } from '../lib/posthog';
+const { trackEvent, shutdownPostHog } = require('../lib/posthog');
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
