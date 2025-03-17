@@ -32,11 +32,11 @@ export function useAuth() {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null)
       
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         await trackEvent('user_login', session?.user?.id || 'anonymous', {
           provider: session?.user?.app_metadata?.provider || 'email'
         })
-      } else if (event === 'SIGNED_UP') {
+      } else if (event === 'INITIAL_SESSION') {
         await trackEvent('account_create', session?.user?.id || 'anonymous', {
           provider: session?.user?.app_metadata?.provider || 'email'
         })
