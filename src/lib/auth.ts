@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
+import { trackEvent, shutdownPostHog } from './posthog'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -28,8 +29,20 @@ export function useAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null)
+      
+      if (event === 'SIGNED_IN') {
+        await trackEvent('user_login', session?.user?.id || 'anonymous', {
+          provider: session?.user?.app_metadata?.provider || 'email'
+        })
+      } else if (event === 'SIGNED_UP') {
+        await trackEvent('account_create', session?.user?.id || 'anonymous', {
+          provider: session?.user?.app_metadata?.provider || 'email'
+        })
+      }
+      
+      await shutdownPostHog()
     })
 
     return () => subscription.unsubscribe()

@@ -2,6 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 import { isValidOrigin } from './validation';
+import { trackEvent, shutdownPostHog } from '../lib/posthog';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -111,6 +112,14 @@ export const handler: Handler = async (event) => {
       hasData: !!feedbackData,
       dataLength: feedbackData?.length || 0
     });
+
+    // Track feedback submission
+    await trackEvent('feedback_submit', formId, {
+      form_id: formId,
+      has_user_info: !!user_id || !!user_email,
+      has_image: !!image_url
+    });
+    await shutdownPostHog();
 
     // Trigger webhook delivery
     try {

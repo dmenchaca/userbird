@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import { trackEvent, shutdownPostHog } from '../lib/posthog';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -25,6 +26,14 @@ export const handler: Handler = async (event) => {
     const formId = event.queryStringParameters?.id;
     
     if (!formId?.trim()) {
+      // Track form creation
+      if (event.httpMethod === 'POST') {
+        await trackEvent('form_create', data.id, {
+          url: data.url
+        });
+        await shutdownPostHog();
+      }
+      
       return {
         statusCode: 400,
         headers,
