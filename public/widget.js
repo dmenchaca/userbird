@@ -875,16 +875,36 @@
   function handleKeyDown(e) {
     // Check if an input field or text area is focused
     const activeElement = document.activeElement;
-    if (activeElement && (
+    const isInputFocused = activeElement && (
       activeElement.tagName === 'INPUT' || 
       activeElement.tagName === 'TEXTAREA' || 
       activeElement.isContentEditable
-    )) {
-      return; // Do nothing if a text input field is focused
+    );
+    
+    // Common browser shortcuts to ignore
+    const commonShortcuts = {
+      'F': true,      // Find
+      'P': true,      // Print
+      'S': true,      // Save
+      'C': true,      // Copy
+      'V': true,      // Paste
+      'X': true,      // Cut
+      'A': true,      // Select All
+      'Z': true,      // Undo
+      'Y': true,      // Redo
+      'R': true,      // Reload
+      'N': true,      // New Window
+      'T': true,      // New Tab
+      'W': true,      // Close Tab
+      'H': true,      // History
+      'J': true,      // Downloads
+      'D': true,      // Bookmark
+      'B': true,      // Bookmarks
+      'L': true       // Location/URL bar
     }
     
-    // If this is a common shortcut like Cmd+C, ignore it
-    if ((e.metaKey || e.ctrlKey) && ['C', 'V', 'X', 'A'].includes(e.key.toUpperCase())) {
+    // Ignore if input is focused or it's a common browser shortcut
+    if (isInputFocused || ((e.metaKey || e.ctrlKey) && commonShortcuts[e.key.toUpperCase()])) {
       return;
     }
     
@@ -916,9 +936,9 @@
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.delete(normalizedKey);
-    
-    // Clear all pressed keys if Meta/Command key is released
-    if (normalizedKey === 'Command') {
+
+    // Clear all pressed keys if any modifier key is released
+    if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
       pressedKeys.clear();
     }
   }
