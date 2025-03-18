@@ -115,6 +115,20 @@ export const handler: Handler = async (event) => {
 
     // Track feedback submission
     try {
+      console.log('Attempting to track feedback event:', {
+        event: 'feedback_submit',
+        distinctId: user_id || 'anonymous',
+        properties: {
+          form_id: formId,
+          has_user_info: !!user_id || !!user_email,
+          has_image: !!image_url,
+          user_id,
+          user_email,
+          operating_system,
+          screen_category
+        }
+      });
+
       await trackEvent('feedback_submit', formId, {
         distinct_id: user_id || 'anonymous',
         form_id: formId,
@@ -125,9 +139,16 @@ export const handler: Handler = async (event) => {
         operating_system,
         screen_category
       });
+      console.log('Successfully tracked feedback event');
+
       await shutdownPostHog();
+      console.log('PostHog shutdown completed');
     } catch (error) {
-      console.error('Error tracking feedback:', error);
+      console.error('Error tracking feedback:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       // Don't fail feedback submission if tracking fails
     }
 
