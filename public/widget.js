@@ -911,9 +911,17 @@
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.add(normalizedKey);
     
+    // Log current pressed keys
+    console.log('Keys pressed:', Array.from(pressedKeys).join('+'));
+    
     // Get current shortcut from settings
     const shortcut = window.UserBird?.shortcut;
-    if (!shortcut) return;
+    if (!shortcut) {
+      return;
+    }
+    
+    // Log configured shortcut
+    console.log('Shortcut:', shortcut);
     
     // Convert current pressed keys to sorted array for comparison
     const currentKeys = Array.from(pressedKeys).sort().join('+');
@@ -936,6 +944,11 @@
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.delete(normalizedKey);
+    
+    // Log remaining pressed keys after key release
+    if (pressedKeys.size > 0) {
+      console.log('Keys pressed:', Array.from(pressedKeys).join('+'));
+    }
 
     // Clear all pressed keys if any modifier key is released
     if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
