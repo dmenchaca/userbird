@@ -943,15 +943,20 @@
 
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
+    console.log('Key released:', normalizedKey);
+    
     pressedKeys.delete(normalizedKey);
     
     // Log remaining pressed keys after key release
     if (pressedKeys.size > 0) {
       console.log('Keys pressed:', Array.from(pressedKeys).join('+'));
+    } else {
+      console.log('All keys released, shortcuts cleared');
     }
 
     // Clear all pressed keys if any modifier key is released
     if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
+      console.log('Modifier key released, clearing all shortcuts');
       pressedKeys.clear();
     }
   }
