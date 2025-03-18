@@ -1,19 +1,23 @@
 import posthog from 'posthog-js'
 
 // Initialize PostHog client
-const client = posthog.init(
+posthog.init(
   import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
   { 
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST
   }
 )
 
+export function identifyUser(userId: string, properties?: Record<string, any>) {
+  posthog.identify(userId, properties);
+}
+
 export function trackEvent(
   event: string,
   distinctId: string,
   properties?: Record<string, any>
 ) {
-  return client.capture(event, {
+  return posthog.capture(event, {
     distinct_id: distinctId,
     ...properties
   })

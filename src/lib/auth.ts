@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
-import { trackEvent, shutdownPostHog } from './posthog'
+import { trackEvent, shutdownPostHog, identifyUser } from './posthog'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -31,6 +31,15 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null)
+      
+      // Identify user in PostHog when they sign in
+      if (session?.user) {
+        identifyUser(session.user.id, {
+          email: session.user.email,
+          name: session.user.user_metadata?.full_name,
+          provider: session.user.app_metadata?.provider
+        });
+      }
       
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         await trackEvent('user_login', session?.user?.id || 'anonymous', {
