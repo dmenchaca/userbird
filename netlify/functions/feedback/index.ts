@@ -116,9 +116,14 @@ export const handler: Handler = async (event) => {
     // Track feedback submission
     try {
       await trackEvent('feedback_submit', formId, {
+        distinct_id: user_id || 'anonymous',
         form_id: formId,
         has_user_info: !!user_id || !!user_email,
-        has_image: !!image_url
+        has_image: !!image_url,
+        user_id,
+        user_email,
+        operating_system,
+        screen_category
       });
       await shutdownPostHog();
     } catch (error) {
