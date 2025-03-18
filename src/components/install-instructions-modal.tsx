@@ -5,6 +5,8 @@ import { Copy, Check, Files } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+type FrameworkType = 'react' | 'vue' | 'angular' | 'html';
+
 interface InstallInstructionsModalProps {
   formId: string
   open: boolean
@@ -25,7 +27,7 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
     }
   }
 
-  const getStackInstructions = (stack: 'react' | 'html') => {
+  const getStackInstructions = (stack: FrameworkType) => {
     const instructions = {
       react: `// userbird.ts
 export function initUserbird(formId: string) {
@@ -68,6 +70,7 @@ export function initUserbird(formId: string) {
     return instructions[stack];
   };
 
+  const [activeTab, setActiveTab] = useState<FrameworkType>('react')
   const CodeBlock = ({ id, code }: { id: string, code: string }) => (
     <div className="relative">
       <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm leading-relaxed font-mono">
@@ -88,7 +91,6 @@ export function initUserbird(formId: string) {
     </div>
   )
 
-  const [activeTab, setActiveTab] = useState<'react' | 'html'>('react')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,7 +102,7 @@ export function initUserbird(formId: string) {
         <Tabs 
           defaultValue="react" 
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as 'react' | 'vue' | 'angular' | 'html')}
+          onValueChange={(value) => setActiveTab(value as FrameworkType)}
           className="w-full flex-1 overflow-hidden flex flex-col"
         >
           <div className="mb-4">
