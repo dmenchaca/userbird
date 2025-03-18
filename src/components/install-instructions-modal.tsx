@@ -41,46 +41,6 @@ export function initUserbird(formId: string) {
     
     document.head.appendChild(script);
   });
-}
-
-// App.tsx
-import { useEffect } from 'react';
-import { initUserbird } from './userbird';
-
-function App() {
-  useEffect(() => {
-    async function loadWidget() {
-      try {
-        // Optional: Add user information
-        window.UserBird.user = {
-          id: 'user-123',      // Your user's ID
-          email: 'user@example.com',  // User's email
-          name: 'John Doe'     // User's name
-        };
-        
-        await initUserbird("${formId}");
-        console.log('Userbird widget loaded successfully');
-      } catch (error) {
-        console.error('Failed to load Userbird widget:', error);
-      }
-    }
-    
-    loadWidget();
-  }, []);
-
-  return (
-    <>
-      {/* Option A: Use your own trigger button (Recommended) */}
-      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
-        Custom Feedback Button
-      </button>
-
-      {/* Option B: Use our default trigger button */}
-      <button id="userbird-trigger-${formId}">
-        Feedback
-      </button>
-    </>
-  );
 }`,
       html: `<!-- Option A: Use our default button -->
 <button id="userbird-trigger-${formId}">Feedback</button>
@@ -140,12 +100,14 @@ function App() {
         <Tabs 
           defaultValue="react" 
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as 'react' | 'html')}
+          onValueChange={(value) => setActiveTab(value as 'react' | 'vue' | 'angular' | 'html')}
           className="w-full flex-1 overflow-hidden flex flex-col"
         >
           <div className="mb-4">
             <TabsList className="w-fit">
               <TabsTrigger value="react">React</TabsTrigger>
+              <TabsTrigger value="vue">Vue</TabsTrigger>
+              <TabsTrigger value="angular">Angular</TabsTrigger>
               <TabsTrigger value="html">HTML/JavaScript</TabsTrigger>
             </TabsList>
           </div>
@@ -254,6 +216,227 @@ function App() {
             </div>
           </TabsContent>
 
+          <TabsContent value="vue" className="space-y-4 flex-1 overflow-y-auto">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-medium">Vue Integration</h3>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const content = `Vue Integration Instructions\n\n` +
+                      'Step 1: Create a composable function\n\n' +
+                      '// userbird.ts\n' +
+                      getStackInstructions('vue').split('// App.vue')[0] +
+                      '\nStep 2: Use in your component\n\n' +
+                      '// App.vue\n' +
+                      getStackInstructions('vue').split('// App.vue')[1];
+                    handleCopy(content, 'copy-vue');
+                  }}
+                >
+                  {copiedId === 'copy-vue' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Files className="h-4 w-4" />
+                      Copy All
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Add this code to your Vue component:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 1: Create a composable function</h4>
+                  <CodeBlock
+                    id="vue-util"
+                    code={`// userbird.ts
+export function useUserbird(formId: string) {
+  return new Promise((resolve, reject) => {
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = formId;
+    
+    const script = document.createElement('script');
+    script.src = 'https://userbird.netlify.app/widget.js';
+    
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+    
+    document.head.appendChild(script);
+  });
+}`}
+                  />
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
+                  <CodeBlock
+                    id="vue-component"
+                    code={`<!-- App.vue -->
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useUserbird } from './userbird'
+
+onMounted(async () => {
+  try {
+    // Optional: Add user information
+    window.UserBird = window.UserBird || {};
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
+    
+    await useUserbird("${formId}");
+    console.log('Userbird widget loaded successfully');
+  } catch (error) {
+    console.error('Failed to load Userbird widget:', error);
+  }
+})
+</script>
+
+<template>
+  <!-- Option A: Use your own trigger button (Recommended) -->
+  <button @click="$event => window.UserBird?.open($event.currentTarget)">
+    Custom Feedback Button
+  </button>
+
+  <!-- Option B: Use our default trigger button -->
+  <button :id="\`userbird-trigger-${formId}\`">
+    Feedback
+  </button>
+</template>`}
+                  />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="angular" className="space-y-4 flex-1 overflow-y-auto">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-medium">Angular Integration</h3>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const content = `Angular Integration Instructions\n\n` +
+                      'Step 1: Create a service\n\n' +
+                      '// userbird.service.ts\n' +
+                      getStackInstructions('angular').split('// app.component.ts')[0] +
+                      '\nStep 2: Use in your component\n\n' +
+                      '// app.component.ts\n' +
+                      getStackInstructions('angular').split('// app.component.ts')[1];
+                    handleCopy(content, 'copy-angular');
+                  }}
+                >
+                  {copiedId === 'copy-angular' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Files className="h-4 w-4" />
+                      Copy All
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Add this code to your Angular application:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 1: Create a service</h4>
+                  <CodeBlock
+                    id="angular-service"
+                    code={`// userbird.service.ts
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserbirdService {
+  private loaded = false;
+
+  initUserbird(formId: string): Promise<boolean> {
+    if (this.loaded) return Promise.resolve(true);
+
+    return new Promise((resolve, reject) => {
+      window.UserBird = window.UserBird || {};
+      window.UserBird.formId = formId;
+      
+      const script = document.createElement('script');
+      script.src = 'https://userbird.netlify.app/widget.js';
+      
+      script.onload = () => {
+        this.loaded = true;
+        resolve(true);
+      };
+      script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+      
+      document.head.appendChild(script);
+    });
+  }
+}`}
+                  />
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
+                  <CodeBlock
+                    id="angular-component"
+                    code={`// app.component.ts
+import { Component, OnInit } from '@angular/core';
+import { UserbirdService } from './userbird.service';
+
+@Component({
+  selector: 'app-root',
+  template: \`
+    <!-- Option A: Use your own trigger button (Recommended) -->
+    <button (click)="openFeedback($event)">
+      Custom Feedback Button
+    </button>
+
+    <!-- Option B: Use our default trigger button -->
+    <button id="userbird-trigger-${formId}">
+      Feedback
+    </button>
+  \`
+})
+export class AppComponent implements OnInit {
+  constructor(private userbird: UserbirdService) {}
+
+  async ngOnInit() {
+    try {
+      // Optional: Add user information
+      window.UserBird = window.UserBird || {};
+      window.UserBird.user = {
+        id: 'user-123',      // Your user's ID
+        email: 'user@example.com',  // User's email
+        name: 'John Doe'     // User's name
+      };
+      
+      await this.userbird.initUserbird("${formId}");
+      console.log('Userbird widget loaded successfully');
+    } catch (error) {
+      console.error('Failed to load Userbird widget:', error);
+    }
+  }
+
+  openFeedback(event: MouseEvent) {
+    window.UserBird?.open(event.currentTarget as HTMLElement);
+  }
+}`}
+                  />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
           <TabsContent value="html" className="space-y-4 flex-1 overflow-y-auto">
             <div>
               <div className="flex items-center justify-between mb-2">

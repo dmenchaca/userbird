@@ -915,12 +915,6 @@
     
     // Ignore if input is focused or it's a browser shortcut
     if (isInputFocused || isBrowserShortcut) {
-      console.log('Ignoring key:', {
-        key: keyWithoutModifiers,
-        isInputFocused,
-        isBrowserShortcut,
-        hasModifier: e.metaKey || e.ctrlKey
-      });
       return;
     }
     
@@ -928,23 +922,16 @@
     
     // Don't add the key if a browser feature is active
     if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
-      console.log('Browser feature active, ignoring key:', normalizedKey);
       return;
     }
     
     pressedKeys.add(normalizedKey);
-    
-    // Log current pressed keys
-    console.log('Keys pressed:', Array.from(pressedKeys).join('+'));
     
     // Get current shortcut from settings
     const shortcut = window.UserBird?.shortcut;
     if (!shortcut) {
       return;
     }
-    
-    // Log configured shortcut
-    console.log('Shortcut:', shortcut);
     
     // Convert current pressed keys to sorted array for comparison
     const currentKeys = Array.from(pressedKeys).sort().join('+');
@@ -966,27 +953,17 @@
 
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
-    console.log('Key released:', normalizedKey);
 
     // If a browser feature is active, clear all shortcuts
     if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
-      console.log('Browser feature active, clearing all shortcuts');
       pressedKeys.clear();
       return;
     }
     
     pressedKeys.delete(normalizedKey);
     
-    // Log remaining pressed keys after key release
-    if (pressedKeys.size > 0) {
-      console.log('Keys pressed:', Array.from(pressedKeys).join('+'));
-    } else {
-      console.log('All keys released, shortcuts cleared');
-    }
-
     // Clear all pressed keys if any modifier key is released
     if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
-      console.log('Modifier key released, clearing all shortcuts');
       pressedKeys.clear();
     }
   }
