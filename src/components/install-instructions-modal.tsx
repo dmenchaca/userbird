@@ -44,6 +44,116 @@ export function initUserbird(formId: string) {
     document.head.appendChild(script);
   });
 }`,
+      vue: `// userbird.ts
+export function initUserbird(formId: string) {
+  return new Promise((resolve, reject) => {
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = formId;
+    
+    const script = document.createElement('script');
+    script.src = 'https://userbird.netlify.app/widget.js';
+    
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+    
+    document.head.appendChild(script);
+  });
+}
+
+// App.vue
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { initUserbird } from './userbird'
+
+onMounted(async () => {
+  try {
+    // Optional: Add user information
+    window.UserBird = window.UserBird || {};
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
+    
+    await initUserbird("${formId}");
+    console.log('Userbird widget loaded successfully');
+  } catch (error) {
+    console.error('Failed to load Userbird widget:', error);
+  }
+})
+</script>`,
+      angular: `// userbird.service.ts
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserbirdService {
+  private loaded = false;
+
+  initUserbird(formId: string): Promise<boolean> {
+    if (this.loaded) return Promise.resolve(true);
+
+    return new Promise((resolve, reject) => {
+      window.UserBird = window.UserBird || {};
+      window.UserBird.formId = formId;
+      
+      const script = document.createElement('script');
+      script.src = 'https://userbird.netlify.app/widget.js';
+      
+      script.onload = () => {
+        this.loaded = true;
+        resolve(true);
+      };
+      script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+      
+      document.head.appendChild(script);
+    });
+  }
+}
+
+// app.component.ts
+import { Component, OnInit } from '@angular/core';
+import { UserbirdService } from './userbird.service';
+
+@Component({
+  selector: 'app-root',
+  template: \`
+    <!-- Option A: Use your own trigger button (Recommended) -->
+    <button (click)="openFeedback($event)">
+      Custom Feedback Button
+    </button>
+
+    <!-- Option B: Use our default trigger button -->
+    <button id="userbird-trigger-${formId}">
+      Feedback
+    </button>
+  \`
+})
+export class AppComponent implements OnInit {
+  constructor(private userbird: UserbirdService) {}
+
+  async ngOnInit() {
+    try {
+      // Optional: Add user information
+      window.UserBird = window.UserBird || {};
+      window.UserBird.user = {
+        id: 'user-123',      // Your user's ID
+        email: 'user@example.com',  // User's email
+        name: 'John Doe'     // User's name
+      };
+      
+      await this.userbird.initUserbird("${formId}");
+      console.log('Userbird widget loaded successfully');
+    } catch (error) {
+      console.error('Failed to load Userbird widget:', error);
+    }
+  }
+
+  openFeedback(event: MouseEvent) {
+    window.UserBird?.open(event.currentTarget as HTMLElement);
+  }
+}`,
       html: `<!-- Option A: Use our default button -->
 <button id="userbird-trigger-${formId}">Feedback</button>
 
