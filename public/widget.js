@@ -858,12 +858,13 @@
   function normalizeKey(key) {
     // Normalize special keys
     switch (key) {
+      case 'Meta':
+        return 'Command';
       case ' ':
         return 'Space';
       case 'Control':
       case 'Shift':
       case 'Alt':
-      case 'Meta':
         return key;
       default:
         // Convert other keys to uppercase for case-insensitive comparison
@@ -882,6 +883,11 @@
       return; // Do nothing if a text input field is focused
     }
     
+    // If this is a common shortcut like Cmd+C, ignore it
+    if ((e.metaKey || e.ctrlKey) && ['C', 'V', 'X', 'A'].includes(e.key.toUpperCase())) {
+      return;
+    }
+    
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.add(normalizedKey);
     
@@ -898,20 +904,23 @@
       .sort()
       .join('+');
     
-    console.log('Keys pressed:', currentKeys);
-    console.log('Shortcut:', shortcutKeys);
-    
     if (currentKeys === shortcutKeys) {
-      console.log('Shortcut match!', shortcutKeys);
       // Get default trigger or create a centered trigger
       const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
       openModal(defaultTrigger);
+      // Clear pressed keys after triggering
+      pressedKeys.clear();
     }
   }
 
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
     pressedKeys.delete(normalizedKey);
+    
+    // Clear all pressed keys if Meta/Command key is released
+    if (normalizedKey === 'Command') {
+      pressedKeys.clear();
+    }
   }
 
   async function uploadImage(file) {
