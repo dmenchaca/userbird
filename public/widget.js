@@ -560,6 +560,14 @@
   async function init() {
     console.log('Initializing widget');
     
+    // Add window focus handler to reset shortcuts when browser regains focus
+    window.addEventListener('focus', () => {
+      if (pressedKeys.size > 0) {
+        console.log('Browser regained focus, clearing shortcut state');
+        pressedKeys.clear();
+      }
+    });
+    
     // Check for website theme settings
     const isDarkMode = 
       document.documentElement.hasAttribute('data-theme') ||
