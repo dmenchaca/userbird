@@ -875,11 +875,7 @@
   function handleKeyDown(e) {
     // Check if an input field or text area is focused
     const activeElement = document.activeElement;
-    const isInputFocused = activeElement && (
-      activeElement.tagName === 'INPUT' || 
-      activeElement.tagName === 'TEXTAREA' || 
-      activeElement.isContentEditable
-    );
+    const isInputFocused = activeElement?.matches('input, textarea, [contenteditable]');
     
     // Common browser shortcuts to ignore
     const commonShortcuts = {
@@ -903,12 +899,31 @@
       'L': true       // Location/URL bar
     }
     
-    // Ignore if input is focused or it's a common browser shortcut
-    if (isInputFocused || ((e.metaKey || e.ctrlKey) && commonShortcuts[e.key.toUpperCase()])) {
+    // Get the key without modifiers
+    const keyWithoutModifiers = e.key.toUpperCase();
+    
+    // Check if this is a browser shortcut
+    const isBrowserShortcut = (e.metaKey || e.ctrlKey) && commonShortcuts[keyWithoutModifiers];
+    
+    // Ignore if input is focused or it's a browser shortcut
+    if (isInputFocused || isBrowserShortcut) {
+      console.log('Ignoring key:', {
+        key: keyWithoutModifiers,
+        isInputFocused,
+        isBrowserShortcut,
+        hasModifier: e.metaKey || e.ctrlKey
+      });
       return;
     }
     
     const normalizedKey = normalizeKey(e.key);
+    
+    // Don't add the key if a browser feature is active
+    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
+      console.log('Browser feature active, ignoring key:', normalizedKey);
+      return;
+    }
+    
     pressedKeys.add(normalizedKey);
     
     // Log current pressed keys
@@ -944,6 +959,13 @@
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
     console.log('Key released:', normalizedKey);
+
+    // If a browser feature is active, clear all shortcuts
+    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
+      console.log('Browser feature active, clearing all shortcuts');
+      pressedKeys.clear();
+      return;
+    }
     
     pressedKeys.delete(normalizedKey);
     
