@@ -23,6 +23,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState<string | null>(null)
   const [keyboardShortcut, setKeyboardShortcut] = useState<string | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(false)
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
@@ -104,7 +105,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     if (selectedFormId && user?.id) {
       supabase
         .from('forms')
-        .select('url, button_color, support_text, keyboard_shortcut')
+        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
@@ -114,6 +115,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             setButtonColor(data.button_color)
             setSupportText(data.support_text)
             setKeyboardShortcut(data.keyboard_shortcut)
+            setSoundEnabled(data.sound_enabled)
           }
         })
     }
@@ -368,13 +370,19 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         )}
         {selectedFormId && (
           <FormSettingsDialog
+            formId={selectedFormId}
+            formUrl={formName}
+            buttonColor={buttonColor}
+            supportText={supportText}
+            keyboardShortcut={keyboardShortcut}
+            soundEnabled={soundEnabled}
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
             onSettingsSaved={() => {
               // Refetch form data
               supabase
                 .from('forms')
-                .select('url, button_color, support_text, keyboard_shortcut')
+                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled')
                 .eq('id', selectedFormId)
                 .eq('owner_id', user?.id)
                 .single()
@@ -384,15 +392,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     setButtonColor(data.button_color);
                     setSupportText(data.support_text);
                     setKeyboardShortcut(data.keyboard_shortcut);
+                    setSoundEnabled(data.sound_enabled);
                   }
                 });
             }}
             onDelete={handleDelete}
-            formId={selectedFormId}
-            formUrl={formName}
-            buttonColor={buttonColor}
-            supportText={supportText}
-            keyboardShortcut={keyboardShortcut}
           />
         )}
       </main>

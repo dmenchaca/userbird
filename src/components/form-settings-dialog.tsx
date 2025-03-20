@@ -24,6 +24,7 @@ interface FormSettingsDialogProps {
   buttonColor: string
   supportText: string | null
   keyboardShortcut: string | null
+  soundEnabled: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
@@ -38,6 +39,7 @@ export function FormSettingsDialog({
   buttonColor,
   supportText,
   keyboardShortcut,
+  soundEnabled: initialSoundEnabled,
   open, 
   onOpenChange,
   onSettingsSaved,
@@ -49,7 +51,8 @@ export function FormSettingsDialog({
       buttonColor: '',
       supportText: '',
       url: '',
-      keyboardShortcut: ''
+      keyboardShortcut: '',
+      soundEnabled: false
     },
     notifications: {
       enabled: false,
@@ -74,6 +77,7 @@ export function FormSettingsDialog({
   const [isInitialMount, setIsInitialMount] = useState(true)
   const [webhookEnabled, setWebhookEnabled] = useState(false)
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -93,10 +97,12 @@ export function FormSettingsDialog({
     setOriginalValues(current => ({
       ...current,
       styling: {
+        ...current.styling,
         buttonColor,
         supportText: supportText || '',
         url: formUrl,
-        keyboardShortcut: keyboardShortcut || ''
+        keyboardShortcut: keyboardShortcut || '',
+        soundEnabled: initialSoundEnabled
       },
       webhooks: current.webhooks
     }))
@@ -703,7 +709,53 @@ export function FormSettingsDialog({
     setText(supportText || '');
     setUrl(formUrl);
     setShortcut(keyboardShortcut || '');
+    setSoundEnabled(initialSoundEnabled);
   }, [buttonColor, supportText, formUrl, keyboardShortcut]);
+
+  // Auto-save sound enabled state
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && soundEnabled !== originalValues.styling.soundEnabled) {
+      timeoutId = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ sound_enabled: soundEnabled })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              soundEnabled
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success(
+            soundEnabled 
+              ? 'Success sound enabled' 
+              : 'Success sound disabled'
+          );
+        } catch (error) {
+          console.error('Error updating sound setting:', error);
+          setSoundEnabled(originalValues.styling.soundEnabled);
+          toast.error('Failed to update sound setting');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [soundEnabled, formId, originalValues.styling.soundEnabled, onSettingsSaved, isInitialMount]);
 
   return (
     <>
@@ -856,6 +908,19 @@ export function FormSettingsDialog({
                       >
                         Clear
                       </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={soundEnabled}
+                          onCheckedChange={setSoundEnabled}
+                        />
+                        <Label>Play sound on success</Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Play a notification sound when feedback is submitted
+                      </p>
                     </div>
                   </div>
                 </div>
