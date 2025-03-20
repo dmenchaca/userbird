@@ -3,6 +3,7 @@
   const API_BASE_URL = 'https://app.userbird.co';
   let settingsLoaded = false;
   let settingsPromise = null;
+  let settings = null;
   let successSound = null;
   let selectedImage = null;
   let currentTrigger = null;
@@ -627,6 +628,7 @@
         }
         const settings = await response.json();
         console.log('Loaded settings:', settings);
+        window.UserBird.settings = settings;
         const buttonColor = settings.button_color || '#1f2937';
         const supportText = settings.support_text;
         const keyboardShortcut = settings.keyboard_shortcut;
@@ -812,9 +814,11 @@
     // Show success state immediately
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
-    
+
     // Play success sound if enabled
-    if (window.UserBird?.settings?.sound_enabled) {
+    const shouldPlaySound = window.UserBird?.settings?.sound_enabled;
+    console.log('Sound enabled:', shouldPlaySound);
+    if (shouldPlaySound) {
       playSuccessSound();
     }
     
@@ -843,59 +847,4 @@
       // Submit feedback
       const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({ 
-          formId,
-          message,
-          ...systemInfo,
-          user_id: userInfo.id,
-          user_email: userInfo.email,
-          user_name: userInfo.name,
-          image_url: imageData?.url,
-          image_name: imageData?.name,
-          image_size: imageData?.size
-        })
-      });
-
-      console.log('Feedback submission response:', response.status);
-      console.log('7. API request completed:', { status: response.status });
-      
-      if (!response.ok) {
-        throw new Error('Failed to submit feedback');
-      }
-      
-      console.log('8. Submission successful');
-      return response.json();
-    } catch (error) {
-      console.error('Background submission failed:', error);
-      console.log('8. Submission failed:', error);
-      // Don't revert success state, just log the error
-      return { success: false, error };
-    }
-  }
-
-  async function uploadImage(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('formId', formId);
-
-    const response = await fetch(`${API_BASE_URL}/.netlify/functions/upload`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    return response.json();
-  }
-
-  // Initialize if form ID is available
-  if (window.UserBird?.formId) {
-    init().catch(console.error);
-  }
-})();
+        headers
