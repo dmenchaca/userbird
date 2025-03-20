@@ -3,6 +3,7 @@
   const API_BASE_URL = 'https://app.userbird.co';
   let settingsLoaded = false;
   let settingsPromise = null;
+  let successSound = null;
   let selectedImage = null;
   let currentTrigger = null;
   let modal = null;
@@ -41,6 +42,15 @@
     else if (width < 1024) category = 'Tablet';
     
     return { operating_system: os, screen_category: category, url_path: urlPath };
+  }
+
+  function playSuccessSound() {
+    if (!successSound) {
+      successSound = new Audio('https://ucarecdn.com/a46284ad-1b93-4eb8-8db0-4694994ee706/MagicShimmerChristmasDingChristmasStarTwinkle01SND417131.mp3');
+    }
+    successSound.play().catch(error => {
+      console.error('Error playing success sound:', error);
+    });
   }
 
   function injectStyles(buttonColor) {
@@ -802,6 +812,12 @@
     // Show success state immediately
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
+    
+    // Play success sound if enabled
+    if (window.UserBird?.settings?.sound_enabled) {
+      playSuccessSound();
+    }
+    
     console.log('4. Success state shown');
 
     // Reset form state immediately after showing success
@@ -832,7 +848,7 @@
           'Origin': window.location.origin
         },
         body: JSON.stringify({ 
-          formId, 
+          formId,
           message,
           ...systemInfo,
           user_id: userInfo.id,
@@ -858,113 +874,6 @@
       console.log('8. Submission failed:', error);
       // Don't revert success state, just log the error
       return { success: false, error };
-      console.log('9. Submit flow completed');
-      console.groupEnd();
-    }
-  }
-
-  function normalizeKey(key) {
-    // Normalize special keys
-    switch (key) {
-      case 'Meta':
-        return 'Command';
-      case ' ':
-        return 'Space';
-      case 'Control':
-      case 'Shift':
-      case 'Alt':
-        return key;
-      default:
-        // Convert other keys to uppercase for case-insensitive comparison
-        return key.toUpperCase();
-    }
-  }
-
-  function handleKeyDown(e) {
-    // Check if an input field or text area is focused
-    const activeElement = document.activeElement;
-    const isInputFocused = activeElement?.matches('input, textarea, [contenteditable]');
-    
-    // Common browser shortcuts to ignore
-    const commonShortcuts = {
-      'F': true,      // Find
-      'P': true,      // Print
-      'S': true,      // Save
-      'C': true,      // Copy
-      'V': true,      // Paste
-      'X': true,      // Cut
-      'A': true,      // Select All
-      'Z': true,      // Undo
-      'Y': true,      // Redo
-      'R': true,      // Reload
-      'N': true,      // New Window
-      'T': true,      // New Tab
-      'W': true,      // Close Tab
-      'H': true,      // History
-      'J': true,      // Downloads
-      'D': true,      // Bookmark
-      'B': true,      // Bookmarks
-      'L': true       // Location/URL bar
-    }
-    
-    // Get the key without modifiers
-    const keyWithoutModifiers = e.key.toUpperCase();
-    
-    // Check if this is a browser shortcut
-    const isBrowserShortcut = (e.metaKey || e.ctrlKey) && commonShortcuts[keyWithoutModifiers];
-    
-    // Ignore if input is focused or it's a browser shortcut
-    if (isInputFocused || isBrowserShortcut) {
-      return;
-    }
-    
-    const normalizedKey = normalizeKey(e.key);
-    
-    // Don't add the key if a browser feature is active
-    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
-      return;
-    }
-    
-    pressedKeys.add(normalizedKey);
-    
-    // Get current shortcut from settings
-    const shortcut = window.UserBird?.shortcut;
-    if (!shortcut) {
-      return;
-    }
-    
-    // Convert current pressed keys to sorted array for comparison
-    const currentKeys = Array.from(pressedKeys).sort().join('+');
-    
-    // Normalize and sort shortcut keys for comparison
-    const shortcutKeys = shortcut.split('+')
-      .map(k => normalizeKey(k))
-      .sort()
-      .join('+');
-    
-    if (currentKeys === shortcutKeys) {
-      // Get default trigger or create a centered trigger
-      const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
-      openModal(defaultTrigger);
-      // Clear pressed keys after triggering
-      pressedKeys.clear();
-    }
-  }
-
-  function handleKeyUp(e) {
-    const normalizedKey = normalizeKey(e.key);
-
-    // If a browser feature is active, clear all shortcuts
-    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
-      pressedKeys.clear();
-      return;
-    }
-    
-    pressedKeys.delete(normalizedKey);
-    
-    // Clear all pressed keys if any modifier key is released
-    if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
-      pressedKeys.clear();
     }
   }
 

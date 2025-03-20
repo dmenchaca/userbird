@@ -40,11 +40,17 @@ export const handler: Handler = async (event) => {
       .single();
 
     if (error) throw error;
+    
+    // Store sound_enabled in settings
+    const settings = {
+      ...data,
+      sound_enabled: data.sound_enabled || false
+    };
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(data)
+      body: JSON.stringify(settings)
     };
   } catch (error) {
     console.error('Error:', error);
