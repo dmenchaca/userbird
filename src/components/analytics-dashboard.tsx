@@ -27,7 +27,7 @@ const pagesData = [
 
 export function AnalyticsDashboard() {
   return (
-    <Card className="bg-white/50 rounded-lg shadow-lg overflow-hidden w-[800px] -translate-x-[200px]">
+    <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden w-[800px] -translate-x-[200px] z-[2]">
       {/* Header */}
       <CardHeader className="space-y-4 p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
@@ -60,7 +60,12 @@ export function AnalyticsDashboard() {
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="default" className="gap-2 h-9 px-3">
+            <Button 
+              id="userbird-trigger-4hNUB7DVhf"
+              variant="outline" 
+              size="default" 
+              className="gap-2 h-9 px-3 relative z-[3] transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
+            >
               Feedback
               <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">L</span>
             </Button>

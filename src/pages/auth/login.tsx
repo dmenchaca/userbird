@@ -18,7 +18,7 @@ export function LoginPage() {
   }, []);
 
   return (
-    <div className="container relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+    <div className="container relative h-screen grid lg:max-w-none lg:grid-cols-2 lg:px-0">
       <div className="lg:p-8">
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
           <div className="flex justify-center pb-4">
@@ -32,20 +32,11 @@ export function LoginPage() {
           <LoginForm />
         </div>
       </div>
-      <div className="relative hidden h-full flex-col p-10 text-white lg:flex">
-        <div className="absolute inset-0 bg-white">
-          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,transparent_70%,white_100%)] z-10" />
-          <div className="absolute inset-0 flex items-center z-[1] overflow-hidden">
-            <AnalyticsDashboard />
-          </div>
-          <button 
-            id="userbird-trigger-4hNUB7DVhf"
-            className="absolute top-4 right-4 px-3 py-2 rounded-md bg-white/90 text-sm font-medium shadow-sm hover:bg-white/95 transition-colors"
-          >
-            Feedback
-          </button>
+      <div className="relative hidden h-full lg:block overflow-hidden">
+        <div className="absolute inset-0 flex items-center">
+          <AnalyticsDashboard />
           <svg
-            className="absolute inset-0 h-full w-full z-0"
+            className="absolute inset-0 h-full w-full -z-10"
             xmlns="http://www.w3.org/2000/svg"
             style={{ filter: 'contrast(1.1)' }}
           >
@@ -65,7 +56,7 @@ export function LoginPage() {
             <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.1" />
           </svg>
         </div>
-        <div className="relative z-20 mt-auto">
+        <div className="absolute bottom-8 left-8 right-8">
           <blockquote className="space-y-2">
             <p className="text-lg">
               <span className="text-slate-800">"Userbird has transformed how we collect and manage feedback. It's simple, effective, and exactly what we needed."</span>
