@@ -24,7 +24,7 @@ export function AuthPage() {
   return (
     <div className="container relative h-screen grid lg:max-w-none lg:grid-cols-2 lg:px-0 overflow-hidden">
       <div className="lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px] h-full relative">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[356px] h-full relative">
           <div className="flex justify-center pb-4">
             <a href="/" className="flex items-center gap-2 font-medium">
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">

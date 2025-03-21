@@ -80,9 +80,13 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
-      <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {mode === 'signup' ? 'Create account' : 'The simplest way to get user feedback'}
+      <div className="flex flex-col space-y-2 text-center pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight relative">
+          {mode === 'signup' ? 'Create account' : (
+            <>
+              The <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">fastest</span> way to get user feedback
+            </>
+          )}
         </h1>
       </div>
       <div className="grid gap-6 animate-in fade-in-0 duration-500">

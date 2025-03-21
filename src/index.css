@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .text-3xl {
+    font-size: 2.875rem;
+    line-height: 2.875rem;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
