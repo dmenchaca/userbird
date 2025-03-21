@@ -43,6 +43,46 @@ export function initUserbird(formId: string) {
     
     document.head.appendChild(script);
   });
+}
+
+// App.tsx\n
+import { useEffect } from 'react';
+import { initUserbird } from './userbird';
+
+function App() {
+  useEffect(() => {
+    async function loadWidget() {
+      try {
+        // Optional: Add user information
+        window.UserBird.user = {
+          id: 'user-123',      // Your user's ID
+          email: 'user@example.com',  // User's email
+          name: 'John Doe'     // User's name
+        };
+        
+        await initUserbird("${formId}");
+        console.log('Userbird widget loaded successfully');
+      } catch (error) {
+        console.error('Failed to load Userbird widget:', error);
+      }
+    }
+    
+    loadWidget();
+  }, []);
+
+  return (
+    <>
+      {/* Option A: Use your own trigger button (‼️Recommended‼️) */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        Custom Feedback Button
+      </button>
+
+      {/* Option B: Use our default trigger button */}
+      <button id="userbird-trigger-${formId}">
+        Feedback
+      </button>
+    </>
+  );
 }`,
       vue: `// userbird.ts
 export function initUserbird(formId: string) {
@@ -119,7 +159,7 @@ import { UserbirdService } from './userbird.service';
 @Component({
   selector: 'app-root',
   template: \`
-    <!-- Option A: Use your own trigger button (Recommended) -->
+    <!-- Option A: Use your own trigger button (‼️Recommended‼️) */}
     <button (click)="openFeedback($event)">
       Custom Feedback Button
     </button>
@@ -154,11 +194,11 @@ export class AppComponent implements OnInit {
     window.UserBird?.open(event.currentTarget as HTMLElement);
   }
 }`,
-      html: `<!-- Option A: Use our default button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
-
-<!-- Option B: Use your own custom button -->
+      html: `<!-- Option A: Use your own custom button (‼️Recommended‼️) -->
 <button onclick="UserBird.open(this)">Custom Feedback</button>
+
+<!-- Option B: Use our default button -->
+<button id="userbird-trigger-${formId}">Feedback</button>
 
 <!-- Initialize Userbird -->
 <script>
@@ -233,36 +273,11 @@ export class AppComponent implements OnInit {
                   size="sm"
                   className="gap-2"
                   onClick={() => {
-                    const content = `React Integration Instructions\n\n` +
-                      'Step 1: Create a utility function\n\n' +
-                      '// userbird.ts\n' +
-                      getStackInstructions('react').split('// App.tsx')[0] +
-                      '\nStep 2: Use in your component\n\n' +
-                      '// App.tsx\n' +
-                      getStackInstructions('react').split('// App.tsx')[1];
-                    handleCopy(content, 'copy-react');
-                  }}
-                >
-                  {copiedId === 'copy-react' ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Files className="h-4 w-4" />
-                      Copy All
-                    </>
-                  )}
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
-              <div className="space-y-4">
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
-                  <CodeBlock
-                    id="react-util"
-                    code={`// userbird.ts
+                    const content = `React Integration Instructions
+
+Step 1: Create a utility function
+
+// userbird.ts
 export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
@@ -276,15 +291,12 @@ export function initUserbird(formId: string) {
     
     document.head.appendChild(script);
   });
-}`}
-                  />
-                </div>
+}
 
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
-                  <CodeBlock
-                    id="react-component"
-                    code={`import { useEffect } from 'react';
+Step 2: Use in your component
+
+// App.tsx
+import { useEffect } from 'react';
 import { initUserbird } from './userbird';
 
 function App() {
@@ -310,7 +322,85 @@ function App() {
 
   return (
     <>
-      {/* Option A: Use your own trigger button (Recommended) */}
+      {/* Option A: Use your own trigger button (‼️Recommended‼️) */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        Custom Feedback Button
+      </button>
+
+      {/* Option B: Use our default trigger button */}
+      <button id="userbird-trigger-${formId}">
+        Feedback
+      </button>
+    </>
+  );
+}`;
+                    handleCopy(content, 'copy-react');
+                  }}
+                >
+                  {copiedId === 'copy-react' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Files className="h-4 w-4" />
+                      Copy All
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Add this code to your React component:</p>
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
+                  <CodeBlock id="react-util" code={`// userbird.ts
+export function initUserbird(formId: string) {
+  return new Promise((resolve, reject) => {
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = formId;
+    
+    const script = document.createElement('script');
+    script.src = 'https://userbird.netlify.app/widget.js';
+    
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Failed to load Userbird widget'));
+    
+    document.head.appendChild(script);
+  });
+}`}
+                  />
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
+                  <CodeBlock id="react-component" code={`import { useEffect } from 'react';
+import { initUserbird } from './userbird';
+
+function App() {
+  useEffect(() => {
+    async function loadWidget() {
+      try {
+        // Optional: Add user information
+        window.UserBird.user = {
+          id: 'user-123',      // Your user's ID
+          email: 'user@example.com',  // User's email
+          name: 'John Doe'     // User's name
+        };
+        
+        await initUserbird("${formId}");
+        console.log('Userbird widget loaded successfully');
+      } catch (error) {
+        console.error('Failed to load Userbird widget:', error);
+      }
+    }
+    
+    loadWidget();
+  }, []);
+
+  return (
+    <>
+      {/* Option A: Use your own trigger button (‼️Recommended‼️) */}
       <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         Custom Feedback Button
       </button>
@@ -412,7 +502,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Option A: Use your own trigger button (Recommended) -->
+  <!-- Option A: Use your own trigger button (‼️Recommended‼️) */}
   <button @click="$event => window.UserBird?.open($event.currentTarget)">
     Custom Feedback Button
   </button>
@@ -509,7 +599,7 @@ import { UserbirdService } from './userbird.service';
 @Component({
   selector: 'app-root',
   template: \`
-    <!-- Option A: Use your own trigger button (Recommended) -->
+    <!-- Option A: Use your own trigger button (‼️Recommended‼️) */}
     <button (click)="openFeedback($event)">
       Custom Feedback Button
     </button>
@@ -583,10 +673,10 @@ export class AppComponent implements OnInit {
               <div className="space-y-4">
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
-                  <p className="text-sm text-muted-foreground mb-2">We recommend using your own custom button for better integration with your UI:</p>
+                  <p className="text-sm text-muted-foreground mb-2">We recommend using your own custom button for better integration with your UI (‼️Recommended‼️):</p>
                   <CodeBlock
                     id="html-button"
-                    code={`<!-- Option A: Use your own custom button (Recommended) -->
+                    code={`<!-- Option A: Use your own custom button (‼️Recommended‼️) -->
 <button onclick="UserBird.open(this)">Custom Feedback</button>
 
 <!-- Option B: Use our default button -->
