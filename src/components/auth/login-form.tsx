@@ -15,6 +15,7 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
   const { signInWithGoogle } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showEmailForm, setShowEmailForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,17 +53,13 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Login with your Google account
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">The simplest way to get user feedback</h1>
       </div>
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-6">
+      <div className="grid gap-6 animate-in fade-in-0 duration-500">
+        {!showEmailForm ? (
           <div className="grid gap-4">
             <Button 
               type="button"
-              variant="outline" 
               className="w-full"
               onClick={handleGoogleSignIn}
             >
@@ -72,20 +69,20 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
                   fill="currentColor"
                 />
               </svg>
-              Login with Google
+              Continue with Google
+            </Button>
+            
+            <Button 
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowEmailForm(true)}
+            >
+              Continue with email
             </Button>
           </div>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          <div className="grid gap-4">
+        ) : (
+          <form onSubmit={handleSubmit} className="grid gap-4 animate-in fade-in-0 slide-in-from-top-2">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -125,19 +122,19 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
                 <span>{error}</span>
               </div>
             )}
-            <Button disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Signing in..." : "Sign in"}
             </Button>
-          </div>
-          <div className="text-center text-sm">
-            Don't have an account?{" "}
-            <a href="/signup" className="underline underline-offset-4 hover:text-primary">
-              Sign up
-            </a>
-          </div>
+          </form>
+        )}
+        
+        <div className="text-center text-sm">
+          Don't have an account?{" "}
+          <a href="/signup" className="underline underline-offset-4 hover:text-primary">
+            Sign up
+          </a>
         </div>
-      </form>
-      <p className="px-8 text-center text-sm text-muted-foreground">
+        <p className="px-8 text-center text-sm text-muted-foreground">
         By clicking continue, you agree to our{" "}
         <a href="#" className="underline underline-offset-4 hover:text-primary">
           Terms of Service
@@ -146,7 +143,8 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
         <a href="#" className="underline underline-offset-4 hover:text-primary">
           Privacy Policy
         </a>
-      </p>
+        </p>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { Bird } from 'lucide-react'
-import { SignupForm } from '@/components/auth/signup-form'
+import { AuthForm } from '@/components/auth/auth-form'
 
 export function SignupPage() {
   return (
@@ -11,7 +11,7 @@ export function SignupPage() {
           </div>
           Userbird
         </a>
-        <SignupForm />
+        <AuthForm mode="signup" />
       </div>
     </div>
   )

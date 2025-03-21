@@ -27,7 +27,7 @@ const pagesData = [
 
 export function AnalyticsDashboard() {
   return (
-    <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden w-[800px] -translate-x-[200px] z-[2]">
+    <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden">
       {/* Header */}
       <CardHeader className="space-y-4 p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
