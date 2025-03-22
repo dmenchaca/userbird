@@ -34,6 +34,11 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
 
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -53,13 +58,6 @@ function App() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Optional: Add user information
-        window.UserBird.user = {
-          id: 'user-123',      // Your user's ID
-          email: 'user@example.com',  // User's email
-          name: 'John Doe'     // User's name
-        };
-
         await initUserbird("${formId}");
         console.log('Userbird widget loaded successfully');
       } catch (error) {
@@ -277,6 +275,11 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -298,13 +301,6 @@ function App() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Optional: Add user information
-        window.UserBird.user = {
-          id: 'user-123',      // Your user's ID
-          email: 'user@example.com',  // User's email
-          name: 'John Doe'     // User's name
-        };
-        
         await initUserbird("${formId}");
         console.log('Userbird widget loaded successfully');
       } catch (error) {
@@ -349,6 +345,11 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
+    window.UserBird.user = {
+      id: 'user-123',      // Your user's ID
+      email: 'user@example.com',  // User's email
+      name: 'John Doe'     // User's name
+    };
 
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -378,13 +379,6 @@ function App() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Optional: Add user information
-        window.UserBird.user = {
-          id: 'user-123',      // Your user's ID
-          email: 'user@example.com',  // User's email
-          name: 'John Doe'     // User's name
-        };
-
         await initUserbird("${formId}");
         console.log('Userbird widget loaded successfully');
       } catch (error) {
