@@ -1,50 +1,60 @@
-// Userbird initialization
-export function initUserbird(formId: string) {
-  return new Promise((resolve, reject) => {
-    const existingScript = document.querySelector('script[src="https://userbird.netlify.app/widget.js"]');
-    const isInitialized = typeof window.UserBird?.open === 'function';
-    
-    // Check if widget is already initialized
-    if (isInitialized) {
-      console.log('Widget script already loaded, updating formId');
-      if (window.UserBird) {
-        window.UserBird.formId = formId;
-      }
-      resolve(true);
-      return;
+// Widget manager singleton
+class WidgetManager {
+  private static instance: WidgetManager;
+  private initialized = false;
+  private initPromise: Promise<boolean> | null = null;
+
+  private constructor() {}
+
+  static getInstance(): WidgetManager {
+    if (!this.instance) {
+      this.instance = new WidgetManager();
     }
-    
-    // If script exists but not initialized, wait for it
-    if (existingScript) {
-      existingScript.addEventListener('load', () => {
-        if (window.UserBird) {
-          window.UserBird.formId = formId;
-        }
-        resolve(true);
-      });
-      return;
+    return this.instance;
+  }
+
+  async init(formId: string): Promise<boolean> {
+    // Return existing promise if initialization is in progress
+    if (this.initPromise) {
+      return this.initPromise;
     }
 
-    // Initialize Userbird
-    window.UserBird = window.UserBird || {};
-    window.UserBird.formId = formId;
-    
-    const script = document.createElement('script');
-    script.src = 'https://userbird.netlify.app/widget.js';
-    script.async = true;
-    
-    // Wait for script to load
-    script.onload = () => {
-      console.log('Widget script loaded successfully');
-      // Script has loaded and executed
-      resolve(true);
-    };
-    
-    script.onerror = () => {
-      console.error('Failed to load widget script');
-      reject(new Error('Failed to load Userbird widget'));
-    };
-    
-    document.head.appendChild(script);
-  });
+    // Return immediately if already initialized
+    if (this.initialized) {
+      return Promise.resolve(true);
+    }
+
+    // Create new initialization promise
+    this.initPromise = new Promise((resolve, reject) => {
+      try {
+        window.UserBird = window.UserBird || {};
+        window.UserBird.formId = formId;
+        
+        const script = document.createElement('script');
+        script.src = 'https://userbird.netlify.app/widget.js';
+        
+        script.onload = () => {
+          this.initialized = true;
+          resolve(true);
+        };
+        
+        script.onerror = () => {
+          this.initPromise = null;
+          reject(new Error('Failed to load Userbird widget'));
+        };
+        
+        document.head.appendChild(script);
+      } catch (error) {
+        this.initPromise = null;
+        reject(error);
+      }
+    });
+
+    return this.initPromise;
+  }
+}
+
+// Export initialization function that uses the singleton
+export function initUserbird(formId: string): Promise<boolean> {
+  return WidgetManager.getInstance().init(formId);
 }
