@@ -60,6 +60,7 @@
         --ub-text: #111827;
         --ub-text-muted: #6b7280;
         --ub-hover-background: #f3f4f6;
+        font-family: inherit;
       }
 
       /* Website dark mode settings */
@@ -112,6 +113,7 @@
         margin-bottom: 1rem;
         padding: 0;
         line-height: normal;
+        font-family: inherit;
       }
       .userbird-textarea {
         width: 100%;
