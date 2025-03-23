@@ -396,6 +396,16 @@ export function FormSettingsDialog({
     };
   }, [shortcut, formId, originalValues.styling.keyboardShortcut, onSettingsSaved, isInitialMount]);
 
+  // Clean up URL as user types
+  const handleUrlChange = (value: string) => {
+    // Remove https:// prefix and trailing slash
+    const cleanUrl = value
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, '');
+    
+    setUrl(cleanUrl);
+  };
+
   // Auto-save URL changes
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -823,7 +833,7 @@ export function FormSettingsDialog({
                       <Input
                         id="url"
                         value={url}
-                        onChange={(e) => setUrl(e.target.value)}
+                        onChange={(e) => handleUrlChange(e.target.value)}
                         placeholder="app.userbird.co"
                       />
                     </div>

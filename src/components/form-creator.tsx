@@ -24,6 +24,16 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
   const [error, setError] = useState('')
   const [isValidDomain, setIsValidDomain] = useState(false)
 
+  // Clean up URL as user types
+  const handleUrlChange = (value: string) => {
+    // Remove https:// prefix and trailing slash
+    const cleanUrl = value
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, '');
+    
+    setUrl(cleanUrl);
+  };
+
   // Validate URL as user types
   useEffect(() => {
     const trimmedUrl = url.trim()
@@ -142,7 +152,7 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
               autoFocus
               id="url"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               placeholder="app.userbird.co"
               className={error ? 'border-destructive' : ''}
               aria-invalid={!!error}
