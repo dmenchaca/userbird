@@ -26,9 +26,9 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
 
   // Clean up URL as user types
   const handleUrlChange = (value: string) => {
-    // Remove https:// prefix and trailing slash
     const cleanUrl = value
       .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
       .replace(/\/$/, '');
     
     setUrl(cleanUrl);
@@ -42,7 +42,6 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
       return
     }
 
-    // Remove any protocol and www prefix for validation
     const cleanUrl = trimmedUrl
       .replace(/^https?:\/\//, '')
       .replace(/^www\./, '')

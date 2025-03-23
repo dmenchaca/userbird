@@ -398,9 +398,9 @@ export function FormSettingsDialog({
 
   // Clean up URL as user types
   const handleUrlChange = (value: string) => {
-    // Remove https:// prefix and trailing slash
     const cleanUrl = value
       .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
       .replace(/\/$/, '');
     
     setUrl(cleanUrl);
