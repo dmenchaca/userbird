@@ -470,6 +470,20 @@
       console.log('Widget prevented from opening: Another modal is visible');
       return;
     }
+    
+    // Check for missing pointer-events-none on icons
+    if (trigger) {
+      const icon = trigger.querySelector('svg');
+      if (icon && !icon.classList.contains('pointer-events-none')) {
+        console.warn(
+          'Userbird: Icon button detected without pointer-events-none class.\n' +
+          'Add pointer-events-none to your icon to prevent click event issues:\n' +
+          '<button onclick="UserBird.open(this)">\n' +
+          '  <svg class="pointer-events-none">...</svg>\n' +
+          '</button>'
+        );
+      }
+    }
 
     if (!settingsLoaded) {
       // Create loading spinner
