@@ -468,6 +468,53 @@
     }
   }
 
+  function positionModalForSuccess(trigger) {
+    if (!modal?.modal || !window.UserBird?.showGifOnSuccess) return;
+    
+    const modalElement = modal.modal;
+    const rect = trigger ? trigger.getBoundingClientRect() : null;
+    
+    if (rect) {
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      const modalWidth = modalElement.offsetWidth;
+      // Estimate the height of the success modal with GIF
+      const estimatedSuccessHeight = 350; // Approximate height based on GIF and content
+      
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
+      
+      modalElement.style.transform = 'none';
+      
+      if (spaceBelow >= estimatedSuccessHeight) {
+        // Enough space below, position normally
+        modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
+        modalElement.style.left = `${leftPosition}px`;
+        modalElement.style.bottom = 'auto';
+      } else if (spaceAbove >= estimatedSuccessHeight) {
+        // Not enough space below, but enough above, position above
+        modalElement.style.top = `${rect.top + scrollY - estimatedSuccessHeight - 8}px`;
+        modalElement.style.left = `${leftPosition}px`;
+        modalElement.style.bottom = 'auto';
+      } else {
+        // Not enough space in either direction, center it
+        modalElement.style.top = '50%';
+        modalElement.style.left = '50%';
+        modalElement.style.transform = 'translate(-50%, -50%)';
+        modalElement.style.bottom = 'auto';
+      }
+    } else {
+      // No trigger, center it
+      modalElement.style.top = '50%';
+      modalElement.style.left = '50%';
+      modalElement.style.transform = 'translate(-50%, -50%)';
+      modalElement.style.bottom = 'auto';
+    }
+  }
+
   function openModal(trigger = null) {
     const hasVisibleModal = Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [aria-modal="true"]')).some(modal => {
       if (modal.classList.contains('userbird-modal')) return false;
@@ -757,6 +804,9 @@
       }
     }
 
+    // Position the modal appropriately for success state before showing it
+    positionModalForSuccess(currentTrigger);
+    
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
     
