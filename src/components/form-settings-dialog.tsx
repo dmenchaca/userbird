@@ -849,19 +849,19 @@ export function FormSettingsDialog({
                         Clear
                       </Button>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={soundEnabled}
-                          onCheckedChange={setSoundEnabled}
-                        />
-                        <Label>Play sound on success</Label>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Play a notification sound when feedback is submitted
-                      </p>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <Label>Play sound on success</Label>
+                      <Switch
+                        checked={soundEnabled}
+                        onCheckedChange={setSoundEnabled}
+                      />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Play a notification sound when feedback is submitted
+                    </p>
                   </div>
                 </div>
               )}
