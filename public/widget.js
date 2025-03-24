@@ -740,6 +740,12 @@
     
     // Add the GIF to the success message if enabled
     if (window.UserBird?.showGifOnSuccess) {
+      // Hide the SVG icon when GIF is shown
+      const successIcon = modal.successElement.querySelector('.userbird-success-icon');
+      if (successIcon) {
+        successIcon.style.display = 'none';
+      }
+      
       const successGif = document.createElement('img');
       successGif.src = MESSAGES.success.gifUrl;
       successGif.alt = "Success GIF";

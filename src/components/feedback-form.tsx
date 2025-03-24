@@ -69,7 +69,9 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
     if (showSuccess) {
         return (
           <div className="text-center py-6 px-4 space-y-4">
-            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
+            {!window.UserBird?.showGifOnSuccess && (
+              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
+            )}
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">{MSG.success.title}</h3>
               <p className="text-sm text-muted-foreground">
