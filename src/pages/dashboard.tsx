@@ -24,11 +24,12 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [supportText, setSupportText] = useState<string | null>(null)
   const [keyboardShortcut, setKeyboardShortcut] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(false)
+  const [showGifOnSuccess, setShowGifOnSuccess] = useState(false)
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
-  const [loading, setLoading] = useState(!initialFormId) // Only show loading if no initialFormId
+  const [loading, setLoading] = useState(!initialFormId)
   const [hasAnyForms, setHasAnyForms] = useState(false)
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
@@ -105,7 +106,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     if (selectedFormId && user?.id) {
       supabase
         .from('forms')
-        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled')
+        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
@@ -116,6 +117,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             setSupportText(data.support_text)
             setKeyboardShortcut(data.keyboard_shortcut)
             setSoundEnabled(data.sound_enabled)
+            setShowGifOnSuccess(data.show_gif_on_success)
           }
         })
     }
@@ -376,13 +378,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             supportText={supportText}
             keyboardShortcut={keyboardShortcut}
             soundEnabled={soundEnabled}
+            showGifOnSuccess={showGifOnSuccess}
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
             onSettingsSaved={() => {
               // Refetch form data
               supabase
                 .from('forms')
-                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled')
+                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success')
                 .eq('id', selectedFormId)
                 .eq('owner_id', user?.id)
                 .single()
@@ -393,6 +396,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     setSupportText(data.support_text);
                     setKeyboardShortcut(data.keyboard_shortcut);
                     setSoundEnabled(data.sound_enabled);
+                    setShowGifOnSuccess(data.show_gif_on_success);
                   }
                 });
             }}

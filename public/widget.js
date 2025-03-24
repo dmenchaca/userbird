@@ -14,7 +14,8 @@
     success: {
       title: 'Thank you',
       description: 'Your message has been received and will be reviewed by our team.',
-      imageError: 'Only JPG and PNG images up to 5MB are allowed.'
+      imageError: 'Only JPG and PNG images up to 5MB are allowed.',
+      gifUrl: 'https://ruqbgoazhyfxrsxbttfp.supabase.co/storage/v1/object/public/app//Season%202%20Nbc%20GIF%20by%20The%20Office.gif'
     },
     labels: {
       submit: 'Send Feedback',
@@ -856,6 +857,16 @@
     }
 
     return response.json();
+  }
+
+  function showSuccessMessage() {
+    const successMessage = document.createElement('div');
+    successMessage.innerHTML = `
+      <h2>${MESSAGES.success.title}</h2>
+      <p>${MESSAGES.success.description}</p>
+      ${window.UserBird?.showGifOnSuccess ? `<img src="${MESSAGES.success.gifUrl}" alt="Success GIF">` : ''}
+    `;
+    document.body.appendChild(successMessage);
   }
 
   if (window.UserBird?.formId) {

@@ -25,6 +25,7 @@ interface FormSettingsDialogProps {
   supportText: string | null
   keyboardShortcut: string | null
   soundEnabled: boolean
+  showGifOnSuccess: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
@@ -40,6 +41,7 @@ export function FormSettingsDialog({
   supportText,
   keyboardShortcut,
   soundEnabled: initialSoundEnabled,
+  showGifOnSuccess: initialShowGifOnSuccess,
   open, 
   onOpenChange,
   onSettingsSaved,
@@ -52,7 +54,8 @@ export function FormSettingsDialog({
       supportText: '',
       url: '',
       keyboardShortcut: '',
-      soundEnabled: false
+      soundEnabled: false,
+      showGifOnSuccess: false
     },
     notifications: {
       enabled: false,
@@ -78,6 +81,7 @@ export function FormSettingsDialog({
   const [webhookEnabled, setWebhookEnabled] = useState(false)
   const [webhookUrl, setWebhookUrl] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
+  const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -102,12 +106,13 @@ export function FormSettingsDialog({
         supportText: supportText || '',
         url: formUrl,
         keyboardShortcut: keyboardShortcut || '',
-        soundEnabled: initialSoundEnabled
+        soundEnabled: initialSoundEnabled,
+        showGifOnSuccess: initialShowGifOnSuccess
       },
       webhooks: current.webhooks
     }))
     setIsInitialMount(false)
-  }, [buttonColor, supportText, formUrl, keyboardShortcut])
+  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialShowGifOnSuccess])
 
   // Fetch webhook settings
   useEffect(() => {
@@ -582,6 +587,32 @@ export function FormSettingsDialog({
     };
   }, [open, formId]);
 
+  // Fetch initial settings from the database
+  useEffect(() => {
+    const fetchInitialSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('show_gif_on_success')
+          .eq('id', formId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching initial settings:', error);
+          return;
+        }
+
+        if (data) {
+          setShowGifOnSuccess(data.show_gif_on_success);
+        }
+      } catch (error) {
+        console.error('Error fetching initial settings:', error);
+      }
+    };
+
+    fetchInitialSettings();
+  }, [formId]);
+
   const handleAddEmail = async () => {
     setEmailError('');
     
@@ -650,7 +681,8 @@ export function FormSettingsDialog({
     setUrl(formUrl);
     setShortcut(keyboardShortcut || '');
     setSoundEnabled(initialSoundEnabled);
-  }, [buttonColor, supportText, formUrl, keyboardShortcut]);
+    setShowGifOnSuccess(initialShowGifOnSuccess);
+  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess]);
 
   // Auto-save sound enabled state
   useEffect(() => {
@@ -696,6 +728,56 @@ export function FormSettingsDialog({
       }
     };
   }, [soundEnabled, formId, originalValues.styling.soundEnabled, onSettingsSaved, isInitialMount]);
+
+  // Auto-save show GIF on success state
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (!isInitialMount && showGifOnSuccess !== originalValues.styling.showGifOnSuccess) {
+      timeoutId = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ show_gif_on_success: showGifOnSuccess })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              showGifOnSuccess
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success(
+            showGifOnSuccess 
+              ? 'GIF on success enabled' 
+              : 'GIF on success disabled'
+          );
+        } catch (error) {
+          console.error('Error updating GIF on success setting:', error);
+          setShowGifOnSuccess(originalValues.styling.showGifOnSuccess);
+          toast.error('Failed to update GIF on success setting');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showGifOnSuccess, formId, originalValues.styling.showGifOnSuccess, onSettingsSaved, isInitialMount]);
+
+  // Set isInitialMount to false after the first render
+  useEffect(() => {
+    setIsInitialMount(false);
+  }, []);
 
   return (
     <>
@@ -861,6 +943,19 @@ export function FormSettingsDialog({
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Play a notification sound when feedback is submitted
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <Label>Show GIF on success</Label>
+                      <Switch
+                        checked={showGifOnSuccess}
+                        onCheckedChange={setShowGifOnSuccess}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Display a GIF when feedback is successfully submitted
                     </p>
                   </div>
                 </div>
