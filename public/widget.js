@@ -821,6 +821,20 @@
     
     // Add the GIF to the success message if enabled
     if (window.UserBird?.showGifOnSuccess) {
+      // Function to get a random GIF URL
+      function getRandomGifUrl() {
+        console.log('Getting random GIF, available GIFs:', window.UserBird?.gifUrls);
+        if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
+          const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
+          console.log('Selected random index:', randomIndex);
+          const selectedUrl = window.UserBird.gifUrls[randomIndex];
+          console.log('Selected GIF URL:', selectedUrl);
+          return selectedUrl;
+        }
+        console.log('No custom GIFs found, using default GIF');
+        return MESSAGES.success.gifUrl;
+      }
+      
       // Hide the SVG icon when GIF is shown
       const successIcon = modal.successElement.querySelector('.userbird-success-icon');
       if (successIcon) {
@@ -831,7 +845,7 @@
       modal.successElement.style.paddingTop = '8px';
       
       const successGif = document.createElement('img');
-      successGif.src = MESSAGES.success.gifUrl;
+      successGif.src = getRandomGifUrl(); // Use random GIF selection logic
       successGif.alt = "Success GIF";
       successGif.className = "userbird-success-gif";
       successGif.style.maxWidth = "100%";
@@ -994,19 +1008,25 @@
 
   function showSuccessMessage() {
     console.log('Showing success message. GIF flag:', window.UserBird?.showGifOnSuccess);
+    console.log('Available GIF URLs for success message:', window.UserBird?.gifUrls);
     
     // Function to get a random GIF URL
     function getRandomGifUrl() {
       if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
         // Randomly select a GIF from the array
         const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
-        return window.UserBird.gifUrls[randomIndex];
+        console.log('Success message - Selected random index:', randomIndex);
+        const selectedUrl = window.UserBird.gifUrls[randomIndex];
+        console.log('Success message - Selected GIF URL:', selectedUrl);
+        return selectedUrl;
       }
       // Fall back to default GIF
+      console.log('Success message - No custom GIFs found, using default GIF');
       return MESSAGES.success.gifUrl;
     }
     
     const gifUrl = window.UserBird?.showGifOnSuccess ? getRandomGifUrl() : '';
+    console.log('Success message - Final GIF URL to display:', gifUrl);
     
     const successMessage = document.createElement('div');
     successMessage.innerHTML = `
