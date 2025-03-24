@@ -425,21 +425,46 @@
       
       const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
       
-      if (spaceBelow >= 300) {
-        modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
-        modalElement.style.left = `${leftPosition}px`;
-      } else if (spaceAbove >= 300) {
-        modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
-        modalElement.style.left = `${leftPosition}px`;
+      // Check if we're in success state with GIF
+      const isSuccessWithGif = modal.successElement.classList.contains('open') && window.UserBird?.showGifOnSuccess === true;
+      
+      // Determine if trigger is in the upper or lower half of the screen
+      const isInLowerHalf = rect.top > window.innerHeight / 2;
+      
+      if (isSuccessWithGif) {
+        // Special positioning for success state with GIF
+        if (isInLowerHalf) {
+          // For triggers in the lower half, grow upward by anchoring to bottom
+          modalElement.style.top = 'auto'; // Clear the top positioning
+          modalElement.style.bottom = `${window.innerHeight - rect.bottom - scrollY - 8}px`;
+          modalElement.style.left = `${leftPosition}px`;
+        } else {
+          // For triggers in the upper half, grow downward by anchoring to top
+          modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
+          modalElement.style.bottom = 'auto'; // Clear the bottom positioning
+          modalElement.style.left = `${leftPosition}px`;
+        }
       } else {
-        modalElement.style.top = '50%';
-        modalElement.style.left = '50%';
-        modalElement.style.transform = 'translate(-50%, -50%)';
+        // Original positioning logic for normal state
+        modalElement.style.bottom = 'auto'; // Clear any bottom positioning
+        
+        if (spaceBelow >= 300) {
+          modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
+          modalElement.style.left = `${leftPosition}px`;
+        } else if (spaceAbove >= 300) {
+          modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
+          modalElement.style.left = `${leftPosition}px`;
+        } else {
+          modalElement.style.top = '50%';
+          modalElement.style.left = '50%';
+          modalElement.style.transform = 'translate(-50%, -50%)';
+        }
       }
     } else {
       modalElement.style.top = '50%';
       modalElement.style.left = '50%';
       modalElement.style.transform = 'translate(-50%, -50%)';
+      modalElement.style.bottom = 'auto'; // Clear any bottom positioning
     }
   }
 
@@ -523,6 +548,9 @@
     currentTrigger = null;
     
     modal.modal.classList.remove('open');
+    // Reset both top and bottom positioning to avoid issues on next open
+    modal.modal.style.bottom = 'auto';
+    
     setTimeout(() => {
       modal.form.classList.remove('hidden');
       modal.successElement.classList.remove('open');
