@@ -34,11 +34,6 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
-    window.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
 
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -53,6 +48,7 @@ export function initUserbird(formId: string) {
 // src/App.tsx
 import { useEffect } from 'react';
 import { initUserbird } from './userbird';
+import { Bell } from 'lucide-react'; // Or your preferred icon
 
 function App() {
   useEffect(() => {
@@ -69,12 +65,17 @@ function App() {
   }, []);
 
   return (
-    <button
-      // Required ID format for keyboard shortcuts and positioning
-      id="userbird-trigger-${formId}"
-    >
-      Feedback
-    </button>
+    <>
+      {/* Option A: If you use a text button */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        Custom Feedback Button
+      </button>
+      
+      {/* Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        <Bell className="h-6 w-6 pointer-events-none" />
+      </button>
+    </>
   );
 }`,
       vue: `// userbird.ts
@@ -190,8 +191,12 @@ export class AppComponent implements OnInit {
       html: `<!-- Option A: Use your own custom button (‼️Recommended‼️) -->
 <button onclick="UserBird.open(this)">Custom Feedback</button>
 
-<!-- Option B: Use our default button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
+<!-- Option B: Use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->
+<button onclick="UserBird.open(this)">
+  <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+</button>
 
 <!-- Initialize Userbird -->
 <script>
@@ -275,11 +280,6 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
-    window.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -295,7 +295,8 @@ Step 2: Use in your component
 
 // App.tsx
 import { useEffect } from 'react';
-import { initUserbird } from './userbird';
+import { initUserbird } from './userbird'
+import { Bell } from 'lucide-react'; // Or your preferred icon
 
 function App() {
   useEffect(() => {
@@ -312,12 +313,17 @@ function App() {
   }, []);
 
   return (
-    <button
-      // Required ID format for keyboard shortcuts and positioning
-      id="userbird-trigger-${formId}"
-    >
-      Feedback
-    </button>
+    <>
+      {/* Option A: If you use a text button */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        Custom Feedback Button
+      </button>
+      
+      {/* Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        <Bell className="h-6 w-6 pointer-events-none" />
+      </button>
+    </>
   );
 }`;
                     handleCopy(content, 'copy-react');
@@ -345,11 +351,6 @@ export function initUserbird(formId: string) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
-    window.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
-    };
 
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -367,13 +368,14 @@ export function initUserbird(formId: string) {
                   <h4 className="text-sm font-medium mb-2">Step 2: Use in your component</h4>
                   <p className="text-sm text-muted-foreground mb-2">⚠️ IMPORTANT: Read these warnings to avoid common issues:</p>
                   <ul className="text-sm text-muted-foreground mb-4 list-disc pl-4 space-y-1">
-                    <li>Never mix React initialization with direct UserBird.open() calls</li>
-                    <li>The button ID format userbird-trigger-{formId} is required</li>
-                    <li>Don't add onClick handlers that call UserBird.open()</li>
+                    <li>When using icon buttons, add <code className="bg-muted px-1 rounded">pointer-events-none</code> to prevent click event issues</li>
+                    <li>The button ID format userbird-trigger-{formId} is required for keyboard shortcuts</li>
+                    <li>Don't mix React initialization with direct UserBird.open() calls</li>
                   </ul>
                   <CodeBlock id="react-component" code={`// src/App.tsx
 import { useEffect } from 'react';
 import { initUserbird } from './userbird';
+import { Bell } from 'lucide-react'; // Or your preferred icon
 
 function App() {
   useEffect(() => {
@@ -390,12 +392,17 @@ function App() {
   }, []);
 
   return (
-    <button
-      // Required ID format for keyboard shortcuts and positioning
-      id="userbird-trigger-${formId}"
-    >
-      Feedback
-    </button>
+    <>
+      {/* Option A: If you use a text button */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        Custom Feedback Button
+      </button>
+      
+      {/* Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) */}
+      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+        <Bell className="h-6 w-6 pointer-events-none" />
+      </button>
+    </>
   );
 }`}
                   />
@@ -660,15 +667,24 @@ export class AppComponent implements OnInit {
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <h4 className="text-sm font-medium mb-2">Step 1: Add the trigger button</h4>
                   <p className="text-sm text-muted-foreground mb-2">We recommend using your own custom button for better integration with your UI (‼️Recommended‼️):</p>
-                  <CodeBlock
-                    id="html-button"
-                    code={`<!-- Option A: Use your own custom button (‼️Recommended‼️) -->
+                  <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm mb-2">
+                    <code>{`<!-- Option A: If you use a text button -->
 <button onclick="UserBird.open(this)">Custom Feedback</button>
 
-<!-- Option B: Use our default button -->
-<button id="userbird-trigger-${formId}">Feedback</button>`}
-                  />
-                  <p className="text-xs text-muted-foreground">Note: The button can be placed anywhere in your HTML</p>
+<!-- Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->
+<button onclick="UserBird.open(this)">
+  <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+</button>`}</code>
+                  </pre>
+                  <p className="text-xs text-muted-foreground">
+                    Notes:
+                    <ul className="list-disc pl-4 mt-1 space-y-1">
+                      <li>The button can be placed anywhere in your HTML</li>
+                      <li>When using icons, add <code className="bg-muted px-1 rounded">pointer-events-none</code> to prevent click event issues</li>
+                    </ul>
+                  </p>
                 </div>
 
                 <div className="rounded-lg border p-4 bg-muted/50">
