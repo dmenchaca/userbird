@@ -254,13 +254,7 @@ export function FormSettingsDialog({
     let timeoutId: NodeJS.Timeout;
 
     if (!isInitialMount && color !== originalValues.styling.buttonColor) {
-      console.log('Color changed:', { 
-        newColor: color, 
-        originalColor: originalValues.styling.buttonColor 
-      });
-
       timeoutId = setTimeout(async () => {
-        console.log('Starting color update...');
         try {
           const { error } = await supabase
             .from('forms')
@@ -268,9 +262,7 @@ export function FormSettingsDialog({
             .eq('id', formId);
 
           if (error) throw error;
-          
-          console.log('Color update successful');
-          
+
           setOriginalValues(current => ({
             ...current,
             styling: {
@@ -278,10 +270,10 @@ export function FormSettingsDialog({
               buttonColor: color
             }
           }));
-          
+
           cache.invalidate(`form-settings:${formId}`);
           onSettingsSaved();
-          
+
           toast.success('Button color updated successfully');
         } catch (error) {
           console.error('Error updating button color:', error);
@@ -303,13 +295,7 @@ export function FormSettingsDialog({
     let timeoutId: NodeJS.Timeout;
 
     if (!isInitialMount && text !== originalValues.styling.supportText) {
-      console.log('Support text changed:', {
-        newText: text,
-        originalText: originalValues.styling.supportText
-      });
-
       timeoutId = setTimeout(async () => {
-        console.log('Starting support text update...');
         try {
           const { error } = await supabase
             .from('forms')
@@ -317,8 +303,6 @@ export function FormSettingsDialog({
             .eq('id', formId);
 
           if (error) throw error;
-
-          console.log('Support text update successful');
 
           setOriginalValues(current => ({
             ...current,
@@ -352,13 +336,7 @@ export function FormSettingsDialog({
     let timeoutId: NodeJS.Timeout;
 
     if (!isInitialMount && shortcut !== originalValues.styling.keyboardShortcut) {
-      console.log('Keyboard shortcut changed:', {
-        newShortcut: shortcut,
-        originalShortcut: originalValues.styling.keyboardShortcut
-      });
-
       timeoutId = setTimeout(async () => {
-        console.log('Starting keyboard shortcut update...');
         try {
           const { error } = await supabase
             .from('forms')
@@ -366,8 +344,6 @@ export function FormSettingsDialog({
             .eq('id', formId);
 
           if (error) throw error;
-
-          console.log('Keyboard shortcut update successful');
 
           setOriginalValues(current => ({
             ...current,
@@ -396,36 +372,18 @@ export function FormSettingsDialog({
     };
   }, [shortcut, formId, originalValues.styling.keyboardShortcut, onSettingsSaved, isInitialMount]);
 
-  // Clean up URL as user types
-  const handleUrlChange = (value: string) => {
-    const cleanUrl = value
-      .replace(/^https?:\/\//, '')
-      .replace(/^www\./, '')
-      .replace(/\/$/, '');
-    
-    setUrl(cleanUrl);
-  };
-
   // Auto-save URL changes
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
     if (!isInitialMount && url !== originalValues.styling.url) {
-      console.log('URL changed:', {
-        newUrl: url,
-        originalUrl: originalValues.styling.url
-      });
-
       timeoutId = setTimeout(async () => {
-        // Validate URL first
         if (!isValidUrl(url)) {
-          console.log('Invalid URL, reverting...');
           setUrl(originalValues.styling.url);
           toast.error('Please enter a valid URL');
           return;
         }
 
-        console.log('Starting URL update...');
         try {
           const { error } = await supabase
             .from('forms')
@@ -433,8 +391,6 @@ export function FormSettingsDialog({
             .eq('id', formId);
 
           if (error) throw error;
-
-          console.log('URL update successful');
 
           setOriginalValues(current => ({
             ...current,
@@ -470,14 +426,7 @@ export function FormSettingsDialog({
     if (!isInitialMount && 
         notificationsEnabled !== originalValues.notifications.enabled && 
         originalValues.notifications.emails.length > 0) {
-      console.log('Notifications enabled state changed:', {
-        newState: notificationsEnabled,
-        originalState: originalValues.notifications.enabled,
-        isInitialMount
-      });
-
       timeoutId = setTimeout(async () => {
-        console.log('Starting notifications enabled state update...');
         try {
           const { error } = await supabase
             .from('notification_settings')
@@ -502,8 +451,6 @@ export function FormSettingsDialog({
             }
           }));
 
-          console.log('Notifications enabled state update successful');
-          
           toast.success(
             notificationsEnabled 
               ? 'Notifications enabled successfully' 
@@ -532,15 +479,7 @@ export function FormSettingsDialog({
     if (!isInitialMount && 
         !areArraysEqual(selectedAttributes, originalValues.notifications.attributes) &&
         originalValues.notifications.attributes.length > 0) {
-      
-      console.log('Notification attributes changed:', {
-        newAttributes: selectedAttributes,
-        originalAttributes: originalValues.notifications.attributes,
-        isInitialMount
-      });
-
       timeoutId = setTimeout(async () => {
-        console.log('Starting notification attributes update...');
         try {
           const { error } = await supabase
             .from('notification_settings')
@@ -548,8 +487,6 @@ export function FormSettingsDialog({
             .eq('form_id', formId);
 
           if (error) throw error;
-
-          console.log('Notification attributes update successful');
 
           setOriginalValues(current => ({
             ...current,
@@ -581,9 +518,8 @@ export function FormSettingsDialog({
     let mounted = true;
 
     if (open && formId) {
-      console.log('Fetching notification settings...');
       const fetchSettings = async () => {
-        setIsInitialMount(true); // Set initial mount before fetching
+        setIsInitialMount(true);
 
         const { data, error } = await supabase
           .from('notification_settings')
@@ -599,11 +535,8 @@ export function FormSettingsDialog({
         }
 
         if (data) {
-          // Get the enabled state from the first notification setting
-          // If no settings exist, default to false
           const isEnabled = data.length > 0 ? data[0].enabled : false;
           
-          // Set all values in a batch
           const updates = () => {
             setNotifications(data);
             setNotificationsEnabled(isEnabled);
@@ -620,17 +553,14 @@ export function FormSettingsDialog({
             }));
           };
 
-          // Batch the updates
           updates();
 
-          // Reset isInitialMount after all state updates are complete
           requestAnimationFrame(() => {
             if (mounted) {
               setIsInitialMount(false);
             }
           });
         } else {
-          // If no data exists, set defaults
           setNotificationsEnabled(false);
           setOriginalValues(current => ({
             ...current,
@@ -833,7 +763,7 @@ export function FormSettingsDialog({
                       <Input
                         id="url"
                         value={url}
-                        onChange={(e) => handleUrlChange(e.target.value)}
+                        onChange={(e) => setUrl(e.target.value)}
                         placeholder="app.userbird.co"
                       />
                     </div>
