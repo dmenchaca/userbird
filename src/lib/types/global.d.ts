@@ -7,5 +7,6 @@ interface Window {
       email?: string;
       name?: string;
     };
+    showGifOnSuccess?: boolean;
   }
 }

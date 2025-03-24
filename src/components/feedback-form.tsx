@@ -76,7 +76,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
                 {MSG.success.description}
               </p>
               {window.UserBird?.showGifOnSuccess && (
-                <img src="https://ruqbgoazhyfxrsxbttfp.supabase.co/storage/v1/object/public/app//Season%202%20Nbc%20GIF%20by%20The%20Office.gif" alt="Success GIF" className="mx-auto" />
+                <img src={MSG.success.gifUrl} alt="Success GIF" className="mx-auto" />
               )}
             </div>
             <Button onClick={handleClose} className="mt-4">
