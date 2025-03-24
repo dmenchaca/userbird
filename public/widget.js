@@ -644,9 +644,11 @@
         const keyboardShortcut = settings.keyboard_shortcut;
         const soundEnabled = settings.sound_enabled;
         const showGifOnSuccess = settings.show_gif_on_success;
+        const gifUrls = settings.gif_urls || [];
         
         console.log('Form settings loaded:', settings);
         console.log('Show GIF on success:', showGifOnSuccess);
+        console.log('Custom GIF URLs:', gifUrls);
 
         injectStyles(buttonColor);
         modal = createModal();
@@ -657,6 +659,7 @@
           sound_enabled: soundEnabled
         };
         window.UserBird.showGifOnSuccess = showGifOnSuccess;
+        window.UserBird.gifUrls = gifUrls;
         
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
@@ -991,11 +994,25 @@
 
   function showSuccessMessage() {
     console.log('Showing success message. GIF flag:', window.UserBird?.showGifOnSuccess);
+    
+    // Function to get a random GIF URL
+    function getRandomGifUrl() {
+      if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
+        // Randomly select a GIF from the array
+        const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
+        return window.UserBird.gifUrls[randomIndex];
+      }
+      // Fall back to default GIF
+      return MESSAGES.success.gifUrl;
+    }
+    
+    const gifUrl = window.UserBird?.showGifOnSuccess ? getRandomGifUrl() : '';
+    
     const successMessage = document.createElement('div');
     successMessage.innerHTML = `
       <h2>${MESSAGES.success.title}</h2>
       <p>${MESSAGES.success.description}</p>
-      ${window.UserBird?.showGifOnSuccess ? `<img src="${MESSAGES.success.gifUrl}" alt="Success GIF">` : ''}
+      ${window.UserBird?.showGifOnSuccess ? `<img src="${gifUrl}" alt="Success GIF">` : ''}
     `;
     document.body.appendChild(successMessage);
     console.log('Success message displayed.');

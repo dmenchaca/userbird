@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
@@ -15,6 +15,34 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [gifUrls, setGifUrls] = useState<string[]>([])
+  const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch form settings including GIF URLs when the component mounts
+    const fetchFormSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('show_gif_on_success, gif_urls')
+          .eq('id', formId)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching form settings:', error);
+          return;
+        }
+
+        if (data && data.gif_urls && Array.isArray(data.gif_urls)) {
+          setGifUrls(data.gif_urls);
+        }
+      } catch (error) {
+        console.error('Error fetching form settings:', error);
+      }
+    };
+
+    fetchFormSettings();
+  }, [formId]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -32,13 +60,29 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
       setShowSuccess(false)
       setMessage('')
       setError(null)
+      setSelectedGifUrl(null); // Reset selected GIF
     }, 150)
   }
+
+  // Select a random GIF from available GIFs
+  const selectRandomGif = () => {
+    if (gifUrls && gifUrls.length > 0) {
+      const randomIndex = Math.floor(Math.random() * gifUrls.length);
+      return gifUrls[randomIndex];
+    }
+    // Fall back to default GIF if no custom GIFs available
+    return MSG.success.gifUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const feedbackMessage = message
     console.log('1. Starting submission, showing success immediately')
+    
+    // Select a random GIF if GIFs are enabled
+    if (window.UserBird?.showGifOnSuccess) {
+      setSelectedGifUrl(selectRandomGif());
+    }
     
     // Immediately show success and clear form
     setError(null)
@@ -78,7 +122,11 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
                 {MSG.success.description}
               </p>
               {window.UserBird?.showGifOnSuccess && (
-                <img src={MSG.success.gifUrl} alt="Success GIF" className="mx-auto" />
+                <img 
+                  src={selectedGifUrl || MSG.success.gifUrl} 
+                  alt="Success GIF" 
+                  className="mx-auto max-h-64" 
+                />
               )}
             </div>
             <Button onClick={handleClose} className="mt-4">

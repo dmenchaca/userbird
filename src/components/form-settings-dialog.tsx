@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { cache } from '@/lib/cache'
 import { DeleteFormDialog } from './delete-form-dialog'
 import { Switch } from './ui/switch'
+import { Textarea } from './ui/textarea'
 
 interface FormSettingsDialogProps {
   formId: string
@@ -55,7 +56,8 @@ export function FormSettingsDialog({
       url: '',
       keyboardShortcut: '',
       soundEnabled: false,
-      showGifOnSuccess: false
+      showGifOnSuccess: false,
+      gifUrls: [] as string[]
     },
     notifications: {
       enabled: false,
@@ -82,6 +84,8 @@ export function FormSettingsDialog({
   const [webhookUrl, setWebhookUrl] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
+  const [gifUrls, setGifUrls] = useState<string[]>([])
+  const [gifUrlsText, setGifUrlsText] = useState('')
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -593,7 +597,7 @@ export function FormSettingsDialog({
       try {
         const { data, error } = await supabase
           .from('forms')
-          .select('show_gif_on_success')
+          .select('show_gif_on_success, gif_urls')
           .eq('id', formId)
           .single();
 
@@ -604,6 +608,10 @@ export function FormSettingsDialog({
 
         if (data) {
           setShowGifOnSuccess(data.show_gif_on_success);
+          if (data.gif_urls) {
+            setGifUrls(data.gif_urls);
+            setGifUrlsText(data.gif_urls.join('\n'));
+          }
         }
       } catch (error) {
         console.error('Error fetching initial settings:', error);
@@ -612,6 +620,20 @@ export function FormSettingsDialog({
 
     fetchInitialSettings();
   }, [formId]);
+
+  // Convert between gifUrlsText and gifUrls array
+  useEffect(() => {
+    if (gifUrlsText) {
+      // Split by new lines and filter out empty lines
+      const urls = gifUrlsText.split('\n')
+        .map(url => url.trim())
+        .filter(url => url !== '');
+      
+      setGifUrls(urls);
+    } else {
+      setGifUrls([]);
+    }
+  }, [gifUrlsText]);
 
   const handleAddEmail = async () => {
     setEmailError('');
@@ -738,7 +760,11 @@ export function FormSettingsDialog({
         try {
           const { error } = await supabase
             .from('forms')
-            .update({ show_gif_on_success: showGifOnSuccess })
+            .update({ 
+              show_gif_on_success: showGifOnSuccess,
+              // Only include gif_urls when showGifOnSuccess is true
+              ...(showGifOnSuccess ? { gif_urls: gifUrls } : { gif_urls: null })
+            })
             .eq('id', formId);
 
           if (error) throw error;
@@ -747,7 +773,8 @@ export function FormSettingsDialog({
             ...current,
             styling: {
               ...current.styling,
-              showGifOnSuccess
+              showGifOnSuccess,
+              gifUrls: showGifOnSuccess ? gifUrls : []
             }
           }));
 
@@ -772,7 +799,52 @@ export function FormSettingsDialog({
         clearTimeout(timeoutId);
       }
     };
-  }, [showGifOnSuccess, formId, originalValues.styling.showGifOnSuccess, onSettingsSaved, isInitialMount]);
+  }, [showGifOnSuccess, formId, originalValues.styling.showGifOnSuccess, onSettingsSaved, isInitialMount, gifUrls]);
+
+  // Auto-save GIF URLs
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    // Only save GIF URLs if show_gif_on_success is enabled and we're not in initial mount
+    if (!isInitialMount && showGifOnSuccess && 
+        !areArraysEqual(gifUrls, originalValues.styling.gifUrls)) {
+      timeoutId = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('forms')
+            .update({ gif_urls: gifUrls.length > 0 ? gifUrls : null })
+            .eq('id', formId);
+
+          if (error) throw error;
+
+          setOriginalValues(current => ({
+            ...current,
+            styling: {
+              ...current.styling,
+              gifUrls
+            }
+          }));
+
+          cache.invalidate(`form-settings:${formId}`);
+          onSettingsSaved();
+
+          toast.success('Custom GIFs updated successfully');
+        } catch (error) {
+          console.error('Error updating custom GIFs:', error);
+          // Reset to original values
+          setGifUrls(originalValues.styling.gifUrls);
+          setGifUrlsText(originalValues.styling.gifUrls.join('\n'));
+          toast.error('Failed to update custom GIFs');
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [gifUrls, formId, originalValues.styling.gifUrls, showGifOnSuccess, isInitialMount, onSettingsSaved]);
 
   // Set isInitialMount to false after the first render
   useEffect(() => {
@@ -957,6 +1029,22 @@ export function FormSettingsDialog({
                     <p className="text-xs text-muted-foreground">
                       Display a GIF when feedback is successfully submitted
                     </p>
+                    
+                    {showGifOnSuccess && (
+                      <div className="mt-4 space-y-2">
+                        <Label htmlFor="gifUrls">Custom GIF URLs</Label>
+                        <Textarea
+                          id="gifUrls"
+                          value={gifUrlsText}
+                          onChange={(e) => setGifUrlsText(e.target.value)}
+                          placeholder="https://example.com/gif1.gif&#10;https://example.com/gif2.gif&#10;https://example.com/gif3.gif"
+                          className="min-h-[100px]"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Enter one GIF URL per line. The platform will randomly display one of these GIFs when feedback is submitted. If no URLs are provided, the default GIF will be used.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
