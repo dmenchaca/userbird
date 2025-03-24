@@ -390,90 +390,48 @@
   function positionModal(trigger) {
     if (!modal?.modal) return;
     
-    console.group('Userbird Modal Positioning');
-    
     const modalElement = modal.modal;
     modalElement.style.transform = 'none';
     
     const rect = trigger ? trigger.getBoundingClientRect() : null;
     
     if (rect) {
-      console.log('Trigger position:', {
-        top: rect.top,
-        bottom: rect.bottom,
-        left: rect.left,
-        right: rect.right
-      });
-      
-      // Get scroll position
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
       
-      console.log('Scroll position:', { scrollX, scrollY });
-      
-      // Calculate available space
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const modalWidth = modalElement.offsetWidth;
       
-      console.log('Available space:', {
-        spaceBelow,
-        spaceAbove,
-        modalWidth,
-        windowHeight: window.innerHeight,
-        windowWidth: window.innerWidth
-      });
-      
-      // Calculate position accounting for scroll
       const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
       
       if (spaceBelow >= 300) {
         modalElement.style.top = `${rect.bottom + scrollY + 8}px`;
         modalElement.style.left = `${leftPosition}px`;
-        console.log('Positioning below trigger:', {
-          top: rect.bottom + scrollY + 8,
-          left: leftPosition
-        });
       } else if (spaceAbove >= 300) {
         modalElement.style.top = `${rect.top + scrollY - modalElement.offsetHeight - 8}px`;
         modalElement.style.left = `${leftPosition}px`;
-        console.log('Positioning above trigger:', {
-          top: rect.top + scrollY - modalElement.offsetHeight - 8,
-          left: leftPosition
-        });
       } else {
         modalElement.style.top = '50%';
         modalElement.style.left = '50%';
         modalElement.style.transform = 'translate(-50%, -50%)';
-        console.log('Centering modal (not enough space above or below)');
       }
     } else {
       modalElement.style.top = '50%';
       modalElement.style.left = '50%';
       modalElement.style.transform = 'translate(-50%, -50%)';
-      console.log('Centering modal (no trigger)');
     }
-    
-    console.groupEnd();
   }
 
   function openModal(trigger = null) {
-    // Check for existing modals/dialogs
     const hasVisibleModal = Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [aria-modal="true"]')).some(modal => {
-      // Skip our own modal
       if (modal.classList.contains('userbird-modal')) return false;
-      
-      // Check if the modal is visible
       const styles = window.getComputedStyle(modal);
       return styles.display !== 'none' && styles.visibility !== 'hidden';
     });
 
-    if (hasVisibleModal) {
-      console.log('Widget prevented from opening: Another modal is visible');
-      return;
-    }
+    if (hasVisibleModal) return;
     
-    // Check for missing pointer-events-none on icons
     if (trigger) {
       const icon = trigger.querySelector('svg');
       if (icon && !icon.classList.contains('pointer-events-none')) {
@@ -488,13 +446,11 @@
     }
 
     if (!settingsLoaded) {
-      // Create loading spinner
       const loading = document.createElement('div');
       loading.className = 'userbird-loading';
       loading.innerHTML = '<div class="userbird-loading-spinner"></div>';
       document.body.appendChild(loading);
       
-      // Position loading spinner
       if (trigger) {
         const rect = trigger.getBoundingClientRect();
         const scrollY = window.scrollY || window.pageYOffset;
@@ -506,7 +462,6 @@
         loading.style.transform = 'translate(-50%, -50%)';
       }
       
-      // Wait for settings to load
       settingsPromise.then(() => {
         document.body.removeChild(loading);
         openModal(trigger);
@@ -520,20 +475,13 @@
     function handleClickOutside(e) {
       const modalElement = modal.modal;
       if (modalElement && !modalElement.contains(e.target) && e.target !== trigger) {
-        console.log('Click detected outside widget:', {
-          clickedElement: e.target,
-          clickX: e.clientX,
-          clickY: e.clientY
-        });
         closeModal();
         document.removeEventListener('click', handleClickOutside);
       }
     }
     
-    // Add click outside detection
     document.addEventListener('click', handleClickOutside);
     
-    // Add ESC key handler
     function handleEscKey(e) {
       if (e.key === 'Escape') {
         closeModal();
@@ -545,15 +493,6 @@
     modal.modal.classList.add('open');
     positionModal(trigger);
     
-    // Log modal styles after opening
-    const modalElement = modal.modal;
-    console.log('Modal styles:', {
-      background: window.getComputedStyle(modalElement).background,
-      color: window.getComputedStyle(modalElement).color,
-      borderColor: window.getComputedStyle(modalElement).borderColor
-    });
-    
-    // Wait for modal transition to complete before focusing
     setTimeout(() => {
       modal.textarea.focus();
     }, 50);
@@ -561,37 +500,24 @@
 
   function closeModal() {
     if (!modal) return;
-    console.group('Widget State Reset');
-    console.log('1. Starting modal close sequence');
     currentTrigger = null;
     
     modal.modal.classList.remove('open');
-    console.log('2. Modal visibility removed');
     setTimeout(() => {
-      console.log('3. Starting state reset after animation');
       modal.form.classList.remove('hidden');
-      console.log('4. Form visibility restored');
       modal.successElement.classList.remove('open');
-      console.log('5. Success state removed');
       modal.submitButton.disabled = false;
       modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
-      console.log('6. Button state reset');
-      console.groupEnd();
     }, 150);
   }
 
   async function init() {
-    console.log('Initializing widget');
-    
-    // Add window focus handler to reset shortcuts when browser regains focus
     window.addEventListener('focus', () => {
       if (pressedKeys.size > 0) {
-        console.log('Browser regained focus, clearing shortcut state');
         pressedKeys.clear();
       }
     });
     
-    // Check for website theme settings
     const isDarkMode = 
       document.documentElement.hasAttribute('data-theme') ||
       document.documentElement.hasAttribute('data-mode') ||
@@ -600,68 +526,38 @@
       document.documentElement.classList.contains('dark-theme') ||
       document.documentElement.getAttribute('class')?.includes('dark');
 
-    // Log theme detection details
-    console.log('Theme detection:', {
-      isDarkMode,
-      htmlTheme: document.documentElement.getAttribute('data-theme'),
-      htmlMode: document.documentElement.getAttribute('data-mode'),
-      htmlColorScheme: document.documentElement.getAttribute('data-color-scheme'),
-      rootClasses: {
-        dark: document.documentElement.classList.contains('dark'),
-        light: document.documentElement.classList.contains('light'),
-        darkTheme: document.documentElement.classList.contains('dark-theme'),
-        allClasses: document.documentElement.getAttribute('class')
-      }
-    });
-
     formId = window.UserBird?.formId;
     const user = window.UserBird?.user;
     
-    if (!formId) {
-      console.error('No form ID provided');
-      return;
-    }
+    if (!formId) return;
 
-    console.log('Initializing with:', { formId, user });
-
-    // Initialize success sound
     initSuccessSound();
-
-    // Inject styles
     injectStyles();
     
-    // Start loading settings
     settingsPromise = fetch(`${API_BASE_URL}/.netlify/functions/form-settings?id=${formId}`, {
       headers: {
         'Accept': 'application/json'
       }
     })
       .then(async (response) => {
-        console.log('Settings response:', response.status);
         if (!response.ok) {
           throw new Error(`Failed to load settings: ${response.status}`);
         }
         const settings = await response.json();
-        console.log('Loaded settings:', settings);
         const buttonColor = settings.button_color || '#1f2937';
         const supportText = settings.support_text;
         const keyboardShortcut = settings.keyboard_shortcut;
         const soundEnabled = settings.sound_enabled;
         
-        // Update styles with actual button color
         injectStyles(buttonColor);
-        
-        // Create modal with settings
         modal = createModal();
         setupModal(buttonColor, supportText);
         
-        // Store shortcut in UserBird object
         window.UserBird.shortcut = keyboardShortcut;
         window.UserBird.settings = {
           sound_enabled: soundEnabled
         };
         
-        // Add keyboard event listeners
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
         
@@ -669,20 +565,16 @@
         return settings;
       })
       .catch(error => {
-        console.warn('Using default settings:', error);
-        // Use defaults if settings fail to load
         injectStyles('#1f2937');
         modal = createModal();
         setupModal('#1f2937', null);
         settingsLoaded = true;
       });
     
-    // Get default trigger button if it exists
     const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
     if (defaultTrigger) {
       defaultTrigger.addEventListener('click', (e) => {
         e.preventDefault();
-        // If modal is open and clicked the same trigger, close it
         if (modal.modal.classList.contains('open') && currentTrigger === defaultTrigger) {
           closeModal();
         } else {
@@ -693,7 +585,6 @@
   }
   
   function setupModal(buttonColor, supportText) {
-    // Setup image upload
     const fileInput = modal.modal.querySelector('.userbird-file-input');
     const imageButton = modal.modal.querySelector('.userbird-image-button');
     const imagePreview = modal.modal.querySelector('.userbird-image-preview');
@@ -705,7 +596,6 @@
       const file = e.target.files[0];
       if (!file) return;
       
-      // Validate file type and size
       if (!file.type.match(/^image\/(jpeg|png)$/)) {
         modal.errorElement.textContent = MESSAGES.success.imageError;
         modal.errorElement.style.display = 'block';
@@ -741,10 +631,8 @@
       fileInput.value = '';
     });
     
-    // Handle support text if present
     const supportTextElement = modal.supportTextElement;
     if (supportText) {
-      // Simple markdown link parser: [text](url)
       const parsedText = supportText.replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
         `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`
@@ -754,12 +642,10 @@
       supportTextElement.style.display = 'none';
     }
 
-    // Event handlers
     modal.closeButtons.forEach(button => {
       button.addEventListener('click', closeModal);
     });
 
-    // Add window resize handler
     window.addEventListener('resize', () => {
       if (modal.modal.classList.contains('open') && currentTrigger) {
         positionModal(currentTrigger);
@@ -770,9 +656,7 @@
       handleSubmit();
     });
 
-    // Add keyboard shortcut for submission
     modal.textarea.addEventListener('keydown', (e) => {
-      // Check for Cmd+Enter (Mac) or Ctrl+Enter (non-Mac)
       if (e.key === 'Enter' && (navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey)) {
         e.preventDefault();
         handleSubmit();
@@ -796,11 +680,8 @@
       }
     }
 
-    // Expose open method globally
     window.UserBird.open = (triggerElement) => {
-      // If triggerElement is provided, use it, otherwise try to find the default trigger
       const trigger = triggerElement || document.getElementById(`userbird-trigger-${formId}`);
-      // If modal is open and clicked the same trigger, close it
       if (modal.modal.classList.contains('open') && currentTrigger === trigger) {
         closeModal();
       } else {
@@ -814,37 +695,25 @@
     const userInfo = window.UserBird?.user || {};
     let imageData = null;
 
-    console.group('Widget Submit Flow');
-    console.log('1. Starting feedback submission');
-    
-    // Handle image upload first if present
     if (selectedImage) {
       try {
-        console.log('2. Starting image upload');
         imageData = await uploadImage(selectedImage);
-        console.log('3. Image upload completed:', imageData);
       } catch (error) {
-        console.error('Image upload failed:', error);
         throw new Error('Failed to upload image');
       }
     }
 
-    // Show success state immediately
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
     
-    // Play success sound if enabled
     if (window.UserBird?.settings?.sound_enabled && successSound) {
       try {
         await successSound.play();
       } catch (error) {
-        console.warn('Failed to play success sound:', error);
+        // Ignore sound play errors
       }
     }
-    
-    console.log('4. Success state shown');
 
-    // Reset form state immediately after showing success
     modal.textarea.value = '';
     selectedImage = null;
     const imagePreview = modal.modal.querySelector('.userbird-image-preview');
@@ -853,18 +722,8 @@
     imagePreview.innerHTML = '';
     imageButton.style.display = 'block';
     modal.modal.querySelector('.userbird-file-input').value = '';
-    console.log('5. Form state reset completed');
-    
-    console.log('Submitting feedback in background:', {
-      formId,
-      message,
-      userInfo,
-      hasImage: !!imageData
-    });
-    console.log('6. Starting feedback submission');
     
     try {
-      // Submit feedback
       const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
         method: 'POST',
         headers: { 
@@ -884,27 +743,17 @@
         })
       });
 
-      console.log('Feedback submission response:', response.status);
-      console.log('7. API request completed:', { status: response.status });
-      
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
       }
       
-      console.log('8. Submission successful');
       return response.json();
     } catch (error) {
-      console.error('Background submission failed:', error);
-      console.log('8. Submission failed:', error);
-      // Don't revert success state, just log the error
       return { success: false, error };
-      console.log('9. Submit flow completed');
-      console.groupEnd();
     }
   }
 
   function normalizeKey(key) {
-    // Normalize special keys
     switch (key) {
       case 'Meta':
         return 'Command';
@@ -915,78 +764,64 @@
       case 'Alt':
         return key;
       default:
-        // Convert other keys to uppercase for case-insensitive comparison
         return key.toUpperCase();
     }
   }
 
   function handleKeyDown(e) {
-    // Check if an input field or text area is focused
     const activeElement = document.activeElement;
     const isInputFocused = activeElement?.matches('input, textarea, [contenteditable]');
     
-    // Common browser shortcuts to ignore
     const commonShortcuts = {
-      'F': true,      // Find
-      'P': true,      // Print
-      'S': true,      // Save
-      'C': true,      // Copy
-      'V': true,      // Paste
-      'X': true,      // Cut
-      'A': true,      // Select All
-      'Z': true,      // Undo
-      'Y': true,      // Redo
-      'R': true,      // Reload
-      'N': true,      // New Window
-      'T': true,      // New Tab
-      'W': true,      // Close Tab
-      'H': true,      // History
-      'J': true,      // Downloads
-      'D': true,      // Bookmark
-      'B': true,      // Bookmarks
-      'L': true       // Location/URL bar
+      'F': true,
+      'P': true,
+      'S': true,
+      'C': true,
+      'V': true,
+      'X': true,
+      'A': true,
+      'Z': true,
+      'Y': true,
+      'R': true,
+      'N': true,
+      'T': true,
+      'W': true,
+      'H': true,
+      'J': true,
+      'D': true,
+      'B': true,
+      'L': true
     }
     
-    // Get the key without modifiers
     const keyWithoutModifiers = e.key.toUpperCase();
-    
-    // Check if this is a browser shortcut
     const isBrowserShortcut = (e.metaKey || e.ctrlKey) && commonShortcuts[keyWithoutModifiers];
     
-    // Ignore if input is focused or it's a browser shortcut
     if (isInputFocused || isBrowserShortcut) {
       return;
     }
     
     const normalizedKey = normalizeKey(e.key);
     
-    // Don't add the key if a browser feature is active
     if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
       return;
     }
     
     pressedKeys.add(normalizedKey);
     
-    // Get current shortcut from settings
     const shortcut = window.UserBird?.shortcut;
     if (!shortcut) {
       return;
     }
     
-    // Convert current pressed keys to sorted array for comparison
     const currentKeys = Array.from(pressedKeys).sort().join('+');
-    
-    // Normalize and sort shortcut keys for comparison
     const shortcutKeys = shortcut.split('+')
       .map(k => normalizeKey(k))
       .sort()
       .join('+');
     
     if (currentKeys === shortcutKeys) {
-      // Get default trigger or create a centered trigger
       const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
       openModal(defaultTrigger);
-      // Clear pressed keys after triggering
       pressedKeys.clear();
     }
   }
@@ -994,7 +829,6 @@
   function handleKeyUp(e) {
     const normalizedKey = normalizeKey(e.key);
 
-    // If a browser feature is active, clear all shortcuts
     if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) {
       pressedKeys.clear();
       return;
@@ -1002,7 +836,6 @@
     
     pressedKeys.delete(normalizedKey);
     
-    // Clear all pressed keys if any modifier key is released
     if (['Command', 'Control', 'Alt', 'Shift'].includes(normalizedKey)) {
       pressedKeys.clear();
     }
@@ -1025,7 +858,6 @@
     return response.json();
   }
 
-  // Initialize if form ID is available
   if (window.UserBird?.formId) {
     init().catch(console.error);
   }
