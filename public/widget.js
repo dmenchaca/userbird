@@ -271,6 +271,14 @@
         transform: translateY(10px);
         animation: userbird-success-message 0.4s ease-out 0.4s forwards;
       }
+      .userbird-success-gif {
+        max-width: 100%;
+        margin-top: 1rem;
+        border-radius: 6px;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: userbird-success-gif 0.4s ease-out 0.6s forwards;
+      }
       @keyframes userbird-success-icon {
         from {
           opacity: 0;
@@ -292,6 +300,16 @@
         }
       }
       @keyframes userbird-success-message {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes userbird-success-gif {
         from {
           opacity: 0;
           transform: translateY(10px);
@@ -370,6 +388,7 @@
           </svg>
           <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
           <p class="userbird-success-message">${MESSAGES.success.description}</p>
+          <!-- GIF will be dynamically added here if enabled -->
         </div>
       </div>
     `;
@@ -712,6 +731,24 @@
 
     modal.form.classList.add('hidden');
     modal.successElement.classList.add('open');
+    
+    // Remove any existing GIF element
+    const existingGif = modal.successElement.querySelector('.userbird-success-gif');
+    if (existingGif) {
+      existingGif.remove();
+    }
+    
+    // Add the GIF to the success message if enabled
+    if (window.UserBird?.showGifOnSuccess) {
+      const successGif = document.createElement('img');
+      successGif.src = MESSAGES.success.gifUrl;
+      successGif.alt = "Success GIF";
+      successGif.className = "userbird-success-gif";
+      successGif.style.maxWidth = "100%";
+      successGif.style.marginTop = "1rem";
+      successGif.style.borderRadius = "6px";
+      modal.successElement.appendChild(successGif);
+    }
     
     if (window.UserBird?.settings?.sound_enabled && successSound) {
       try {
