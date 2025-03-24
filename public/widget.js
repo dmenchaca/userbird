@@ -551,6 +551,9 @@
         const soundEnabled = settings.sound_enabled;
         const showGifOnSuccess = settings.show_gif_on_success;
         
+        console.log('Form settings loaded:', settings);
+        console.log('Show GIF on success:', showGifOnSuccess);
+
         injectStyles(buttonColor);
         modal = createModal();
         setupModal(buttonColor, supportText);
@@ -568,6 +571,7 @@
         return settings;
       })
       .catch(error => {
+        console.error('Error loading form settings:', error);
         injectStyles('#1f2937');
         modal = createModal();
         setupModal('#1f2937', null);
@@ -862,6 +866,7 @@
   }
 
   function showSuccessMessage() {
+    console.log('Showing success message. GIF flag:', window.UserBird?.showGifOnSuccess);
     const successMessage = document.createElement('div');
     successMessage.innerHTML = `
       <h2>${MESSAGES.success.title}</h2>
@@ -869,6 +874,7 @@
       ${window.UserBird?.showGifOnSuccess ? `<img src="${MESSAGES.success.gifUrl}" alt="Success GIF">` : ''}
     `;
     document.body.appendChild(successMessage);
+    console.log('Success message displayed.');
   }
 
   if (window.UserBird?.formId) {
