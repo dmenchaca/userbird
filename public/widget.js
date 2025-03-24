@@ -549,6 +549,7 @@
         const supportText = settings.support_text;
         const keyboardShortcut = settings.keyboard_shortcut;
         const soundEnabled = settings.sound_enabled;
+        const showGifOnSuccess = settings.show_gif_on_success;
         
         injectStyles(buttonColor);
         modal = createModal();
@@ -558,6 +559,7 @@
         window.UserBird.settings = {
           sound_enabled: soundEnabled
         };
+        window.UserBird.showGifOnSuccess = showGifOnSuccess;
         
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
