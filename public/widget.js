@@ -746,6 +746,9 @@
         successIcon.style.display = 'none';
       }
       
+      // Set padding-top to 8px when GIF is shown
+      modal.successElement.style.paddingTop = '8px';
+      
       const successGif = document.createElement('img');
       successGif.src = MESSAGES.success.gifUrl;
       successGif.alt = "Success GIF";
