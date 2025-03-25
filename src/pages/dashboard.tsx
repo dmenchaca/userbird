@@ -25,6 +25,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [keyboardShortcut, setKeyboardShortcut] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(false)
+  const [gifUrls, setGifUrls] = useState<string[]>([])
   const [hasResponses, setHasResponses] = useState(false)
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
@@ -106,7 +107,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     if (selectedFormId && user?.id) {
       supabase
         .from('forms')
-        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success')
+        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls')
         .eq('id', selectedFormId)
         .eq('owner_id', user?.id)
         .single()
@@ -118,6 +119,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             setKeyboardShortcut(data.keyboard_shortcut)
             setSoundEnabled(data.sound_enabled)
             setShowGifOnSuccess(data.show_gif_on_success)
+            setGifUrls(data.gif_urls || [])
           }
         })
     }
@@ -379,13 +381,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             keyboardShortcut={keyboardShortcut}
             soundEnabled={soundEnabled}
             showGifOnSuccess={showGifOnSuccess}
+            initialGifUrls={gifUrls}
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
             onSettingsSaved={() => {
               // Refetch form data
               supabase
                 .from('forms')
-                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success')
+                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls')
                 .eq('id', selectedFormId)
                 .eq('owner_id', user?.id)
                 .single()
@@ -397,6 +400,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     setKeyboardShortcut(data.keyboard_shortcut);
                     setSoundEnabled(data.sound_enabled);
                     setShowGifOnSuccess(data.show_gif_on_success);
+                    setGifUrls(data.gif_urls || []);
                   }
                 });
             }}

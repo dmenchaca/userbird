@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Palette, Trash2, Bell, X, Webhook } from 'lucide-react'
-import { areArraysEqual, isValidUrl, isValidEmail } from '@/lib/utils'
+import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -27,6 +27,7 @@ interface FormSettingsDialogProps {
   keyboardShortcut: string | null
   soundEnabled: boolean
   showGifOnSuccess: boolean
+  initialGifUrls?: string[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
@@ -43,6 +44,7 @@ export function FormSettingsDialog({
   keyboardShortcut,
   soundEnabled: initialSoundEnabled,
   showGifOnSuccess: initialShowGifOnSuccess,
+  initialGifUrls = [],
   open, 
   onOpenChange,
   onSettingsSaved,
@@ -84,8 +86,8 @@ export function FormSettingsDialog({
   const [webhookUrl, setWebhookUrl] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
-  const [gifUrls, setGifUrls] = useState<string[]>([])
-  const [gifUrlsText, setGifUrlsText] = useState('')
+  const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
+  const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -111,12 +113,19 @@ export function FormSettingsDialog({
         url: formUrl,
         keyboardShortcut: keyboardShortcut || '',
         soundEnabled: initialSoundEnabled,
-        showGifOnSuccess: initialShowGifOnSuccess
+        showGifOnSuccess: initialShowGifOnSuccess,
+        gifUrls: initialGifUrls
       },
       webhooks: current.webhooks
     }))
     setIsInitialMount(false)
-  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialShowGifOnSuccess])
+  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialGifUrls])
+
+  // Initialize gifUrls and gifUrlsText
+  useEffect(() => {
+    setGifUrls(initialGifUrls);
+    setGifUrlsText(initialGifUrls.join('\n'));
+  }, [initialGifUrls]);
 
   // Fetch webhook settings
   useEffect(() => {
@@ -257,176 +266,6 @@ export function FormSettingsDialog({
       }
     };
   }, [webhookEnabled, webhookUrl, formId, originalValues.webhooks, isInitialMount]);
-
-  // Auto-save color changes
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (!isInitialMount && color !== originalValues.styling.buttonColor) {
-      timeoutId = setTimeout(async () => {
-        try {
-          const { error } = await supabase
-            .from('forms')
-            .update({ button_color: color })
-            .eq('id', formId);
-
-          if (error) throw error;
-
-          setOriginalValues(current => ({
-            ...current,
-            styling: {
-              ...current.styling,
-              buttonColor: color
-            }
-          }));
-
-          cache.invalidate(`form-settings:${formId}`);
-          onSettingsSaved();
-
-          toast.success('Button color updated successfully');
-        } catch (error) {
-          console.error('Error updating button color:', error);
-          setColor(originalValues.styling.buttonColor);
-          toast.error('Failed to update button color');
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [color, formId, originalValues.styling.buttonColor, onSettingsSaved, isInitialMount]);
-
-  // Auto-save support text changes
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (!isInitialMount && text !== originalValues.styling.supportText) {
-      timeoutId = setTimeout(async () => {
-        try {
-          const { error } = await supabase
-            .from('forms')
-            .update({ support_text: text || null })
-            .eq('id', formId);
-
-          if (error) throw error;
-
-          setOriginalValues(current => ({
-            ...current,
-            styling: {
-              ...current.styling,
-              supportText: text
-            }
-          }));
-
-          cache.invalidate(`form-settings:${formId}`);
-          onSettingsSaved();
-
-          toast.success('Support text updated successfully');
-        } catch (error) {
-          console.error('Error updating support text:', error);
-          setText(originalValues.styling.supportText);
-          toast.error('Failed to update support text');
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [text, formId, originalValues.styling.supportText, onSettingsSaved, isInitialMount]);
-
-  // Auto-save keyboard shortcut changes
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (!isInitialMount && shortcut !== originalValues.styling.keyboardShortcut) {
-      timeoutId = setTimeout(async () => {
-        try {
-          const { error } = await supabase
-            .from('forms')
-            .update({ keyboard_shortcut: shortcut || null })
-            .eq('id', formId);
-
-          if (error) throw error;
-
-          setOriginalValues(current => ({
-            ...current,
-            styling: {
-              ...current.styling,
-              keyboardShortcut: shortcut
-            }
-          }));
-
-          cache.invalidate(`form-settings:${formId}`);
-          onSettingsSaved();
-
-          toast.success('Keyboard shortcut updated successfully');
-        } catch (error) {
-          console.error('Error updating keyboard shortcut:', error);
-          setShortcut(originalValues.styling.keyboardShortcut);
-          toast.error('Failed to update keyboard shortcut');
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [shortcut, formId, originalValues.styling.keyboardShortcut, onSettingsSaved, isInitialMount]);
-
-  // Auto-save URL changes
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (!isInitialMount && url !== originalValues.styling.url) {
-      timeoutId = setTimeout(async () => {
-        if (!isValidUrl(url)) {
-          setUrl(originalValues.styling.url);
-          toast.error('Please enter a valid URL');
-          return;
-        }
-
-        try {
-          const { error } = await supabase
-            .from('forms')
-            .update({ url })
-            .eq('id', formId);
-
-          if (error) throw error;
-
-          setOriginalValues(current => ({
-            ...current,
-            styling: {
-              ...current.styling,
-              url
-            }
-          }));
-
-          cache.invalidate(`form-settings:${formId}`);
-          onSettingsSaved();
-
-          toast.success('Website URL updated successfully');
-        } catch (error) {
-          console.error('Error updating URL:', error);
-          setUrl(originalValues.styling.url);
-          toast.error('Failed to update website URL');
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [url, formId, originalValues.styling.url, onSettingsSaved, isInitialMount]);
 
   // Auto-save notification enabled state
   useEffect(() => {
@@ -591,49 +430,62 @@ export function FormSettingsDialog({
     };
   }, [open, formId]);
 
-  // Fetch initial settings from the database
+  // Fetch initial settings
   useEffect(() => {
-    const fetchInitialSettings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('forms')
-          .select('show_gif_on_success, gif_urls')
-          .eq('id', formId)
-          .single();
-
-        if (error) {
-          console.error('Error fetching initial settings:', error);
-          return;
-        }
-
-        if (data) {
-          setShowGifOnSuccess(data.show_gif_on_success);
-          if (data.gif_urls) {
+    let mounted = true;
+    
+    if (open && formId) {
+      const fetchSettings = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('forms')
+            .select('gif_urls')
+            .eq('id', formId)
+            .single();
+            
+          if (!mounted) return;
+          
+          if (error) {
+            console.error('Error fetching GIF URLs:', error);
+            return;
+          }
+          
+          if (data && data.gif_urls) {
             setGifUrls(data.gif_urls);
             setGifUrlsText(data.gif_urls.join('\n'));
+            setOriginalValues(current => ({
+              ...current,
+              styling: {
+                ...current.styling,
+                gifUrls: data.gif_urls
+              }
+            }));
           }
+        } catch (error) {
+          console.error('Error fetching GIF URLs:', error);
         }
-      } catch (error) {
-        console.error('Error fetching initial settings:', error);
-      }
+      };
+      
+      fetchSettings();
+    }
+    
+    return () => {
+      mounted = false;
     };
+  }, [open, formId]);
 
-    fetchInitialSettings();
-  }, [formId]);
-
-  // Convert between gifUrlsText and gifUrls array
+  // Process gifUrlsText changes
   useEffect(() => {
-    if (gifUrlsText) {
-      // Split by new lines and filter out empty lines
-      const urls = gifUrlsText.split('\n')
+    if (!isInitialMount) {
+      // Split by newlines and filter out empty lines
+      const urls = gifUrlsText
+        .split('\n')
         .map(url => url.trim())
-        .filter(url => url !== '');
+        .filter(url => url && isValidUrl(url));
       
       setGifUrls(urls);
-    } else {
-      setGifUrls([]);
     }
-  }, [gifUrlsText]);
+  }, [gifUrlsText, isInitialMount]);
 
   const handleAddEmail = async () => {
     setEmailError('');
@@ -694,8 +546,17 @@ export function FormSettingsDialog({
   };
 
   const handleDialogClose = () => {
-    onOpenChange(false);
-  };
+    // Reset all form values to original values
+    onOpenChange(false)
+    setColor(buttonColor);
+    setText(supportText || '');
+    setUrl(formUrl);
+    setShortcut(keyboardShortcut || '');
+    setSoundEnabled(initialSoundEnabled);
+    setShowGifOnSuccess(initialShowGifOnSuccess);
+    setGifUrls(initialGifUrls);
+    setGifUrlsText(initialGifUrls.join('\n'));
+  }
 
   useEffect(() => {
     setColor(buttonColor);
@@ -707,6 +568,7 @@ export function FormSettingsDialog({
   }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess]);
 
   // Auto-save sound enabled state
+  /*
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -728,18 +590,13 @@ export function FormSettingsDialog({
             }
           }));
 
-          cache.invalidate(`form-settings:${formId}`);
           onSettingsSaved();
 
-          toast.success(
-            soundEnabled 
-              ? 'Success sound enabled' 
-              : 'Success sound disabled'
-          );
+          toast.success(soundEnabled ? 'Sound enabled successfully' : 'Sound disabled successfully');
         } catch (error) {
-          console.error('Error updating sound setting:', error);
+          console.error('Error updating sound enabled:', error);
           setSoundEnabled(originalValues.styling.soundEnabled);
-          toast.error('Failed to update sound setting');
+          toast.error(`Failed to ${soundEnabled ? 'enable' : 'disable'} sound`);
         }
       }, 500);
     }
@@ -750,8 +607,10 @@ export function FormSettingsDialog({
       }
     };
   }, [soundEnabled, formId, originalValues.styling.soundEnabled, onSettingsSaved, isInitialMount]);
+  */
 
-  // Auto-save show GIF on success state
+  // Auto-save showGifOnSuccess setting
+  /*
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -760,11 +619,7 @@ export function FormSettingsDialog({
         try {
           const { error } = await supabase
             .from('forms')
-            .update({ 
-              show_gif_on_success: showGifOnSuccess,
-              // Only include gif_urls when showGifOnSuccess is true
-              ...(showGifOnSuccess ? { gif_urls: gifUrls } : { gif_urls: null })
-            })
+            .update({ show_gif_on_success: showGifOnSuccess })
             .eq('id', formId);
 
           if (error) throw error;
@@ -773,23 +628,21 @@ export function FormSettingsDialog({
             ...current,
             styling: {
               ...current.styling,
-              showGifOnSuccess,
-              gifUrls: showGifOnSuccess ? gifUrls : []
+              showGifOnSuccess
             }
           }));
 
-          cache.invalidate(`form-settings:${formId}`);
           onSettingsSaved();
 
           toast.success(
             showGifOnSuccess 
-              ? 'GIF on success enabled' 
-              : 'GIF on success disabled'
+              ? 'Success GIF enabled' 
+              : 'Success GIF disabled'
           );
         } catch (error) {
-          console.error('Error updating GIF on success setting:', error);
+          console.error('Error updating showGifOnSuccess setting:', error);
           setShowGifOnSuccess(originalValues.styling.showGifOnSuccess);
-          toast.error('Failed to update GIF on success setting');
+          toast.error(`Failed to ${showGifOnSuccess ? 'enable' : 'disable'} success GIF`);
         }
       }, 500);
     }
@@ -799,20 +652,20 @@ export function FormSettingsDialog({
         clearTimeout(timeoutId);
       }
     };
-  }, [showGifOnSuccess, formId, originalValues.styling.showGifOnSuccess, onSettingsSaved, isInitialMount, gifUrls]);
+  }, [showGifOnSuccess, formId, originalValues.styling.showGifOnSuccess, onSettingsSaved, isInitialMount]);
+  */
 
-  // Auto-save GIF URLs
+  // Auto-save gifUrls
+  /*
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
-    // Only save GIF URLs if show_gif_on_success is enabled and we're not in initial mount
-    if (!isInitialMount && showGifOnSuccess && 
-        !areArraysEqual(gifUrls, originalValues.styling.gifUrls)) {
+    if (!isInitialMount && !areArraysEqual(gifUrls, originalValues.styling.gifUrls) && showGifOnSuccess) {
       timeoutId = setTimeout(async () => {
         try {
           const { error } = await supabase
             .from('forms')
-            .update({ gif_urls: gifUrls.length > 0 ? gifUrls : null })
+            .update({ gif_urls: gifUrls })
             .eq('id', formId);
 
           if (error) throw error;
@@ -825,16 +678,14 @@ export function FormSettingsDialog({
             }
           }));
 
-          cache.invalidate(`form-settings:${formId}`);
           onSettingsSaved();
 
-          toast.success('Custom GIFs updated successfully');
+          toast.success('GIF URLs updated successfully');
         } catch (error) {
-          console.error('Error updating custom GIFs:', error);
-          // Reset to original values
+          console.error('Error updating GIF URLs:', error);
           setGifUrls(originalValues.styling.gifUrls);
           setGifUrlsText(originalValues.styling.gifUrls.join('\n'));
-          toast.error('Failed to update custom GIFs');
+          toast.error('Failed to update GIF URLs');
         }
       }, 500);
     }
@@ -844,12 +695,271 @@ export function FormSettingsDialog({
         clearTimeout(timeoutId);
       }
     };
-  }, [gifUrls, formId, originalValues.styling.gifUrls, showGifOnSuccess, isInitialMount, onSettingsSaved]);
+  }, [gifUrls, formId, originalValues.styling.gifUrls, onSettingsSaved, isInitialMount, showGifOnSuccess]);
+  */
 
   // Set isInitialMount to false after the first render
   useEffect(() => {
     setIsInitialMount(false);
   }, []);
+
+  // Clean up URL as user types or pastes
+  const handleUrlChange = (value: string) => {
+    const cleanUrl = value
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/$/, '');
+    
+    setUrl(cleanUrl);
+  };
+
+  // Handle URL blur (focus out) to save changes
+  const handleUrlBlur = async () => {
+    if (url === originalValues.styling.url) {
+      return;
+    }
+
+    if (!isValidUrl(url)) {
+      setUrl(originalValues.styling.url);
+      toast.error('Please enter a valid URL');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ url })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          url
+        }
+      }));
+
+      cache.invalidate(`form-settings:${formId}`);
+      onSettingsSaved();
+
+      toast.success('Website URL updated successfully');
+    } catch (error) {
+      console.error('Error updating URL:', error);
+      setUrl(originalValues.styling.url);
+      toast.error('Failed to update website URL');
+    }
+  };
+
+  // Handle text blur to save changes
+  const handleTextBlur = async () => {
+    if (text === originalValues.styling.supportText) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ support_text: text || null })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          supportText: text
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success('Support text updated successfully');
+    } catch (error) {
+      console.error('Error updating support text:', error);
+      setText(originalValues.styling.supportText);
+      toast.error('Failed to update support text');
+    }
+  };
+
+  // Handle color blur to save changes
+  const handleColorBlur = async () => {
+    if (color === originalValues.styling.buttonColor) {
+      return;
+    }
+
+    if (!isValidHexColor(color)) {
+      setColor(originalValues.styling.buttonColor);
+      toast.error('Please enter a valid hex color');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ button_color: color })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          buttonColor: color
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success('Button color updated successfully');
+    } catch (error) {
+      console.error('Error updating button color:', error);
+      setColor(originalValues.styling.buttonColor);
+      toast.error('Failed to update button color');
+    }
+  };
+
+  // Handle shortcut blur to save changes
+  const handleShortcutBlur = async () => {
+    if (shortcut === originalValues.styling.keyboardShortcut) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ keyboard_shortcut: shortcut || null })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          keyboardShortcut: shortcut
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success('Keyboard shortcut updated successfully');
+    } catch (error) {
+      console.error('Error updating keyboard shortcut:', error);
+      setShortcut(originalValues.styling.keyboardShortcut);
+      toast.error('Failed to update keyboard shortcut');
+    }
+  };
+
+  // Handle GIF URLs text blur to save changes
+  const handleGifUrlsBlur = async () => {
+    // Split by newlines and filter out empty lines
+    const urls = gifUrlsText
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url && isValidUrl(url));
+    
+    if (areArraysEqual(urls, originalValues.styling.gifUrls)) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ gif_urls: urls })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setGifUrls(urls);
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          gifUrls: urls
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success('GIF URLs updated successfully');
+    } catch (error) {
+      console.error('Error updating GIF URLs:', error);
+      setGifUrlsText(originalValues.styling.gifUrls.join('\n'));
+      toast.error('Failed to update GIF URLs');
+    }
+  };
+
+  // Handle switch toggle to save changes
+  const handleSoundEnabledChange = async (checked: boolean) => {
+    if (checked === originalValues.styling.soundEnabled) {
+      return;
+    }
+
+    setSoundEnabled(checked);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ sound_enabled: checked })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          soundEnabled: checked
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success(`Sound ${checked ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating sound enabled:', error);
+      setSoundEnabled(originalValues.styling.soundEnabled);
+      toast.error(`Failed to ${checked ? 'enable' : 'disable'} sound`);
+    }
+  };
+
+  // Handle GIF on success toggle to save changes
+  const handleShowGifOnSuccessChange = async (checked: boolean) => {
+    if (checked === originalValues.styling.showGifOnSuccess) {
+      return;
+    }
+
+    setShowGifOnSuccess(checked);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ show_gif_on_success: checked })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          showGifOnSuccess: checked
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success(`Success GIF ${checked ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating show GIF on success:', error);
+      setShowGifOnSuccess(originalValues.styling.showGifOnSuccess);
+      toast.error(`Failed to ${checked ? 'enable' : 'disable'} success GIF`);
+    }
+  };
 
   return (
     <>
@@ -917,7 +1027,8 @@ export function FormSettingsDialog({
                       <Input
                         id="url"
                         value={url}
-                        onChange={(e) => setUrl(e.target.value)}
+                        onChange={(e) => handleUrlChange(e.target.value)}
+                        onBlur={handleUrlBlur}
                         placeholder="app.userbird.co"
                       />
                     </div>
@@ -934,11 +1045,13 @@ export function FormSettingsDialog({
                         type="color"
                         value={color}
                         onChange={(e) => setColor(e.target.value)}
+                        onBlur={handleColorBlur}
                         className="w-20"
                       />
                       <Input
                         value={color}
                         onChange={(e) => setColor(e.target.value)}
+                        onBlur={handleColorBlur}
                         placeholder="#1f2937"
                         pattern="^#[0-9a-fA-F]{6}$"
                         className="font-mono"
@@ -952,6 +1065,7 @@ export function FormSettingsDialog({
                       id="supportText"
                       value={text}
                       onChange={(e) => setText(e.target.value)}
+                      onBlur={handleTextBlur}
                       placeholder="Have a specific issue? [Contact support](https://example.com) or [read our docs](https://docs.example.com)"
                       className="font-mono"
                     />
@@ -970,6 +1084,7 @@ export function FormSettingsDialog({
                           id="shortcut"
                           placeholder="Press keys..."
                           value={shortcut}
+                          onBlur={handleShortcutBlur}
                           onKeyDown={(e) => {
                             e.preventDefault();
                             // Ignore Backspace key
@@ -998,7 +1113,10 @@ export function FormSettingsDialog({
                         variant="ghost"
                         size="sm"
                         className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => setShortcut('')}
+                        onClick={() => {
+                          setShortcut('');
+                          handleShortcutBlur();
+                        }}
                       >
                         Clear
                       </Button>
@@ -1010,7 +1128,7 @@ export function FormSettingsDialog({
                       <Label>Play sound on success</Label>
                       <Switch
                         checked={soundEnabled}
-                        onCheckedChange={setSoundEnabled}
+                        onCheckedChange={handleSoundEnabledChange}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1023,7 +1141,7 @@ export function FormSettingsDialog({
                       <Label>Show GIF on success</Label>
                       <Switch
                         checked={showGifOnSuccess}
-                        onCheckedChange={setShowGifOnSuccess}
+                        onCheckedChange={handleShowGifOnSuccessChange}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1037,6 +1155,7 @@ export function FormSettingsDialog({
                           id="gifUrls"
                           value={gifUrlsText}
                           onChange={(e) => setGifUrlsText(e.target.value)}
+                          onBlur={handleGifUrlsBlur}
                           placeholder="https://example.com/gif1.gif&#10;https://example.com/gif2.gif&#10;https://example.com/gif3.gif"
                           className="min-h-[100px]"
                         />
