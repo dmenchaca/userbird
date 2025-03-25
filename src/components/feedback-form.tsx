@@ -70,8 +70,8 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
       const randomIndex = Math.floor(Math.random() * gifUrls.length);
       return gifUrls[randomIndex];
     }
-    // Fall back to default GIF if no custom GIFs available
-    return MSG.success.gifUrl;
+    // Return null if no custom GIFs are available
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,9 +121,9 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
               <p className="text-sm text-muted-foreground">
                 {MSG.success.description}
               </p>
-              {window.UserBird?.showGifOnSuccess && (
+              {window.UserBird?.showGifOnSuccess && selectedGifUrl && (
                 <img 
-                  src={selectedGifUrl || MSG.success.gifUrl} 
+                  src={selectedGifUrl} 
                   alt="Success GIF" 
                   className="mx-auto max-h-64" 
                 />

@@ -8,7 +8,6 @@ export const SUCCESS_TEMPLATE = `
     </svg>
     <h3 class="ub-success-title">${MSG.success.title}</h3>
     <p class="ub-success-message">${MSG.success.description}</p>
-    <img src="${MSG.success.gifUrl}" alt="Success GIF" class="ub-success-gif" />
     <button class="ub-button ub-close">${MSG.labels.close}</button>
   </div>
 `
