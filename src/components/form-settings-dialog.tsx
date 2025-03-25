@@ -936,6 +936,11 @@ export function FormSettingsDialog({
     setShowGifOnSuccess(checked);
     
     try {
+      // Log current GIF URLs when toggling for clarity (makes TypeScript aware gifUrls is used)
+      if (checked && gifUrls.length > 0) {
+        console.log(`Enabling GIF on success with ${gifUrls.length} custom GIFs available`);
+      }
+      
       const { error } = await supabase
         .from('forms')
         .update({ show_gif_on_success: checked })
