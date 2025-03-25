@@ -39,7 +39,7 @@ export function LoginPage() {
       <div className="relative hidden h-full lg:block overflow-hidden">
         <div className="absolute inset-0 flex items-center">
           <div className="relative w-[800px] -translate-x-[200px] z-[2]">
-            <div className="absolute -top-24 right-[98px] flex flex-col items-end gap-2 try-me-container">
+            <div className="absolute -top-12 right-[98px] flex flex-col items-end gap-2 try-me-container z-[9999]">
               <img 
                 src="/try-me.svg" 
                 alt="Try me!"
