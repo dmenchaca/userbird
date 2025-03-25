@@ -20,4 +20,19 @@ function validateSupabaseConfig() {
 
 validateSupabaseConfig()
 
-export const supabase = createClient(env.supabase.url, env.supabase.anonKey)
+// Create the Supabase client with explicit storage options to ensure sessions persist properly across tabs
+export const supabase = createClient(
+  env.supabase.url, 
+  env.supabase.anonKey,
+  {
+    auth: {
+      persistSession: true,
+      // Use local storage as the primary storage mechanism with more consistent behavior across tabs
+      storage: localStorage,
+      // Increase detectSessionInUrl flag to ensure OAuth redirects are properly handled
+      detectSessionInUrl: true,
+      // Ensure autoRefreshToken is enabled to maintain the session
+      autoRefreshToken: true
+    }
+  }
+)
