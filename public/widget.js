@@ -14,8 +14,7 @@
     success: {
       title: 'Thank you',
       description: 'Your message has been received and will be reviewed by our team.',
-      imageError: 'Only JPG and PNG images up to 5MB are allowed.',
-      gifUrl: 'https://ruqbgoazhyfxrsxbttfp.supabase.co/storage/v1/object/public/app//Season%202%20Nbc%20GIF%20by%20The%20Office.gif'
+      imageError: 'Only JPG and PNG images up to 5MB are allowed.'
     },
     labels: {
       submit: 'Send Feedback',
@@ -831,27 +830,32 @@
           console.log('Selected GIF URL:', selectedUrl);
           return selectedUrl;
         }
-        console.log('No custom GIFs found, using default GIF');
-        return MESSAGES.success.gifUrl;
+        console.log('No custom GIFs found, not showing a GIF');
+        return null;
       }
       
-      // Hide the SVG icon when GIF is shown
-      const successIcon = modal.successElement.querySelector('.userbird-success-icon');
-      if (successIcon) {
-        successIcon.style.display = 'none';
+      const gifUrl = getRandomGifUrl();
+      
+      // Only show GIF if we have a valid URL
+      if (gifUrl) {
+        // Hide the SVG icon when GIF is shown
+        const successIcon = modal.successElement.querySelector('.userbird-success-icon');
+        if (successIcon) {
+          successIcon.style.display = 'none';
+        }
+        
+        // Set padding-top to 8px when GIF is shown
+        modal.successElement.style.paddingTop = '8px';
+        
+        const successGif = document.createElement('img');
+        successGif.src = gifUrl;
+        successGif.alt = "Success GIF";
+        successGif.className = "userbird-success-gif";
+        successGif.style.maxWidth = "100%";
+        successGif.style.marginTop = "1rem";
+        successGif.style.borderRadius = "6px";
+        modal.successElement.appendChild(successGif);
       }
-      
-      // Set padding-top to 8px when GIF is shown
-      modal.successElement.style.paddingTop = '8px';
-      
-      const successGif = document.createElement('img');
-      successGif.src = getRandomGifUrl(); // Use random GIF selection logic
-      successGif.alt = "Success GIF";
-      successGif.className = "userbird-success-gif";
-      successGif.style.maxWidth = "100%";
-      successGif.style.marginTop = "1rem";
-      successGif.style.borderRadius = "6px";
-      modal.successElement.appendChild(successGif);
     }
     
     if (window.UserBird?.settings?.sound_enabled && successSound) {
@@ -1020,19 +1024,26 @@
         console.log('Success message - Selected GIF URL:', selectedUrl);
         return selectedUrl;
       }
-      // Fall back to default GIF
-      console.log('Success message - No custom GIFs found, using default GIF');
-      return MESSAGES.success.gifUrl;
+      // Return null if no GIFs are available
+      console.log('Success message - No custom GIFs found, not showing a GIF');
+      return null;
     }
     
-    const gifUrl = window.UserBird?.showGifOnSuccess ? getRandomGifUrl() : '';
-    console.log('Success message - Final GIF URL to display:', gifUrl);
+    let gifHtml = '';
+    if (window.UserBird?.showGifOnSuccess) {
+      const gifUrl = getRandomGifUrl();
+      if (gifUrl) {
+        gifHtml = `<img src="${gifUrl}" alt="Success GIF">`;
+      }
+    }
+    
+    console.log('Success message - Final GIF HTML to display:', gifHtml);
     
     const successMessage = document.createElement('div');
     successMessage.innerHTML = `
       <h2>${MESSAGES.success.title}</h2>
       <p>${MESSAGES.success.description}</p>
-      ${window.UserBird?.showGifOnSuccess ? `<img src="${gifUrl}" alt="Success GIF">` : ''}
+      ${gifHtml}
     `;
     document.body.appendChild(successMessage);
     console.log('Success message displayed.');
