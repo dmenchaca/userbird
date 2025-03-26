@@ -132,7 +132,7 @@ export function AnalyticsDashboard() {
       </CardHeader>
 
       {/* Time filters */}
-      <div className="flex items-center justify-end gap-2 p-4 border-b border-border/50">
+      <div className="hidden">
         <Tabs defaultValue="12m" className="w-auto">
           <TabsList className="bg-transparent p-0 text-muted-foreground/50">
             <TabsTrigger

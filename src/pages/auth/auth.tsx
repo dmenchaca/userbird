@@ -63,7 +63,7 @@ export function AuthPage() {
                 <AnalyticsDashboard />
               </div>
             </div>
-            <div className="flex gap-[72px] pl-8 pb-8 self-stretch">
+            <div className="flex gap-[72px] pl-10 pb-16 self-stretch">
               <div className="flex flex-col items-start max-w-[210px]">
                 <CodeXml className="h-6 w-6 mb-2 text-primary" />
                 <p className="text-black">
