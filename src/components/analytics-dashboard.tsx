@@ -27,7 +27,7 @@ const pagesData = [
 
 export function AnalyticsDashboard() {
   return (
-    <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden">
+    <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden scale-[1.1]">
       {/* Browser Address Bar */}
       <div className="relative h-9 bg-white/60 backdrop-blur-sm border-b border-[#e0e0e0]/40 flex items-center px-3 rounded-t-lg">
         {/* Traffic Light Buttons */}
