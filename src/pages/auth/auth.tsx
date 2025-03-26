@@ -67,8 +67,14 @@ export function AuthPage() {
               <div className="flex flex-col items-start max-w-[210px]">
                 <CodeXml className="h-6 w-6 mb-2 text-primary" />
                 <p className="text-black">
-                  Install widget. <span className="text-black opacity-40">Takes less than 5 minutes.</span>
+                  Install widget. <span className="text-black opacity-40">It takes less than 5 minutes.</span>
                 </p>
+                <div className="flex gap-3 pt-4">
+                  <img src="/react.svg" alt="React" className="w-[20px] h-[20px]" />
+                  <img src="/vue.svg" alt="Vue" className="w-[20px] h-[20px]" />
+                  <img src="/angular.svg" alt="Angular" className="w-[20px] h-[20px]" />
+                  <img src="/js.svg" alt="JavaScript" className="w-[20px] h-[20px]" />
+                </div>
               </div>
               <div className="flex flex-col items-start max-w-[210px]">
                 <Rocket className="h-6 w-6 mb-2 text-primary" />
