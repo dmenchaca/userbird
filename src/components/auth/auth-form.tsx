@@ -94,7 +94,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           <div className="grid gap-4">
             <Button 
               type="button"
-              className="w-full"
+              className="w-full max-w-[17rem] mx-auto"
               onClick={handleGoogleSignIn}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -109,7 +109,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             <Button 
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full max-w-[17rem] mx-auto"
               onClick={() => setShowEmailForm(true)}
             >
               Continue with email
@@ -120,7 +120,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           <Button 
             type="button"
             variant="outline"
-            className="w-full text-muted-foreground"
+            className="w-full max-w-[17rem] mx-auto text-muted-foreground"
             onClick={handleGoogleSignIn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -185,7 +185,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 <span>{error}</span>
               </div>
             )}
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading} className="w-full max-w-[17rem] mx-auto">
               {loading ? (mode === 'login' ? "Signing in..." : "Creating account...") : (mode === 'login' ? "Sign in" : "Create Account")}
             </Button>
           </form>
