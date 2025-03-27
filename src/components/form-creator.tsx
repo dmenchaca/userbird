@@ -113,7 +113,17 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
           url: cleanUrl,
           owner_id: user?.id,
           button_color: buttonColor,
-          support_text: supportText || null
+          support_text: supportText || null,
+          show_gif_on_success: true,
+          remove_branding: false,
+          keyboard_shortcut: 'L',
+          gif_urls: [
+            'https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif',
+            'https://media1.tenor.com/m/4PLfYPBvjhQAAAAd/tannerparty-tanner.gif',
+            'https://media1.tenor.com/m/lRY5I7kwR08AAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/9LbEpuHBPScAAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/mnx8ECSie6EAAAAd/sheldon-cooper-big-bang-theory.gif'
+          ]
         }])
       
       if (insertError) throw insertError
