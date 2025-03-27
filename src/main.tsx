@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { PostHogProvider } from 'posthog-js/react'
@@ -10,14 +9,12 @@ const options = {
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <PostHogProvider 
-      apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
-      options={options}
-    >
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </PostHogProvider>
-  </StrictMode>
+  <PostHogProvider 
+    apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+    options={options}
+  >
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </PostHogProvider>
 )

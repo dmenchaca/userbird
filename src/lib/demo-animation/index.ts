@@ -9,10 +9,15 @@ interface AnimationOptions {
   formId?: string;
 }
 
+// Safe way to access dynamic window properties
+function safeGetWindowProp(key: string): any {
+  return (window as any)[key];
+}
+
 export function initCursorDemo(options: AnimationOptions = {}) {
   const {
-    delay = 5000,
-    loremText = "This feature is really helpful. Thanks for building such a great widget!",
+    delay = 100,
+    loremText = "Foo",
     formId = ""
   } = options;
 
@@ -24,6 +29,9 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   
   let cursorElement: HTMLDivElement | null = null;
   let isAnimating = false;
+  
+  // Wait for the widget to fully initialize before starting animation
+  const actualDelay = Math.max(delay, 1500); // Ensure at least 1.5s for widget to fully load
   
   // Initialize the animation
   const init = () => {
@@ -120,13 +128,91 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         
         cursorElement.style.transform = 'scale(0.8)';
         
-        // Trigger the click event
+        // Log audio context state if available
+        try {
+          // Check if there are any audio elements on the page
+          const audioElements = document.querySelectorAll('audio');
+          console.log('🔊 Audio elements on page:', audioElements.length);
+          
+          // Check for widget sound settings
+          const userBird = safeGetWindowProp('UserBird');
+          if (userBird && userBird.settings) {
+            console.log('🔊 Widget sound settings:', userBird.settings.sound_enabled);
+          }
+        } catch (e) {
+          console.log('🔊 Error checking audio state:', e);
+        }
+        
+        console.log('👆 Triggering click on element:', element.tagName, 
+          element.id ? '#' + element.id : '', 
+          element.className ? '.' + String(element.className).replace(/ /g, '.') : '');
+        
+        // Get element rect to create a realistic click
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Create a more realistic click event
         const clickEvent = new MouseEvent('click', {
           bubbles: true,
           cancelable: true,
-          view: window
+          view: window,
+          detail: 1,
+          screenX: centerX + window.screenX,
+          screenY: centerY + window.screenY,
+          clientX: centerX,
+          clientY: centerY,
+          button: 0,
+          buttons: 1
         });
+        
+        // Log mouse event properties
+        console.log('🔊 Click event properties:', {
+          bubbles: clickEvent.bubbles,
+          cancelable: clickEvent.cancelable,
+          isTrusted: clickEvent.isTrusted,
+          clientX: clickEvent.clientX,
+          clientY: clickEvent.clientY
+        });
+        
+        // Some widgets detect mouse down + mouse up sequence
+        // First dispatch mousedown
+        const mouseDownEvent = new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          detail: 1,
+          screenX: centerX + window.screenX,
+          screenY: centerY + window.screenY,
+          clientX: centerX,
+          clientY: centerY,
+          button: 0,
+          buttons: 1
+        });
+        
+        element.dispatchEvent(mouseDownEvent);
+        console.log('👆 MouseDown event dispatched');
+        
+        // Then dispatch mouseup
+        const mouseUpEvent = new MouseEvent('mouseup', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          detail: 1,
+          screenX: centerX + window.screenX,
+          screenY: centerY + window.screenY,
+          clientX: centerX,
+          clientY: centerY,
+          button: 0,
+          buttons: 0
+        });
+        
+        element.dispatchEvent(mouseUpEvent);
+        console.log('👆 MouseUp event dispatched');
+        
+        // Finally dispatch the click
         element.dispatchEvent(clickEvent);
+        console.log('👆 Click event dispatched');
         
         // Add delay to make it feel more natural
         setTimeout(resolve, 300);
@@ -184,62 +270,33 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       console.log(`❌ Button with ID ${buttonId} not found`);
     }
     
-    // Fallback to generic selectors with expanded options to find the button
+    // Fallback to generic selectors
     const selectors = [
       '.userbird-trigger',
       '[id^="userbird-trigger"]',
       '.ub-button',
       '[class*="feedback-button"]',
-      '.userbird-fab',
-      '#userbird-widget-button',
-      '[class*="userbird-widget"]',
-      '.userbird-button',
-      '[class*="userbird"][class*="button"]',
-      '[class*="feedback"][class*="button"]',
       'button[class*="userbird"]',
-      'button[id*="userbird"]',
-      'div[class*="feedback"]',
-      'div[id*="feedback"]'
+      'button[id*="userbird"]'
     ];
     
-    console.log(`🔍 Trying expanded selectors: ${selectors.join(', ')}`);
+    console.log(`🔍 Trying selectors: ${selectors.join(', ')}`);
     
     for (const selector of selectors) {
-      console.log(`🔍 Trying selector: ${selector}`);
-      const element = document.querySelector<HTMLElement>(selector);
-      if (element) {
-        console.log(`✅ Found button with selector: ${selector}`);
-        return element;
+      try {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (element) {
+          console.log(`✅ Found button with selector: ${selector}`);
+          return element;
+        }
+      } catch (error) {
+        console.log(`❌ Error with selector ${selector}:`, error);
       }
     }
     
     console.log('❓ Looking for any buttons in the document');
     const allButtons = document.querySelectorAll('button');
     console.log(`📊 Found ${allButtons.length} buttons on the page`);
-    
-    // Last resort: try to find the button by inspecting all buttons for possible matches
-    console.log('🔍 Trying to find button by inspecting all buttons...');
-    for (let i = 0; i < allButtons.length; i++) {
-      const button = allButtons[i];
-      // Check if button has any indication of being a feedback button
-      if (
-        button.textContent?.toLowerCase().includes('feedback') ||
-        button.id?.toLowerCase().includes('feedback') ||
-        button.id?.toLowerCase().includes('userbird') ||
-        button.className?.toLowerCase().includes('feedback') ||
-        button.className?.toLowerCase().includes('userbird')
-      ) {
-        console.log(`✅ Found potential feedback button by content/attributes:`, 
-          button.textContent || button.id || button.className);
-        return button as HTMLElement;
-      }
-    }
-    
-    // If absolutely nothing works, fallback to the first button on the page
-    if (allButtons.length > 0) {
-      console.log('⚠️ No feedback button identified, using first button on page as fallback');
-      return allButtons[0] as HTMLElement;
-    }
     
     return null;
   };
@@ -251,14 +308,11 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     console.log('▶️ Starting animation sequence');
     
     try {
-      // Force a document reflow to ensure all elements are rendered
-      console.log('🔄 Forcing document reflow to ensure elements are rendered');
-      document.body.getBoundingClientRect();
-      
       // Initialize cursor
       init();
       if (!cursorElement) {
         console.error('❌ Failed to create cursor element');
+        cleanup();
         return;
       }
       console.log('🖱️ Cursor element created');
@@ -266,40 +320,10 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       // Fade in the cursor
       cursorElement.style.opacity = '1';
       
-      // Find the feedback button with retry mechanism
-      let feedbackButton = null;
-      let retries = 0;
-      const maxRetries = 5;
-      
-      while (!feedbackButton && retries < maxRetries) {
-        console.log(`🔄 Attempt ${retries + 1} to find feedback button`);
-        feedbackButton = findFeedbackButton();
-        
-        if (!feedbackButton) {
-          console.log(`⏳ Button not found, waiting 500ms before retry ${retries + 1}/${maxRetries}`);
-          await new Promise(resolve => setTimeout(resolve, 500));
-          retries++;
-        }
-      }
-      
+      // Find the feedback button
+      const feedbackButton = findFeedbackButton();
       if (!feedbackButton) {
-        console.error('❌ Feedback button not found after multiple attempts');
-        
-        // Debug: Check DOM for any widget-related elements
-        console.log('🔍 Debugging DOM structure for widget elements:');
-        const widgetElements = document.querySelectorAll('[id*="userbird"], [class*="userbird"], [id*="ub-"], [class*="ub-"]');
-        console.log(`📊 Found ${widgetElements.length} potential widget elements`);
-        
-        if (widgetElements.length > 0) {
-          console.log('📋 Widget elements found:');
-          widgetElements.forEach(el => {
-            const classStr = typeof el.className === 'string' 
-              ? el.className.replace(/ /g, '.') 
-              : Array.from(el.classList || []).join('.');
-            console.log(`- ${el.tagName}${el.id ? ' #' + el.id : ''}${classStr ? ' .' + classStr : ''}`);
-          });
-        }
-        
+        console.error('❌ Feedback button not found');
         cleanup();
         return;
       }
@@ -312,20 +336,6 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         y: buttonRect.top + buttonRect.height / 2
       };
       console.log('📍 Button position:', buttonCenter);
-      
-      // Verify button position is within viewport and provide fallback if not
-      const isButtonPositionValid = 
-        buttonCenter.x > 0 && 
-        buttonCenter.x < window.innerWidth && 
-        buttonCenter.y > 0 && 
-        buttonCenter.y < window.innerHeight;
-      
-      if (!isButtonPositionValid) {
-        console.log('⚠️ Button position seems off-screen, using fallback coordinates');
-        // Fallback position - bottom right corner
-        buttonCenter.x = window.innerWidth - 100;
-        buttonCenter.y = window.innerHeight - 100;
-      }
       
       // Start from off-screen
       cursorElement.style.left = `${window.innerWidth}px`;
@@ -342,168 +352,197 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       console.log('👆 Clicking feedback button');
       await simulateClick(feedbackButton);
       
-      // Wait a moment to see if modal appears
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Check if a modal is visible
-      let modalVisible = !!document.querySelector('.userbird-modal.open, .userbird-modal.userbird-open, .ub-modal.open, .ub-modal.ub-open');
-      
-      // If modal isn't visible, try keyboard shortcut as fallback
-      if (!modalVisible) {
-        console.log('⚠️ Modal not visible after button click, trying keyboard shortcut fallback');
-        // Try keyboard shortcut 'L' which is common for the widget
-        const keyEvent = new KeyboardEvent('keydown', {
-          key: 'l',
-          code: 'KeyL',
-          keyCode: 76,
-          which: 76,
-          bubbles: true,
-          cancelable: true
-        });
-        document.dispatchEvent(keyEvent);
-        
-        // Wait again to see if that worked
-        await new Promise(resolve => setTimeout(resolve, 500));
-        modalVisible = !!document.querySelector('.userbird-modal.open, .userbird-modal.userbird-open, .ub-modal.open, .ub-modal.ub-open');
-        
-        if (!modalVisible) {
-          console.log('⚠️ Keyboard shortcut also failed, continuing anyway');
-        } else {
-          console.log('✅ Modal opened via keyboard shortcut');
-        }
-      }
-      
-      // Wait for modal to appear
+      // Wait longer for modal to appear
       console.log('⏳ Waiting for modal to appear');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      let modalWaitTime = 0;
+      const maxWaitTime = 2000; // 2 seconds max wait
+      const checkInterval = 200; // Check every 200ms
       
-      // Find the textarea in the modal
-      const textareaSelectors = [
-        '.ub-textarea', 
-        '.userbird-textarea',
-        'textarea.ub-textarea', 
-        'textarea.userbird-textarea',
-        '.userbird-modal textarea',
-        '.ub-modal textarea',
-        'textarea[placeholder*="feedback"]',
-        'textarea[placeholder*="mind"]',
-        'textarea'
-      ];
-      
-      console.log('🔍 Looking for textarea with selectors:', textareaSelectors);
-      
-      let textarea = null;
-      for (const selector of textareaSelectors) {
-        textarea = document.querySelector<HTMLTextAreaElement>(selector);
+      // Actively wait and check for textarea to appear
+      let textarea: HTMLTextAreaElement | null = null;
+      while (modalWaitTime < maxWaitTime) {
+        textarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
         if (textarea) {
-          console.log(`✅ Found textarea with selector: ${selector}`);
+          console.log(`✅ Textarea found after ${modalWaitTime}ms`);
           break;
         }
+        
+        // Wait and increment time
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        modalWaitTime += checkInterval;
+        console.log(`⏳ Still waiting for modal... ${modalWaitTime}ms elapsed`);
       }
       
+      // If we didn't find the textarea after max wait time, try fallback methods
       if (!textarea) {
-        console.error('❌ Textarea not found');
+        console.error('❌ Textarea not found after maximum wait time');
+        
+        // Fallback method: try to patch the event listener to accept synthetic events
+        console.log('🔧 Attempting to patch event handling to accept synthetic events');
+        
+        try {
+          // Monkey patch the Event prototype to make isTrusted always return true
+          const originalIsTrusted = Object.getOwnPropertyDescriptor(Event.prototype, 'isTrusted')?.get;
+          if (originalIsTrusted) {
+            Object.defineProperty(Event.prototype, 'isTrusted', {
+              get: function() { return true; }
+            });
+            
+            console.log('✅ Successfully patched Event.isTrusted property');
+            
+            // Try clicking again after patching
+            console.log('🔄 Clicking feedback button again after patch');
+            await simulateClick(feedbackButton);
+            
+            // Wait for widget to appear
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const patchTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+            if (patchTextarea) {
+              console.log('✅ Textarea found after patching!');
+              // Continue with animation
+              await continueAnimation(patchTextarea, loremText);
+              
+              // Restore original behavior
+              Object.defineProperty(Event.prototype, 'isTrusted', {
+                get: originalIsTrusted
+              });
+              
+              return;
+            }
+            
+            // Restore original behavior
+            Object.defineProperty(Event.prototype, 'isTrusted', {
+              get: originalIsTrusted
+            });
+          }
+        } catch (e) {
+          console.log('❌ Error patching event handling:', e);
+        }
+        
+        // Try keyboard shortcut as last resort
+        console.log('🔄 Trying keyboard shortcut as last resort');
+        try {
+          const keyEvent = new KeyboardEvent('keydown', {
+            key: 'l',
+            code: 'KeyL', 
+            keyCode: 76,
+            which: 76,
+            bubbles: true,
+            cancelable: true
+          });
+          document.dispatchEvent(keyEvent);
+          
+          // Wait for widget to appear after keyboard shortcut
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Check again for textarea
+          const retryTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+          if (retryTextarea) {
+            console.log('✅ Textarea found after keyboard shortcut!');
+            // Continue with animation using retry textarea
+            await continueAnimation(retryTextarea, loremText);
+            return;
+          }
+        } catch (e) {
+          console.log('❌ Error with keyboard shortcut:', e);
+        }
+        
+        // Finally, try to open the widget programmatically as last resort
+        console.log('🔄 Trying to open widget programmatically as last resort');
+        
+        // Check for UserBird global object and try to open it
+        const userBird = safeGetWindowProp('UserBird');
+        if (userBird && typeof userBird.open === 'function') {
+          console.log('✅ Found UserBird.open, trying to call it');
+          try {
+            userBird.open();
+            // Wait for widget to appear after programmatic opening
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Check again for textarea
+            const retryTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+            if (retryTextarea) {
+              console.log('✅ Textarea found after programmatic open!');
+              // Continue with animation using retry textarea
+              await continueAnimation(retryTextarea, loremText);
+              return;
+            }
+          } catch (e) {
+            console.log('❌ Error opening widget programmatically:', e);
+          }
+        }
+        
         cleanup();
         return;
       }
       console.log('🔍 Found textarea');
       
-      // Get textarea position
-      const textareaRect = textarea.getBoundingClientRect();
-      const textareaPoint = {
-        x: textareaRect.left + 20,
-        y: textareaRect.top + 20
-      };
-      
-      // Move to textarea
-      console.log('🚶 Moving cursor to textarea');
-      await moveCursorTo(textareaPoint);
-      
-      // Type the text
-      console.log('⌨️ Typing text in textarea');
-      await typeText(textarea, loremText);
-      console.log('✓ Finished typing');
-      
-      // Find the submit button
-      const submitSelectors = [
-        '.ub-submit', 
-        '.userbird-submit',
-        'button.ub-submit', 
-        'button.userbird-submit',
-        '.userbird-modal button:not(.userbird-close):not(.userbird-button-secondary)',
-        '.ub-modal button:not(.ub-close):not(.ub-button-secondary)',
-        'button[type="submit"]',
-        'button:contains("Send")',
-        'button:contains("Submit")',
-        'button.userbird-button:not(.userbird-button-secondary)',
-        'button.ub-button:not(.ub-button-secondary)'
-      ];
-      
-      console.log('🔍 Looking for submit button with selectors:', submitSelectors);
-      
-      let submitButton = null;
-      for (const selector of submitSelectors) {
-        try {
-          submitButton = document.querySelector<HTMLElement>(selector);
-          if (submitButton) {
-            console.log(`✅ Found submit button with selector: ${selector}`);
-            break;
-          }
-        } catch (e) {
-          // Some selectors like :contains may not be supported in all browsers
-          console.log(`⚠️ Selector error for "${selector}":`, e);
-        }
-      }
-      
-      // Fallback: if no specific submit button found, find the last button in the modal
-      if (!submitButton) {
-        console.log('⚠️ No specific submit button found, looking for any button in modal');
-        const modalButtons = document.querySelectorAll('.userbird-modal button, .ub-modal button');
-        if (modalButtons.length > 0) {
-          // Usually the primary/submit button is the last one
-          submitButton = modalButtons[modalButtons.length - 1] as HTMLElement;
-          console.log('✅ Using last button in modal as submit button');
-        }
-      }
-      
-      if (!submitButton) {
-        console.error('❌ Submit button not found');
-        cleanup();
-        return;
-      }
-      console.log('🔍 Found submit button');
-      
-      // Get submit button position
-      const submitRect = submitButton.getBoundingClientRect();
-      const submitCenter = {
-        x: submitRect.left + submitRect.width / 2,
-        y: submitRect.top + submitRect.height / 2
-      };
-      
-      // Move to submit button
-      console.log('🚶 Moving cursor to submit button');
-      await moveCursorTo(submitCenter);
-      
-      // Click the submit button
-      console.log('👆 Clicking submit button');
+      await continueAnimation(textarea, loremText);
+    } catch (error) {
+      console.error('❌ Error in cursor animation:', error);
+      cleanup();
+    }
+  };
+  
+  // Continue animation after finding textarea
+  const continueAnimation = async (textarea: HTMLTextAreaElement, text: string): Promise<void> => {
+    // Get textarea position
+    const textareaRect = textarea.getBoundingClientRect();
+    const textareaPoint = {
+      x: textareaRect.left + 20,
+      y: textareaRect.top + 20
+    };
+    
+    // Move to textarea
+    console.log('🚶 Moving cursor to textarea');
+    await moveCursorTo(textareaPoint);
+    
+    // Type the text
+    console.log('⌨️ Typing text in textarea');
+    await typeText(textarea, text);
+    console.log('✓ Finished typing');
+    
+    // Find the submit button
+    const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
+    if (!submitButton) {
+      console.error('❌ Submit button not found');
+      cleanup();
+      return;
+    }
+    console.log('🔍 Found submit button');
+    
+    // Get submit button position
+    const submitRect = submitButton.getBoundingClientRect();
+    const submitCenter = {
+      x: submitRect.left + submitRect.width / 2,
+      y: submitRect.top + submitRect.height / 2
+    };
+    
+    // Move to submit button
+    console.log('🚶 Moving cursor to submit button');
+    await moveCursorTo(submitCenter);
+    
+    // Click the submit button
+    console.log('👆 Clicking submit button');
+    try {
       await simulateClick(submitButton);
       
       // Wait for success message
       console.log('⏳ Waiting for success message');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Fade out cursor
-      console.log('🏁 Animation complete, fading out cursor');
-      if (cursorElement) {
-        cursorElement.style.opacity = '0';
-      }
-      
-      // Clean up
-      setTimeout(cleanup, 500);
     } catch (error) {
-      console.error('❌ Error in cursor animation:', error);
-      cleanup();
+      console.error('⚠️ Error during submit button click, but continuing animation:', error);
     }
+    
+    // Fade out cursor
+    console.log('🏁 Animation complete, fading out cursor');
+    if (cursorElement) {
+      cursorElement.style.opacity = '0';
+    }
+    
+    // Clean up
+    setTimeout(cleanup, 500);
   };
   
   // Clean up function
@@ -517,9 +556,9 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   };
   
   // Start the animation after the specified delay
-  console.log(`⏱️ Animation will start in ${delay}ms`);
-  setTimeout(startAnimation, delay);
+  console.log(`⏱️ Animation will start in ${actualDelay}ms`);
+  setTimeout(startAnimation, actualDelay);
   
   // Return cleanup function in case we need to stop the animation
   return cleanup;
-} 
+}

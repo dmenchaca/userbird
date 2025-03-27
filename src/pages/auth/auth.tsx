@@ -92,7 +92,7 @@ export function AuthPage() {
             formId: "4hNUB7DVhf",
             // Start immediately
             delay: 100,
-            loremText: "This feedback widget is really helpful! I love how easy it is to use."
+            loremText: "Foo"
           });
           
           // Store cleanup function for component unmounting
