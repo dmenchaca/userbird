@@ -239,18 +239,15 @@
       }
       .userbird-success {
         text-align: center;
-        padding: 2rem 1rem;
+        padding: 1rem;
         display: none;
       }
-      .userbird-success.open {
-        display: block;
-        /* Default padding when no GIF is enabled */
-        padding: 1rem;
-      }
-      /* When GIF is enabled, adjust padding */
       .userbird-success.with-gif {
         padding-top: 0.5rem;
         padding-bottom: 1rem;
+      }
+      .userbird-success.open {
+        display: block;
       }
       .userbird-success-icon {
         width: 48px;
@@ -879,8 +876,14 @@
       existingGif.remove();
     }
     
+    // Get the branding element so we can reposition it
+    const brandingElement = modal.successElement.querySelector('.userbird-branding');
+    
     // Add the GIF to the success message if enabled
     if (window.UserBird?.showGifOnSuccess) {
+      // Add class for GIF-specific styling
+      modal.successElement.classList.add('with-gif');
+      
       // Function to get a random GIF URL
       function getRandomGifUrl() {
         console.log('Getting random GIF, available GIFs:', window.UserBird?.gifUrls);
@@ -905,9 +908,6 @@
           successIcon.style.display = 'none';
         }
         
-        // Set padding-top to 8px when GIF is shown
-        modal.successElement.style.paddingTop = '8px';
-        
         const successGif = document.createElement('img');
         successGif.src = gifUrl;
         successGif.alt = "Success GIF";
@@ -916,7 +916,17 @@
         successGif.style.marginTop = "1rem";
         successGif.style.borderRadius = "6px";
         modal.successElement.appendChild(successGif);
+        
+        // Move branding after the GIF if branding is enabled
+        if (brandingElement && !window.UserBird?.removeBranding) {
+          // Remove and re-append to move it to the end
+          brandingElement.parentNode.removeChild(brandingElement);
+          modal.successElement.appendChild(brandingElement);
+        }
       }
+    } else {
+      // Remove the with-gif class if GIF is not enabled
+      modal.successElement.classList.remove('with-gif');
     }
     
     if (window.UserBird?.settings?.sound_enabled && successSound) {
