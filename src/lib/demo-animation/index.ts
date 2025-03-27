@@ -5,20 +5,42 @@ interface Point {
 
 interface AnimationOptions {
   delay?: number;
-  loremText?: string;
+  demoText?: string;
   formId?: string;
 }
+
+// Default values
+const DEFAULT_DELAY = 100;
+const DEFAULT_TEXT = "Life is good";
+const DEFAULT_FORM_ID = "";
+
+// Names and colors for the cursor animation
+const CURSOR_NAMES = [
+  'Amina', 'Hiroshi', 'Santiago', 'Anya', 'Yara',
+  'Kofi', 'Leila', 'Luca', 'Mei', 'Tenzin',
+  'Sinead', 'Rajesh', 'Zuzanna', 'Fatou', 'Mikael',
+  'Iskander', 'Soraya', 'Jalen', 'Óscar'
+];
+
+const CURSOR_COLORS = [
+  '#204B12', '#BB0066', '#4327FF', '#008E35', '#971BCB'
+];
 
 // Safe way to access dynamic window properties
 function safeGetWindowProp(key: string): any {
   return (window as any)[key];
 }
 
+// Get a random item from an array
+function getRandomItem<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
 export function initCursorDemo(options: AnimationOptions = {}) {
   const {
-    delay = 100,
-    loremText = "Foo",
-    formId = ""
+    delay = DEFAULT_DELAY,
+    demoText = DEFAULT_TEXT,
+    formId = DEFAULT_FORM_ID
   } = options;
 
   console.log('🎭 Demo animation initialized with options:', { delay, formId });
@@ -36,33 +58,80 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   // Initialize the animation
   const init = () => {
     console.log('🖌️ Creating cursor element');
-    // Create cursor element
+    
+    // Get random name and color for cursor
+    const randomName = getRandomItem(CURSOR_NAMES);
+    const randomColor = getRandomItem(CURSOR_COLORS);
+    
+    // Create cursor container element
     cursorElement = document.createElement('div');
     cursorElement.className = 'userbird-demo-cursor';
     cursorElement.style.cssText = `
       position: fixed;
-      width: 24px;
-      height: 24px;
-      background-image: url('/cursor.svg');
-      background-size: contain;
-      background-repeat: no-repeat;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
       pointer-events: none;
       z-index: 100000;
-      transition: transform 0.1s ease;
       opacity: 0;
-      transform: scale(0.8);
     `;
+    
+    // Create name bubble
+    const nameBubble = document.createElement('div');
+    nameBubble.style.cssText = `
+      background-color: ${randomColor};
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      margin-left: 20px; /* Reduced gap between cursor and bubble */
+      margin-top: 4px; /* Reduced space between arrow and bubble */
+      line-height: 1.2;
+      text-align: center;
+      min-width: 80px;
+      z-index: 1;
+    `;
+    nameBubble.textContent = randomName;
+    
+    // Create cursor arrow pointer 
+    const cursorArrow = document.createElement('div');
+    cursorArrow.style.cssText = `
+      width: 30px;
+      height: 31px;
+      position: relative;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transform: scale(0.8);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 2; /* Ensure arrow is above for clicking */
+    `;
+    
+    // Add SVG arrow with dynamic color from the random color
+    cursorArrow.innerHTML = `
+      <svg width="100%" height="100%" viewBox="0 0 30 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8.34914 29.5725L0.548909 2.20921C0.146144 0.796309 1.61363 -0.423764 2.948 0.214593L28.7904 12.5775C30.1644 13.2348 30.0612 15.207 28.6261 15.7155L17.9978 19.4813C17.6118 19.6181 17.2881 19.8872 17.0851 20.2401L11.4966 29.9571C10.742 31.2691 8.76388 31.0274 8.34914 29.5725Z" fill="${randomColor}"/>
+      </svg>
+    `;
+    
+    // Add elements in correct order: arrow first, then bubble
+    cursorElement.appendChild(cursorArrow);
+    cursorElement.appendChild(nameBubble);
     document.body.appendChild(cursorElement);
     
     // Verify cursor element was created and is in the DOM
     const cursorInDOM = document.body.contains(cursorElement);
     console.log('🔍 Cursor element in DOM:', cursorInDOM);
-    
-    // Verify cursor image is loading
-    const img = new Image();
-    img.onload = () => console.log('✅ Cursor image loaded successfully');
-    img.onerror = () => console.error('❌ Cursor image failed to load');
-    img.src = '/cursor.svg';
+  };
+  
+  // Improved easing function for smoother motion with ease-in-out
+  const easeInOutCubic = (t: number): number => {
+    return t < 0.5 
+      ? 4 * t * t * t 
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
   };
   
   // Animate the cursor to a point with smooth motion
@@ -80,8 +149,8 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         Math.pow(point.y - startPoint.y, 2)
       );
       
-      // Duration based on distance (faster for short distances)
-      const duration = Math.min(Math.max(distance / 2, 300), 1000);
+      // Duration based on distance (slower for better elegance)
+      const duration = Math.min(Math.max(distance / 1.2, 800), 2000);
       const startTime = performance.now();
       
       const animate = (time: number) => {
@@ -89,11 +158,13 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         
         const elapsed = time - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        // Easing function for smoother motion
-        const easing = easeOutQuad(progress);
+        // Using ease-in-out cubic for smoother acceleration and deceleration
+        const easing = easeInOutCubic(progress);
         
-        const currentX = startPoint.x + (point.x - startPoint.x) * easing;
-        const currentY = startPoint.y + (point.y - startPoint.y) * easing;
+        // Position cursor so the arrow tip aligns with the target point
+        // For this specific SVG, the tip is around 8px from the left and 6px from the top
+        const currentX = startPoint.x + (point.x - startPoint.x - 8) * easing;
+        const currentY = startPoint.y + (point.y - startPoint.y - 6) * easing;
         
         cursorElement.style.left = `${currentX}px`;
         cursorElement.style.top = `${currentY}px`;
@@ -102,7 +173,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           requestAnimationFrame(animate);
         } else {
           // Add small delay to make the animation feel more natural
-          setTimeout(resolve, 100);
+          setTimeout(resolve, 200);
         }
       };
       
@@ -110,7 +181,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     });
   };
   
-  // Easing function for smoother motion
+  // Original easing function (keeping for reference)
   const easeOutQuad = (t: number): number => {
     return t * (2 - t);
   };
@@ -120,13 +191,22 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     return new Promise((resolve) => {
       if (!cursorElement || !isAnimating) return resolve();
       
-      // Visual feedback for click
-      cursorElement.style.transform = 'scale(0.7)';
+      // Visual feedback for click - find the cursor arrow (first child now)
+      const cursorArrow = cursorElement.querySelector('div:first-child') as HTMLElement;
+      if (cursorArrow) {
+        // Smoother transition for click animation
+        cursorArrow.style.transform = 'scale(0.75)';
+        cursorArrow.style.transition = 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      }
       
       setTimeout(() => {
         if (!cursorElement) return resolve();
         
-        cursorElement.style.transform = 'scale(0.8)';
+        // Reset cursor arrow scale with smooth transition
+        if (cursorArrow) {
+          cursorArrow.style.transform = 'scale(0.8)';
+          cursorArrow.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        }
         
         // Log audio context state if available
         try {
@@ -317,8 +397,15 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       }
       console.log('🖱️ Cursor element created');
 
-      // Fade in the cursor
-      cursorElement.style.opacity = '1';
+      // Start from off-screen
+      cursorElement.style.left = `${window.innerWidth - 180}px`;
+      cursorElement.style.top = `${window.innerHeight / 2 - 60}px`;
+      
+      // Wait a moment before starting
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fade in the cursor with animation
+      cursorElement.style.animation = 'cursorAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
       
       // Find the feedback button
       const feedbackButton = findFeedbackButton();
@@ -337,13 +424,6 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       };
       console.log('📍 Button position:', buttonCenter);
       
-      // Start from off-screen
-      cursorElement.style.left = `${window.innerWidth}px`;
-      cursorElement.style.top = `${window.innerHeight / 2}px`;
-      
-      // Wait a moment before starting
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       // Move to feedback button
       console.log('🚶 Moving cursor to feedback button');
       await moveCursorTo(buttonCenter);
@@ -351,6 +431,10 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       // Click the feedback button
       console.log('👆 Clicking feedback button');
       await simulateClick(feedbackButton);
+      
+      // Wait a moment to let the modal fully appear
+      console.log('⏱️ Pausing to let modal fully appear');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Wait longer for modal to appear
       console.log('⏳ Waiting for modal to appear');
@@ -401,7 +485,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
             if (patchTextarea) {
               console.log('✅ Textarea found after patching!');
               // Continue with animation
-              await continueAnimation(patchTextarea, loremText);
+              await continueAnimation(patchTextarea, demoText);
               
               // Restore original behavior
               Object.defineProperty(Event.prototype, 'isTrusted', {
@@ -441,7 +525,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           if (retryTextarea) {
             console.log('✅ Textarea found after keyboard shortcut!');
             // Continue with animation using retry textarea
-            await continueAnimation(retryTextarea, loremText);
+            await continueAnimation(retryTextarea, demoText);
             return;
           }
         } catch (e) {
@@ -465,7 +549,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
             if (retryTextarea) {
               console.log('✅ Textarea found after programmatic open!');
               // Continue with animation using retry textarea
-              await continueAnimation(retryTextarea, loremText);
+              await continueAnimation(retryTextarea, demoText);
               return;
             }
           } catch (e) {
@@ -478,7 +562,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       }
       console.log('🔍 Found textarea');
       
-      await continueAnimation(textarea, loremText);
+      await continueAnimation(textarea, demoText);
     } catch (error) {
       console.error('❌ Error in cursor animation:', error);
       cleanup();
@@ -487,62 +571,97 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   
   // Continue animation after finding textarea
   const continueAnimation = async (textarea: HTMLTextAreaElement, text: string): Promise<void> => {
-    // Get textarea position
-    const textareaRect = textarea.getBoundingClientRect();
-    const textareaPoint = {
-      x: textareaRect.left + 20,
-      y: textareaRect.top + 20
-    };
-    
-    // Move to textarea
-    console.log('🚶 Moving cursor to textarea');
-    await moveCursorTo(textareaPoint);
-    
-    // Type the text
-    console.log('⌨️ Typing text in textarea');
-    await typeText(textarea, text);
-    console.log('✓ Finished typing');
-    
-    // Find the submit button
-    const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
-    if (!submitButton) {
-      console.error('❌ Submit button not found');
-      cleanup();
-      return;
-    }
-    console.log('🔍 Found submit button');
-    
-    // Get submit button position
-    const submitRect = submitButton.getBoundingClientRect();
-    const submitCenter = {
-      x: submitRect.left + submitRect.width / 2,
-      y: submitRect.top + submitRect.height / 2
-    };
-    
-    // Move to submit button
-    console.log('🚶 Moving cursor to submit button');
-    await moveCursorTo(submitCenter);
-    
-    // Click the submit button
-    console.log('👆 Clicking submit button');
     try {
-      await simulateClick(submitButton);
+      // Get textarea position
+      const textareaRect = textarea.getBoundingClientRect();
+      const textareaPoint = {
+        x: textareaRect.left + 20,
+        y: textareaRect.top + 20
+      };
       
-      // Wait for success message
-      console.log('⏳ Waiting for success message');
+      // Move to textarea
+      console.log('🚶 Moving cursor to textarea');
+      await moveCursorTo(textareaPoint);
+      
+      // Wait a second before hiding cursor
+      console.log('⏱️ Pausing before typing starts');
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Force hide cursor during typing with animation
+      console.log('👻 Hiding cursor for typing phase');
+      if (cursorElement) {
+        // Use animation for more flair when hiding
+        cursorElement.style.animation = 'cursorShrink 0.5s forwards';
+        
+        // Store position for later
+        const cursorX = cursorElement.style.left;
+        const cursorY = cursorElement.style.top;
+        
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Type the text
+        console.log('⌨️ Typing text in textarea:', text);
+        await typeText(textarea, text);
+        console.log('✓ Finished typing');
+        
+        // Wait a second after typing completes
+        console.log('⏱️ Pausing after typing');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Find the submit button
+        const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
+        if (!submitButton) {
+          console.error('❌ Submit button not found');
+          cleanup();
+          return;
+        }
+        console.log('🔍 Found submit button');
+        
+        // Get submit button position
+        const submitRect = submitButton.getBoundingClientRect();
+        const submitCenter = {
+          x: submitRect.left + submitRect.width / 2,
+          y: submitRect.top + submitRect.height / 2
+        };
+        
+        // Position cursor closer to the submit button when showing again
+        console.log('🔮 Positioning cursor closer to submit button');
+        // Calculate position that's 60% of the way from textarea to submit button
+        const newX = textareaPoint.x + (submitCenter.x - textareaPoint.x) * 0.6;
+        const newY = textareaPoint.y + (submitCenter.y - textareaPoint.y) * 0.6;
+        
+        // Show cursor at this intermediate position with grow animation
+        cursorElement.style.opacity = '0'; // Ensure it starts invisible
+        cursorElement.style.left = `${newX}px`;
+        cursorElement.style.top = `${newY}px`;
+        cursorElement.style.animation = 'cursorGrow 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+        
+        // Wait for grow animation to complete
+        await new Promise(resolve => setTimeout(resolve, 700));
+        
+        // Move to submit button
+        console.log('🚶 Moving cursor to submit button');
+        await moveCursorTo(submitCenter);
+        
+        // Click the submit button
+        console.log('👆 Clicking submit button');
+        await simulateClick(submitButton);
+        
+        // Final elegant fade-out
+        console.log('🏁 Animation complete, fading out cursor');
+        cursorElement.style.animation = 'cursorDisappear 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+        
+        // Clean up after fade completes
+        setTimeout(cleanup, 800);
+      } else {
+        console.error('❌ Cursor element not found');
+        cleanup();
+      }
     } catch (error) {
-      console.error('⚠️ Error during submit button click, but continuing animation:', error);
+      console.error('❌ Error in animation continuation:', error);
+      cleanup();
     }
-    
-    // Fade out cursor
-    console.log('🏁 Animation complete, fading out cursor');
-    if (cursorElement) {
-      cursorElement.style.opacity = '0';
-    }
-    
-    // Clean up
-    setTimeout(cleanup, 500);
   };
   
   // Clean up function

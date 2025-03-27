@@ -134,30 +134,68 @@
 /* Cursor animation styles */
 .userbird-demo-cursor {
   opacity: 0;
-  transition: opacity 0.5s ease, transform 0.1s ease;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
-  will-change: transform, left, top;
+  will-change: transform, left, top, opacity;
+  transform: translate3d(0, 0, 0) scale(0.8); /* Enable hardware acceleration */
 }
 
 @keyframes cursorAppear {
-  from {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.5);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cursorDisappear {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+  100% {
     opacity: 0;
     transform: scale(0.5);
   }
-  to {
+}
+
+@keyframes cursorGrow {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
     opacity: 1;
     transform: scale(1);
   }
 }
 
-@keyframes cursorClick {
+@keyframes cursorShrink {
   0% {
-    transform: scale(0.8);
+    opacity: 1;
+    transform: scale(1);
   }
-  50% {
+  70% {
+    opacity: 0.5;
     transform: scale(0.7);
   }
   100% {
-    transform: scale(0.8);
+    opacity: 0;
+    transform: scale(0.5);
   }
 }
