@@ -106,6 +106,13 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
     const newFormId = nanoid(10)
     
     try {
+      console.log('Inserting form with gif settings:', {
+        show_gif_on_success: true,
+        remove_branding: false,
+        keyboard_shortcut: 'L',
+        gif_urls: ['https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif', '...and more']
+      });
+      
       const { error: insertError } = await supabase
         .from('forms')
         .insert([{ 
@@ -126,7 +133,20 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
           ]
         }])
       
-      if (insertError) throw insertError
+      if (insertError) {
+        console.error('Supabase insert error details:', insertError);
+        throw insertError;
+      }
+      
+      // After successful insert, verify what was actually saved
+      console.log('Form created with ID:', newFormId);
+      const { data: verifyData } = await supabase
+        .from('forms')
+        .select('show_gif_on_success, remove_branding, keyboard_shortcut, gif_urls')
+        .eq('id', newFormId)
+        .single();
+      
+      console.log('Verified form data in database:', verifyData);
       
       toast.success('Form created successfully')
       
