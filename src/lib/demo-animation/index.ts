@@ -11,8 +11,21 @@ interface AnimationOptions {
 
 // Default values
 const DEFAULT_DELAY = 100;
-const DEFAULT_TEXT = "Life is good";
 const DEFAULT_FORM_ID = "";
+
+// Realistic product feedback phrases
+const FEEDBACK_PHRASES = [
+  "Loving the insights so far, but I often get confused about which timezone the data is in. Could you let us set or view the timezone somewhere?",
+  "I usually check the dashboard first thing in the morning—would be awesome if I could set a default view so I don't have to reconfigure filters every time.",
+  "Sometimes I just want a quick summary of key metrics without diving into each chart. A high-level overview at the top would be super useful.",
+  "When I click into a spike on the graph, I wish I could see what contributed to it—like a breakdown by source or campaign right there.",
+  "We have multiple team members using the dashboard. Would be great if we could save and share specific views or reports across the team."
+];
+
+// Get a random product feedback phrase
+const getRandomFeedback = (): string => {
+  return getRandomItem(FEEDBACK_PHRASES);
+};
 
 // Names and colors for the cursor animation
 const CURSOR_NAMES = [
@@ -39,7 +52,7 @@ function getRandomItem<T>(array: T[]): T {
 export function initCursorDemo(options: AnimationOptions = {}) {
   const {
     delay = DEFAULT_DELAY,
-    demoText = DEFAULT_TEXT,
+    demoText = getRandomFeedback(),
     formId = DEFAULT_FORM_ID
   } = options;
 
@@ -181,11 +194,6 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     });
   };
   
-  // Original easing function (keeping for reference)
-  const easeOutQuad = (t: number): number => {
-    return t * (2 - t);
-  };
-  
   // Simulate clicking action with visual feedback
   const simulateClick = (element: Element): Promise<void> => {
     return new Promise((resolve) => {
@@ -300,7 +308,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     });
   };
   
-  // Simulate typing in a textarea or input
+  // Simulate typing in a textarea or input with accelerating speed
   const typeText = (element: HTMLTextAreaElement | HTMLInputElement, text: string): Promise<void> => {
     return new Promise((resolve) => {
       if (!isAnimating) return resolve();
@@ -313,8 +321,21 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           return resolve();
         }
         
-        // Add random delay between keystrokes for realism
-        const randomDelay = 50 + Math.random() * 100;
+        // Calculate acceleration factor based on progress (0 to 1)
+        // As progress increases, delay decreases (typing gets faster)
+        const progress = currentIndex / text.length;
+        const accelerationFactor = 1 - (progress * 0.8); // Start at 1x speed, end at 0.2x speed (5x faster)
+        
+        // Initial delay is higher, final delay is much lower
+        const baseDelay = 40; // Starting speed
+        const minDelay = 5;   // Minimum delay to prevent too fast typing
+        const randomness = 20 * accelerationFactor; // Randomness decreases as we speed up
+        
+        // Calculate final delay with acceleration and randomness
+        const delay = Math.max(
+          minDelay, 
+          baseDelay * accelerationFactor + (Math.random() * randomness)
+        );
         
         setTimeout(() => {
           const currentText = element.value;
@@ -327,7 +348,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           
           currentIndex++;
           typeNextChar();
-        }, randomDelay);
+        }, delay);
       };
       
       typeNextChar();
@@ -405,6 +426,10 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Fade in the cursor with animation
+      // Reset any existing animations
+      cursorElement.style.animation = 'none';
+      // Force reflow to ensure animation restart
+      void cursorElement.offsetWidth;
       cursorElement.style.animation = 'cursorAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
       
       // Find the feedback button
@@ -431,6 +456,24 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       // Click the feedback button
       console.log('👆 Clicking feedback button');
       await simulateClick(feedbackButton);
+      
+      // Store cursor position before hiding it
+      const lastCursorX = cursorElement.style.left;
+      const lastCursorY = cursorElement.style.top;
+      
+      // Immediately hide cursor with smooth shrink and dissolve effect
+      console.log('🪄 Hiding cursor after clicking feedback button');
+      if (cursorElement) {
+        // Reset any existing animations
+        cursorElement.style.animation = 'none';
+        // Force reflow to ensure animation restart
+        void cursorElement.offsetWidth;
+        // Use animation for smooth dissolve effect
+        cursorElement.style.animation = 'cursorShrink 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+      }
+      
+      // Wait for shrink animation to complete before continuing
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       // Wait a moment to let the modal fully appear
       console.log('⏱️ Pausing to let modal fully appear');
@@ -485,7 +528,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
             if (patchTextarea) {
               console.log('✅ Textarea found after patching!');
               // Continue with animation
-              await continueAnimation(patchTextarea, demoText);
+              await continueAnimation(patchTextarea, demoText, lastCursorX, lastCursorY);
               
               // Restore original behavior
               Object.defineProperty(Event.prototype, 'isTrusted', {
@@ -525,7 +568,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           if (retryTextarea) {
             console.log('✅ Textarea found after keyboard shortcut!');
             // Continue with animation using retry textarea
-            await continueAnimation(retryTextarea, demoText);
+            await continueAnimation(retryTextarea, demoText, lastCursorX, lastCursorY);
             return;
           }
         } catch (e) {
@@ -549,7 +592,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
             if (retryTextarea) {
               console.log('✅ Textarea found after programmatic open!');
               // Continue with animation using retry textarea
-              await continueAnimation(retryTextarea, demoText);
+              await continueAnimation(retryTextarea, demoText, lastCursorX, lastCursorY);
               return;
             }
           } catch (e) {
@@ -562,7 +605,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       }
       console.log('🔍 Found textarea');
       
-      await continueAnimation(textarea, demoText);
+      await continueAnimation(textarea, demoText, lastCursorX, lastCursorY);
     } catch (error) {
       console.error('❌ Error in cursor animation:', error);
       cleanup();
@@ -570,71 +613,55 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   };
   
   // Continue animation after finding textarea
-  const continueAnimation = async (textarea: HTMLTextAreaElement, text: string): Promise<void> => {
+  const continueAnimation = async (textarea: HTMLTextAreaElement, text: string, lastX?: string, lastY?: string): Promise<void> => {
     try {
-      // Get textarea position
+      // Get textarea position (we won't move to it, but need it for calculations later)
       const textareaRect = textarea.getBoundingClientRect();
       const textareaPoint = {
         x: textareaRect.left + 20,
         y: textareaRect.top + 20
       };
       
-      // Move to textarea
-      console.log('🚶 Moving cursor to textarea');
-      await moveCursorTo(textareaPoint);
+      // The cursor is already hidden, so we just need to type directly
+      console.log('⌨️ Typing text in textarea:', text);
+      await typeText(textarea, text);
+      console.log('✓ Finished typing');
       
-      // Wait a second before hiding cursor
-      console.log('⏱️ Pausing before typing starts');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait a moment after typing completes
+      console.log('⏱️ Pausing after typing');
+      await new Promise(resolve => setTimeout(resolve, 700));
       
-      // Force hide cursor during typing with animation
-      console.log('👻 Hiding cursor for typing phase');
+      // Find the submit button
+      const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
+      if (!submitButton) {
+        console.error('❌ Submit button not found');
+        cleanup();
+        return;
+      }
+      console.log('🔍 Found submit button');
+      
+      // Get submit button position
+      const submitRect = submitButton.getBoundingClientRect();
+      const submitCenter = {
+        x: submitRect.left + submitRect.width / 2,
+        y: submitRect.top + submitRect.height / 2
+      };
+      
+      // Show cursor where it was last seen (where it dissolved after clicking the feedback button)
+      console.log('✨ Making cursor reappear');
       if (cursorElement) {
-        // Use animation for more flair when hiding
-        cursorElement.style.animation = 'cursorShrink 0.5s forwards';
+        // Use the original position where the cursor disappeared
+        cursorElement.style.left = lastX || `${textareaPoint.x}px`;
+        cursorElement.style.top = lastY || `${textareaPoint.y}px`;
         
-        // Store position for later
-        const cursorX = cursorElement.style.left;
-        const cursorY = cursorElement.style.top;
+        // Ensure it starts invisible
+        cursorElement.style.opacity = '0';
         
-        // Wait for animation to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Type the text
-        console.log('⌨️ Typing text in textarea:', text);
-        await typeText(textarea, text);
-        console.log('✓ Finished typing');
-        
-        // Wait a second after typing completes
-        console.log('⏱️ Pausing after typing');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Find the submit button
-        const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
-        if (!submitButton) {
-          console.error('❌ Submit button not found');
-          cleanup();
-          return;
-        }
-        console.log('🔍 Found submit button');
-        
-        // Get submit button position
-        const submitRect = submitButton.getBoundingClientRect();
-        const submitCenter = {
-          x: submitRect.left + submitRect.width / 2,
-          y: submitRect.top + submitRect.height / 2
-        };
-        
-        // Position cursor closer to the submit button when showing again
-        console.log('🔮 Positioning cursor closer to submit button');
-        // Calculate position that's 60% of the way from textarea to submit button
-        const newX = textareaPoint.x + (submitCenter.x - textareaPoint.x) * 0.6;
-        const newY = textareaPoint.y + (submitCenter.y - textareaPoint.y) * 0.6;
-        
-        // Show cursor at this intermediate position with grow animation
-        cursorElement.style.opacity = '0'; // Ensure it starts invisible
-        cursorElement.style.left = `${newX}px`;
-        cursorElement.style.top = `${newY}px`;
+        // Reset any existing animations
+        cursorElement.style.animation = 'none';
+        // Force reflow to ensure animation restart
+        void cursorElement.offsetWidth;
+        // Use beautiful grow animation
         cursorElement.style.animation = 'cursorGrow 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
         
         // Wait for grow animation to complete
@@ -650,6 +677,10 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         
         // Final elegant fade-out
         console.log('🏁 Animation complete, fading out cursor');
+        // Reset any existing animations
+        cursorElement.style.animation = 'none';
+        // Force reflow to ensure animation restart
+        void cursorElement.offsetWidth;
         cursorElement.style.animation = 'cursorDisappear 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
         
         // Clean up after fade completes

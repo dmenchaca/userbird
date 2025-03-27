@@ -91,8 +91,7 @@ export function AuthPage() {
           const cleanup = initCursorDemo({
             formId: "4hNUB7DVhf",
             // Start immediately
-            delay: 100,
-            loremText: "Foo"
+            delay: 100
           });
           
           // Store cleanup function for component unmounting
