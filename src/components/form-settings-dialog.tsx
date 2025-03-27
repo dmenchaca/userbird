@@ -1010,17 +1010,17 @@ export function FormSettingsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-[56rem]">
-          <DialogHeader>
-            <DialogTitle>Form Settings</DialogTitle>
-            <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <DialogContent className="max-w-[56rem] p-0 flex flex-col !gap-0 h-[90vh]">
+          <DialogHeader className="px-4 py-3 border-b border-border flex-row flex items-center justify-between">
+            <DialogTitle className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Settings</DialogTitle>
+            <DialogClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </DialogClose>
           </DialogHeader>
-          <div className="flex gap-6 h-[80vh] -mx-6 -mb-6">
-            <div className="w-48 border-r">
-              <div className="px-2 py-2 space-y-1">
+          <div className="flex flex-1 overflow-hidden">
+            <div className="w-48 border-r border-border">
+              <div className="px-4 py-4 space-y-1">
                 <button
                   onClick={() => handleTabSwitch('styling')}
                   className={cn(
@@ -1063,335 +1063,350 @@ export function FormSettingsDialog({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto px-6">
-              {activeTab === 'styling' && (
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="url">Website URL</Label>
-                    <div className="flex gap-2">
-                      <span className="flex items-center text-sm text-muted-foreground">https://</span>
-                      <Input
-                        id="url"
-                        value={url}
-                        onChange={(e) => handleUrlChange(e.target.value)}
-                        onBlur={handleUrlBlur}
-                        placeholder="app.userbird.co"
-                      />
+            <div className="flex-1 overflow-auto">
+              <div className="p-6 h-full">
+                {activeTab === 'styling' && (
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <Label htmlFor="url">Website URL</Label>
+                      <div className="flex gap-2">
+                        <span className="flex items-center text-sm text-muted-foreground">https://</span>
+                        <Input
+                          id="url"
+                          value={url}
+                          onChange={(e) => handleUrlChange(e.target.value)}
+                          onBlur={handleUrlBlur}
+                          placeholder="app.userbird.co"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        The domain where your widget is installed
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      The domain where your widget is installed
-                    </p>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="buttonColor">Button Color</Label>
-                    <div className="flex gap-2">
+                    <div className="space-y-3">
+                      <Label htmlFor="buttonColor">Button Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="buttonColor"
+                          type="color"
+                          value={color}
+                          onChange={(e) => setColor(e.target.value)}
+                          onBlur={handleColorBlur}
+                          className="w-20"
+                        />
+                        <Input
+                          value={color}
+                          onChange={(e) => setColor(e.target.value)}
+                          onBlur={handleColorBlur}
+                          placeholder="#1f2937"
+                          pattern="^#[0-9a-fA-F]{6}$"
+                          className="font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Label>Remove branding</Label>
+                          <Switch
+                            checked={removeBranding}
+                            onCheckedChange={handleRemoveBrandingChange}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Remove "We run on Userbird" branding from the widget
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="supportText">Support Text (optional)</Label>
                       <Input
-                        id="buttonColor"
-                        type="color"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        onBlur={handleColorBlur}
-                        className="w-20"
-                      />
-                      <Input
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        onBlur={handleColorBlur}
-                        placeholder="#1f2937"
-                        pattern="^#[0-9a-fA-F]{6}$"
+                        id="supportText"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onBlur={handleTextBlur}
+                        placeholder="Have a specific issue? [Contact support](https://example.com) or [read our docs](https://docs.example.com)"
                         className="font-mono"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Add optional support text with markdown links. Example: [Link text](https://example.com)
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Label>Remove branding</Label>
-                      <Switch
-                        checked={removeBranding}
-                        onCheckedChange={handleRemoveBrandingChange}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Remove "We run on Userbird" branding from the widget
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="supportText">Support Text (optional)</Label>
-                    <Input
-                      id="supportText"
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onBlur={handleTextBlur}
-                      placeholder="Have a specific issue? [Contact support](https://example.com) or [read our docs](https://docs.example.com)"
-                      className="font-mono"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Add optional support text with markdown links. Example: [Link text](https://example.com)
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="shortcut">Keyboard Shortcut</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="text"
-                          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono w-32"
-                          id="shortcut"
-                          placeholder="Press keys..."
-                          value={shortcut}
-                          onBlur={handleShortcutBlur}
-                          onKeyDown={(e) => {
-                            e.preventDefault();
-                            // Ignore Backspace key
-                            if (e.key === 'Backspace') return;
-                            
-                            const keys = [];
-                            if (e.metaKey) keys.push('Meta');
-                            if (e.ctrlKey) keys.push('Control');
-                            if (e.shiftKey) keys.push('Shift');
-                            if (e.altKey) keys.push('Alt');
-                            // Only add regular keys that aren't modifiers or Backspace
-                            if (!['Control', 'Shift', 'Alt', 'Meta', 'Backspace'].includes(e.key)) {
-                              keys.push(e.key.toUpperCase());
-                            }
-                            if (keys.length > 0) {
-                              setShortcut(keys.join('+'));
-                            }
-                          }}
-                          onKeyUp={(e) => {
-                            e.preventDefault();
-                          }}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          setShortcut('');
-                          handleShortcutBlur();
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Label>Play sound on success</Label>
-                      <Switch
-                        checked={soundEnabled}
-                        onCheckedChange={handleSoundEnabledChange}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Play a notification sound when feedback is submitted
-                    </p>
-                  </div>
-
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Label>Show GIF on success</Label>
-                      <Switch
-                        checked={showGifOnSuccess}
-                        onCheckedChange={handleShowGifOnSuccessChange}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Display a GIF when feedback is successfully submitted
-                    </p>
-                    
-                    {showGifOnSuccess && (
-                      <div className="mt-4 space-y-2">
-                        <Label htmlFor="gifUrls">Custom GIF URLs</Label>
-                        <Textarea
-                          id="gifUrls"
-                          value={gifUrlsText}
-                          onChange={(e) => setGifUrlsText(e.target.value)}
-                          onBlur={handleGifUrlsBlur}
-                          placeholder="https://example.com/gif1.gif&#10;https://example.com/gif2.gif&#10;https://example.com/gif3.gif"
-                          className="min-h-[100px]"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Enter one GIF URL per line. The platform will randomly display one of these GIFs when feedback is submitted. If no URLs are provided, the default GIF will be used.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'notifications' && (
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label>Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Add email addresses to receive notifications when new feedback is submitted.
-                        </p>
-                        <div className="flex items-center space-x-2 pt-2">
-                          <Switch
-                            checked={notificationsEnabled}
-                            onCheckedChange={(checked) => setNotificationsEnabled(checked)}
-                          />
-                          <Label className="text-sm font-normal">
-                            {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
-                          </Label>
+                    <div className="border-t pt-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="shortcut">Keyboard Shortcut</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="text"
+                              className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono w-32"
+                              id="shortcut"
+                              placeholder="Press keys..."
+                              value={shortcut}
+                              onBlur={handleShortcutBlur}
+                              onKeyDown={(e) => {
+                                e.preventDefault();
+                                // Ignore Backspace key
+                                if (e.key === 'Backspace') return;
+                                
+                                const keys = [];
+                                if (e.metaKey) keys.push('Meta');
+                                if (e.ctrlKey) keys.push('Control');
+                                if (e.shiftKey) keys.push('Shift');
+                                if (e.altKey) keys.push('Alt');
+                                // Only add regular keys that aren't modifiers or Backspace
+                                if (!['Control', 'Shift', 'Alt', 'Meta', 'Backspace'].includes(e.key)) {
+                                  keys.push(e.key.toUpperCase());
+                                }
+                                if (keys.length > 0) {
+                                  setShortcut(keys.join('+'));
+                                }
+                              }}
+                              onKeyUp={(e) => {
+                                e.preventDefault();
+                              }}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-accent h-8 rounded-md px-3 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setShortcut('');
+                              handleShortcutBlur();
+                            }}
+                          >
+                            Clear
+                          </Button>
                         </div>
                       </div>
                     </div>
 
+                    <div className="border-t pt-6">
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center space-x-2">
+                          <Label>Play sound on success</Label>
+                          <Switch
+                            checked={soundEnabled}
+                            onCheckedChange={handleSoundEnabledChange}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Play a notification sound when feedback is submitted
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Label>Show GIF on success</Label>
+                          <Switch
+                            checked={showGifOnSuccess}
+                            onCheckedChange={handleShowGifOnSuccessChange}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Display a GIF when feedback is successfully submitted
+                        </p>
+                        
+                        {showGifOnSuccess && (
+                          <div className="mt-5 space-y-3">
+                            <Label htmlFor="gifUrls">Custom GIF URLs</Label>
+                            <Textarea
+                              id="gifUrls"
+                              value={gifUrlsText}
+                              onChange={(e) => setGifUrlsText(e.target.value)}
+                              onBlur={handleGifUrlsBlur}
+                              placeholder="https://example.com/gif1.gif&#10;https://example.com/gif2.gif&#10;https://example.com/gif3.gif"
+                              className="min-h-[100px]"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Enter one GIF URL per line. The platform will randomly display one of these GIFs when feedback is submitted. If no URLs are provided, the default GIF will be used.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'notifications' && (
+                  <div className="space-y-6">
                     <div className="space-y-4">
-                      <div className="flex gap-2">
-                        <Input
-                          value={newEmail}
-                          onChange={(e) => {
-                            setNewEmail(e.target.value);
-                            setEmailError('');
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label>Email Notifications</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Add email addresses to receive notifications when new feedback is submitted.
+                          </p>
+                          <div className="flex items-center space-x-2 pt-2">
+                            <Switch
+                              checked={notificationsEnabled}
+                              onCheckedChange={(checked) => setNotificationsEnabled(checked)}
+                            />
+                            <Label className="text-sm font-normal">
+                              {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input
+                            value={newEmail}
+                            onChange={(e) => {
+                              setNewEmail(e.target.value);
+                              setEmailError('');
+                            }}
+                            placeholder="email@example.com"
+                            className={emailError ? 'border-destructive' : ''}
+                          />
+                          <Button onClick={handleAddEmail}>
+                            Add Email
+                          </Button>
+                        </div>
+                        {emailError && (
+                          <p className="text-sm text-destructive">{emailError}</p>
+                        )}
+                      </div>
+
+                      {notifications.length > 0 ? (
+                        <div className="space-y-2">
+                          {notifications.map((notification) => (
+                            <div 
+                              key={notification.id}
+                              className="flex items-center justify-between p-2 rounded-md bg-muted"
+                            >
+                              <span className="text-sm">{notification.email}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveEmail(notification.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {notificationsEnabled 
+                            ? "No notification emails added yet."
+                            : "Notifications are currently disabled."
+                          }
+                        </p>
+                      )}
+
+                      <div>
+                        <h4 className="text-sm font-medium">Notification Content</h4>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Choose which information to include in notification emails:
+                        </p>
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          {NOTIFICATION_ATTRIBUTES.map(attr => (
+                            <div key={attr.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`${attr.id}-notification`}
+                                checked={selectedAttributes.includes(attr.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAttributes([...selectedAttributes, attr.id]);
+                                  } else {
+                                    setSelectedAttributes(selectedAttributes.filter(a => a !== attr.id));
+                                  }
+                                }}
+                              />
+                              <Label>{attr.label}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'webhooks' && (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label>Webhook</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Add a webhook to receive notifications when new feedback is submitted.
+                          </p>
+                          <div className="flex items-center space-x-2 pt-2">
+                            <Switch
+                              checked={webhookEnabled}
+                              onCheckedChange={(checked) => setWebhookEnabled(checked)}
+                            />
+                            <Label className="text-sm font-normal">
+                              {webhookEnabled ? 'Webhook enabled' : 'Webhook disabled'}
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input
+                            value={webhookUrl}
+                            onChange={(e) => setWebhookUrl(e.target.value)}
+                            placeholder="https://example.com/webhook"
+                            className={webhookEnabled ? '' : 'border-destructive'}
+                          />
+                          <Button onClick={() => {
+                            setWebhookUrl('');
+                            setWebhookEnabled(false);
+                          }}>
+                            Remove Webhook
+                          </Button>
+                        </div>
+                        {webhookEnabled && !isValidUrl(webhookUrl) && (
+                          <p className="text-sm text-destructive">Please enter a valid webhook URL</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'delete' && (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label>Delete Form</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Are you sure you want to delete this form?
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setShowDeleteDialog(true);
                           }}
-                          placeholder="email@example.com"
-                          className={emailError ? 'border-destructive' : ''}
-                        />
-                        <Button onClick={handleAddEmail}>
-                          Add Email
+                        >
+                          Delete
                         </Button>
                       </div>
-                      {emailError && (
-                        <p className="text-sm text-destructive">{emailError}</p>
-                      )}
-                    </div>
-
-                    {notifications.length > 0 ? (
-                      <div className="space-y-2">
-                        {notifications.map((notification) => (
-                          <div 
-                            key={notification.id}
-                            className="flex items-center justify-between p-2 rounded-md bg-muted"
-                          >
-                            <span className="text-sm">{notification.email}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveEmail(notification.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {notificationsEnabled 
-                          ? "No notification emails added yet."
-                          : "Notifications are currently disabled."
-                        }
-                      </p>
-                    )}
-
-                    <div>
-                      <h4 className="text-sm font-medium">Notification Content</h4>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Choose which information to include in notification emails:
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 mt-4">
-                        {NOTIFICATION_ATTRIBUTES.map(attr => (
-                          <div key={attr.id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`attr-${attr.id}`}
-                              checked={selectedAttributes.includes(attr.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedAttributes([...selectedAttributes, attr.id]);
-                                } else {
-                                  setSelectedAttributes(
-                                    selectedAttributes.filter(a => a !== attr.id)
-                                  );
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-gray-300"
-                            />
-                            <label
-                              htmlFor={`attr-${attr.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              {attr.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {activeTab === 'webhooks' && (
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label>Webhook Integration</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Send feedback submissions to your webhook URL.
-                      </p>
-                      <div className="flex items-center space-x-2 pt-2">
-                        <Switch
-                          checked={webhookEnabled}
-                          onCheckedChange={(checked) => setWebhookEnabled(checked)}
-                        />
-                        <Label className="text-sm font-normal">
-                          {webhookEnabled ? 'Webhook enabled' : 'Webhook disabled'}
-                        </Label>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="webhookUrl">Webhook URL</Label>
-                      <Input
-                        id="webhookUrl"
-                        value={webhookUrl}
-                        onChange={(e) => setWebhookUrl(e.target.value)}
-                        placeholder="https://hooks.zapier.com/..."
-                        disabled={!webhookEnabled}
-                        className={cn(!webhookEnabled && "opacity-50")}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Enter the URL where feedback submissions should be sent.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'delete' && (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-                    <h3 className="text-sm font-medium text-destructive mb-2">Delete Form</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This action cannot be undone. This will permanently delete the form
-                      and all of its feedback.
-                    </p>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                    >
-                      Delete Form
-                    </Button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-
       <DeleteFormDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
@@ -1402,5 +1417,5 @@ export function FormSettingsDialog({
         formUrl={formUrl}
       />
     </>
-  );
+  )
 }
