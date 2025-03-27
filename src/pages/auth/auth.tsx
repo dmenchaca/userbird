@@ -4,17 +4,131 @@ import { AuthForm } from '@/components/auth/auth-form'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 import { useEffect } from 'react'
 import { initUserbird } from '@/lib/userbird'
+import { initCursorDemo } from '@/lib/demo-animation'
 
 export function AuthPage() {
   const [searchParams] = useSearchParams()
   const mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
 
   useEffect(() => {
+    console.log('🔍 Auth page mounted, preparing to load widget and demo');
+    
     async function loadWidget() {
       try {
+        console.log('🔧 Initializing Userbird widget');
         await initUserbird("4hNUB7DVhf");
+        console.log('✅ Userbird widget initialized successfully');
+        
+        // Define the animation function first
+        function initAnimation() {
+          console.log('🎬 Starting cursor demo animation');
+          
+          // Check localStorage to see if we've shown animation in this browser session 
+          // We'll use localStorage instead of sessionStorage so it persists across refreshes
+          const hasSeenAnimation = localStorage.getItem('userbird_demo_shown');
+          
+          // Check if page was refreshed - modern approach
+          const pageRefreshed = window.performance && 
+            (window.performance.navigation?.type === 1 || 
+             window.performance.getEntriesByType('navigation').some(
+               (nav) => (nav as any).type === 'reload'
+             ));
+          
+          console.log('Animation state:', { hasSeenAnimation, pageRefreshed });
+          
+          // Only proceed if user hasn't seen animation or explicitly refreshed the page
+          if (hasSeenAnimation === 'true' && !pageRefreshed) {
+            console.log('🔄 Animation already shown in this session and page was not refreshed, skipping');
+            return;
+          }
+          
+          // Set the flag to indicate animation has been shown
+          localStorage.setItem('userbird_demo_shown', 'true');
+          
+          // Debug: Check if widget elements exist in DOM
+          console.log('🔍 Checking DOM for widget elements...');
+          
+          // Look for the feedback button
+          const formId = "4hNUB7DVhf";
+          const buttonId = `userbird-trigger-${formId}`;
+          const buttonById = document.getElementById(buttonId);
+          
+          console.log(`Button by ID ${buttonId} exists:`, !!buttonById);
+          
+          // Check for any widget-related elements
+          const widgetSelectors = [
+            '.userbird-trigger',
+            '[id^="userbird-trigger"]',
+            '.ub-button',
+            '[class*="feedback-button"]',
+            '[id*="userbird"]', 
+            '[class*="userbird"]', 
+            '[id*="ub-"]', 
+            '[class*="ub-"]'
+          ];
+          
+          widgetSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            console.log(`Elements matching "${selector}":`, elements.length);
+            if (elements.length > 0) {
+              elements.forEach(el => {
+                // Fix: Check if className is a string before using replace
+                const classStr = typeof el.className === 'string' 
+                  ? el.className.replace(/ /g, '.') 
+                  : Array.from(el.classList).join('.');
+                
+                console.log(`- ${el.tagName}${el.id ? ' #' + el.id : ''}${el.className ? ' .' + classStr : ''}`);
+              });
+            }
+          });
+          
+          // Count all buttons on the page
+          const allButtons = document.querySelectorAll('button');
+          console.log(`Total buttons on page: ${allButtons.length}`);
+          
+          // Initialize cursor demo, which will now run on every page load
+          console.log('💯 Initializing animation with button found:', !!document.getElementById(`userbird-trigger-${formId}`));
+          const cleanup = initCursorDemo({
+            formId: "4hNUB7DVhf",
+            // Start immediately
+            delay: 100,
+            loremText: "This feedback widget is really helpful! I love how easy it is to use."
+          });
+          
+          // Store cleanup function for component unmounting
+          return () => {
+            console.log('🧹 Cleaning up cursor demo animation');
+            cleanup && cleanup();
+          };
+        }
+        
+        // Start cursor demo right after widget has loaded
+        // Look for the widget button as indicator that widget has fully initialized
+        const checkWidgetButton = () => {
+          const widgetButton = document.getElementById(`userbird-trigger-4hNUB7DVhf`);
+          
+          if (widgetButton) {
+            console.log('🎯 Widget button detected in DOM, starting animation');
+            // Clear the fallback timer if button is found
+            if (fallbackTimer) clearTimeout(fallbackTimer);
+            initAnimation();
+            return;
+          }
+          
+          // Wait a very short time before checking again
+          setTimeout(checkWidgetButton, 100);
+        };
+        
+        // Create fallback timer before starting the check
+        let fallbackTimer = setTimeout(() => {
+          console.log('⚠️ Widget button check timed out, starting animation anyway');
+          initAnimation();
+        }, 3000);
+        
+        // Start the check immediately
+        checkWidgetButton();
       } catch (error) {
-        console.error('Failed to load Userbird widget:', error);
+        console.error('❌ Failed to load Userbird widget:', error);
       }
     }
     
