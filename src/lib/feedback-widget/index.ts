@@ -9,7 +9,7 @@ async function getFormSettings(formId: string) {
   try {
     const { data, error } = await supabase
       .from('forms')
-      .select('button_color')
+      .select('button_color, remove_branding')
       .eq('id', formId)
       .single();
 
@@ -21,8 +21,8 @@ async function getFormSettings(formId: string) {
     return data;
   } catch (error) {
     Logger.error('Error fetching form settings:', error);
-    Logger.debug('Falling back to default color');
-    return { button_color: '#1f2937' };
+    Logger.debug('Falling back to default settings');
+    return { button_color: '#1f2937', remove_branding: false };
   }
 }
 
@@ -37,7 +37,8 @@ export async function initFeedbackWidget(formId: string) {
   // Fetch form settings first
   const settings = await getFormSettings(formId);
   Logger.debug('Using button color:', settings.button_color);
+  Logger.debug('Remove branding:', settings.remove_branding);
   
   // Initialize widget with settings
-  await createWidget(formId, settings.button_color);
+  await createWidget(formId, settings.button_color, settings.remove_branding);
 }

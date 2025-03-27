@@ -106,4 +106,22 @@ export const WIDGET_STYLES = `
     font-size: 0.875rem;
     margin-bottom: 1.5rem;
   }
+  
+  .ub-branding {
+    text-align: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+  }
+  .ub-branding-link {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    text-decoration: none;
+  }
+  .ub-branding-link:hover {
+    text-decoration: underline;
+  }
+  .ub-branding.ub-hide {
+    display: none;
+  }
 `;

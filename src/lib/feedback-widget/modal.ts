@@ -13,6 +13,9 @@ export function createModal() {
     <div class="ub-modal-content">
       ${FORM_TEMPLATE}
       ${SUCCESS_TEMPLATE}
+      <div class="ub-branding">
+        <a href="" class="ub-branding-link" target="_blank">We run on Userbird</a>
+      </div>
     </div>
   `
 
@@ -20,6 +23,8 @@ export function createModal() {
   const submitButton = modal.querySelector('.ub-submit') as HTMLButtonElement
   const errorElement = modal.querySelector('.ub-error') as HTMLDivElement
   const closeButton = modal.querySelector('.ub-close') as HTMLButtonElement
+  const brandingElement = modal.querySelector('.ub-branding') as HTMLElement
+  const brandingLink = modal.querySelector('.ub-branding-link') as HTMLAnchorElement
 
   document.body.appendChild(backdrop)
   document.body.appendChild(modal)
@@ -87,6 +92,17 @@ export function createModal() {
     showError(message: string) {
       errorElement.textContent = message
       errorElement.style.display = 'block'
+    },
+    
+    configureBranding(removeBranding: boolean) {
+      if (removeBranding) {
+        // Hide branding if removeBranding is true
+        brandingElement.classList.add('ub-hide')
+      } else {
+        // Add attribution URL
+        const domain = window.location.hostname
+        brandingLink.href = `https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(domain)}`
+      }
     }
   }
 }

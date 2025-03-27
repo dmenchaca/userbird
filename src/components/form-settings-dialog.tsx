@@ -27,6 +27,7 @@ interface FormSettingsDialogProps {
   keyboardShortcut: string | null
   soundEnabled: boolean
   showGifOnSuccess: boolean
+  removeBranding: boolean
   initialGifUrls?: string[]
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -44,6 +45,7 @@ export function FormSettingsDialog({
   keyboardShortcut,
   soundEnabled: initialSoundEnabled,
   showGifOnSuccess: initialShowGifOnSuccess,
+  removeBranding: initialRemoveBranding,
   initialGifUrls = [],
   open, 
   onOpenChange,
@@ -59,6 +61,7 @@ export function FormSettingsDialog({
       keyboardShortcut: '',
       soundEnabled: false,
       showGifOnSuccess: false,
+      removeBranding: false,
       gifUrls: [] as string[]
     },
     notifications: {
@@ -86,6 +89,7 @@ export function FormSettingsDialog({
   const [webhookUrl, setWebhookUrl] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
+  const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
 
@@ -114,12 +118,13 @@ export function FormSettingsDialog({
         keyboardShortcut: keyboardShortcut || '',
         soundEnabled: initialSoundEnabled,
         showGifOnSuccess: initialShowGifOnSuccess,
+        removeBranding: initialRemoveBranding,
         gifUrls: initialGifUrls
       },
       webhooks: current.webhooks
     }))
     setIsInitialMount(false)
-  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialGifUrls])
+  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding, initialGifUrls])
 
   // Initialize gifUrls and gifUrlsText
   useEffect(() => {
@@ -554,6 +559,7 @@ export function FormSettingsDialog({
     setShortcut(keyboardShortcut || '');
     setSoundEnabled(initialSoundEnabled);
     setShowGifOnSuccess(initialShowGifOnSuccess);
+    setRemoveBranding(initialRemoveBranding);
     setGifUrls(initialGifUrls);
     setGifUrlsText(initialGifUrls.join('\n'));
   }
@@ -565,7 +571,8 @@ export function FormSettingsDialog({
     setShortcut(keyboardShortcut || '');
     setSoundEnabled(initialSoundEnabled);
     setShowGifOnSuccess(initialShowGifOnSuccess);
-  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess]);
+    setRemoveBranding(initialRemoveBranding);
+  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding]);
 
   // Auto-save sound enabled state
   /*
@@ -966,6 +973,40 @@ export function FormSettingsDialog({
     }
   };
 
+  // Handle remove branding toggle to save changes
+  const handleRemoveBrandingChange = async (checked: boolean) => {
+    if (checked === originalValues.styling.removeBranding) {
+      return;
+    }
+
+    setRemoveBranding(checked);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ remove_branding: checked })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          removeBranding: checked
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success(`Branding ${checked ? 'removed' : 'enabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating remove branding:', error);
+      setRemoveBranding(originalValues.styling.removeBranding);
+      toast.error(`Failed to ${checked ? 'remove' : 'enable'} branding`);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1169,6 +1210,19 @@ export function FormSettingsDialog({
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <Label>Remove branding</Label>
+                      <Switch
+                        checked={removeBranding}
+                        onCheckedChange={handleRemoveBrandingChange}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Remove "We run on Userbird" branding from the widget
+                    </p>
                   </div>
                 </div>
               )}

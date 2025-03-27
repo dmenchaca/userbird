@@ -4,8 +4,8 @@ import { submitFeedback } from '../services/feedback';
 import { Logger } from './logger';
 import { createStyles } from './styles';
 
-export async function createWidget(formId: string, buttonColor: string) {
-  Logger.debug(`Creating widget with button color: ${buttonColor}`);
+export async function createWidget(formId: string, buttonColor: string, removeBranding: boolean = false) {
+  Logger.debug(`Creating widget with button color: ${buttonColor}, removeBranding: ${removeBranding}`);
   
   // Log the full CSS being injected
   const styleContent = createStyles(buttonColor);
@@ -34,6 +34,9 @@ export async function createWidget(formId: string, buttonColor: string) {
     className: trigger.className,
     id: trigger.id
   });
+
+  // Configure branding
+  modal.configureBranding(removeBranding);
 
   trigger.addEventListener('click', (e) => {
     e.preventDefault();
