@@ -199,13 +199,11 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     return new Promise((resolve) => {
       if (!cursorElement || !isAnimating) return resolve();
       
-      // Visual feedback for click - find the cursor arrow (first child now)
-      const cursorArrow = cursorElement.querySelector('div:first-child') as HTMLElement;
-      if (cursorArrow) {
-        // Smoother transition for click animation
-        cursorArrow.style.transform = 'scale(0.75)';
-        cursorArrow.style.transition = 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      }
+      // Get the cursorArrow element
+      const cursorArrow = cursorElement.querySelector('div');
+      
+      // Check if this is the submit button
+      const isSubmitButton = element.classList.contains('userbird-submit');
       
       setTimeout(() => {
         if (!cursorElement) return resolve();
@@ -302,6 +300,16 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         element.dispatchEvent(clickEvent);
         console.log('👆 Click event dispatched');
         
+        // If this is the submit button, we can now allow normal widget behavior
+        if (isSubmitButton) {
+          const userBird = safeGetWindowProp('UserBird');
+          if (userBird && typeof userBird.setAnimationRunning === 'function') {
+            // Allow widget to be closed after we've clicked the submit button
+            userBird.setAnimationRunning(false);
+            console.log('🔓 Widget closing enabled after submit button click');
+          }
+        }
+        
         // Add delay to make it feel more natural
         setTimeout(resolve, 300);
       }, 150);
@@ -316,8 +324,14 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       let currentIndex = 0;
       element.focus();
       
+      // Make the textarea non-interactive during typing to prevent user interaction
+      const oldPointerEvents = element.style.pointerEvents;
+      element.style.pointerEvents = 'none';
+      
       const typeNextChar = () => {
         if (currentIndex >= text.length || !isAnimating) {
+          // Restore interactivity
+          element.style.pointerEvents = oldPointerEvents;
           return resolve();
         }
         
@@ -407,6 +421,12 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     if (isAnimating) return;
     isAnimating = true;
     console.log('▶️ Starting animation sequence');
+    
+    // Set the animation flag in the widget
+    const userBird = safeGetWindowProp('UserBird');
+    if (userBird && typeof userBird.setAnimationRunning === 'function') {
+      userBird.setAnimationRunning(true);
+    }
     
     try {
       // Initialize cursor
@@ -697,10 +717,17 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   
   // Clean up function
   const cleanup = () => {
-    console.log('🧹 Cleaning up animation');
     isAnimating = false;
-    if (cursorElement) {
-      cursorElement.remove();
+    console.log('🧹 Cleaning up animation');
+    
+    // Reset the animation flag in the widget
+    const userBird = safeGetWindowProp('UserBird');
+    if (userBird && typeof userBird.setAnimationRunning === 'function') {
+      userBird.setAnimationRunning(false);
+    }
+    
+    if (cursorElement && cursorElement.parentElement) {
+      cursorElement.parentElement.removeChild(cursorElement);
       cursorElement = null;
     }
   };

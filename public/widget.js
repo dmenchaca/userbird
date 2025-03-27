@@ -9,6 +9,7 @@
   let pressedKeys = new Set();
   let formId = null;
   let successSound = null;
+  let isAnimationRunning = false;
   
   const MESSAGES = {
     success: {
@@ -609,6 +610,11 @@
     currentTrigger = trigger;
 
     function handleClickOutside(e) {
+      // Don't close if animation is running
+      if (isAnimationRunning && !modal.successElement.classList.contains('open')) {
+        return;
+      }
+      
       const modalElement = modal.modal;
       if (modalElement && !modalElement.contains(e.target) && e.target !== trigger) {
         closeModal();
@@ -619,6 +625,11 @@
     document.addEventListener('click', handleClickOutside);
     
     function handleEscKey(e) {
+      // Don't close if animation is running
+      if (isAnimationRunning && !modal.successElement.classList.contains('open')) {
+        return;
+      }
+      
       if (e.key === 'Escape') {
         closeModal();
         document.removeEventListener('keydown', handleEscKey);
@@ -636,6 +647,13 @@
 
   function closeModal() {
     if (!modal) return;
+    
+    // Don't close if animation is running (until the submit button is clicked)
+    if (isAnimationRunning && !modal.successElement.classList.contains('open')) {
+      console.log('Widget close prevented during animation');
+      return;
+    }
+    
     currentTrigger = null;
     
     modal.modal.classList.remove('open');
@@ -1119,6 +1137,17 @@
     document.body.appendChild(successMessage);
     console.log('Success message displayed.');
   }
+
+  // Initialize global API
+  window.UserBird = window.UserBird || {};
+  window.UserBird.open = openModal;
+  window.UserBird.close = closeModal;
+  
+  // Add animation control flags
+  window.UserBird.setAnimationRunning = function(isRunning) {
+    isAnimationRunning = isRunning;
+    console.log(`Animation running state: ${isRunning}`);
+  };
 
   if (window.UserBird?.formId) {
     init().catch(console.error);
