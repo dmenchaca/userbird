@@ -75,13 +75,13 @@ export function initUserbird(formId: string) {
     
     // Log URL to help debug domain mismatches
     console.log('[Userbird] Initializing on domain:', window.location.origin);
-
+    
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
-
+    
     script.onload = () => resolve(true);
     script.onerror = () => reject(new Error('Failed to load Userbird widget'));
-
+    
     document.head.appendChild(script);
   });
 }
@@ -101,6 +101,14 @@ function App() {
     async function loadWidget() {
       try {
         await initUserbird("${formId}");
+        
+        // Optional: Add user information to track who submits feedback
+        window.UserBird.user = {
+          id: 'user-123',                 // Your user's unique ID
+          email: 'user@example.com',      // User's email for follow-ups
+          name: 'John Doe',               // User's name
+        };
+        
         console.log('Userbird widget loaded successfully');
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
@@ -136,7 +144,7 @@ Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
 • If icon clicks don't work: Make sure you added "pointer-events-none" to the icon
 • If the form doesn't open: Check the console for any loading errors
-• If formId error: Verify you're using the exact formId shown above
+• If formId error: Verify you're using the exact formId: \`${formId}\`
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -185,12 +193,12 @@ import { useUserbird } from './userbird'
 
 onMounted(async () => {
   try {
-    // Optional: Add user information
+    // Optional: Add user information to track who submits feedback
     window.UserBird = window.UserBird || {};
     window.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
+      id: 'user-123',                 // Your user's unique ID
+      email: 'user@example.com',      // User's email for follow-ups
+      name: 'John Doe',               // User's name
     };
     
     await useUserbird("${formId}");
@@ -225,7 +233,7 @@ Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
 • If icon clicks don't work: Make sure any icons have "pointer-events-none" class
 • If the form doesn't open: Check the console for any loading errors
-• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-${formId}"
+• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-\`${formId}\`"
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -301,12 +309,12 @@ export class AppComponent implements OnInit {
 
   async ngOnInit() {
     try {
-      // Optional: Add user information
+      // Optional: Add user information to track who submits feedback
       window.UserBird = window.UserBird || {};
       window.UserBird.user = {
-        id: 'user-123',      // Your user's ID
-        email: 'user@example.com',  // User's email
-        name: 'John Doe'     // User's name
+        id: 'user-123',                 // Your user's unique ID
+        email: 'user@example.com',      // User's email for follow-ups
+        name: 'John Doe',               // User's name
       };
       
       await this.userbird.initUserbird("${formId}");
@@ -333,7 +341,7 @@ Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
 • If icon clicks don't work: Make sure any icons have "pointer-events-none" class
 • If the form doesn't open: Check the console for any loading errors
-• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-${formId}"
+• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-\`${formId}\`"
 • Service injection: Make sure UserbirdService is properly provided in your module
 
 Key features:
@@ -377,9 +385,9 @@ Step 2: Initialize the widget
     
     // Optional: Add user information
     w.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
+      id: 'user-123',                 // Your user's ID
+      email: 'user@example.com',      // User's email
+      name: 'John Doe',               // User's name
     };
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
@@ -401,16 +409,17 @@ Common issues:
 • If icon clicks don't work: Make sure any icons have "pointer-events-none" class
 • Button placement: The button should be placed after the Userbird script has initialized
 • Order matters: Initialize the widget before using UserBird.open()
+• If formId error: Verify you're using the exact formId: \`${formId}\`
 
 Key features:
 • UserBird.open(buttonElement) - Opens the feedback form 
 • UserBird.formId - Connects feedback to your specific form
 • UserBird.user - Optionally add user context (id, email, name)
-• You can also add a default trigger with id="userbird-trigger-${formId}"
+• You can also add a default trigger with id="userbird-trigger-\`${formId}\`"
 `;
 
   // Function to format content consistently using a simpler approach with divs
-  const formatInstructionContent = (content: string, framework: string) => {
+  const formatInstructionContent = (content: string) => {
     // Extract the intro paragraph, ignoring any framework titles
     const introMatch = content.match(/Userbird lets your users send feedback[^]*?(?=Step 1:)/);
     
@@ -426,8 +435,8 @@ Key features:
       remainingContent = remainingContent.replace(introMatch[0], '');
     }
     
-    // Replace code blocks with escaped HTML 
-    const processedContent = remainingContent.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+    // First, replace code blocks with escaped HTML 
+    let processedContent = remainingContent.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
       const language = lang || '';
       // Escape HTML characters to display raw code
       const escapedCode = code
@@ -439,6 +448,10 @@ Key features:
       
       return `<div class="code-block"><pre style="font-family: monospace; background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 16px 0; line-height: 1.4; font-size: 0.9rem;"><code class="language-${language}">${escapedCode}</code></pre></div>`;
     });
+    
+    // Then process inline code blocks (text wrapped in backticks)
+    processedContent = processedContent.replace(/`([^`]+)`/g, 
+      '<span style="font-family: monospace; background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem;">$1</span>');
 
     // Split into sections and process each part separately
     let parts = processedContent.split(/^(Step \d+:.+|When implemented correctly:|Common issues:|Key features:)$/gm);
@@ -549,7 +562,7 @@ Key features:
               </div>
               <div 
                 ref={reactContentRef}
-                dangerouslySetInnerHTML={{ __html: formatInstructionContent(reactContent, "React") }} 
+                dangerouslySetInnerHTML={{ __html: formatInstructionContent(reactContent) }} 
               />
             </div>
           )}
@@ -564,7 +577,7 @@ Key features:
               </div>
               <div 
                 ref={vueContentRef}
-                dangerouslySetInnerHTML={{ __html: formatInstructionContent(vueContent, "Vue") }} 
+                dangerouslySetInnerHTML={{ __html: formatInstructionContent(vueContent) }} 
               />
             </div>
           )}
@@ -579,7 +592,7 @@ Key features:
               </div>
               <div 
                 ref={angularContentRef}
-                dangerouslySetInnerHTML={{ __html: formatInstructionContent(angularContent, "Angular") }} 
+                dangerouslySetInnerHTML={{ __html: formatInstructionContent(angularContent) }} 
               />
             </div>
           )}
@@ -594,7 +607,7 @@ Key features:
               </div>
               <div 
                 ref={htmlContentRef}
-                dangerouslySetInnerHTML={{ __html: formatInstructionContent(htmlContent, "HTML") }} 
+                dangerouslySetInnerHTML={{ __html: formatInstructionContent(htmlContent) }} 
               />
             </div>
           )}
