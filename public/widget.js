@@ -419,12 +419,7 @@
             <a href="https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="userbird-branding-link" target="_blank" rel="noopener noreferrer">
               We run on 
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="userbird-branding-icon">
-                <path d="M15.5 6h.5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"></path>
-                <path d="m15 2-3 2-3-2"></path>
-                <path d="M20 4v3"></path>
-                <path d="M20 10v3"></path>
-                <path d="M20 17v3"></path>
-                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+                <path d="M16 7h.01M4.5 16.5c3-3 6-4.5 9.5-4.5m-9.5 0c1.333-1.333 3.667-4 5-4 1.5 0 3 1 4 2 2.5 0 3 .5 6 3M12 18v4M7 21h10"></path>
               </svg>
               Userbird
             </a>
