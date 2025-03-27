@@ -1,9 +1,12 @@
 ---
 description: 
 globs: 
+alwaysApply: true
 ---
 - When removing a property or function, first search for all references to that property/function in the codebase before making changes
 
 - When making changes that affect types or interfaces, make sure to update all dependent files to maintain type compatibility.
 
 - For any changes to shared constants or interfaces, check all imports and usages to ensure backward compatibility or update all dependent files accordingly.
+
+- Please create a draft implementation first and review for potential errors like unused variables, timing issues, and edge cases before finalizing the code. Pay special attention to variable declarations, ensuring each one serves a clear purpose in the implementation.
