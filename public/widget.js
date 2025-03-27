@@ -244,7 +244,7 @@
       }
       .userbird-success.with-gif {
         padding-top: 0.5rem;
-        padding-bottom: 1rem;
+        padding-bottom: 0.5rem;
       }
       .userbird-success.open {
         display: block;
