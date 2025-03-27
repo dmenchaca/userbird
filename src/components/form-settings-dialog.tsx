@@ -1105,6 +1105,19 @@ export function FormSettingsDialog({
                     </div>
                   </div>
 
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <Label>Remove branding</Label>
+                      <Switch
+                        checked={removeBranding}
+                        onCheckedChange={handleRemoveBrandingChange}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Remove "We run on Userbird" branding from the widget
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="supportText">Support Text (optional)</Label>
                     <Input
@@ -1210,19 +1223,6 @@ export function FormSettingsDialog({
                         </p>
                       </div>
                     )}
-                  </div>
-
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Label>Remove branding</Label>
-                      <Switch
-                        checked={removeBranding}
-                        onCheckedChange={handleRemoveBrandingChange}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Remove "We run on Userbird" branding from the widget
-                    </p>
                   </div>
                 </div>
               )}

@@ -339,6 +339,25 @@
       .userbird-submit[disabled] .userbird-submit-text {
         opacity: 0.8;
       }
+      
+      /* Branding styles */
+      .userbird-branding {
+        text-align: center;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f3f4f6;
+      }
+      .userbird-branding-link {
+        color: #9ca3af;
+        font-size: 0.75rem;
+        text-decoration: none;
+      }
+      .userbird-branding-link:hover {
+        text-decoration: underline;
+      }
+      .userbird-branding-hidden {
+        display: none;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -388,6 +407,9 @@
           <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
           <p class="userbird-success-message">${MESSAGES.success.description}</p>
           <!-- GIF will be dynamically added here if enabled -->
+        </div>
+        <div class="userbird-branding${window.UserBird?.removeBranding ? ' userbird-branding-hidden' : ''}">
+          <a href="https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="userbird-branding-link" target="_blank" rel="noopener noreferrer">We run on Userbird</a>
         </div>
       </div>
     `;
@@ -644,10 +666,12 @@
         const soundEnabled = settings.sound_enabled;
         const showGifOnSuccess = settings.show_gif_on_success;
         const gifUrls = settings.gif_urls || [];
+        const removeBranding = settings.remove_branding || false;
         
         console.log('Form settings loaded:', settings);
         console.log('Show GIF on success:', showGifOnSuccess);
         console.log('Custom GIF URLs:', gifUrls);
+        console.log('Remove branding:', removeBranding);
 
         injectStyles(buttonColor);
         modal = createModal();
@@ -659,6 +683,17 @@
         };
         window.UserBird.showGifOnSuccess = showGifOnSuccess;
         window.UserBird.gifUrls = gifUrls;
+        window.UserBird.removeBranding = removeBranding;
+        
+        // Update branding visibility based on setting
+        const brandingElement = modal.modal.querySelector('.userbird-branding');
+        if (brandingElement) {
+          if (removeBranding) {
+            brandingElement.classList.add('userbird-branding-hidden');
+          } else {
+            brandingElement.classList.remove('userbird-branding-hidden');
+          }
+        }
         
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
