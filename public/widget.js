@@ -344,16 +344,24 @@
       .userbird-branding {
         text-align: center;
         margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #f3f4f6;
       }
       .userbird-branding-link {
         color: #9ca3af;
         font-size: 0.75rem;
         text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.15s ease;
       }
       .userbird-branding-link:hover {
-        text-decoration: underline;
+        background-color: rgba(156, 163, 175, 0.1);
+      }
+      .userbird-branding-icon {
+        display: inline-block;
+        vertical-align: middle;
       }
       .userbird-branding-hidden {
         display: none;
@@ -407,9 +415,20 @@
           <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
           <p class="userbird-success-message">${MESSAGES.success.description}</p>
           <!-- GIF will be dynamically added here if enabled -->
-        </div>
-        <div class="userbird-branding${window.UserBird?.removeBranding ? ' userbird-branding-hidden' : ''}">
-          <a href="https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="userbird-branding-link" target="_blank" rel="noopener noreferrer">We run on Userbird</a>
+          <div class="userbird-branding${window.UserBird?.removeBranding ? ' userbird-branding-hidden' : ''}">
+            <a href="https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="userbird-branding-link" target="_blank" rel="noopener noreferrer">
+              We run on 
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="userbird-branding-icon">
+                <path d="M15.5 6h.5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"></path>
+                <path d="m15 2-3 2-3-2"></path>
+                <path d="M20 4v3"></path>
+                <path d="M20 10v3"></path>
+                <path d="M20 17v3"></path>
+                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path>
+              </svg>
+              Userbird
+            </a>
+          </div>
         </div>
       </div>
     `;
