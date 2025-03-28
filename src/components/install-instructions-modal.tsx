@@ -568,6 +568,7 @@ Key features:
                 <h3 className="text-xl font-semibold">React Integration</h3>
                 <Button size="sm" onClick={() => handleCopy('react')}>
                   {copiedId === 'react' ? <Check size={16} /> : <Copy size={16} />}
+                  <span className="ml-2">Copy prompt</span>
                 </Button>
               </div>
               <div 
@@ -583,6 +584,7 @@ Key features:
                 <h3 className="text-xl font-semibold">Vue Integration</h3>
                 <Button size="sm" onClick={() => handleCopy('vue')}>
                   {copiedId === 'vue' ? <Check size={16} /> : <Copy size={16} />}
+                  <span className="ml-2">Copy prompt</span>
                 </Button>
               </div>
               <div 
@@ -598,6 +600,7 @@ Key features:
                 <h3 className="text-xl font-semibold">Angular Integration</h3>
                 <Button size="sm" onClick={() => handleCopy('angular')}>
                   {copiedId === 'angular' ? <Check size={16} /> : <Copy size={16} />}
+                  <span className="ml-2">Copy prompt</span>
                 </Button>
               </div>
               <div 
@@ -613,6 +616,7 @@ Key features:
                 <h3 className="text-xl font-semibold">HTML Integration</h3>
                 <Button size="sm" onClick={() => handleCopy('html')}>
                   {copiedId === 'html' ? <Check size={16} /> : <Copy size={16} />}
+                  <span className="ml-2">Copy prompt</span>
                 </Button>
               </div>
               <div 
