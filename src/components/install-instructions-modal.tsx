@@ -192,7 +192,12 @@ export function useUserbird(formId: string) {
 
 Step 2: Use in your component
 
-Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
+⚠️IMPORTANT (3)⚠️<br>
+ 1. The widget must be fully initialized before setting up click handlers.
+<br> 
+ 2. The widget automatically handles click events for buttons with the correct ID format. DO NOT SET UP YOUR OWN CLICK HANDLERS.
+<br>
+ 3. Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
 
 \`\`\`vue
 <!-- App.vue -->
@@ -219,14 +224,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Option A: Use your own trigger button (‼️Recommended‼️) -->
-  <button id="userbird-trigger-${formId}" @click="$event => window.UserBird?.open($event.currentTarget)">
+  <!-- Option A: If you use a text button -->
+  <button id="userbird-trigger-${formId}">
     Custom Feedback Button
   </button>
-
-  <!-- Option B: Use our default trigger button -->
+  
+  <!-- Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->
   <button id="userbird-trigger-${formId}">
-    Feedback
+    <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
   </button>
 </template>
 \`\`\`
@@ -240,9 +248,11 @@ When implemented correctly:
 
 Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
-• If icon clicks don't work: Make sure any icons have "pointer-events-none" class
+• If icon clicks don't work: Make sure you added "pointer-events-none" to the icon
 • If the form doesn't open: Check the console for any loading errors
-• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-\`${formId}\`"
+• If formId error: Verify you're using the exact formId: \`${formId}\`
+• Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
+• Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -295,7 +305,12 @@ export class UserbirdService {
 
 Step 2: Use in your component
 
-Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
+⚠️IMPORTANT (3)⚠️<br>
+ 1. The widget must be fully initialized before setting up click handlers.
+<br> 
+ 2. The widget automatically handles click events for buttons with the correct ID format. DO NOT SET UP YOUR OWN CLICK HANDLERS.
+<br>
+ 3. Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
 
 \`\`\`typescript
 // app.component.ts
@@ -304,13 +319,16 @@ import { UserbirdService } from './userbird.service';
 
 @Component({
   selector: 'app-root',
-  template: '<!-- Option A: Use your own trigger button -->' + 
-    '<button id="userbird-trigger-${formId}" (click)="openFeedback($event)">' +
+  template: '<!-- Option A: If you use a text button -->' + 
+    '<button id="userbird-trigger-${formId}">' +
     '  Custom Feedback Button' +
     '</button>' +
-    '<!-- Option B: Use our default trigger button -->' +
+    '<!-- Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->' +
     '<button id="userbird-trigger-${formId}">' +
-    '  Feedback' +
+    '  <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+    '    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" ' +
+    '          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />' +
+    '  </svg>' +
     '</button>'
 })
 export class AppComponent implements OnInit {
@@ -332,10 +350,6 @@ export class AppComponent implements OnInit {
       console.error('Failed to load Userbird widget:', error);
     }
   }
-
-  openFeedback(event: MouseEvent) {
-    window.UserBird?.open(event.currentTarget as HTMLElement);
-  }
 }
 \`\`\`
 
@@ -348,9 +362,11 @@ When implemented correctly:
 
 Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
-• If icon clicks don't work: Make sure any icons have "pointer-events-none" class
+• If icon clicks don't work: Make sure you added "pointer-events-none" to the icon
 • If the form doesn't open: Check the console for any loading errors
-• With Option B buttons: Verify the ID format matches exactly "userbird-trigger-\`${formId}\`"
+• If formId error: Verify you're using the exact formId: \`${formId}\`
+• Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
+• Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 • Service injection: Make sure UserbirdService is properly provided in your module
 
 Key features:
@@ -368,12 +384,20 @@ Userbird lets your users send feedback, report bugs, and submit feature requests
 
 
 Step 1: Add the trigger button
+
+⚠️IMPORTANT (3)⚠️<br>
+ 1. The widget must be fully initialized before setting up click handlers.
+<br> 
+ 2. The widget automatically handles click events for buttons with the correct ID format. DO NOT SET UP YOUR OWN CLICK HANDLERS.
+<br>
+ 3. Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
+
 \`\`\`html
 <!-- Option A: If you use a text button -->
-<button id="userbird-trigger-${formId}" onclick="UserBird.open(this)">Custom Feedback</button>
+<button id="userbird-trigger-${formId}">Custom Feedback</button>
 
 <!-- Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->
-<button id="userbird-trigger-${formId}" onclick="UserBird.open(this)">
+<button id="userbird-trigger-${formId}">
   <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
           d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -400,6 +424,12 @@ Step 2: Initialize the widget
     };
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
+    s.onload = function() {
+      console.log('Userbird widget loaded successfully');
+    };
+    s.onerror = function() {
+      console.error('Failed to load Userbird widget');
+    };
     d.head.appendChild(s);
   })(window,document);
 </script>
@@ -420,6 +450,7 @@ Common issues:
 • Order matters: Initialize the widget before using UserBird.open()
 • If formId error: Verify you're using the exact formId: \`${formId}\`
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
+• Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 
 Key features:
 • UserBird.open(buttonElement) - Opens the feedback form 
