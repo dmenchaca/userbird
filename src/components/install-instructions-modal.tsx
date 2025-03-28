@@ -86,8 +86,11 @@ export function initUserbird(formId: string) {
   });
 }
 \`\`\`
+
 Step 2: Use in your component
 
+IMPORTANT: The widget must be fully initialized before setting up click handlers. Always set up click handlers inside the loadWidget function after awaiting initUserbird().
+<br><br>
 Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
 
 \`\`\`tsx
@@ -110,6 +113,15 @@ function App() {
         };
         
         console.log('Userbird widget loaded successfully');
+        
+        // IMPORTANT: Set up click handlers AFTER widget is initialized
+        const feedbackButton = document.getElementById(\`userbird-trigger-${formId}\`);
+        if (feedbackButton) {
+          feedbackButton.onclick = (e) => {
+            e.preventDefault();
+            window.UserBird?.open(e.currentTarget as HTMLElement);
+          };
+        }
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
       }
@@ -121,18 +133,19 @@ function App() {
   return (
     <>
       {/* Option A: If you use a text button */}
-      <button id="userbird-trigger-${formId}" onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+      <button id="userbird-trigger-${formId}">
         Custom Feedback Button
       </button>
       
       {/* Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) */}
-      <button id="userbird-trigger-${formId}" onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+      <button id="userbird-trigger-${formId}">
         <Bell className="h-6 w-6 pointer-events-none" />
       </button>
     </>
   );
 }
 \`\`\`
+
 Step 3: Verify it's working
 
 When implemented correctly:
@@ -146,6 +159,7 @@ Common issues:
 • If the form doesn't open: Check the console for any loading errors
 • If formId error: Verify you're using the exact formId: \`${formId}\`
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
+• Click handler not working: Make sure you set up the click handler AFTER the widget is initialized (inside loadWidget after await initUserbird())
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
