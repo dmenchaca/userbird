@@ -121,12 +121,12 @@ function App() {
   return (
     <>
       {/* Option A: If you use a text button */}
-      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+      <button id="userbird-trigger-${formId}" onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         Custom Feedback Button
       </button>
       
       {/* Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) */}
-      <button onClick={(e) => window.UserBird?.open(e.currentTarget)}>
+      <button id="userbird-trigger-${formId}" onClick={(e) => window.UserBird?.open(e.currentTarget)}>
         <Bell className="h-6 w-6 pointer-events-none" />
       </button>
     </>
@@ -145,6 +145,7 @@ Common issues:
 • If icon clicks don't work: Make sure you added "pointer-events-none" to the icon
 • If the form doesn't open: Check the console for any loading errors
 • If formId error: Verify you're using the exact formId: \`${formId}\`
+• Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -211,12 +212,12 @@ onMounted(async () => {
 
 <template>
   <!-- Option A: Use your own trigger button (‼️Recommended‼️) -->
-  <button @click="$event => window.UserBird?.open($event.currentTarget)">
+  <button id="userbird-trigger-${formId}" @click="$event => window.UserBird?.open($event.currentTarget)">
     Custom Feedback Button
   </button>
 
   <!-- Option B: Use our default trigger button -->
-  <button :id="\`userbird-trigger-${formId}\`">
+  <button id="userbird-trigger-${formId}">
     Feedback
   </button>
 </template>
@@ -296,7 +297,7 @@ import { UserbirdService } from './userbird.service';
 @Component({
   selector: 'app-root',
   template: '<!-- Option A: Use your own trigger button -->' + 
-    '<button (click)="openFeedback($event)">' +
+    '<button id="userbird-trigger-${formId}" (click)="openFeedback($event)">' +
     '  Custom Feedback Button' +
     '</button>' +
     '<!-- Option B: Use our default trigger button -->' +
@@ -361,10 +362,10 @@ Userbird lets your users send feedback, report bugs, and submit feature requests
 Step 1: Add the trigger button
 \`\`\`html
 <!-- Option A: If you use a text button -->
-<button onclick="UserBird.open(this)">Custom Feedback</button>
+<button id="userbird-trigger-${formId}" onclick="UserBird.open(this)">Custom Feedback</button>
 
 <!-- Option B: If you use an icon button (IMPORTANT: Add pointer-events-none to the icon!) -->
-<button onclick="UserBird.open(this)">
+<button id="userbird-trigger-${formId}" onclick="UserBird.open(this)">
   <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
           d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -410,6 +411,7 @@ Common issues:
 • Button placement: The button should be placed after the Userbird script has initialized
 • Order matters: Initialize the widget before using UserBird.open()
 • If formId error: Verify you're using the exact formId: \`${formId}\`
+• Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 
 Key features:
 • UserBird.open(buttonElement) - Opens the feedback form 
