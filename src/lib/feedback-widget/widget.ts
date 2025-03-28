@@ -5,6 +5,17 @@ import { Logger } from './logger';
 import { createStyles } from './styles';
 
 export async function createWidget(formId: string, buttonColor: string, removeBranding: boolean = false) {
+  // Check for URL mismatch
+  const currentUrl = window.location.href;
+  const formUrl = new URL(formId).href;
+  
+  if (currentUrl !== formUrl) {
+    console.warn(
+      `[Userbird] URL mismatch detected. The form is configured for "${formUrl}" but is being loaded on "${currentUrl}". ` +
+      'Form submission will not work. Please ensure the form URL matches the page where it is being used.'
+    );
+  }
+
   Logger.debug(`Creating widget with button color: ${buttonColor}, removeBranding: ${removeBranding}`);
   
   // Log the full CSS being injected
