@@ -262,7 +262,7 @@ Key features:
 
   // Angular content
   const angularContent = `
-Angular Integration Instructions
+Angular Integration Instructions (Beta)
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -628,7 +628,7 @@ Key features:
           {activeTab === 'angular' && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">Angular Integration</h3>
+                <h3 className="text-xl font-semibold">Angular Integration (Beta)</h3>
                 <Button size="sm" onClick={() => handleCopy('angular')}>
                   {copiedId === 'angular' ? <Check size={16} /> : <Copy size={16} />}
                   <span className="ml-2">Copy prompt</span>
