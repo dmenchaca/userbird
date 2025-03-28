@@ -89,9 +89,12 @@ export function initUserbird(formId: string) {
 
 Step 2: Use in your component
 
-IMPORTANT: The widget must be fully initialized before setting up click handlers. The widget automatically handles click events for buttons with the correct ID format - do not set up your own click handlers.
-
-Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
+⚠️IMPORTANT (3)⚠️<br>
+ 1. The widget must be fully initialized before setting up click handlers.
+<br> 
+ 2. The widget automatically handles click events for buttons with the correct ID format. DO NOT SET UP YOUR OWN CLICK HANDLERS.
+<br>
+ 3. Create your own custom button in your UI to trigger the widget. Decide whether to use a text button or an icon button - if using an icon, make sure to add the "pointer-events-none" class to the icon element to ensure proper click handling.
 
 \`\`\`tsx
 // App.tsx
