@@ -83,21 +83,27 @@ export const handler: Handler = async (event) => {
       hour12: true
     });
     
-    // Format date in a more compact way for the original message part
+    // Format date in a compact way similar to the example
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
 
-    // Create a plain text email format with preserved line breaks
-    const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
+    // Create a plain text email format following the Stripe example format
+    const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------
+From: [${userEmail}]
+Sent: ${compactDate}
+To: notifications@userbird.co
+Subject: Feedback submitted by ${userEmail}
+
+${feedback.message}`;
     
-    // Use direct email sending without templates
-    const emailUrl = `${process.env.URL}/.netlify/functions/emails/send`;
+    // Use the minimal template
+    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply-minimal`;
     
     const response = await fetch(emailUrl, {
       method: 'POST',
@@ -108,9 +114,10 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({
         from: 'notifications@userbird.co',
         to: userEmail,
-        subject: `Feedback submitted by ${userEmail}`,
-        text: plainTextMessage, // Send as plain text content
-        html: null // Explicitly disable HTML content
+        subject: `Re: Feedback submitted by ${userEmail}`,
+        parameters: {
+          message: plainTextMessage
+        }
       })
     });
 
