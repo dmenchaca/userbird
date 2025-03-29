@@ -82,16 +82,28 @@ export const handler: Handler = async (event) => {
       minute: '2-digit',
       hour12: true
     });
+    
+    // Format date in a more compact way for the original message part
+    const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
 
     // Send email notification to the user
     // Using the existing feedback-notification template for now
     const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
     
+    // Create a plain text email format
+    const plainTextMessage = `${replyContent}\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
+    
     const emailParams = {
       formId: feedback.form_id,
       formUrl: feedback.forms?.url || 'your form',
-      // Include original message in a section
-      message: `Reply to your feedback:\n\n${replyContent}\n\n---\nOriginal message: ${feedback.message}`,
+      message: plainTextMessage,
       created_at: formattedDate,
       showUserInfo: false,
       showSystemInfo: false
@@ -106,7 +118,7 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({
         from: 'notifications@userbird.co',
         to: userEmail,
-        subject: `New reply to your feedback`,
+        subject: `Feedback submitted by ${userEmail}`,
         parameters: emailParams
       })
     });
