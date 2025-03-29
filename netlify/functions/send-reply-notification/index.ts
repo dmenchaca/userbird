@@ -93,12 +93,11 @@ export const handler: Handler = async (event) => {
       hour12: true
     });
 
-    // Send email notification to the user
-    // Using a plain text email template
-    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply-text`;
-    
     // Create a plain text email format with preserved line breaks
     const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
+    
+    // Use direct email sending without templates
+    const emailUrl = `${process.env.URL}/.netlify/functions/emails/send`;
     
     const response = await fetch(emailUrl, {
       method: 'POST',
@@ -110,9 +109,8 @@ export const handler: Handler = async (event) => {
         from: 'notifications@userbird.co',
         to: userEmail,
         subject: `Feedback submitted by ${userEmail}`,
-        parameters: {
-          message: plainTextMessage
-        }
+        text: plainTextMessage, // Send as plain text content
+        html: null // Explicitly disable HTML content
       })
     });
 
