@@ -28,9 +28,3 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET"
     Content-Type = "application/javascript; charset=utf-8"
-
-# Add email webhook configuration for handling replies
-[[redirects]]
-  from = "/.netlify/functions/send-webhook"
-  to = "/.netlify/functions/process-email-reply"
-  status = 200
