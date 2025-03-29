@@ -1,8 +1,10 @@
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Send } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
-import { FeedbackResponse } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
+import { supabase } from '@/lib/supabase'
+import { Textarea } from './ui/textarea'
 
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
@@ -14,6 +16,93 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   if (!response) return null
 
   const [showImagePreview, setShowImagePreview] = useState(false)
+  const [replyContent, setReplyContent] = useState('')
+  const [replies, setReplies] = useState<FeedbackReply[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (response) {
+      fetchReplies()
+      const channel = subscribeToReplies()
+      
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    }
+  }, [response.id])
+
+  const fetchReplies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('feedback_replies')
+        .select('*')
+        .eq('feedback_id', response.id)
+        .order('created_at', { ascending: true })
+      
+      if (error) throw error
+      setReplies(data || [])
+    } catch (error) {
+      console.error('Error fetching replies:', error)
+    }
+  }
+
+  const subscribeToReplies = () => {
+    const channel = supabase
+      .channel('replies_channel')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'feedback_replies',
+        filter: `feedback_id=eq.${response.id}`
+      }, () => {
+        fetchReplies()
+      })
+      .subscribe()
+      
+    return channel
+  }
+
+  const handleSendReply = async () => {
+    if (!replyContent.trim()) return
+    
+    setIsSubmitting(true)
+    try {
+      const { data, error } = await supabase
+        .from('feedback_replies')
+        .insert([{
+          feedback_id: response.id,
+          sender_type: 'admin',
+          content: replyContent.trim()
+        }])
+        .select()
+      
+      if (error) throw error
+
+      if (response.user_email) {
+        const res = await fetch('/.netlify/functions/send-reply-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedbackId: response.id,
+            replyContent: replyContent.trim(),
+            replyId: data?.[0]?.id
+          }),
+        })
+
+        if (!res.ok) {
+          console.error('Failed to send email notification:', await res.text())
+        }
+      }
+      
+      setReplyContent('')
+    } catch (error) {
+      console.error('Error sending reply:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleDownload = () => {
     if (!response.image_url) return
@@ -27,7 +116,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
 
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-background border-l shadow-lg transform transition-transform duration-200 ease-in-out translate-x-0">
-      <div className="h-full">
+      <div className="h-full flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-medium">Response Details</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -35,12 +124,52 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
           </Button>
         </div>
         
-        <div className="h-[calc(100%-65px)] overflow-auto">
+        <div className="flex-1 overflow-auto">
           <div className="space-y-6 p-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Message</p>
               <p className="text-sm whitespace-pre-wrap">{response.message}</p>
             </div>
+
+            {/* Thread/Replies section */}
+            {replies.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center space-x-2">
+                  <div className="h-px flex-1 bg-gray-200"></div>
+                  <p className="text-xs text-muted-foreground">Thread</p>
+                  <div className="h-px flex-1 bg-gray-200"></div>
+                </div>
+                
+                <div className="space-y-3">
+                  {replies.map(reply => (
+                    <div 
+                      key={reply.id} 
+                      className={`p-2 rounded-lg text-sm ${
+                        reply.sender_type === 'admin' 
+                          ? 'bg-primary/10 ml-6' 
+                          : 'bg-muted mr-6'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium text-xs">
+                          {reply.sender_type === 'admin' ? 'You' : 'User'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(reply.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap">{reply.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {response.image_url && (
               <div className="space-y-2">
@@ -102,6 +231,27 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                 Delete Response
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Reply input area */}
+        <div className="p-4 border-t mt-auto">
+          <div className="flex items-center space-x-2">
+            <Textarea
+              placeholder="Type a reply..."
+              className="min-h-[80px] resize-none"
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <Button 
+              className="h-10 w-10 p-0" 
+              onClick={handleSendReply}
+              disabled={!replyContent.trim() || isSubmitting}
+            >
+              <Send className="h-4 w-4" />
+              <span className="sr-only">Send reply</span>
+            </Button>
           </div>
         </div>
       </div>

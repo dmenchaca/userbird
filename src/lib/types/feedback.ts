@@ -12,3 +12,12 @@ export interface FeedbackResponse {
   screen_category: string
   created_at: string
 }
+
+export interface FeedbackReply {
+  id: string
+  feedback_id: string
+  sender_type: 'admin' | 'user'
+  content: string
+  created_at: string
+  updated_at: string
+}
