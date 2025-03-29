@@ -94,21 +94,12 @@ export const handler: Handler = async (event) => {
     });
 
     // Send email notification to the user
-    // Using the existing feedback-notification template for now
-    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
+    // Using a plain text email template
+    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply-text`;
     
     // Create a plain text email format
     const plainTextMessage = `${replyContent}\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
     
-    const emailParams = {
-      formId: feedback.form_id,
-      formUrl: feedback.forms?.url || 'your form',
-      message: plainTextMessage,
-      created_at: formattedDate,
-      showUserInfo: false,
-      showSystemInfo: false
-    };
-
     const response = await fetch(emailUrl, {
       method: 'POST',
       headers: {
@@ -119,7 +110,9 @@ export const handler: Handler = async (event) => {
         from: 'notifications@userbird.co',
         to: userEmail,
         subject: `Feedback submitted by ${userEmail}`,
-        parameters: emailParams
+        parameters: {
+          message: plainTextMessage
+        }
       })
     });
 
