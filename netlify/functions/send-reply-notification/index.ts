@@ -97,8 +97,8 @@ export const handler: Handler = async (event) => {
     // Using a plain text email template
     const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply-text`;
     
-    // Create a plain text email format
-    const plainTextMessage = `${replyContent}\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
+    // Create a plain text email format with preserved line breaks
+    const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------\nFrom: [${userEmail}]\nSent: ${compactDate}\n\n${feedback.message}`;
     
     const response = await fetch(emailUrl, {
       method: 'POST',
