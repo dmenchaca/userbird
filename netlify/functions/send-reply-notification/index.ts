@@ -93,6 +93,9 @@ export const handler: Handler = async (event) => {
       hour12: true
     });
 
+    // Create a thread identifier using the feedback ID
+    const threadIdentifier = `thread::${feedbackId}::`;
+
     // Create a plain text email format following the Stripe example format
     const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------
 From: [${userEmail}]
@@ -100,7 +103,9 @@ Sent: ${compactDate}
 To: notifications@userbird.co
 Subject: Feedback submitted by ${userEmail}
 
-${feedback.message}`;
+${feedback.message}
+
+Please do not modify this line or token as it may impact our ability to properly process your reply: ${threadIdentifier}`;
     
     // Use the minimal template
     const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply-minimal`;
@@ -117,6 +122,12 @@ ${feedback.message}`;
         subject: `Re: Feedback submitted by ${userEmail}`,
         parameters: {
           message: plainTextMessage
+        },
+        // Add a unique message ID with the feedback ID embedded to track the thread
+        headers: {
+          "In-Reply-To": `feedback-${feedbackId}@userbird.co`,
+          "References": `feedback-${feedbackId}@userbird.co`,
+          "Message-ID": `<reply-${replyId}-${feedbackId}@userbird.co>`
         }
       })
     });
