@@ -25,8 +25,14 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
       fetchReplies()
       const channel = subscribeToReplies()
       
+      // Set up an interval to periodically check for new replies
+      const refreshInterval = setInterval(() => {
+        fetchReplies()
+      }, 5000) // Check every 5 seconds
+      
       return () => {
         supabase.removeChannel(channel)
+        clearInterval(refreshInterval)
       }
     }
   }, [response.id])
@@ -47,8 +53,9 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   }
 
   const subscribeToReplies = () => {
+    const channelName = `replies_channel_${response.id}`;
     const channel = supabase
-      .channel('replies_channel')
+      .channel(channelName)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',

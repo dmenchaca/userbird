@@ -152,7 +152,11 @@ export const handler: Handler = async (event) => {
       throw insertError;
     }
 
-    console.log('Successfully added user reply to thread');
+    console.log('Successfully added user reply to thread', {
+      replyId: insertedReply?.[0]?.id,
+      feedbackId,
+      replyContent: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : '')
+    });
 
     return {
       statusCode: 200,
