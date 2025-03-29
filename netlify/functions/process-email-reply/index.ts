@@ -16,16 +16,43 @@ export const handler: Handler = async (event) => {
   console.log('Process email reply function triggered:', {
     method: event.httpMethod,
     hasBody: !!event.body,
-    bodyLength: event.body?.length
+    bodyLength: event.body?.length,
+    path: event.path,
+    headers: event.headers
   });
 
+  // Allow GET requests for testing
+  if (event.httpMethod === 'GET') {
+    return { 
+      statusCode: 200, 
+      body: JSON.stringify({ 
+        message: 'Email reply processing endpoint is active',
+        timestamp: new Date().toISOString()
+      }) 
+    };
+  }
+  
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
     // Parse the email data from the request
-    const emailData = JSON.parse(event.body || '{}');
+    // Attempt to parse JSON, but also handle form data or raw text
+    let emailData;
+    try {
+      emailData = JSON.parse(event.body || '{}');
+    } catch (e) {
+      // If not JSON, try to parse as form data or use raw text
+      console.log('Not JSON, using raw body as text');
+      emailData = {
+        text: event.body,
+        from: event.headers['from'] || 'unknown',
+        to: event.headers['to'] || 'unknown',
+        subject: event.headers['subject'] || 'No Subject'
+      };
+    }
+    
     console.log('Parsed email data:', { 
       hasFrom: !!emailData.from,
       hasTo: !!emailData.to,
@@ -34,10 +61,13 @@ export const handler: Handler = async (event) => {
       textLength: emailData.text?.length
     });
     
-    if (!emailData.from || !emailData.text) {
+    // For testing: log the full email content with thread identifier
+    console.log('Full email content for debugging:', emailData.text?.substring(0, 500));
+
+    if (!emailData.text) {
       return { 
         statusCode: 400, 
-        body: JSON.stringify({ error: 'Missing required email fields' }) 
+        body: JSON.stringify({ error: 'Missing required email content' }) 
       };
     }
 
@@ -48,8 +78,11 @@ export const handler: Handler = async (event) => {
     if (!threadMatch || !threadMatch[1]) {
       console.error('No thread identifier found in email');
       return { 
-        statusCode: 400, 
-        body: JSON.stringify({ error: 'No thread identifier found in email' }) 
+        statusCode: 200, // Return 200 so email services don't retry
+        body: JSON.stringify({ 
+          warning: 'No thread identifier found in email',
+          success: false 
+        }) 
       };
     }
 
@@ -66,8 +99,12 @@ export const handler: Handler = async (event) => {
     if (feedbackError || !feedback) {
       console.error('Feedback not found:', feedbackId, feedbackError);
       return { 
-        statusCode: 404, 
-        body: JSON.stringify({ error: 'Feedback not found' }) 
+        statusCode: 200, // Return 200 so email services don't retry
+        body: JSON.stringify({ 
+          warning: 'Feedback not found', 
+          feedbackId,
+          success: false 
+        }) 
       };
     }
 
@@ -95,6 +132,8 @@ export const handler: Handler = async (event) => {
         replyContent = replyContent.substring(0, markerIndex).trim();
       }
     }
+
+    console.log('Extracted reply content:', replyContent);
 
     // Store the reply in the database
     const { data: insertedReply, error: insertError } = await supabase
@@ -129,8 +168,11 @@ export const handler: Handler = async (event) => {
       stack: error instanceof Error ? error.stack : undefined
     });
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' })
+      statusCode: 200, // Return 200 so email services don't retry
+      body: JSON.stringify({ 
+        error: 'Error processing email reply',
+        success: false
+      })
     };
   }
 }; 
