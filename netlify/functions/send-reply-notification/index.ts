@@ -53,18 +53,6 @@ export const handler: Handler = async (event) => {
       throw feedbackError;
     }
 
-    // Get reply details
-    const { data: reply, error: replyError } = await supabase
-      .from('feedback_replies')
-      .select('*')
-      .eq('id', replyId)
-      .single();
-
-    if (replyError) {
-      console.error('Reply query error:', replyError);
-      throw replyError;
-    }
-
     if (!feedback) {
       console.error('Feedback not found:', feedbackId);
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
@@ -81,7 +69,6 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const form = feedback.forms;
     const userEmail = feedback.user_email;
     
     console.log('Sending reply notification email to:', userEmail);
@@ -97,8 +84,19 @@ export const handler: Handler = async (event) => {
     });
 
     // Send email notification to the user
-    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-reply`;
+    // Using the existing feedback-notification template for now
+    const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
     
+    const emailParams = {
+      formId: feedback.form_id,
+      formUrl: feedback.forms?.url || 'your form',
+      // Include original message in a section
+      message: `Reply to your feedback:\n\n${replyContent}\n\n---\nOriginal message: ${feedback.message}`,
+      created_at: formattedDate,
+      showUserInfo: false,
+      showSystemInfo: false
+    };
+
     const response = await fetch(emailUrl, {
       method: 'POST',
       headers: {
@@ -106,14 +104,10 @@ export const handler: Handler = async (event) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'support@userbird.co',
+        from: 'notifications@userbird.co',
         to: userEmail,
-        subject: `Reply to your feedback`,
-        parameters: {
-          originalMessage: feedback.message,
-          replyContent: replyContent,
-          created_at: formattedDate
-        }
+        subject: `New reply to your feedback`,
+        parameters: emailParams
       })
     });
 
