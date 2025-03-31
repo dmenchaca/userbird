@@ -64,6 +64,13 @@ export const handler: Handler = async (event) => {
         }
         
         console.log('Parsed form data fields:', Object.keys(emailData));
+        
+        // Map SendGrid fields to expected fields if needed
+        // SendGrid puts the email content in the 'email' field
+        if (emailData.email && !emailData.text) {
+          console.log('Mapping SendGrid email field to text field');
+          emailData.text = emailData.email;
+        }
       } else {
         console.log('Missing boundary or body in multipart data');
       }
