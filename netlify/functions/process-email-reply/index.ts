@@ -149,10 +149,50 @@ export const handler: Handler = async (event) => {
     // This is a simple implementation - production systems would use more sophisticated parsing
     let replyContent = emailData.text;
     
+    // If this is a multipart email from SendGrid, extract just the plain text message content
+    if (replyContent.includes('Content-Type: text/plain')) {
+      // Find the text/plain part
+      const plainTextPartIndex = replyContent.indexOf('Content-Type: text/plain');
+      if (plainTextPartIndex > -1) {
+        // Find the end of headers (blank line after Content-Type)
+        const headersEndIndex = replyContent.indexOf('\n\n', plainTextPartIndex);
+        if (headersEndIndex > -1) {
+          // Extract content after headers until next boundary or end
+          const nextBoundaryIndex = replyContent.indexOf('--', headersEndIndex + 2);
+          if (nextBoundaryIndex > -1) {
+            replyContent = replyContent.substring(headersEndIndex + 2, nextBoundaryIndex).trim();
+          } else {
+            replyContent = replyContent.substring(headersEndIndex + 2).trim();
+          }
+        }
+      }
+    }
+    
     // Remove everything after the original message marker if present
     const originalMessageIndex = replyContent.indexOf('--------------- Original Message ---------------');
     if (originalMessageIndex > -1) {
       replyContent = replyContent.substring(0, originalMessageIndex).trim();
+    }
+    
+    // Alternative marker patterns for quoted content
+    const quotedMarkers = [
+      'On Mon,',
+      'On Tue,',
+      'On Wed,',
+      'On Thu,',
+      'On Fri,',
+      'On Sat,',
+      'On Sun,',
+      '> ',
+      'wrote:',
+      '----- Original Message -----'
+    ];
+    
+    for (const marker of quotedMarkers) {
+      const markerIndex = replyContent.indexOf(marker);
+      if (markerIndex > 0) { // Only if it's not at the start
+        replyContent = replyContent.substring(0, markerIndex).trim();
+      }
     }
 
     // Remove common email signatures
@@ -160,7 +200,13 @@ export const handler: Handler = async (event) => {
       '-- \n',
       'Sent from my iPhone',
       'Sent from my Android',
-      'Get Outlook for iOS'
+      'Get Outlook for iOS',
+      'Warm regards,',
+      'Best regards,',
+      'Regards,',
+      'Thanks,',
+      'Thank you,',
+      'Cheers,'
     ];
     
     for (const marker of signatureMarkers) {
