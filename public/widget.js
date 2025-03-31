@@ -27,7 +27,7 @@
 
   // Initialize success sound
   function initSuccessSound() {
-    successSound = new Audio('https://ucarecdn.com/a46284ad-1b93-4eb8-8db0-4694994ee706/MagicShimmerChristmasDingChristmasStarTwinkle01SND417131.mp3');
+    successSound = new Audio('https://ruqbgoazhyfxrsxbttfp.supabase.co/storage/v1/object/public/app//Magic,%20Shimmer,%20Christmas,%20Ding,%20Christmas%20Star,%20Twinkle%2001%20SND41713%201.mp3');
     successSound.preload = 'auto';
   }
 
