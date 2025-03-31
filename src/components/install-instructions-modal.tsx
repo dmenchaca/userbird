@@ -58,7 +58,6 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
       
       // Create the text to copy with elements in the desired order
       const warningText = "⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️\n\n"
-      const frameworkTitle = `${frameworkTitles[id as keyof typeof frameworkTitles]}\n\n`
       
       // Remove warning from copied text to prevent duplication
       let cleanedText = textContent.replace(/⚠️ WARNING[^]*?⚠️\n*/g, '')
