@@ -46,10 +46,29 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
       }
       
       // Get the plain text version of the HTML content
-      // This will preserve formatting but remove HTML tags
       const textContent = contentRef.innerText
       
-      await navigator.clipboard.writeText(textContent)
+      // Extract framework title from the id
+      const frameworkTitles = {
+        'react': 'React Integration Instructions',
+        'vue': 'Vue Integration Instructions',
+        'angular': 'Angular Integration Instructions (Beta)',
+        'html': 'HTML Integration Instructions'
+      }
+      
+      // Create the text to copy with elements in the desired order
+      const warningText = "⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️\n\n"
+      const frameworkTitle = `${frameworkTitles[id as keyof typeof frameworkTitles]}\n\n`
+      
+      // Remove warning from copied text to prevent duplication
+      let cleanedText = textContent.replace(/⚠️ WARNING[^]*?⚠️\n*/g, '')
+      
+      // Also remove the framework title if it appears in the text
+      for (const title of Object.values(frameworkTitles)) {
+        cleanedText = cleanedText.replace(new RegExp(title + '\\s*', 'g'), '')
+      }
+      
+      await navigator.clipboard.writeText(warningText + cleanedText)
       setCopiedId(id)
       toast.success('Copied to clipboard')
       setTimeout(() => setCopiedId(null), 2000)
@@ -59,8 +78,9 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
   }
 
   // React content
-  const reactContent = `
-React Integration Instructions
+  const reactContent = `React Integration Instructions
+
+⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -162,8 +182,9 @@ Key features:
 `;
 
   // Vue content
-  const vueContent = `
-Vue Integration Instructions
+  const vueContent = `Vue Integration Instructions
+
+⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -261,8 +282,9 @@ Key features:
 `;
 
   // Angular content
-  const angularContent = `
-Angular Integration Instructions (Beta)
+  const angularContent = `Angular Integration Instructions (Beta)
+
+⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -377,8 +399,9 @@ Key features:
 `;
 
   // HTML content
-  const htmlContent = `
-HTML Integration Instructions
+  const htmlContent = `HTML Integration Instructions
+
+⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -461,20 +484,28 @@ Key features:
 
   // Function to format content consistently using a simpler approach with divs
   const formatInstructionContent = (content: string) => {
-    // Extract the intro paragraph, ignoring any framework titles
-    const introMatch = content.match(/Userbird lets your users send feedback[^]*?(?=Step 1:)/);
+    // Extract the intro paragraph and warning
+    const warningMatch = content.match(/⚠️ WARNING[^]*?⚠️/);
+    const userBirdIntro = content.match(/Userbird lets your users send[^]*?app\./);
     
+    let formattedWarning = '';
     let formattedIntro = '';
     let remainingContent = content;
     
-    // Remove the framework title line if present
-    remainingContent = remainingContent.replace(/^[A-Za-z]+ Integration Instructions\s*\n+/g, '');
-    
-    if (introMatch) {
-      const introParagraph = introMatch[0].trim().replace(/^[A-Za-z]+ Integration Instructions\s*\n+/g, '');
-      formattedIntro = `<p class="mb-4">${introParagraph}</p>`;
-      remainingContent = remainingContent.replace(introMatch[0], '');
+    // Format the warning in red
+    if (warningMatch) {
+      formattedWarning = `<p class="mb-4 text-red-600 font-bold">${warningMatch[0]}</p>`;
+      remainingContent = remainingContent.replace(warningMatch[0], '');
     }
+    
+    // Format the userbird intro
+    if (userBirdIntro) {
+      formattedIntro = `<p class="mb-4">${userBirdIntro[0]}</p>`;
+      remainingContent = remainingContent.replace(userBirdIntro[0], '');
+    }
+    
+    // Remove the framework title line if present
+    remainingContent = remainingContent.replace(/^[A-Za-z]+ Integration Instructions(?:\s*\(Beta\))?\s*\n+/g, '');
     
     // First, replace code blocks with escaped HTML 
     let processedContent = remainingContent.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
@@ -496,7 +527,9 @@ Key features:
 
     // Split into sections and process each part separately
     let parts = processedContent.split(/^(Step \d+:.+|When implemented correctly:|Common issues:|Key features:)$/gm);
-    let result = formattedIntro;
+    
+    // Start with warning, then title (omitted), then intro
+    let result = formattedWarning + formattedIntro;
     
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i].trim();
