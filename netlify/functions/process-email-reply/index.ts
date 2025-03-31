@@ -69,7 +69,16 @@ export const handler: Handler = async (event) => {
         // SendGrid puts the email content in the 'email' field
         if (emailData.email && !emailData.text) {
           console.log('Mapping SendGrid email field to text field');
-          emailData.text = emailData.email;
+          
+          // Check for dedicated text/html fields from SendGrid
+          if (emailData.text || emailData.html) {
+            console.log('Using text/html fields directly from SendGrid');
+            // Prefer text over html if both are available
+            emailData.text = emailData.text || emailData.html;
+          } else {
+            // If no dedicated fields, use the full email content
+            emailData.text = emailData.email;
+          }
         }
       } else {
         console.log('Missing boundary or body in multipart data');
@@ -148,24 +157,54 @@ export const handler: Handler = async (event) => {
     // Extract the email content, removing quoted parts and signatures
     // This is a simple implementation - production systems would use more sophisticated parsing
     let replyContent = emailData.text;
+
+    // Debug the first 100 chars to see what we're dealing with
+    console.log('Start of reply content:', replyContent?.substring(0, 100));
     
-    // If this is a multipart email from SendGrid, extract just the plain text message content
-    if (replyContent.includes('Content-Type: text/plain')) {
-      // Find the text/plain part
-      const plainTextPartIndex = replyContent.indexOf('Content-Type: text/plain');
-      if (plainTextPartIndex > -1) {
-        // Find the end of headers (blank line after Content-Type)
-        const headersEndIndex = replyContent.indexOf('\n\n', plainTextPartIndex);
-        if (headersEndIndex > -1) {
-          // Extract content after headers until next boundary or end
-          const nextBoundaryIndex = replyContent.indexOf('--', headersEndIndex + 2);
-          if (nextBoundaryIndex > -1) {
-            replyContent = replyContent.substring(headersEndIndex + 2, nextBoundaryIndex).trim();
-          } else {
-            replyContent = replyContent.substring(headersEndIndex + 2).trim();
+    // Special handling for SendGrid raw email format
+    if (replyContent && replyContent.includes('Content-Type: multipart/alternative')) {
+      console.log('Detected raw multipart email - extracting plain text content');
+      
+      // Look for the text/plain part
+      const plainTextPartStart = replyContent.indexOf('Content-Type: text/plain');
+      if (plainTextPartStart > -1) {
+        // Find the blank line after the headers which starts the content
+        const contentStart = replyContent.indexOf('\n\n', plainTextPartStart);
+        if (contentStart > -1) {
+          // Find the boundary marker after the content
+          const boundaryMatch = replyContent.match(/boundary="([^"]+)"/);
+          if (boundaryMatch && boundaryMatch[1]) {
+            const boundary = '--' + boundaryMatch[1];
+            const contentEnd = replyContent.indexOf(boundary, contentStart);
+            if (contentEnd > -1) {
+              // Extract just the plain text content
+              replyContent = replyContent.substring(contentStart + 2, contentEnd).trim();
+              console.log('Successfully extracted plain text content');
+            }
           }
         }
       }
+    }
+    
+    // Handle quoted-printable encoding that's common in emails
+    if (replyContent.includes('=3D') || replyContent.includes('=20')) {
+      console.log('Detected quoted-printable encoding, decoding');
+      try {
+        // Simple quoted-printable decoder
+        replyContent = replyContent
+          .replace(/=3D/g, '=')
+          .replace(/=20/g, ' ')
+          .replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          .replace(/=\r?\n/g, '');
+      } catch (e) {
+        console.log('Error decoding quoted-printable content:', e);
+      }
+    }
+    
+    // Remove email headers if they're still present
+    const headerEndIndex = replyContent.indexOf('\n\n');
+    if (headerEndIndex > -1 && replyContent.substring(0, headerEndIndex).includes(':')) {
+      replyContent = replyContent.substring(headerEndIndex + 2).trim();
     }
     
     // Remove everything after the original message marker if present
@@ -213,6 +252,34 @@ export const handler: Handler = async (event) => {
       const markerIndex = replyContent.indexOf(marker);
       if (markerIndex > -1) {
         replyContent = replyContent.substring(0, markerIndex).trim();
+      }
+    }
+    
+    // If the reply content is too long or still contains headers, it's likely we failed to parse properly
+    // In this case, make a final attempt to extract meaningful text
+    if (replyContent.length > 1000 || replyContent.includes('Content-Type:')) {
+      console.log('Reply content still appears to contain email headers or is too long, applying fallback parsing');
+      
+      // Look for common email client-added text at the beginning of messages
+      const messageStarters = [
+        '\n\n', // Empty line often precedes actual message
+        'Hi,', 
+        'Hello,',
+        'Hey,',
+        'Dear'
+      ];
+      
+      for (const starter of messageStarters) {
+        const starterIndex = replyContent.indexOf(starter);
+        if (starterIndex > -1) {
+          replyContent = replyContent.substring(starterIndex).trim();
+          break;
+        }
+      }
+      
+      // Limit to first 500 chars if still very long
+      if (replyContent.length > 500) {
+        replyContent = replyContent.substring(0, 500) + '... [truncated]';
       }
     }
 
