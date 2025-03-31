@@ -82,6 +82,12 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
 
 ⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
+⚠️ IMPORTANT: If your site has a Content-Security-Policy, you must allow connections to:
+- https://userbird.netlify.app (for loading the widget and API calls)
+
+Add this domain to your CSP connect-src directive, for example:
+connect-src 'self' https://userbird.netlify.app
+
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
 
@@ -201,6 +207,7 @@ Common issues:
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 • Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 • User info timing: Make sure to set user information BEFORE initializing the widget
+• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'userbird.netlify.app' in the connect-src directive
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -212,6 +219,12 @@ Key features:
   const vueContent = `Vue Integration Instructions
 
 ⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
+
+⚠️ IMPORTANT: If your site has a Content-Security-Policy, you must allow connections to:
+- https://userbird.netlify.app (for loading the widget and API calls)
+
+Add this domain to your CSP connect-src directive, for example:
+connect-src 'self' https://userbird.netlify.app
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -326,6 +339,7 @@ Common issues:
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 • Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 • User info timing: Make sure to set user information BEFORE initializing the widget
+• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'userbird.netlify.app' in the connect-src directive
 
 Key features:
 • window.UserBird.open() - Opens the feedback form
@@ -337,6 +351,12 @@ Key features:
   const angularContent = `Angular Integration Instructions (Beta)
 
 ⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
+
+⚠️ IMPORTANT: If your site has a Content-Security-Policy, you must allow connections to:
+- https://userbird.netlify.app (for loading the widget and API calls)
+
+Add this domain to your CSP connect-src directive, for example:
+connect-src 'self' https://userbird.netlify.app
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -466,6 +486,7 @@ Common issues:
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 • Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 • User info timing: Make sure to set user information BEFORE initializing the widget
+• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'userbird.netlify.app' in the connect-src directive
 • Service injection: Make sure UserbirdService is properly provided in your module
 
 Key features:
@@ -479,6 +500,12 @@ Key features:
   const htmlContent = `HTML Integration Instructions
 
 ⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
+
+⚠️ IMPORTANT: If your site has a Content-Security-Policy, you must allow connections to:
+- https://userbird.netlify.app (for loading the widget and API calls)
+
+Add this domain to your CSP connect-src directive, for example:
+connect-src 'self' https://userbird.netlify.app
 
 Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
@@ -562,6 +589,7 @@ Common issues:
 • Button ID: The ID format \`userbird-trigger-${formId}\` is required for keyboard shortcuts to position correctly
 • Click handler not working: Do not set up your own click handlers - the widget handles clicks automatically for buttons with the correct ID format
 • User info timing: Make sure to set user information BEFORE loading the script
+• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'userbird.netlify.app' in the connect-src directive
 
 Key features:
 • UserBird.open(buttonElement) - Opens the feedback form 
