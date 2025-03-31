@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
+import * as multipart from 'parse-multipart-data';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -18,7 +19,8 @@ export const handler: Handler = async (event) => {
     hasBody: !!event.body,
     bodyLength: event.body?.length,
     path: event.path,
-    headers: event.headers
+    headers: event.headers,
+    contentType: event.headers['content-type'] || event.headers['Content-Type']
   });
 
   // Allow GET requests for testing
@@ -38,19 +40,47 @@ export const handler: Handler = async (event) => {
 
   try {
     // Parse the email data from the request
-    // Attempt to parse JSON, but also handle form data or raw text
-    let emailData;
-    try {
-      emailData = JSON.parse(event.body || '{}');
-    } catch (e) {
-      // If not JSON, try to parse as form data or use raw text
-      console.log('Not JSON, using raw body as text');
-      emailData = {
-        text: event.body,
-        from: event.headers['from'] || 'unknown',
-        to: event.headers['to'] || 'unknown',
-        subject: event.headers['subject'] || 'No Subject'
-      };
+    let emailData: any = {};
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+    
+    // Handle multipart/form-data
+    if (contentType.includes('multipart/form-data')) {
+      console.log('Parsing multipart/form-data');
+      
+      // Extract boundary from content type
+      const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+      const boundary = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2]) : '';
+      
+      if (boundary && event.body) {
+        // Convert body to buffer if it's a string
+        const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+        const parts = multipart.parse(bodyBuffer, boundary);
+        
+        // Process parts into emailData
+        for (const part of parts) {
+          const fieldName = part.name || '';
+          const value = part.data.toString();
+          emailData[fieldName] = value;
+        }
+        
+        console.log('Parsed form data fields:', Object.keys(emailData));
+      } else {
+        console.log('Missing boundary or body in multipart data');
+      }
+    } else {
+      // Try to parse as JSON if not multipart
+      try {
+        emailData = JSON.parse(event.body || '{}');
+      } catch (e) {
+        // If not JSON, use raw body as text
+        console.log('Not JSON, using raw body as text');
+        emailData = {
+          text: event.body,
+          from: event.headers['from'] || 'unknown',
+          to: event.headers['to'] || 'unknown',
+          subject: event.headers['subject'] || 'No Subject'
+        };
+      }
     }
     
     console.log('Parsed email data:', { 
