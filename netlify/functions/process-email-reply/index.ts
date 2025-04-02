@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
+import crypto from 'crypto';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -13,18 +14,59 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Function to strip raw email headers
+// Function to strip raw email headers and better handle email formats
 function stripRawHeaders(emailText: string): string {
-  const encodingHeader = 'Content-Transfer-Encoding: quoted-printable';
-  const splitIndex = emailText.indexOf(encodingHeader);
+  // Try multiple encoding headers
+  const encodingHeaders = [
+    'Content-Transfer-Encoding: quoted-printable',
+    'Content-Type: text/plain',
+    'Content-Type: multipart/'
+  ];
+  
+  let cleanedText = emailText;
+  
+  // Look for each header type
+  for (const header of encodingHeaders) {
+    const splitIndex = cleanedText.indexOf(header);
+    if (splitIndex !== -1) {
+      // Take everything after that header
+      cleanedText = cleanedText.substring(splitIndex + header.length);
+      
+      // Look for the end of headers (blank line)
+      const bodyStart = cleanedText.indexOf('\n\n');
+      if (bodyStart !== -1) {
+        cleanedText = cleanedText.substring(bodyStart + 2);
+        break; // Found the body, exit the loop
+      }
+    }
+  }
 
-  if (splitIndex === -1) return emailText; // fallback if not found
-
-  // Take everything after that header
-  const afterHeader = emailText.substring(splitIndex + encodingHeader.length);
-
+  // Handle MIME boundaries
+  const boundaryMatch = emailText.match(/boundary="([^"]+)"/);
+  if (boundaryMatch) {
+    const boundary = boundaryMatch[1];
+    const parts = cleanedText.split(`--${boundary}`);
+    
+    // Look for text/plain part
+    for (const part of parts) {
+      if (part.includes('Content-Type: text/plain')) {
+        const contentStart = part.indexOf('\n\n');
+        if (contentStart !== -1) {
+          cleanedText = part.substring(contentStart + 2);
+          break;
+        }
+      }
+    }
+  }
+  
+  // Remove any remaining headers
+  const headerEnd = cleanedText.match(/^\s*(?:\S+:\s*\S+\s*\n)+\s*\n/);
+  if (headerEnd) {
+    cleanedText = cleanedText.substring(headerEnd[0].length);
+  }
+  
   // Often there's an empty line between headers and actual body
-  return afterHeader.replace(/^\s+/, ''); // trim leading newlines/spaces
+  return cleanedText.replace(/^\s+/, ''); // trim leading newlines/spaces
 }
 
 export const handler: Handler = async (event) => {
@@ -122,7 +164,8 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Extract the thread identifier from the email body
+    // Extract the thread identifier from the email body with more patterns
+    // First try the standard thread identifier format
     const threadRegex = /thread::([a-f0-9-]+)::/i;
     
     // First try to find thread ID in subject
@@ -135,29 +178,64 @@ export const handler: Handler = async (event) => {
       feedbackId = threadMatch?.[1];
     }
     
+    // Try to extract from email headers 
+    if (!feedbackId && emailData.headers) {
+      // Look for References or In-Reply-To headers
+      const references = typeof emailData.headers === 'string' 
+        ? emailData.headers 
+        : JSON.stringify(emailData.headers);
+
+      const refMatch = references.match(/feedback-([a-f0-9-]+)@userbird\.co/i);
+      if (refMatch) {
+        feedbackId = refMatch[1];
+      }
+    }
+
+    // Try to extract from Message-ID in the email body
+    if (!feedbackId) {
+      const messageIdMatch = emailData.text.match(/Message-ID: <reply-[^-]+-([a-f0-9-]+)@userbird\.co>/i);
+      if (messageIdMatch) {
+        feedbackId = messageIdMatch[1];
+      }
+    }
+    
+    // Try to extract from References or In-Reply-To in the email body
+    if (!feedbackId) {
+      const referencesMatch = emailData.text.match(/References: .*feedback-([a-f0-9-]+)@userbird\.co/i) || 
+                            emailData.text.match(/In-Reply-To: .*feedback-([a-f0-9-]+)@userbird\.co/i);
+      if (referencesMatch) {
+        feedbackId = referencesMatch[1];
+      }
+    }
+    
     // If still not found, try to match subject with feedback ID
     if (!feedbackId) {
       // Extract the original feedback ID from the subject
-      const subjectMatch = emailData.subject?.match(/Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
+      const subjectMatch = emailData.subject?.match(/Re: Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
       if (subjectMatch) {
         const email = subjectMatch[1];
         // Query feedback table to find the most recent feedback from this email
         const { data: feedbackData, error: feedbackError } = await supabase
           .from('feedback')
           .select('id')
-          .eq('email', email)
+          .eq('user_email', email)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
           
         if (!feedbackError && feedbackData) {
           feedbackId = feedbackData.id;
+          console.log('Found feedback ID by email lookup:', feedbackId);
         }
       }
     }
     
     if (!feedbackId) {
       console.error('No thread identifier found in email');
+      // For debugging - look for any ID-like patterns
+      const possibleIds = emailData.text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
+      console.log('Possible UUID-like strings found:', possibleIds);
+      
       return { 
         statusCode: 200, // Return 200 so email services don't retry
         body: JSON.stringify({ 
@@ -222,9 +300,39 @@ export const handler: Handler = async (event) => {
     }
     
     // Remove everything after the original message marker if present
-    const originalMessageIndex = replyContent.indexOf('--------------- Original Message ---------------');
-    if (originalMessageIndex > -1) {
-      replyContent = replyContent.substring(0, originalMessageIndex).trim();
+    // Check for multiple variants of "original message" markers
+    const originalMessageMarkers = [
+      '--------------- Original Message ---------------',
+      'Original Message',
+      'On .* wrote:',
+      '________________________________',
+      '‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐',
+      '-----Original Message-----',
+      'From:',
+      'Reply to this email directly or view it on GitHub',
+      'Please do not modify this line or token'
+    ];
+
+    // Find the first occurrence of any marker
+    let earliestMarkerIndex = replyContent.length;
+    for (const marker of originalMessageMarkers) {
+      const index = replyContent.indexOf(marker);
+      if (index > -1 && index < earliestMarkerIndex) {
+        earliestMarkerIndex = index;
+      }
+      
+      // Also check for regex patterns like "On DATE, NAME wrote:"
+      if (marker === 'On .* wrote:') {
+        const match = replyContent.match(/On [A-Za-z]{3}, [A-Za-z]{3} \d{1,2}, \d{4} at \d{1,2}:\d{2} (?:AM|PM) [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,} wrote:/);
+        if (match && match.index !== undefined && match.index < earliestMarkerIndex) {
+          earliestMarkerIndex = match.index;
+        }
+      }
+    }
+    
+    // Truncate at the earliest marker
+    if (earliestMarkerIndex < replyContent.length) {
+      replyContent = replyContent.substring(0, earliestMarkerIndex).trim();
     }
     
     // Alternative marker patterns for quoted content
@@ -260,17 +368,27 @@ export const handler: Handler = async (event) => {
 
     console.log('Extracted reply content:', replyContent);
 
-    // Store the reply in the database
-    const { data: insertedReply, error: insertError } = await supabase
+    // Remove excess whitespace
+    replyContent = replyContent.trim();
+    
+    // Add debug logging for final content
+    console.log('Final extracted reply content:', {
+      length: replyContent.length,
+      preview: replyContent.substring(0, 100) + (replyContent.length > 100 ? '...' : '')
+    });
+
+    // Save the reply to the database
+    const replyId = crypto.randomUUID();
+    
+    const { error: insertError } = await supabase
       .from('feedback_replies')
-      .insert([
-        {
-          feedback_id: feedbackId,
-          sender_type: 'user',
-          content: replyContent
-        }
-      ])
-      .select();
+      .insert({
+        id: replyId,
+        feedback_id: feedbackId,
+        content: replyContent,
+        source: 'email',
+        email: emailData.from || 'unknown@example.com'
+      });
 
     if (insertError) {
       console.error('Error inserting reply:', insertError);
@@ -278,7 +396,7 @@ export const handler: Handler = async (event) => {
     }
 
     console.log('Successfully added user reply to thread', {
-      replyId: insertedReply?.[0]?.id,
+      replyId,
       feedbackId,
       replyContent: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : '')
     });
@@ -287,7 +405,7 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true,
-        replyId: insertedReply?.[0]?.id
+        replyId
       })
     };
   } catch (error) {
