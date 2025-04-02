@@ -13,6 +13,20 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Function to strip raw email headers
+function stripRawHeaders(emailText: string): string {
+  const encodingHeader = 'Content-Transfer-Encoding: quoted-printable';
+  const splitIndex = emailText.indexOf(encodingHeader);
+
+  if (splitIndex === -1) return emailText; // fallback if not found
+
+  // Take everything after that header
+  const afterHeader = emailText.substring(splitIndex + encodingHeader.length);
+
+  // Often there's an empty line between headers and actual body
+  return afterHeader.replace(/^\s+/, ''); // trim leading newlines/spaces
+}
+
 export const handler: Handler = async (event) => {
   console.log('Process email reply function triggered:', {
     method: event.httpMethod,
@@ -175,7 +189,7 @@ export const handler: Handler = async (event) => {
     }
 
     // Extract the email content, removing quoted parts and signatures
-    let replyContent = emailData.text;
+    let replyContent = stripRawHeaders(emailData.text);
     
     // Handle multipart/alternative emails
     if (replyContent.includes('Content-Type: multipart/alternative')) {
