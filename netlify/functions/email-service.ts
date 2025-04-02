@@ -2,6 +2,100 @@ import sgMail from '@sendgrid/mail';
 import { Handler } from '@netlify/functions';
 import { v4 as uuidv4 } from 'uuid';
 
+// Create local copies of the utility functions since Netlify functions can't import from src folder
+/**
+ * Sanitizes HTML to prevent XSS attacks
+ * @param html The raw HTML input
+ * @returns Sanitized HTML with only allowed tags and attributes
+ */
+function sanitizeHtml(html: string): string {
+  if (!html) return '';
+  
+  // List of allowed tags - keep this limited for security
+  const allowedTags = [
+    'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 
+    'blockquote', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'img', 'span', 'div'
+  ];
+  
+  // Remove potentially harmful tags and patterns
+  const blacklistPattern = /<script|<iframe|<object|<embed|<form|<input|<style|<link|javascript:|onclick|onerror|onload|onmouseover/gi;
+  let sanitized = html.replace(blacklistPattern, '');
+  
+  // Clean all attributes except for allowed ones on specific elements
+  const attrPattern = /<([a-z0-9]+)([^>]*?)>/gi;
+  
+  sanitized = sanitized.replace(attrPattern, (match, tagName, attributes) => {
+    if (!allowedTags.includes(tagName.toLowerCase())) {
+      // For non-allowed tags, just remove them completely
+      return '';
+    }
+    
+    // Handle specific tags that can have attributes
+    if (tagName.toLowerCase() === 'a') {
+      // Extract href and target if they exist
+      const hrefMatch = attributes.match(/href\s*=\s*['"]([^'"]*)['"]/i);
+      const href = hrefMatch ? ` href="${hrefMatch[1]}" target="_blank" rel="noopener noreferrer"` : '';
+      return `<a${href}>`;
+    }
+    
+    if (tagName.toLowerCase() === 'img') {
+      // Extract src and alt if they exist
+      const srcMatch = attributes.match(/src\s*=\s*['"]([^'"]*)['"]/i);
+      const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
+      const src = srcMatch ? ` src="${srcMatch[1]}"` : '';
+      const alt = altMatch ? ` alt="${altMatch[1]}"` : '';
+      // Add width style to prevent oversized images
+      return `<img${src}${alt} style="max-width: 100%;">`;
+    }
+    
+    // For all other allowed tags, strip all attributes
+    return `<${tagName}>`;
+  });
+  
+  // Clean closing tags - remove any that aren't in our allowlist
+  const closingTagPattern = /<\/([a-z0-9]+)>/gi;
+  sanitized = sanitized.replace(closingTagPattern, (match, tagName) => {
+    return allowedTags.includes(tagName.toLowerCase()) ? match : '';
+  });
+  
+  return sanitized;
+}
+
+/**
+ * Removes HTML tags from content to create plain text version
+ * @param html HTML content
+ * @returns Plain text with links preserved
+ */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  
+  // First, preserve links by converting them to text + URL format
+  // Replace <a href="URL">text</a> with text (URL)
+  let text = html.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, 
+    (match, url, linkText) => {
+      // If the text is the same as the URL, just return the URL
+      if (linkText.trim() === url.trim()) {
+        return url;
+      }
+      // Otherwise return text (URL)
+      return `${linkText} (${url})`;
+    }
+  );
+  
+  // Then remove remaining HTML tags and decode entities
+  return text
+    .replace(/<[^>]*>/g, ' ')  // Replace tags with space
+    .replace(/&nbsp;/g, ' ')   // Replace non-breaking spaces
+    .replace(/&amp;/g, '&')    // Replace ampersand
+    .replace(/&lt;/g, '<')     // Replace less than
+    .replace(/&gt;/g, '>')     // Replace greater than
+    .replace(/&quot;/g, '"')   // Replace quotes
+    .replace(/&#039;/g, "'")   // Replace apostrophe
+    .replace(/\s+/g, ' ')      // Consolidate whitespace
+    .trim();
+}
+
 // Initialize SendGrid with API key
 const apiKey = process.env.SENDGRID_API_KEY || '';
 sgMail.setApiKey(apiKey);
@@ -24,12 +118,53 @@ export interface EmailParams {
   inReplyTo?: string;
 }
 
+/**
+ * Processes Markdown-like syntax from user input
+ * @param content Input potentially containing markdown elements
+ * @returns HTML content with formatted elements
+ */
+function processMarkdownSyntax(content: string): string {
+  if (!content) return '';
+  
+  // Process bold text (**bold**)
+  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Process italic text (*italic*)
+  content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Process line breaks
+  content = content.replace(/\n/g, '<br>');
+  
+  // Process URLs
+  content = content.replace(
+    /(https?:\/\/[^\s]+)/g, 
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+  
+  return content;
+}
+
 export class EmailService {
   static async sendEmail(params: EmailParams) {
     try {
-      // Ensure we have at least text or html content
-      const text = params.text || '';
-      const html = params.html || '';
+      // Process and sanitize HTML content if it exists
+      let html = params.html || '';
+      
+      // Convert plain text to HTML if no HTML is provided but text is
+      if (!html && params.text) {
+        // Process any markdown-like syntax in the text
+        html = processMarkdownSyntax(params.text);
+      }
+      
+      // Sanitize HTML content to prevent security issues
+      html = sanitizeHtml(html);
+      
+      // Ensure we have a plain text version (fallback)
+      let text = params.text || '';
+      if (!text && html) {
+        // Convert HTML to plain text if only HTML is provided
+        text = stripHtml(html);
+      }
       
       let messageId: string | undefined;
       let headers = { ...params.headers };
@@ -212,6 +347,7 @@ ${image_url}
   static async sendReplyNotification(params: {
     to: string;
     replyContent: string;
+    htmlReplyContent?: string;
     feedback: {
       message: string;
       created_at: string;
@@ -226,6 +362,7 @@ ${image_url}
     const {
       to,
       replyContent,
+      htmlReplyContent,
       feedback,
       isFirstReply,
       feedbackId,
@@ -286,7 +423,7 @@ ${feedback.message}
 
             <div style="margin-top: 24px; margin-bottom: 16px;">
               <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
-              <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${replyContent}</p>
+              <div style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${htmlReplyContent || replyContent}</div>
             </div>
 
             <div style="margin-top: 16px;">

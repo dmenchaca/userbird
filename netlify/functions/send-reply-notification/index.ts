@@ -16,6 +16,28 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Processes markdown-like syntax to HTML
+function processMarkdownSyntax(content: string): string {
+  if (!content) return '';
+  
+  // Process bold text (**bold**)
+  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Process italic text (*italic*)
+  content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Process line breaks
+  content = content.replace(/\n/g, '<br>');
+  
+  // Process URLs
+  content = content.replace(
+    /(https?:\/\/[^\s]+)/g, 
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+  
+  return content;
+}
+
 export const handler: Handler = async (event) => {
   console.log('Reply notification function triggered:', {
     method: event.httpMethod,
@@ -28,11 +50,12 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { feedbackId, replyContent, replyId } = JSON.parse(event.body || '{}');
+    const { feedbackId, replyContent, replyId, htmlContent } = JSON.parse(event.body || '{}');
     console.log('Parsed request:', { 
       hasFeedbackId: !!feedbackId, 
       replyContentLength: replyContent?.length,
-      hasReplyId: !!replyId
+      hasReplyId: !!replyId,
+      hasHtmlContent: !!htmlContent
     });
     
     if (!feedbackId || !replyContent) {
@@ -93,9 +116,13 @@ export const handler: Handler = async (event) => {
     
     console.log('Sending reply notification email to:', userEmail);
 
+    // If no HTML content was provided, process the plain text to HTML
+    const processedHtmlContent = htmlContent || processMarkdownSyntax(replyContent);
+
     const emailResult = await EmailService.sendReplyNotification({
       to: userEmail,
       replyContent,
+      htmlReplyContent: processedHtmlContent,
       feedback: {
         message: feedback.message,
         created_at: feedback.created_at,

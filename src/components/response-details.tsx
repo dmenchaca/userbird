@@ -5,22 +5,9 @@ import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { Textarea } from './ui/textarea'
+import { textToHtml } from '@/lib/utils/html-sanitizer'
 
-// Simple HTML sanitizer for the client side
-function sanitizeAndFormatText(text: string): string {
-  return text
-    // Escape HTML special characters
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-    // Convert URLs to links
-    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Convert newlines to <br> tags
-    .replace(/\n/g, '<br>');
-}
-
+// Remove the inline sanitizer function since we now use the utility
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
   onClose: () => void
@@ -89,8 +76,8 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     
     setIsSubmitting(true)
     try {
-      // Create HTML version of reply content
-      const htmlContent = sanitizeAndFormatText(replyContent);
+      // Create HTML version of reply content using our new utility
+      const htmlContent = textToHtml(replyContent);
       
       const { data, error } = await supabase
         .from('feedback_replies')
@@ -113,7 +100,8 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
           body: JSON.stringify({
             feedbackId: response.id,
             replyContent: replyContent.trim(),
-            replyId: data?.[0]?.id
+            replyId: data?.[0]?.id,
+            htmlContent: htmlContent
           }),
         })
 
@@ -138,6 +126,82 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // Allow simple keyboard formatting: Ctrl+B for bold, Ctrl+I for italic
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Send on Ctrl+Enter or Command+Enter
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      handleSendReply()
+      return
+    }
+    
+    // Bold: Ctrl+B / Command+B
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      e.preventDefault()
+      const textarea = e.currentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const text = textarea.value
+      
+      // If text is selected, wrap it in **bold**
+      if (start !== end) {
+        const beforeText = text.substring(0, start)
+        const selectedText = text.substring(start, end)
+        const afterText = text.substring(end)
+        
+        setReplyContent(`${beforeText}**${selectedText}**${afterText}`)
+        
+        // Set cursor position after the bold text (after the closing **)
+        setTimeout(() => {
+          textarea.selectionStart = end + 4
+          textarea.selectionEnd = end + 4
+        }, 0)
+      } else {
+        // If no text is selected, insert **** and place cursor in the middle
+        const newText = `${text.substring(0, start)}****${text.substring(end)}`
+        setReplyContent(newText)
+        
+        setTimeout(() => {
+          textarea.selectionStart = start + 2
+          textarea.selectionEnd = start + 2
+        }, 0)
+      }
+    }
+    
+    // Italic: Ctrl+I / Command+I
+    if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      e.preventDefault()
+      const textarea = e.currentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const text = textarea.value
+      
+      // If text is selected, wrap it in *italic*
+      if (start !== end) {
+        const beforeText = text.substring(0, start)
+        const selectedText = text.substring(start, end)
+        const afterText = text.substring(end)
+        
+        setReplyContent(`${beforeText}*${selectedText}*${afterText}`)
+        
+        // Set cursor position after the italic text (after the closing *)
+        setTimeout(() => {
+          textarea.selectionStart = end + 2
+          textarea.selectionEnd = end + 2
+        }, 0)
+      } else {
+        // If no text is selected, insert ** and place cursor in the middle
+        const newText = `${text.substring(0, start)}**${text.substring(end)}`
+        setReplyContent(newText)
+        
+        setTimeout(() => {
+          textarea.selectionStart = start + 1
+          textarea.selectionEnd = start + 1
+        }, 0)
+      }
+    }
   }
 
   return (
@@ -250,99 +314,84 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                     month: 'long',
                     day: 'numeric',
                     hour: 'numeric',
-                    minute: '2-digit',
+                    minute: 'numeric',
                     hour12: true
                   })}
                 </p>
               </div>
-            </div>
-            <div>
-              <Button
-                variant="destructive"
+
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="w-full"
                 onClick={() => onDelete(response.id)}
               >
-                Delete Response
+                Delete Feedback
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Reply input area */}
-        <div className="p-4 border-t mt-auto">
-          <div className="flex items-center space-x-2">
-            <Textarea
-              placeholder="Type a reply..."
-              className="min-h-[80px] resize-none"
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              disabled={isSubmitting}
-              onKeyDown={(e) => {
-                // Check for Cmd/Ctrl + Enter
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  if (replyContent.trim() && !isSubmitting) {
-                    handleSendReply();
-                  }
-                }
-              }}
-            />
-            <Button 
-              className="h-10 w-10 p-0" 
-              onClick={handleSendReply}
-              disabled={!replyContent.trim() || isSubmitting}
-            >
-              <Send className="h-4 w-4" />
-              <span className="sr-only">Send reply</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
-          <div className="relative">
-            <img
-              src={response.image_url || ''}
-              alt={response.image_name || 'Feedback image'}
-              className="max-w-full max-h-[85vh] object-contain mx-auto"
-            />
-            <div className="absolute top-4 right-4 flex gap-2">
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={handleDownload}
-                className="rounded-full"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+        {response.user_email && (
+          <div className="p-4 border-t">
+            <div className="flex flex-col">
+              <div className="text-xs mb-2 text-muted-foreground">
+                <span>
+                  Reply to <strong>{response.user_email}</strong>
+                </span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  (Ctrl+B for bold, Ctrl+I for italic)
+                </span>
+              </div>
+              <div className="relative">
+                <Textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={3}
+                  placeholder="Type your reply..."
+                  className="resize-none text-sm"
+                />
+                <Button 
+                  size="sm" 
+                  className="absolute bottom-2 right-2"
+                  onClick={handleSendReply}
+                  disabled={!replyContent.trim() || isSubmitting}
                 >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span className="sr-only">Download image</span>
-              </Button>
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={() => setShowImagePreview(false)}
-                className="rounded-full"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
+                  <Send className="h-3 w-3 mr-1" /> Send
+                </Button>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
+
+      {showImagePreview && (
+        <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+          <DialogContent className="max-w-3xl">
+            <div className="flex justify-between mb-4">
+              <h3 className="font-medium">Image Preview</h3>
+              <div className="space-x-2">
+                <Button size="sm" onClick={handleDownload}>Download</Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setShowImagePreview(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[70vh] overflow-auto">
+              <img 
+                src={response.image_url!} 
+                alt={response.image_name || 'Feedback image'} 
+                className="w-full"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

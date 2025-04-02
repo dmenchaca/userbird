@@ -122,8 +122,31 @@ function stripRawHeaders(emailText: string): string {
   return cleanedText.replace(/^\s+/, ''); // trim leading newlines/spaces
 }
 
-// Simple HTML sanitizer function using regex patterns
+// Function to extract and sanitize HTML content from email
+function extractHtmlContent(emailText: string): string | null {
+  // Try to find the HTML part in multipart emails
+  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\n\n([^]*?)(?:--[^\n]*?(?:--)?$|\n*$)/mi);
+  
+  if (htmlPartMatch && htmlPartMatch[1]) {
+    let htmlContent = htmlPartMatch[1];
+    
+    // Check if it's quoted-printable encoded
+    const isQuotedPrintable = emailText.includes('Content-Transfer-Encoding: quoted-printable');
+    if (isQuotedPrintable) {
+      htmlContent = decodeQuotedPrintable(htmlContent);
+    }
+    
+    // Sanitize the HTML to remove any potentially harmful content
+    return sanitizeHtml(htmlContent);
+  }
+  
+  return null;
+}
+
+// Create a local copy of the sanitize function since Netlify functions can't import from src folder
 function sanitizeHtml(html: string): string {
+  if (!html) return '';
+  
   // List of allowed tags - keep this limited for security
   const allowedTags = [
     'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 
@@ -131,13 +154,11 @@ function sanitizeHtml(html: string): string {
     'img', 'span', 'div'
   ];
   
-  // Convert tag blacklist to pattern
+  // Remove potentially harmful tags and patterns
   const blacklistPattern = /<script|<iframe|<object|<embed|<form|<input|<style|<link|javascript:|onclick|onerror|onload|onmouseover/gi;
-  
-  // First remove blacklisted tags completely
   let sanitized = html.replace(blacklistPattern, '');
   
-  // Then clean all attributes except for a few safe ones on specific elements
+  // Clean all attributes except for allowed ones on specific elements
   const attrPattern = /<([a-z0-9]+)([^>]*?)>/gi;
   
   sanitized = sanitized.replace(attrPattern, (match, tagName, attributes) => {
@@ -160,7 +181,8 @@ function sanitizeHtml(html: string): string {
       const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
       const src = srcMatch ? ` src="${srcMatch[1]}"` : '';
       const alt = altMatch ? ` alt="${altMatch[1]}"` : '';
-      return `<img${src}${alt}>`;
+      // Add width style to prevent oversized images
+      return `<img${src}${alt} style="max-width: 100%;">`;
     }
     
     // For all other allowed tags, strip all attributes
@@ -174,27 +196,6 @@ function sanitizeHtml(html: string): string {
   });
   
   return sanitized;
-}
-
-// Function to extract and sanitize HTML content from email
-function extractHtmlContent(emailText: string): string | null {
-  // Try to find the HTML part in multipart emails
-  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\n\n([^]*?)(?:--[^\n]*?(?:--)?$|\n*$)/mi);
-  
-  if (htmlPartMatch && htmlPartMatch[1]) {
-    let htmlContent = htmlPartMatch[1];
-    
-    // Check if it's quoted-printable encoded
-    const isQuotedPrintable = emailText.includes('Content-Transfer-Encoding: quoted-printable');
-    if (isQuotedPrintable) {
-      htmlContent = decodeQuotedPrintable(htmlContent);
-    }
-    
-    // Sanitize the HTML to remove any potentially harmful content
-    return sanitizeHtml(htmlContent);
-  }
-  
-  return null;
 }
 
 export const handler: Handler = async (event) => {
@@ -579,18 +580,45 @@ export const handler: Handler = async (event) => {
     // Extract HTML content if available
     let htmlContent = extractHtmlContent(emailData.text);
     
-    // If no HTML content was found, create a simple HTML version from the plain text
+    // Process potential markdown-like syntax in the reply content
     if (!htmlContent) {
-      // Convert plain text to HTML (simple conversion)
-      htmlContent = replyContent
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
-        .replace(/\n/g, '<br>')
-        // Convert URLs to links
-        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+      // First check if we have any markdown-like formatting in the text
+      const hasMarkdown = replyContent.match(/\*\*.*?\*\*|\*.*?\*/);
+      
+      if (hasMarkdown) {
+        // Process markdown-like syntax
+        htmlContent = replyContent
+          // Escape HTML special characters first
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;')
+          // Process bold text (**bold**)
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          // Process italic text (*italic*)
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          // Convert URLs to links
+          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+          // Convert newlines to <br> tags
+          .replace(/\n/g, '<br>');
+      } else {
+        // Simple conversion for plain text
+        htmlContent = replyContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;')
+          .replace(/\n/g, '<br>')
+          // Convert URLs to links
+          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+      }
+    }
+    
+    // Ensure the HTML content is properly sanitized
+    if (htmlContent) {
+      htmlContent = sanitizeHtml(htmlContent);
     }
     
     const { error: insertError } = await supabase
@@ -614,7 +642,7 @@ export const handler: Handler = async (event) => {
       replyId,
       feedbackId,
       replyContentLength: replyContent.length,
-      htmlContentLength: htmlContent.length,
+      htmlContentLength: htmlContent?.length,
       messageId,
       inReplyTo
     });
