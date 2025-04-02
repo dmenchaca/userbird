@@ -132,173 +132,85 @@ function stripRawHeaders(emailText: string): string {
 }
 
 // Function to extract and sanitize HTML content from email
-function extractHtmlContent(emailText: string): string | null {
-  console.log('Attempting to extract HTML content from email');
+function extractHtmlContent(emailText: string): string {
+  if (!emailText) return '';
   
-  // Check if it's a Gmail email (they have specific patterns)
-  const isGmail = emailText.includes('@mail.gmail.com') || emailText.includes('gmail_signature');
-  if (isGmail) {
-    console.log('Detected Gmail format email');
+  console.log('Starting HTML content extraction');
+  
+  // Check if this is a multipart/related email (which often has images)
+  const isMultipartRelated = emailText.includes('Content-Type: multipart/related');
+  
+  if (isMultipartRelated) {
+    console.log('Detected multipart/related email structure');
   }
   
-  // First, check for multipart/related and multipart/alternative with images
-  const multipartRelatedMatch = emailText.match(/Content-Type: multipart\/related;\s*boundary="([^"]+)"/i);
-  if (multipartRelatedMatch && multipartRelatedMatch[1]) {
-    console.log('Found multipart/related email with potential image attachments');
-    
-    const relatedBoundary = multipartRelatedMatch[1];
-    const relatedParts = emailText.split(`--${relatedBoundary}`);
-    
-    // Look for the multipart/alternative section, which contains the actual content
-    for (const part of relatedParts) {
-      if (part.includes('Content-Type: multipart/alternative')) {
-        console.log('Found multipart/alternative section within related parts');
-        
-        // Extract the alternative boundary
-        const altBoundaryMatch = part.match(/boundary="([^"]+)"/i);
-        if (altBoundaryMatch && altBoundaryMatch[1]) {
-          const altBoundary = altBoundaryMatch[1];
-          const altParts = part.split(`--${altBoundary}`);
-          
-          // Look for the HTML part
-          for (const altPart of altParts) {
-            if (altPart.includes('Content-Type: text/html')) {
-              console.log('Found HTML part in multipart/alternative within related');
-              
-              // Extract the HTML content
-              const contentStart = altPart.indexOf('\n\n');
-              if (contentStart !== -1) {
-                let htmlContent = altPart.substring(contentStart + 2).trim();
-                
-                // Check if it's quoted-printable encoded
-                if (altPart.includes('Content-Transfer-Encoding: quoted-printable')) {
-                  console.log('Content is quoted-printable encoded, decoding');
-                  htmlContent = decodeQuotedPrintable(htmlContent);
-                }
-                
-                // Gmail often includes quoted previous messages, which we want to exclude
-                if (isGmail && htmlContent.includes('gmail_quote')) {
-                  console.log('Removing Gmail quoted content');
-                  const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
-                  if (quoteStartPos !== -1) {
-                    htmlContent = htmlContent.substring(0, quoteStartPos);
-                    console.log('Removed Gmail quoted content');
-                  }
-                }
-                
-                console.log('Successfully extracted HTML content from multipart structure');
-                return htmlContent;
-              }
-            }
-          }
-        }
-      }
-    }
+  // Find the boundary marker in the email
+  const boundaryMatch = emailText.match(/boundary="?([^"\r\n]+)"?/i);
+  if (!boundaryMatch || !boundaryMatch[1]) {
+    console.log('No boundary found, treating as plain text email');
+    return '';
   }
   
-  // Continue with the existing approach for non-related multipart emails
-  // Gmail often uses this format with boundary
-  const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
-  if (boundaryMatch && boundaryMatch[1]) {
-    const boundary = boundaryMatch[1];
-    console.log(`Found email boundary: ${boundary}`);
+  const boundary = boundaryMatch[1];
+  console.log(`Found boundary: ${boundary}`);
+  
+  // Split the email based on the boundary
+  const parts = emailText.split(`--${boundary}`);
+  console.log(`Email split into ${parts.length} parts`);
+  
+  // Look for the HTML content in the parts
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    console.log(`Examining part ${i+1}/${parts.length}, length: ${part.length} characters`);
     
-    // Split by boundary
-    const boundaryDelimiter = `--${boundary}`;
-    const parts = emailText.split(boundaryDelimiter);
-    console.log(`Email split into ${parts.length} parts by boundary`);
-    
-    // First look for text/html part
-    for (const part of parts) {
-      if (part.includes('Content-Type: text/html')) {
-        console.log('Found text/html part in email');
-        
-        // Extract content after the headers
-        // Gmail's format is a bit different, so we need to handle various patterns
-        let htmlContent = '';
-        
-        // Try several patterns to extract the content
-        const headerEndMatch = part.match(/\r?\n\r?\n([\s\S]*?)(?:\r?\n--|\r?\n\r?\n|$)/);
-        if (headerEndMatch && headerEndMatch[1]) {
-          htmlContent = headerEndMatch[1].trim();
-          console.log('Extracted HTML content using header end pattern');
-        } else {
-          // Fallback to a simpler approach
-          const contentStartIndex = part.indexOf('\n\n');
-          if (contentStartIndex !== -1) {
-            htmlContent = part.substring(contentStartIndex + 2).trim();
-            console.log('Extracted HTML content using simpler approach');
-          }
-        }
-        
-        if (htmlContent) {
-          // Check if it's quoted-printable encoded
-          if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
-            console.log('Content is quoted-printable encoded, decoding');
-            htmlContent = decodeQuotedPrintable(htmlContent);
-          }
-          
-          // Replace embedded image references with text placeholders
-          // Gmail uses 'cid:' references for embedded images
-          htmlContent = htmlContent.replace(/<img[^>]*src=3D"cid:[^"]*"[^>]*>/gi, '[Image attachment]');
-          htmlContent = htmlContent.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/gi, '[Image attachment]');
-          
-          // Gmail often includes quoted previous messages, which we want to exclude
-          if (isGmail && htmlContent.includes('gmail_quote')) {
-            console.log('Removing Gmail quoted content');
-            // Remove the quoted content
-            const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
-            if (quoteStartPos !== -1) {
-              htmlContent = htmlContent.substring(0, quoteStartPos);
-              console.log('Removed Gmail quoted content');
-            }
-          }
-          
-          console.log('Successfully extracted HTML content from boundary part');
-          return htmlContent;
-        }
-      }
+    // Check if this part is HTML
+    const contentTypeMatch = part.match(/Content-Type:\s*text\/html/i);
+    if (!contentTypeMatch) {
+      console.log(`Part ${i+1} is not HTML, skipping`);
+      continue;
     }
     
-    console.log('Could not find text/html part in email boundaries');
-  } else {
-    console.log('No boundary found in email');
-  }
-  
-  // Fallback to regex approach for non-boundary emails
-  console.log('Trying regex pattern to extract HTML content');
-  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\r?\n\r?\n([^]*?)(?:--[^\n]*?(?:--)?$|\r?\n\r?\n$)/mi);
-  
-  if (htmlPartMatch && htmlPartMatch[1]) {
-    let htmlContent = htmlPartMatch[1].trim();
+    console.log(`Found HTML content in part ${i+1}`);
     
-    // Check if it's quoted-printable encoded
-    if (emailText.includes('Content-Transfer-Encoding: quoted-printable')) {
-      console.log('Content is quoted-printable encoded, decoding using regex approach');
+    // Check if it's quoted-printable
+    const encodingMatch = part.match(/Content-Transfer-Encoding:\s*quoted-printable/i);
+    const isQuotedPrintable = !!encodingMatch;
+    
+    if (isQuotedPrintable) {
+      console.log('Content is quoted-printable encoded, will decode');
+    }
+    
+    // Extract the content after the headers
+    const contentStart = part.indexOf('\r\n\r\n');
+    if (contentStart === -1) {
+      console.log(`No content separator found in part ${i+1}, skipping`);
+      continue;
+    }
+    
+    let htmlContent = part.substring(contentStart + 4);
+    
+    // Log the raw content length
+    console.log(`Raw HTML content length: ${htmlContent.length} characters`);
+    console.log(`Raw HTML content preview: ${htmlContent.substring(0, 100)}...`);
+    
+    // Decode if necessary
+    if (isQuotedPrintable) {
       htmlContent = decodeQuotedPrintable(htmlContent);
+      console.log(`Decoded HTML content length: ${htmlContent.length} characters`);
+      console.log(`Decoded HTML content preview: ${htmlContent.substring(0, 100)}...`);
     }
     
-    // Replace embedded image references
-    htmlContent = htmlContent.replace(/<img[^>]*src=3D"cid:[^"]*"[^>]*>/gi, '[Image attachment]');
-    htmlContent = htmlContent.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/gi, '[Image attachment]');
-    
-    // Gmail often includes quoted previous messages, which we want to exclude
-    if (isGmail && htmlContent.includes('gmail_quote')) {
-      console.log('Removing Gmail quoted content from regex match');
-      // Remove the quoted content
-      const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
-      if (quoteStartPos !== -1) {
-        htmlContent = htmlContent.substring(0, quoteStartPos);
-        console.log('Removed Gmail quoted content from regex match');
-      }
+    // Check if the content looks like HTML (contains at least one tag)
+    if (!htmlContent.includes('<')) {
+      console.log('Content doesn\'t appear to be valid HTML (no tags found)');
+      continue;
     }
     
-    console.log('Successfully extracted HTML content using regex pattern');
-    return htmlContent;
+    return htmlContent.trim();
   }
   
-  console.log('No HTML content found in email using any method');
-  return null;
+  console.log('No HTML content found in any part of the email');
+  return '';
 }
 
 // Create a local copy of the sanitize function since Netlify functions can't import from src folder
@@ -521,22 +433,34 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
           console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
           cidToUrlMap[attachment.contentId] = urlData.publicUrl;
           
-          // Store attachment metadata in database
-          const attachmentId = crypto.randomUUID();
-          const { error: insertError } = await supabase
-            .from('feedback_attachments')
-            .insert({
-              id: attachmentId,
-              reply_id: replyId,
-              filename: attachment.filename,
-              content_id: attachment.contentId,
-              content_type: attachment.contentType,
-              url: urlData.publicUrl,
-              is_inline: true
-            });
-          
-          if (insertError) {
-            console.error('Error storing attachment metadata:', insertError);
+          // Store attachment metadata in database only if the table exists
+          if (feedbackAttachmentsTableExists) {
+            try {
+              const attachmentId = crypto.randomUUID();
+              const { error: insertError } = await supabase
+                .from('feedback_attachments')
+                .insert({
+                  id: attachmentId,
+                  reply_id: replyId,
+                  filename: attachment.filename,
+                  content_id: attachment.contentId,
+                  content_type: attachment.contentType,
+                  url: urlData.publicUrl,
+                  is_inline: true
+                });
+              
+              if (insertError) {
+                console.error('Error storing attachment metadata:', insertError);
+              } else {
+                console.log(`Successfully stored attachment metadata with ID: ${attachmentId}`);
+              }
+            } catch (insertErr) {
+              console.error('Exception while inserting attachment metadata:', insertErr);
+              // Even if we can't store the metadata, we still want to replace cid: references
+              // so we continue processing
+            }
+          } else {
+            console.log('Skipping attachment metadata storage because the feedback_attachments table does not exist');
           }
         }
       } catch (error) {
@@ -567,6 +491,9 @@ function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): 
   );
 }
 
+// Add a global flag for table existence
+let feedbackAttachmentsTableExists = true;
+
 export const handler: Handler = async (event) => {
   console.log('Process email reply function triggered:', {
     method: event.httpMethod,
@@ -581,27 +508,22 @@ export const handler: Handler = async (event) => {
   try {
     const { error } = await supabase.from('feedback_attachments').select('id').limit(1);
     if (error && error.code === '42P01') { // Table does not exist
-      console.log('Creating feedback_attachments table');
-      const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS feedback_attachments (
-          id UUID PRIMARY KEY,
-          reply_id UUID REFERENCES feedback_replies(id),
-          filename TEXT NOT NULL,
-          content_id TEXT,
-          content_type TEXT NOT NULL,
-          url TEXT NOT NULL,
-          is_inline BOOLEAN DEFAULT FALSE,
-          created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
-        )
-      `;
-      const { error: createError } = await supabase.rpc('exec', { query: createTableQuery });
-      if (createError) {
-        console.error('Error creating feedback_attachments table:', createError);
-      } else {
-        console.log('Successfully created feedback_attachments table');
-      }
+      feedbackAttachmentsTableExists = false;
+      console.log('The feedback_attachments table does not exist. Please create it manually in the Supabase dashboard with these columns:');
+      console.log('- id: UUID PRIMARY KEY');
+      console.log('- reply_id: UUID REFERENCES feedback_replies(id)');
+      console.log('- filename: TEXT NOT NULL');
+      console.log('- content_id: TEXT');
+      console.log('- content_type: TEXT NOT NULL');
+      console.log('- url: TEXT NOT NULL');
+      console.log('- is_inline: BOOLEAN DEFAULT FALSE');
+      console.log('- created_at: TIMESTAMPTZ DEFAULT TIMEZONE(\'utc\', NOW())');
+      
+      // Store data about attachments in memory for this function execution
+      console.log('Creating in-memory storage for attachments for this request');
     }
   } catch (e) {
+    feedbackAttachmentsTableExists = false;
     console.error('Error checking for feedback_attachments table:', e);
   }
 

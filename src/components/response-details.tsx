@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Send } from 'lucide-react'
+import { X, Send, Paperclip, Loader } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
-import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { Textarea } from './ui/textarea'
 import { textToHtml } from '@/lib/utils/html-sanitizer'
@@ -41,14 +41,52 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
 
   const fetchReplies = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch replies with their attachments
+      const { data: repliesData, error: repliesError } = await supabase
         .from('feedback_replies')
         .select('*')
         .eq('feedback_id', response.id)
         .order('created_at', { ascending: true })
       
-      if (error) throw error
-      setReplies(data || [])
+      if (repliesError) throw repliesError
+      
+      // Fetch attachments for all replies
+      if (repliesData && repliesData.length > 0) {
+        const replyIds = repliesData.map(reply => reply.id)
+        
+        const { data: attachmentsData, error: attachmentsError } = await supabase
+          .from('feedback_attachments')
+          .select('*')
+          .in('reply_id', replyIds)
+          .order('created_at', { ascending: true })
+        
+        if (attachmentsError) {
+          console.error('Error fetching attachments:', attachmentsError)
+          // Continue anyway, just without attachments
+        }
+        
+        // Group attachments by reply_id
+        const attachmentsByReplyId: Record<string, FeedbackAttachment[]> = {}
+        
+        if (attachmentsData) {
+          attachmentsData.forEach(attachment => {
+            if (!attachmentsByReplyId[attachment.reply_id]) {
+              attachmentsByReplyId[attachment.reply_id] = []
+            }
+            attachmentsByReplyId[attachment.reply_id].push(attachment)
+          })
+        }
+        
+        // Add attachments to replies
+        const repliesWithAttachments = repliesData.map(reply => ({
+          ...reply,
+          attachments: attachmentsByReplyId[reply.id] || []
+        }))
+        
+        setReplies(repliesWithAttachments)
+      } else {
+        setReplies(repliesData || [])
+      }
     } catch (error) {
       console.error('Error fetching replies:', error)
     }
@@ -205,168 +243,197 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   }
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-background border-l shadow-lg transform transition-transform duration-200 ease-in-out translate-x-0">
-      <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-medium">Response Details</h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="flex-1 overflow-auto">
-          <div className="space-y-6 p-4">
+    <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-background rounded-lg border shadow-lg max-w-3xl w-full max-h-[90vh] grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+        <div className="p-6 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-medium">Feedback Details</h2>
+            <button
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <p className="text-lg font-medium mb-6">{response.message}</p>
+          
+          {response.image_url && (
+            <div className="space-y-2 mb-6">
+              <p className="text-sm font-medium text-muted-foreground">Image</p>
+              <button
+                onClick={() => setShowImagePreview(true)}
+                className="w-full rounded-lg border overflow-hidden hover:opacity-90 transition-opacity"
+              >
+                <img 
+                  src={response.image_url} 
+                  alt={response.image_name || 'Feedback image'} 
+                  className="w-full"
+                />
+              </button>
+              {response.image_name && (
+                <p className="text-xs text-muted-foreground">{response.image_name}</p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Message</p>
-              <p className="text-sm whitespace-pre-wrap">{response.message}</p>
+              <p className="text-sm font-medium text-muted-foreground">User Information</p>
+              <div className="text-sm space-y-1">
+                <p>ID: {response.user_id || '-'}</p>
+                <p>Email: {response.user_email || '-'}</p>
+                <p>Name: {response.user_name || '-'}</p>
+                <p>Page URL: {response.url_path || '-'}</p>
+              </div>
             </div>
 
-            {/* Thread/Replies section */}
-            {replies.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center space-x-2">
-                  <div className="h-px flex-1 bg-gray-200"></div>
-                  <p className="text-xs text-muted-foreground">Thread</p>
-                  <div className="h-px flex-1 bg-gray-200"></div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">System Information</p>
+              <div className="text-sm space-y-1">
+                <p>OS: {response.operating_system}</p>
+                <p>Device: {response.screen_category}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Date</p>
+              <p className="text-sm">
+                {new Date(response.created_at).toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  hour12: true
+                })}
+              </p>
+            </div>
+
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="w-full"
+              onClick={() => onDelete(response.id)}
+            >
+              Delete Feedback
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t md:border-t-0 md:border-l p-6 overflow-y-auto bg-muted/30">
+          <h2 className="font-medium mb-4">Conversation</h2>
+
+          <div className="space-y-6 mb-6">
+            {replies.map((reply) => (
+              <div
+                key={reply.id}
+                className={`rounded-lg p-4 ${
+                  reply.sender_type === 'admin' ? 'bg-blue-50 ml-6' : 'bg-gray-100 mr-6'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {reply.sender_type === 'admin' ? 'Admin' : 'User'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(reply.created_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: 'numeric',
+                      hour12: true,
+                    })}
+                  </span>
                 </div>
                 
-                <div className="space-y-3">
-                  {replies.map(reply => (
-                    <div 
-                      key={reply.id} 
-                      className={`p-2 rounded-lg text-sm ${
-                        reply.sender_type === 'admin' 
-                          ? 'bg-primary/10 ml-6' 
-                          : 'bg-muted mr-6'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium text-xs">
-                          {reply.sender_type === 'admin' ? 'You' : 'User'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(reply.created_at).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}
-                        </span>
-                      </div>
-                      {reply.html_content ? (
-                        <div 
-                          className="prose prose-sm max-w-none prose-a:text-blue-600"
-                          dangerouslySetInnerHTML={{ __html: reply.html_content }} 
-                        />
-                      ) : (
-                        <p className="whitespace-pre-wrap">{reply.content}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {response.image_url && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Image</p>
-                <button
-                  onClick={() => setShowImagePreview(true)}
-                  className="w-full rounded-lg border overflow-hidden hover:opacity-90 transition-opacity"
-                >
-                  <img 
-                    src={response.image_url} 
-                    alt={response.image_name || 'Feedback image'} 
-                    className="w-full"
+                {/* Display HTML content if available, otherwise use plain text */}
+                {reply.html_content ? (
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: reply.html_content }} 
+                    className="text-sm prose prose-sm max-w-none"
                   />
-                </button>
-                {response.image_name && (
-                  <p className="text-xs text-muted-foreground">{response.image_name}</p>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
+                )}
+                
+                {/* Display attachments */}
+                {reply.attachments && reply.attachments.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <Paperclip size={12} />
+                      <span>Attachments</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {reply.attachments.map(attachment => (
+                        <div key={attachment.id} className="relative group">
+                          {attachment.content_type.startsWith('image/') ? (
+                            <a 
+                              href={attachment.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block border rounded overflow-hidden hover:opacity-90 transition-opacity"
+                            >
+                              <img 
+                                src={attachment.url} 
+                                alt={attachment.filename}
+                                className="w-16 h-16 object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 p-2 border rounded hover:bg-muted transition-colors"
+                            >
+                              <Paperclip size={14} />
+                              <span className="text-xs truncate max-w-[120px]">
+                                {attachment.filename}
+                              </span>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
+            ))}
+          </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">User Information</p>
-                <div className="text-sm space-y-1">
-                  <p>ID: {response.user_id || '-'}</p>
-                  <p>Email: {response.user_email || '-'}</p>
-                  <p>Name: {response.user_name || '-'}</p>
-                  <p>Page URL: {response.url_path || '-'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">System Information</p>
-                <div className="text-sm space-y-1">
-                  <p>OS: {response.operating_system}</p>
-                  <p>Device: {response.screen_category}</p>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Date</p>
-                <p className="text-sm">
-                  {new Date(response.created_at).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true
-                  })}
-                </p>
-              </div>
-
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="w-full"
-                onClick={() => onDelete(response.id)}
-              >
-                Delete Feedback
-              </Button>
-            </div>
+          <div className="space-y-2">
+            <Textarea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Reply to this feedback..."
+              rows={3}
+              className="resize-none"
+            />
+            <Button
+              onClick={handleSendReply}
+              className="w-full"
+              disabled={isSubmitting || !replyContent.trim()}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader size={16} className="mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send size={16} className="mr-2" />
+                  Send Reply
+                </>
+              )}
+            </Button>
           </div>
         </div>
-
-        {response.user_email && (
-          <div className="p-4 border-t">
-            <div className="flex flex-col">
-              <div className="text-xs mb-2 text-muted-foreground">
-                <span>
-                  Reply to <strong>{response.user_email}</strong>
-                </span>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  (Ctrl+B for bold, Ctrl+I for italic)
-                </span>
-              </div>
-              <div className="relative">
-                <Textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  rows={3}
-                  placeholder="Type your reply..."
-                  className="resize-none text-sm"
-                />
-                <Button 
-                  size="sm" 
-                  className="absolute bottom-2 right-2"
-                  onClick={handleSendReply}
-                  disabled={!replyContent.trim() || isSubmitting}
-                >
-                  <Send className="h-3 w-3 mr-1" /> Send
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {showImagePreview && (
+      {/* Image preview dialog */}
+      {response.image_url && showImagePreview && (
         <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
           <DialogContent className="max-w-3xl">
             <div className="flex justify-between mb-4">
@@ -384,7 +451,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
             </div>
             <div className="max-h-[70vh] overflow-auto">
               <img 
-                src={response.image_url!} 
+                src={response.image_url} 
                 alt={response.image_name || 'Feedback image'} 
                 className="w-full"
               />

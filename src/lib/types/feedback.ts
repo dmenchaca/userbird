@@ -23,4 +23,16 @@ export interface FeedbackReply {
   updated_at: string
   message_id?: string
   in_reply_to?: string
+  attachments?: FeedbackAttachment[]
+}
+
+export interface FeedbackAttachment {
+  id: string
+  reply_id: string
+  filename: string
+  content_id?: string
+  content_type: string
+  url: string
+  is_inline: boolean
+  created_at: string
 }
