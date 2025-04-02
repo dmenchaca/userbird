@@ -110,9 +110,39 @@ export const handler: Handler = async (event) => {
 
     // Extract the thread identifier from the email body
     const threadRegex = /thread::([a-f0-9-]+)::/i;
-    const threadMatch = emailData.text.match(threadRegex);
     
-    if (!threadMatch || !threadMatch[1]) {
+    // First try to find thread ID in subject
+    let threadMatch = emailData.subject?.match(threadRegex);
+    let feedbackId = threadMatch?.[1];
+    
+    // If not found in subject, try the body
+    if (!feedbackId) {
+      threadMatch = emailData.text.match(threadRegex);
+      feedbackId = threadMatch?.[1];
+    }
+    
+    // If still not found, try to match subject with feedback ID
+    if (!feedbackId) {
+      // Extract the original feedback ID from the subject
+      const subjectMatch = emailData.subject?.match(/Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
+      if (subjectMatch) {
+        const email = subjectMatch[1];
+        // Query feedback table to find the most recent feedback from this email
+        const { data: feedbackData, error: feedbackError } = await supabase
+          .from('feedback')
+          .select('id')
+          .eq('email', email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (!feedbackError && feedbackData) {
+          feedbackId = feedbackData.id;
+        }
+      }
+    }
+    
+    if (!feedbackId) {
       console.error('No thread identifier found in email');
       return { 
         statusCode: 200, // Return 200 so email services don't retry
@@ -123,7 +153,6 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const feedbackId = threadMatch[1];
     console.log('Extracted feedback ID:', feedbackId);
 
     // Verify the feedback exists
