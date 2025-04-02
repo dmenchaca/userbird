@@ -20,7 +20,8 @@ function stripRawHeaders(emailText: string): string {
   const encodingHeaders = [
     'Content-Transfer-Encoding: quoted-printable',
     'Content-Type: text/plain',
-    'Content-Type: multipart/'
+    'Content-Type: multipart/',
+    'Content-Type: text/html'
   ];
   
   let cleanedText = emailText;
@@ -58,6 +59,9 @@ function stripRawHeaders(emailText: string): string {
       }
     }
   }
+  
+  // Remove charset information
+  cleanedText = cleanedText.replace(/; charset="[^"]+"\s*\n?/g, '');
   
   // Remove any remaining headers
   const headerEnd = cleanedText.match(/^\s*(?:\S+:\s*\S+\s*\n)+\s*\n/);
@@ -306,8 +310,8 @@ export const handler: Handler = async (event) => {
         const textContentStart = replyContent.indexOf('\n\n', textPartStart);
         if (textContentStart > -1) {
           // Find the boundary that ends this part
-          const boundaryMatch = replyContent.match(/boundary="([^"]+)"/);
-          const boundary = boundaryMatch ? boundaryMatch[1] : '';
+          const boundaryMatch = replyContent.match(/boundary="([^"]+)"|boundary=([^\s"]+)/);
+          const boundary = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2]) : '';
           
           if (boundary) {
             // Look for the next boundary or the end of the message
@@ -326,6 +330,20 @@ export const handler: Handler = async (event) => {
         }
       }
     }
+    
+    // Look for and remove boundary markers
+    const boundaryRegex = /--[0-9a-f]+(--)?\s*$/gm;
+    replyContent = replyContent.replace(boundaryRegex, '');
+    
+    // Handle Content-Type headers that might be in the content
+    replyContent = replyContent.replace(/Content-Type: text\/plain; charset="[^"]+"\s*\n?/g, '');
+    replyContent = replyContent.replace(/Content-Type: text\/html; charset="[^"]+"\s*\n?/g, '');
+    replyContent = replyContent.replace(/Content-Type: text\/plain;?\s*\n?/g, '');
+    replyContent = replyContent.replace(/Content-Type: text\/html;?\s*\n?/g, '');
+    replyContent = replyContent.replace(/; charset="[^"]+"\s*\n?/g, '');
+    
+    // Remove MIME-Version headers that might be in the content
+    replyContent = replyContent.replace(/MIME-Version: 1.0\s*\n?/g, '');
     
     // Remove everything after the original message marker if present
     // Check for multiple variants of "original message" markers
