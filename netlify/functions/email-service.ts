@@ -35,7 +35,7 @@ export class EmailService {
       let headers = { ...params.headers };
       
       if (params.feedbackId) {
-        messageId = `<thread-${params.feedbackId}-${uuidv4()}@userbird.co>`;
+        messageId = `<feedback-${params.feedbackId}@userbird.co>`;
         headers['Message-ID'] = messageId;
         
         if (params.inReplyTo) {
@@ -310,11 +310,10 @@ ${feedback.message}
       html: htmlMessage,
       feedbackId,
       inReplyTo: lastMessageId,
-      headers: {
-        "In-Reply-To": lastMessageId || `feedback-${feedbackId}@userbird.co`,
-        "References": lastMessageId || `feedback-${feedbackId}@userbird.co`,
-        "Message-ID": `<reply-${replyId}-${feedbackId}@userbird.co>`
-      }
+      headers: lastMessageId ? {
+        "In-Reply-To": lastMessageId,
+        "References": lastMessageId
+      } : undefined
     });
   }
 }

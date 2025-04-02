@@ -182,21 +182,34 @@ export const handler: Handler = async (event) => {
       console.log('Found In-Reply-To:', inReplyTo);
     }
     
-    // Extract the thread identifier from the email body with more patterns
-    // First try the standard thread identifier format
-    const threadRegex = /thread::([a-f0-9-]+)::/i;
+    // Try to extract feedbackId from In-Reply-To if it matches our format
+    let feedbackId: string | undefined;
     
-    // First try to find thread ID in subject
-    let threadMatch = emailData.subject?.match(threadRegex);
-    let feedbackId = threadMatch?.[1];
-    
-    // If not found in subject, try the body
-    if (!feedbackId) {
-      threadMatch = emailData.text.match(threadRegex);
-      feedbackId = threadMatch?.[1];
+    if (inReplyTo) {
+      // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
+      const feedbackIdMatch = inReplyTo.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
+      if (feedbackIdMatch) {
+        feedbackId = feedbackIdMatch[1];
+        console.log('Found feedback ID in In-Reply-To:', feedbackId);
+      }
     }
     
-    // Try to extract from email headers 
+    // If not found via In-Reply-To, try the thread identifier in the body
+    if (!feedbackId) {
+      const threadRegex = /thread::([a-f0-9-]+)::/i;
+      
+      // First try to find thread ID in subject
+      let threadMatch = emailData.subject?.match(threadRegex);
+      feedbackId = threadMatch?.[1];
+      
+      // If not found in subject, try the body
+      if (!feedbackId) {
+        threadMatch = emailData.text.match(threadRegex);
+        feedbackId = threadMatch?.[1];
+      }
+    }
+    
+    // Try to extract from email headers if still not found
     if (!feedbackId && emailData.headers) {
       // Look for References or In-Reply-To headers
       const references = typeof emailData.headers === 'string' 
@@ -209,43 +222,17 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Try to extract from Message-ID in the email body
-    if (!feedbackId) {
-      const messageIdMatch = emailData.text.match(/Message-ID: <reply-[^-]+-([a-f0-9-]+)@userbird\.co>/i);
-      if (messageIdMatch) {
-        feedbackId = messageIdMatch[1];
-      }
-    }
-    
-    // Try to extract from References or In-Reply-To in the email body
-    if (!feedbackId) {
-      const referencesMatch = emailData.text.match(/References: .*feedback-([a-f0-9-]+)@userbird\.co/i) || 
-                            emailData.text.match(/In-Reply-To: .*feedback-([a-f0-9-]+)@userbird\.co/i);
-      if (referencesMatch) {
-        feedbackId = referencesMatch[1];
-      }
-    }
-    
-    // Try to extract from thread pattern in In-Reply-To
-    if (!feedbackId && inReplyTo) {
-      const threadIdMatch = inReplyTo.match(/thread-([a-f0-9-]+)-/i);
-      if (threadIdMatch) {
-        feedbackId = threadIdMatch[1];
-        console.log('Found feedback ID in In-Reply-To:', feedbackId);
-      }
-    }
-    
-    // If we have an In-Reply-To, look it up in the database
+    // Look up the message_id in the database if we have one but no feedback ID
     if (!feedbackId && inReplyTo) {
       const { data: replyData } = await supabase
         .from('feedback_replies')
         .select('feedback_id')
-        .eq('message_id', inReplyTo)
+        .eq('in_reply_to', inReplyTo)
         .single();
         
       if (replyData) {
         feedbackId = replyData.feedback_id;
-        console.log('Found feedback ID from message_id lookup:', feedbackId);
+        console.log('Found feedback ID from in_reply_to lookup:', feedbackId);
       }
     }
     
