@@ -195,27 +195,6 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Remove common email signatures
-    const signatureMarkers = [
-      '-- \n',
-      'Sent from my iPhone',
-      'Sent from my Android',
-      'Get Outlook for iOS',
-      'Warm regards,',
-      'Best regards,',
-      'Regards,',
-      'Thanks,',
-      'Thank you,',
-      'Cheers,'
-    ];
-    
-    for (const marker of signatureMarkers) {
-      const markerIndex = replyContent.indexOf(marker);
-      if (markerIndex > -1) {
-        replyContent = replyContent.substring(0, markerIndex).trim();
-      }
-    }
-
     console.log('Extracted reply content:', replyContent);
 
     // Store the reply in the database
