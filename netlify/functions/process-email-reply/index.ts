@@ -2,7 +2,12 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
-import DOMPurify from 'isomorphic-dompurify';
+import createDOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
+
+// Initialize DOMPurify
+const { window } = new JSDOM('');
+const DOMPurify = createDOMPurify(window);
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {

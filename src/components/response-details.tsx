@@ -5,7 +5,10 @@ import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { Textarea } from './ui/textarea'
-import DOMPurify from 'isomorphic-dompurify'
+import createDOMPurify from 'dompurify'
+
+// DOMPurify is already available in the browser environment
+const DOMPurify = createDOMPurify(window)
 
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
