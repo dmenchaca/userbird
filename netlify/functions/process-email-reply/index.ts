@@ -124,53 +124,105 @@ function stripRawHeaders(emailText: string): string {
 
 // Function to extract and sanitize HTML content from email
 function extractHtmlContent(emailText: string): string | null {
-  // First check for multipart/alternative with text/html part
-  const multipartMatch = emailText.match(/Content-Type: multipart\/alternative;\s*boundary="([^"]+)"/i);
+  console.log('Attempting to extract HTML content from email');
   
-  if (multipartMatch && multipartMatch[1]) {
-    const boundary = multipartMatch[1];
-    const parts = emailText.split(`--${boundary}`);
+  // Check if it's a Gmail email (they have specific patterns)
+  const isGmail = emailText.includes('@mail.gmail.com') || emailText.includes('gmail_signature');
+  if (isGmail) {
+    console.log('Detected Gmail format email');
+  }
+  
+  // Gmail often uses this format with boundary
+  const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
+  if (boundaryMatch && boundaryMatch[1]) {
+    const boundary = boundaryMatch[1];
+    console.log('Found email boundary:', boundary);
     
-    // Find the HTML part
+    // Split by boundary
+    const parts = emailText.split(`--${boundary}`);
+    console.log(`Email split into ${parts.length} parts by boundary`);
+    
+    // First look for text/html part
     for (const part of parts) {
       if (part.includes('Content-Type: text/html')) {
-        // Extract the HTML content
-        const contentStart = part.indexOf('\n\n');
-        if (contentStart !== -1) {
-          let htmlContent = part.substring(contentStart + 2);
-          
+        console.log('Found text/html part in email');
+        
+        // Extract content after the headers
+        // Gmail's format is a bit different, so we need to handle various patterns
+        let htmlContent = '';
+        
+        // Try several patterns to extract the content
+        const headerEndMatch = part.match(/\r?\n\r?\n([\s\S]*?)(?:\r?\n--|\r?\n\r?\n|$)/);
+        if (headerEndMatch && headerEndMatch[1]) {
+          htmlContent = headerEndMatch[1].trim();
+          console.log('Extracted HTML content using header end pattern');
+        } else {
+          // Fallback to a simpler approach
+          const contentStartIndex = part.indexOf('\n\n');
+          if (contentStartIndex !== -1) {
+            htmlContent = part.substring(contentStartIndex + 2).trim();
+            console.log('Extracted HTML content using simpler approach');
+          }
+        }
+        
+        if (htmlContent) {
           // Check if it's quoted-printable encoded
-          const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
-          if (isQuotedPrintable) {
+          if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
+            console.log('Content is quoted-printable encoded, decoding');
             htmlContent = decodeQuotedPrintable(htmlContent);
           }
           
-          // Sanitize and return the HTML
-          console.log('Extracted HTML content from multipart/alternative email');
-          return sanitizeHtml(htmlContent);
+          // Gmail often includes quoted previous messages, which we want to exclude
+          if (isGmail && htmlContent.includes('gmail_quote')) {
+            console.log('Removing Gmail quoted content');
+            // Remove the quoted content
+            const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
+            if (quoteStartPos !== -1) {
+              htmlContent = htmlContent.substring(0, quoteStartPos);
+              console.log('Removed Gmail quoted content');
+            }
+          }
+          
+          console.log('Successfully extracted HTML content from boundary part');
+          return htmlContent;
         }
       }
     }
+    
+    console.log('Could not find text/html part in email boundaries');
+  } else {
+    console.log('No boundary found in email');
   }
   
-  // Fallback to standard Content-Type: text/html search if multipart parsing failed
-  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\n\n([^]*?)(?:--[^\n]*?(?:--)?$|\n*$)/mi);
+  // Fallback to regex approach for non-boundary emails
+  console.log('Trying regex pattern to extract HTML content');
+  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\r?\n\r?\n([^]*?)(?:--[^\n]*?(?:--)?$|\r?\n\r?\n$)/mi);
   
   if (htmlPartMatch && htmlPartMatch[1]) {
-    let htmlContent = htmlPartMatch[1];
+    let htmlContent = htmlPartMatch[1].trim();
     
     // Check if it's quoted-printable encoded
-    const isQuotedPrintable = emailText.includes('Content-Transfer-Encoding: quoted-printable');
-    if (isQuotedPrintable) {
+    if (emailText.includes('Content-Transfer-Encoding: quoted-printable')) {
+      console.log('Content is quoted-printable encoded, decoding using regex approach');
       htmlContent = decodeQuotedPrintable(htmlContent);
     }
     
-    // Sanitize the HTML to remove any potentially harmful content
-    console.log('Extracted HTML content using regex pattern');
-    return sanitizeHtml(htmlContent);
+    // Gmail often includes quoted previous messages, which we want to exclude
+    if (isGmail && htmlContent.includes('gmail_quote')) {
+      console.log('Removing Gmail quoted content from regex match');
+      // Remove the quoted content
+      const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
+      if (quoteStartPos !== -1) {
+        htmlContent = htmlContent.substring(0, quoteStartPos);
+        console.log('Removed Gmail quoted content from regex match');
+      }
+    }
+    
+    console.log('Successfully extracted HTML content using regex pattern');
+    return htmlContent;
   }
   
-  console.log('No HTML content found in email');
+  console.log('No HTML content found in email using any method');
   return null;
 }
 
@@ -608,11 +660,19 @@ export const handler: Handler = async (event) => {
     // Save the reply to the database
     const replyId = crypto.randomUUID();
     
-    // Extract HTML content if available
+    // Extract HTML content and ensure it's properly stored
     let htmlContent = extractHtmlContent(emailData.text);
     
-    // Process potential markdown-like syntax in the reply content
+    // For debugging - log the extracted HTML content
+    console.log('Extracted HTML content preview:', {
+      hasHtmlContent: !!htmlContent,
+      previewHtml: htmlContent ? htmlContent.substring(0, 200) + '...' : 'None found',
+      contentType: emailData.headers?.['content-type'] || 'Unknown'
+    });
+
+    // If no HTML content was found in multipart sections, check for markdown-like syntax or create basic HTML
     if (!htmlContent) {
+      console.log('No HTML content extracted, checking for markdown syntax');
       // First check if we have any markdown-like formatting in the text
       const hasMarkdown = replyContent.match(/\*\*.*?\*\*|\*.*?\*/);
       
@@ -633,6 +693,8 @@ export const handler: Handler = async (event) => {
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
           // Convert newlines to <br> tags
           .replace(/\n/g, '<br>');
+        
+        console.log('Created HTML content from markdown-like syntax');
       } else {
         // Simple conversion for plain text
         htmlContent = replyContent
@@ -644,39 +706,52 @@ export const handler: Handler = async (event) => {
           .replace(/\n/g, '<br>')
           // Convert URLs to links
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        console.log('Created simple HTML content from plain text');
       }
     }
-    
+
     // Ensure the HTML content is properly sanitized
     if (htmlContent) {
+      // Make sure to sanitize the HTML content before storing
+      const rawHtmlPreview = htmlContent.substring(0, 100);
+      console.log('Raw HTML content before sanitizing:', rawHtmlPreview);
+      
       htmlContent = sanitizeHtml(htmlContent);
+      console.log('Final sanitized HTML content preview:', htmlContent.substring(0, 100) + '...');
+    } else {
+      console.error('No HTML content could be extracted or created');
+      // Fallback to simple text-to-HTML conversion
+      htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/\n/g, '<br>')}</div>`;
+      console.log('Created fallback HTML content');
     }
-    
+
+    // Add more detailed logging for the inserted content
+    console.log('Content being stored in database:', {
+      plainTextLength: replyContent?.length,
+      htmlContentLength: htmlContent?.length,
+      htmlContentType: typeof htmlContent,
+      htmlContentIsNull: htmlContent === null,
+      htmlContentIsEmpty: htmlContent === ''
+    });
+
     const { error: insertError } = await supabase
       .from('feedback_replies')
       .insert({
         id: replyId,
         feedback_id: feedbackId,
+        sender_type: 'user',
         content: replyContent,
         html_content: htmlContent,
-        sender_type: 'user',
         message_id: messageId,
         in_reply_to: inReplyTo
       });
 
     if (insertError) {
-      console.error('Error inserting reply:', insertError);
-      throw new Error(`Error inserting reply: ${insertError.message}`);
+      console.error('Error storing reply in database:', insertError);
+    } else {
+      console.log('Successfully stored reply with HTML content in database');
     }
-
-    console.log('Successfully added user reply to thread', {
-      replyId,
-      feedbackId,
-      replyContentLength: replyContent.length,
-      htmlContentLength: htmlContent?.length,
-      messageId,
-      inReplyTo
-    });
 
     return {
       statusCode: 200,
