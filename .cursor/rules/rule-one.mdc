@@ -10,3 +10,5 @@ alwaysApply: true
 - For any changes to shared constants or interfaces, check all imports and usages to ensure backward compatibility or update all dependent files accordingly.
 
 - Please create a draft implementation first and review for potential errors like unused variables, timing issues, and edge cases before finalizing the code. Pay special attention to variable declarations, ensuring each one serves a clear purpose in the implementation.
+
+- Don't try to commit the changes for me, I will always do it manually using Cursor's source control feature.

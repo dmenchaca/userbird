@@ -14,6 +14,17 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Function to decode quoted-printable content (like =3D for =)
+function decodeQuotedPrintable(str: string): string {
+  // Replace soft line breaks (=<CRLF>)
+  str = str.replace(/=(\r\n|\n|\r)/g, '');
+  
+  // Replace hex-encoded characters
+  return str.replace(/=([0-9A-F]{2})/gi, (_, hex) => {
+    return String.fromCharCode(parseInt(hex, 16));
+  });
+}
+
 // Function to strip raw email headers and better handle email formats
 function stripRawHeaders(emailText: string): string {
   // Try multiple encoding headers
@@ -25,6 +36,7 @@ function stripRawHeaders(emailText: string): string {
   ];
   
   let cleanedText = emailText;
+  let isQuotedPrintable = emailText.includes('Content-Transfer-Encoding: quoted-printable');
   
   // Look for each header type
   for (const header of encodingHeaders) {
@@ -48,16 +60,46 @@ function stripRawHeaders(emailText: string): string {
     const boundary = boundaryMatch[1];
     const parts = cleanedText.split(`--${boundary}`);
     
-    // Look for text/plain part
+    // First try to find text/plain part
+    let foundTextPart = false;
     for (const part of parts) {
       if (part.includes('Content-Type: text/plain')) {
         const contentStart = part.indexOf('\n\n');
         if (contentStart !== -1) {
           cleanedText = part.substring(contentStart + 2);
+          foundTextPart = true;
+          isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
           break;
         }
       }
     }
+    
+    // If no text/plain part, try to find HTML part and extract text from it
+    if (!foundTextPart) {
+      for (const part of parts) {
+        if (part.includes('Content-Type: text/html')) {
+          const contentStart = part.indexOf('\n\n');
+          if (contentStart !== -1) {
+            let htmlContent = part.substring(contentStart + 2);
+            isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
+            
+            // If the content is quoted-printable encoded, decode it
+            if (isQuotedPrintable) {
+              htmlContent = decodeQuotedPrintable(htmlContent);
+            }
+            
+            // Extract text from HTML by removing tags
+            cleanedText = htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  // Decode quoted-printable content if needed
+  if (isQuotedPrintable) {
+    cleanedText = decodeQuotedPrintable(cleanedText);
   }
   
   // Remove charset information
@@ -301,6 +343,12 @@ export const handler: Handler = async (event) => {
     // Extract the email content, removing quoted parts and signatures
     let replyContent = stripRawHeaders(emailData.text);
     
+    // Check if this might be quoted-printable that wasn't caught earlier
+    if (replyContent.includes('=3D') || replyContent.includes('=0A') || replyContent.includes('=20')) {
+      console.log('Found additional quoted-printable content, decoding it');
+      replyContent = decodeQuotedPrintable(replyContent);
+    }
+    
     // Handle multipart/alternative emails
     if (replyContent.includes('Content-Type: multipart/alternative')) {
       // Find the text/plain part
@@ -344,6 +392,23 @@ export const handler: Handler = async (event) => {
     
     // Remove MIME-Version headers that might be in the content
     replyContent = replyContent.replace(/MIME-Version: 1.0\s*\n?/g, '');
+    
+    // Check for HTML content and extract text
+    if (replyContent.includes('<div') || replyContent.includes('<p') || 
+        replyContent.includes('</div>') || replyContent.includes('</p>')) {
+      console.log('Detected HTML content, extracting text');
+      // Simple HTML parsing - remove all tags and decode entities
+      replyContent = replyContent
+        .replace(/<[^>]*>/g, ' ')  // Replace tags with space
+        .replace(/&nbsp;/g, ' ')   // Replace non-breaking spaces
+        .replace(/&amp;/g, '&')    // Replace ampersand
+        .replace(/&lt;/g, '<')     // Replace less than
+        .replace(/&gt;/g, '>')     // Replace greater than
+        .replace(/&quot;/g, '"')   // Replace quotes
+        .replace(/&#39;/g, "'")    // Replace apostrophe
+        .replace(/\s+/g, ' ')      // Consolidate whitespace
+        .trim();
+    }
     
     // Remove everything after the original message marker if present
     // Check for multiple variants of "original message" markers
