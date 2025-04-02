@@ -996,31 +996,58 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // First, insert the reply into the database
+    const { data: insertedReply, error: insertError } = await supabase
+      .from('feedback_replies')
+      .insert([
+        {
+          id: replyId, // Keep the same ID for consistency
+          feedback_id: feedbackId,
+          sender_type: 'user',
+          content: replyContent,
+          html_content: htmlContent,
+          message_id: messageId,
+          in_reply_to: inReplyTo
+        }
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error inserting reply into database:', insertError);
+      return { statusCode: 500, body: JSON.stringify({ error: 'Database error during reply storage' }) };
+    }
+
+    console.log('Successfully stored reply with HTML content in database');
+
+    // Now that we have a valid reply ID, process attachments
     // Parse attachments and get URL mapping for inline images
     const { cidToUrlMap } = await parseAttachments(emailData.text, replyId);
 
     // Replace CIDs with public URLs in HTML content
     if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
       console.log('Replacing CID references with public URLs');
-      htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap);
-    }
-
-    const { error: insertError } = await supabase
-      .from('feedback_replies')
-      .insert({
-        id: replyId,
-        feedback_id: feedbackId,
-        sender_type: 'user',
-        content: replyContent,
-        html_content: htmlContent,
-        message_id: messageId,
-        in_reply_to: inReplyTo
-      });
-
-    if (insertError) {
-      console.error('Error storing reply in database:', insertError);
-    } else {
-      console.log('Successfully stored reply with HTML content in database');
+      
+      // Update the HTML content with the replaced CID references
+      const updatedHtmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap);
+      
+      // Only update if there were actually changes
+      if (updatedHtmlContent !== htmlContent) {
+        htmlContent = updatedHtmlContent;
+        
+        // Update the reply with the new HTML content that includes public URLs
+        const { error: updateError } = await supabase
+          .from('feedback_replies')
+          .update({ html_content: htmlContent })
+          .eq('id', replyId);
+        
+        if (updateError) {
+          console.error('Error updating reply with public image URLs:', updateError);
+          // Continue anyway - the reply is stored but might have cid: references
+        } else {
+          console.log('Updated reply with public image URLs');
+        }
+      }
     }
 
     return {
