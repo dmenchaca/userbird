@@ -58,6 +58,15 @@ export const handler: Handler = async (event) => {
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
     }
 
+    // Check if this is the first reply
+    const { data: existingReplies } = await supabase
+      .from('feedback_replies')
+      .select('id')
+      .eq('feedback_id', feedbackId)
+      .limit(1);
+
+    const isFirstReply = !existingReplies?.length;
+
     if (!feedback.user_email) {
       console.log('No user email to send notification to', { feedbackId });
       return { 
@@ -97,7 +106,7 @@ export const handler: Handler = async (event) => {
     const threadIdentifier = `thread::${feedbackId}::`;
 
     // Create a plain text email format following the Stripe example format
-    const plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------
+    const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${userEmail}]
 Sent: ${compactDate}
 To: notifications@userbird.co
@@ -105,7 +114,7 @@ Subject: Feedback submitted by ${userEmail}
 
 ${feedback.message}
 
-Please do not modify this line or token as it may impact our ability to properly process your reply: ${threadIdentifier}`;
+` : ''}Please do not modify this line or token as it may impact our ability to properly process your reply: ${threadIdentifier}`;
 
     // Create HTML version with the thread ID
     const htmlMessage = `
@@ -118,10 +127,12 @@ Please do not modify this line or token as it may impact our ability to properly
           </div>
 
           <div style="margin-bottom: 24px;">
+            ${isFirstReply ? `
             <div style="margin-bottom: 16px;">
               <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Your original message</h4>
               <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #f3f4f6; padding: 12px; border-radius: 6px; margin-top: 8px;">${feedback.message}</p>
             </div>
+            ` : ''}
 
             <div style="margin-top: 24px; margin-bottom: 16px;">
               <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
