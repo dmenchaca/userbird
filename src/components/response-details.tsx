@@ -250,6 +250,15 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
               disabled={isSubmitting}
+              onKeyDown={(e) => {
+                // Check for Cmd/Ctrl + Enter
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  if (replyContent.trim() && !isSubmitting) {
+                    handleSendReply();
+                  }
+                }
+              }}
             />
             <Button 
               className="h-10 w-10 p-0" 
