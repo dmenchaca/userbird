@@ -59,14 +59,24 @@ export const handler: Handler = async (event) => {
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
     }
 
-    // Check if this is the first reply
+    // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
       .from('feedback_replies')
-      .select('id')
+      .select('id, message_id')
       .eq('feedback_id', feedbackId)
-      .limit(1);
+      .order('created_at', { ascending: false });
 
     const isFirstReply = !existingReplies?.length;
+    
+    // Find the latest message ID from a user reply to use for threading
+    const lastMessageId = existingReplies?.find(reply => reply.message_id)?.message_id;
+    
+    console.log('Reply context:', {
+      isFirstReply,
+      replyCount: existingReplies?.length || 0,
+      hasLastMessageId: !!lastMessageId,
+      lastMessageId
+    });
 
     if (!feedback.user_email) {
       console.log('No user email to send notification to', { feedbackId });
@@ -83,22 +93,41 @@ export const handler: Handler = async (event) => {
     
     console.log('Sending reply notification email to:', userEmail);
 
-    await EmailService.sendReplyNotification({
+    const emailResult = await EmailService.sendReplyNotification({
       to: userEmail,
       replyContent,
       feedback: {
         message: feedback.message,
         created_at: feedback.created_at,
-        user_email: feedback.user_email
+        user_email: feedback.user_email,
+        id: feedbackId
       },
       isFirstReply,
       feedbackId,
-      replyId
+      replyId,
+      lastMessageId
     });
+
+    // Store the message ID in the database
+    if (emailResult.messageId && replyId) {
+      console.log('Updating reply with message ID:', emailResult.messageId);
+      
+      const { error: updateError } = await supabase
+        .from('feedback_replies')
+        .update({ message_id: emailResult.messageId })
+        .eq('id', replyId);
+      
+      if (updateError) {
+        console.error('Error updating reply with message ID:', updateError);
+      }
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      body: JSON.stringify({ 
+        success: true,
+        messageId: emailResult.messageId 
+      })
     };
 
   } catch (error) {

@@ -101,7 +101,7 @@ export const handler: Handler = async (event) => {
     // Send emails
     console.log('Sending emails to:', settings.length, 'recipients');
     
-    const emailPromises = settings.map(setting => {
+    const emailPromises = settings.map(async (setting) => {
       // Prepare email parameters based on selected attributes
       const selectedAttrs = setting.notification_attributes || ['message'];
       
@@ -110,6 +110,7 @@ export const handler: Handler = async (event) => {
         formUrl: form.url,
         formId,
         url_path: feedback.url_path,
+        feedbackId: feedback.id // Add feedbackId for message ID generation
       };
 
       // Add selected attributes to email parameters
@@ -142,19 +143,37 @@ export const handler: Handler = async (event) => {
         }
       });
 
-      return EmailService.sendFeedbackNotification({
+      const emailResult = await EmailService.sendFeedbackNotification({
         to: setting.email,
         formUrl: form.url,
         ...emailParams
       });
+      
+      // Return the result for tracking
+      return {
+        email: setting.email,
+        messageId: emailResult.messageId,
+        success: emailResult.success
+      };
     });
 
-    await Promise.all(emailPromises);
-    console.log('All notification emails sent successfully');
+    const results = await Promise.all(emailPromises);
+    console.log('All notification emails sent successfully', { 
+      results: results.map(r => ({ 
+        success: r.success, 
+        hasMessageId: !!r.messageId 
+      }))
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      body: JSON.stringify({ 
+        success: true,
+        emailResults: results.map(r => ({ 
+          success: r.success, 
+          hasMessageId: !!r.messageId 
+        }))
+      })
     };
   } catch (error) {
     console.error('Error in notification function:', {

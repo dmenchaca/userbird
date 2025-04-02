@@ -1,5 +1,6 @@
 import sgMail from '@sendgrid/mail';
 import { Handler } from '@netlify/functions';
+import { v4 as uuidv4 } from 'uuid';
 
 // Initialize SendGrid with API key
 const apiKey = process.env.SENDGRID_API_KEY || '';
@@ -19,6 +20,8 @@ export interface EmailParams {
   text?: string;
   html?: string;
   headers?: Record<string, string>;
+  feedbackId?: string;
+  inReplyTo?: string;
 }
 
 export class EmailService {
@@ -28,13 +31,26 @@ export class EmailService {
       const text = params.text || '';
       const html = params.html || '';
       
+      let messageId: string | undefined;
+      let headers = { ...params.headers };
+      
+      if (params.feedbackId) {
+        messageId = `<thread-${params.feedbackId}-${uuidv4()}@userbird.co>`;
+        headers['Message-ID'] = messageId;
+        
+        if (params.inReplyTo) {
+          headers['In-Reply-To'] = params.inReplyTo;
+          headers['References'] = params.inReplyTo;
+        }
+      }
+      
       const msg = {
         to: params.to,
         from: params.from,
         subject: params.subject,
         text,
         html,
-        headers: params.headers
+        headers
       };
 
       console.log('Sending email via SendGrid:', {
@@ -43,12 +59,18 @@ export class EmailService {
         subject: params.subject,
         hasText: !!text,
         hasHtml: !!html,
-        hasHeaders: !!params.headers
+        hasHeaders: !!params.headers,
+        messageId,
+        inReplyTo: params.inReplyTo
       });
 
       await sgMail.send(msg);
       console.log('Email sent successfully via SendGrid');
-      return { success: true };
+      
+      return { 
+        success: true,
+        messageId
+      };
     } catch (error) {
       console.error('Error sending email via SendGrid:', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -75,6 +97,7 @@ export class EmailService {
     image_url?: string;
     image_name?: string;
     created_at?: string;
+    feedbackId?: string;
   }) {
     const {
       to,
@@ -88,7 +111,8 @@ export class EmailService {
       screen_category,
       image_url,
       image_name,
-      created_at
+      created_at,
+      feedbackId
     } = params;
 
     const showUserInfo = user_id || user_email || user_name;
@@ -180,7 +204,8 @@ ${image_url}
       from: 'notifications@userbird.co',
       subject: `New feedback received for ${formUrl}`,
       text: textMessage,
-      html: htmlMessage
+      html: htmlMessage,
+      feedbackId
     });
   }
 
@@ -191,10 +216,12 @@ ${image_url}
       message: string;
       created_at: string;
       user_email: string;
+      id: string;
     };
     isFirstReply: boolean;
     feedbackId: string;
     replyId: string;
+    lastMessageId?: string;
   }) {
     const {
       to,
@@ -202,7 +229,8 @@ ${image_url}
       feedback,
       isFirstReply,
       feedbackId,
-      replyId
+      replyId,
+      lastMessageId
     } = params;
 
     // Format dates
@@ -280,9 +308,11 @@ ${feedback.message}
       subject: `Re: Feedback submitted by ${feedback.user_email}`,
       text: plainTextMessage,
       html: htmlMessage,
+      feedbackId,
+      inReplyTo: lastMessageId,
       headers: {
-        "In-Reply-To": `feedback-${feedbackId}@userbird.co`,
-        "References": `feedback-${feedbackId}@userbird.co`,
+        "In-Reply-To": lastMessageId || `feedback-${feedbackId}@userbird.co`,
+        "References": lastMessageId || `feedback-${feedbackId}@userbird.co`,
         "Message-ID": `<reply-${replyId}-${feedbackId}@userbird.co>`
       }
     });
@@ -304,12 +334,14 @@ export const handler: Handler = async (event) => {
     try {
       console.log('Attempting to send test email to:', testEmailAddress);
       
-      await EmailService.sendEmail({
+      const testFeedbackId = uuidv4();
+      const result = await EmailService.sendEmail({
         to: testEmailAddress,
         from: 'notifications@userbird.co',
         subject: 'Userbird Email Test',
         text: 'This is a test email from Userbird to verify SendGrid integration is working properly.',
-        html: '<p>This is a test email from Userbird to verify SendGrid integration is working properly.</p>'
+        html: '<p>This is a test email from Userbird to verify SendGrid integration is working properly.</p>',
+        feedbackId: testFeedbackId
       });
       
       return {
@@ -317,6 +349,7 @@ export const handler: Handler = async (event) => {
         body: JSON.stringify({
           message: 'Test email sent successfully',
           recipient: testEmailAddress,
+          messageId: result.messageId,
           timestamp: new Date().toISOString()
         })
       };

@@ -164,6 +164,24 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // Extract message headers
+    let messageId: string | undefined;
+    let inReplyTo: string | undefined;
+    
+    // Extract Message-ID from email headers
+    const messageIdMatch = emailData.text.match(/Message-ID:\s*<([^>]+)>/i);
+    if (messageIdMatch) {
+      messageId = `<${messageIdMatch[1]}>`;
+      console.log('Found Message-ID:', messageId);
+    }
+    
+    // Extract In-Reply-To from email headers
+    const inReplyToMatch = emailData.text.match(/In-Reply-To:\s*<([^>]+)>/i);
+    if (inReplyToMatch) {
+      inReplyTo = `<${inReplyToMatch[1]}>`;
+      console.log('Found In-Reply-To:', inReplyTo);
+    }
+    
     // Extract the thread identifier from the email body with more patterns
     // First try the standard thread identifier format
     const threadRegex = /thread::([a-f0-9-]+)::/i;
@@ -205,6 +223,29 @@ export const handler: Handler = async (event) => {
                             emailData.text.match(/In-Reply-To: .*feedback-([a-f0-9-]+)@userbird\.co/i);
       if (referencesMatch) {
         feedbackId = referencesMatch[1];
+      }
+    }
+    
+    // Try to extract from thread pattern in In-Reply-To
+    if (!feedbackId && inReplyTo) {
+      const threadIdMatch = inReplyTo.match(/thread-([a-f0-9-]+)-/i);
+      if (threadIdMatch) {
+        feedbackId = threadIdMatch[1];
+        console.log('Found feedback ID in In-Reply-To:', feedbackId);
+      }
+    }
+    
+    // If we have an In-Reply-To, look it up in the database
+    if (!feedbackId && inReplyTo) {
+      const { data: replyData } = await supabase
+        .from('feedback_replies')
+        .select('feedback_id')
+        .eq('message_id', inReplyTo)
+        .single();
+        
+      if (replyData) {
+        feedbackId = replyData.feedback_id;
+        console.log('Found feedback ID from message_id lookup:', feedbackId);
       }
     }
     
@@ -356,16 +397,6 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Remove any remaining email headers
-    const headerEndIndex = replyContent.indexOf('\n\n');
-    if (headerEndIndex > -1) {
-      replyContent = replyContent.substring(headerEndIndex + 2).trim();
-    }
-
-    // Remove any remaining email headers that might be at the start
-    const emailHeaderRegex = /^(Received|From|To|Subject|Date|Message-ID|In-Reply-To|References|MIME-Version|Content-Type|Content-Transfer-Encoding|X-|DKIM-Signature|X-Google-DKIM-Signature|X-Gm-Message-State|X-Gm-Gg|X-Google-Smtp-Source|X-Received):/m;
-    replyContent = replyContent.replace(emailHeaderRegex, '').trim();
-
     console.log('Extracted reply content:', replyContent);
 
     // Remove excess whitespace
@@ -387,24 +418,30 @@ export const handler: Handler = async (event) => {
         feedback_id: feedbackId,
         content: replyContent,
         sender_type: 'user',
+        message_id: messageId,
+        in_reply_to: inReplyTo
       });
 
     if (insertError) {
       console.error('Error inserting reply:', insertError);
-      throw insertError;
+      throw new Error(`Error inserting reply: ${insertError.message}`);
     }
 
     console.log('Successfully added user reply to thread', {
       replyId,
       feedbackId,
-      replyContent: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : '')
+      replyContent: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : ''),
+      messageId,
+      inReplyTo
     });
 
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true,
-        replyId
+        replyId,
+        messageId,
+        inReplyTo
       })
     };
   } catch (error) {
@@ -414,11 +451,8 @@ export const handler: Handler = async (event) => {
       stack: error instanceof Error ? error.stack : undefined
     });
     return {
-      statusCode: 200, // Return 200 so email services don't retry
-      body: JSON.stringify({ 
-        error: 'Error processing email reply',
-        success: false
-      })
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal server error' })
     };
   }
 }; 
