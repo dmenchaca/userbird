@@ -146,47 +146,32 @@ export const handler: Handler = async (event) => {
     }
 
     // Extract the email content, removing quoted parts and signatures
-    // This is a simple implementation - production systems would use more sophisticated parsing
     let replyContent = emailData.text;
     
-    // If this is a multipart email from SendGrid, extract just the plain text message content
-    if (replyContent.includes('Content-Type: text/plain')) {
+    // Handle multipart/alternative emails
+    if (replyContent.includes('Content-Type: multipart/alternative')) {
       // Find the text/plain part
-      const plainTextPartIndex = replyContent.indexOf('Content-Type: text/plain');
-      if (plainTextPartIndex > -1) {
+      const textPartStart = replyContent.indexOf('Content-Type: text/plain');
+      if (textPartStart > -1) {
         // Find the end of headers (blank line after Content-Type)
-        const headersEndIndex = replyContent.indexOf('\n\n', plainTextPartIndex);
-        if (headersEndIndex > -1) {
-          // Find the boundary that starts this part
+        const textContentStart = replyContent.indexOf('\n\n', textPartStart);
+        if (textContentStart > -1) {
+          // Find the boundary that ends this part
           const boundaryMatch = replyContent.match(/boundary="([^"]+)"/);
           const boundary = boundaryMatch ? boundaryMatch[1] : '';
           
           if (boundary) {
             // Look for the next boundary or the end of the message
-            const nextBoundaryIndex = replyContent.indexOf(`--${boundary}`, headersEndIndex + 2);
+            const nextBoundaryIndex = replyContent.indexOf(`--${boundary}`, textContentStart + 2);
             if (nextBoundaryIndex > -1) {
               // Found next boundary, extract content up to it
-              replyContent = replyContent.substring(headersEndIndex + 2, nextBoundaryIndex).trim();
+              replyContent = replyContent.substring(textContentStart + 2, nextBoundaryIndex).trim();
             } else {
               // No next boundary found, take everything after headers
-              replyContent = replyContent.substring(headersEndIndex + 2).trim();
+              replyContent = replyContent.substring(textContentStart + 2).trim();
             }
           } else {
             // No boundary found, take everything after headers
-            replyContent = replyContent.substring(headersEndIndex + 2).trim();
-          }
-        }
-      }
-    } else if (replyContent.includes('Content-Type: multipart/alternative')) {
-      // Handle multipart/alternative emails
-      const textPartStart = replyContent.indexOf('Content-Type: text/plain');
-      if (textPartStart > -1) {
-        const textContentStart = replyContent.indexOf('\n\n', textPartStart);
-        if (textContentStart > -1) {
-          const textContentEnd = replyContent.indexOf('--', textContentStart + 2);
-          if (textContentEnd > -1) {
-            replyContent = replyContent.substring(textContentStart + 2, textContentEnd).trim();
-          } else {
             replyContent = replyContent.substring(textContentStart + 2).trim();
           }
         }
