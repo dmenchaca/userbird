@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { Textarea } from './ui/textarea'
+import DOMPurify from 'isomorphic-dompurify'
 
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
@@ -74,12 +75,27 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     
     setIsSubmitting(true)
     try {
+      // Convert plain text to simple HTML (preserving newlines, URLs, etc.)
+      const htmlContent = DOMPurify.sanitize(
+        replyContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;')
+          // Convert URLs to links
+          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')
+          // Convert newlines to <br> tags
+          .replace(/\n/g, '<br>')
+      );
+      
       const { data, error } = await supabase
         .from('feedback_replies')
         .insert([{
           feedback_id: response.id,
           sender_type: 'admin',
-          content: replyContent.trim()
+          content: replyContent.trim(),
+          html_content: htmlContent
         }])
         .select()
       
@@ -171,7 +187,14 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                           })}
                         </span>
                       </div>
-                      <p className="whitespace-pre-wrap">{reply.content}</p>
+                      {reply.html_content ? (
+                        <div 
+                          className="prose prose-sm max-w-none prose-a:text-blue-600"
+                          dangerouslySetInnerHTML={{ __html: reply.html_content }} 
+                        />
+                      ) : (
+                        <p className="whitespace-pre-wrap">{reply.content}</p>
+                      )}
                     </div>
                   ))}
                 </div>

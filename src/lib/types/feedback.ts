@@ -18,6 +18,9 @@ export interface FeedbackReply {
   feedback_id: string
   sender_type: 'admin' | 'user'
   content: string
+  html_content?: string
   created_at: string
   updated_at: string
+  message_id?: string
+  in_reply_to?: string
 }

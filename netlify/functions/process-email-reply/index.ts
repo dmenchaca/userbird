@@ -2,6 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
+import DOMPurify from 'isomorphic-dompurify';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -20,9 +21,16 @@ function decodeQuotedPrintable(str: string): string {
   str = str.replace(/=(\r\n|\n|\r)/g, '');
   
   // Replace hex-encoded characters
-  return str.replace(/=([0-9A-F]{2})/gi, (_, hex) => {
+  str = str.replace(/=([0-9A-F]{2})/gi, (_, hex) => {
     return String.fromCharCode(parseInt(hex, 16));
   });
+  
+  // Handle special Unicode character cases
+  str = str.replace(/=C2=A0/g, ' '); // Non-breaking space
+  str = str.replace(/=C2=BF/g, '¿'); // Inverted question mark
+  str = str.replace(/=C2=A1/g, '¡'); // Inverted exclamation mark
+  
+  return str;
 }
 
 // Function to strip raw email headers and better handle email formats
@@ -113,6 +121,38 @@ function stripRawHeaders(emailText: string): string {
   
   // Often there's an empty line between headers and actual body
   return cleanedText.replace(/^\s+/, ''); // trim leading newlines/spaces
+}
+
+// Function to extract and sanitize HTML content from email
+function extractHtmlContent(emailText: string): string | null {
+  // Try to find the HTML part in multipart emails
+  const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\n\n([^]*?)(?:--[^\n]*?(?:--)?$|\n*$)/mi);
+  
+  if (htmlPartMatch && htmlPartMatch[1]) {
+    let htmlContent = htmlPartMatch[1];
+    
+    // Check if it's quoted-printable encoded
+    const isQuotedPrintable = emailText.includes('Content-Transfer-Encoding: quoted-printable');
+    if (isQuotedPrintable) {
+      htmlContent = decodeQuotedPrintable(htmlContent);
+    }
+    
+    // Sanitize the HTML to remove any potentially harmful content
+    return DOMPurify.sanitize(htmlContent, {
+      ALLOWED_TAGS: [
+        'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'mark', 'small', 'del', 'ins', 'sub', 'sup',
+        'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'img', 'span', 'div'
+      ],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'target'],
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+      ADD_ATTR: ['target="_blank"' ], // Make links open in a new tab
+      ALLOW_DATA_ATTR: false,
+      USE_PROFILES: { html: true }
+    });
+  }
+  
+  return null;
 }
 
 export const handler: Handler = async (event) => {
@@ -379,8 +419,8 @@ export const handler: Handler = async (event) => {
       }
     }
     
-    // Look for and remove boundary markers
-    const boundaryRegex = /--[0-9a-f]+(--)?\s*$/gm;
+    // Look for and remove boundary markers - handle Gmail's specific boundary format too
+    const boundaryRegex = /--[0-9a-f]+(--)?\s*$|--[0-9]{15,}[a-f0-9]{15,}(--)?\s*$/gm;
     replyContent = replyContent.replace(boundaryRegex, '');
     
     // Handle Content-Type headers that might be in the content
@@ -395,9 +435,24 @@ export const handler: Handler = async (event) => {
     
     // Check for HTML content and extract text
     if (replyContent.includes('<div') || replyContent.includes('<p') || 
-        replyContent.includes('</div>') || replyContent.includes('</p>')) {
-      console.log('Detected HTML content, extracting text');
-      // Simple HTML parsing - remove all tags and decode entities
+        replyContent.includes('</div>') || replyContent.includes('</p>') || 
+        replyContent.includes('<a href')) {
+      console.log('Detected HTML content, extracting text and preserving links');
+      
+      // First, preserve links by converting them to text + URL format
+      // Replace <a href="URL">text</a> with text (URL)
+      replyContent = replyContent.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, 
+        (match, url, text) => {
+          // If the text is the same as the URL, just return the URL
+          if (text.trim() === url.trim()) {
+            return url;
+          }
+          // Otherwise return text (URL)
+          return `${text} (${url})`;
+        }
+      );
+      
+      // Then remove remaining HTML tags and decode entities
       replyContent = replyContent
         .replace(/<[^>]*>/g, ' ')  // Replace tags with space
         .replace(/&nbsp;/g, ' ')   // Replace non-breaking spaces
@@ -467,6 +522,40 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Handle common signature delimiters (but don't truncate if they appear at the very beginning)
+    const signatureMarkers = [
+      '\n-- \n',
+      '\n--\n',
+      '\n_______________\n',
+      '\n------------\n',
+      '\nRegards,\n',
+      '\nKind regards,\n',
+      '\nBest regards,\n',
+      '\nWarm regards,\n',
+      '\nThanks,\n',
+      '\nThank you,\n',
+      '\nCheers,\n',
+      '\nSincerely,\n'
+    ];
+    
+    for (const marker of signatureMarkers) {
+      const markerIndex = replyContent.indexOf(marker);
+      // Make sure we're not at the start and there's actual content before the signature
+      if (markerIndex > 20) { 
+        // Check if there's meaningful content after signature or just boilerplate 
+        const afterSignature = replyContent.substring(markerIndex).toLowerCase();
+        
+        // Skip trimming if there's a URL or meaningful content after the signature
+        if (!afterSignature.includes('http://') && 
+            !afterSignature.includes('https://') && 
+            !afterSignature.includes('@') && 
+            !afterSignature.includes('call') &&
+            afterSignature.length < 200) {
+          replyContent = replyContent.substring(0, markerIndex).trim();
+        }
+      }
+    }
+
     console.log('Extracted reply content:', replyContent);
 
     // Remove excess whitespace
@@ -481,12 +570,30 @@ export const handler: Handler = async (event) => {
     // Save the reply to the database
     const replyId = crypto.randomUUID();
     
+    // Extract HTML content if available
+    let htmlContent = extractHtmlContent(emailData.text);
+    
+    // If no HTML content was found, create a simple HTML version from the plain text
+    if (!htmlContent) {
+      // Convert plain text to HTML (simple conversion)
+      htmlContent = replyContent
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br>')
+        // Convert URLs to links
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    }
+    
     const { error: insertError } = await supabase
       .from('feedback_replies')
       .insert({
         id: replyId,
         feedback_id: feedbackId,
         content: replyContent,
+        html_content: htmlContent,
         sender_type: 'user',
         message_id: messageId,
         in_reply_to: inReplyTo
@@ -500,7 +607,8 @@ export const handler: Handler = async (event) => {
     console.log('Successfully added user reply to thread', {
       replyId,
       feedbackId,
-      replyContent: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : ''),
+      replyContentLength: replyContent.length,
+      htmlContentLength: htmlContent.length,
       messageId,
       inReplyTo
     });
