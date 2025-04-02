@@ -386,8 +386,7 @@ export const handler: Handler = async (event) => {
         id: replyId,
         feedback_id: feedbackId,
         content: replyContent,
-        source: 'email',
-        email: emailData.from || 'unknown@example.com'
+        sender_type: 'user',
       });
 
     if (insertError) {
