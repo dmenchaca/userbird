@@ -2,11 +2,12 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { EmailService } from '../email-service';
 
-// Log environment variables at startup
+// Log environment variables at startup with more details for debugging
 console.log('Reply notification function environment:', {
   hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
   hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   hasSendGridKey: !!process.env.SENDGRID_API_KEY,
+  sendGridKeyPartial: process.env.SENDGRID_API_KEY ? `${process.env.SENDGRID_API_KEY.substring(0, 4)}...${process.env.SENDGRID_API_KEY.substring(process.env.SENDGRID_API_KEY.length - 4)}` : 'not set',
   netlifyUrl: process.env.URL
 });
 

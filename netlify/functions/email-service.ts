@@ -1,7 +1,16 @@
 import sgMail from '@sendgrid/mail';
+import { Handler } from '@netlify/functions';
 
 // Initialize SendGrid with API key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+const apiKey = process.env.SENDGRID_API_KEY || '';
+sgMail.setApiKey(apiKey);
+
+// Log if API key is set
+console.log('Email service initialized:', {
+  hasApiKey: !!apiKey,
+  apiKeyLength: apiKey.length,
+  apiKeyPartial: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : 'not set'
+});
 
 export interface EmailParams {
   to: string;
@@ -28,10 +37,27 @@ export class EmailService {
         headers: params.headers
       };
 
+      console.log('Sending email via SendGrid:', {
+        to: params.to,
+        from: params.from,
+        subject: params.subject,
+        hasText: !!text,
+        hasHtml: !!html,
+        hasHeaders: !!params.headers
+      });
+
       await sgMail.send(msg);
+      console.log('Email sent successfully via SendGrid');
       return { success: true };
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Error sending email via SendGrid:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
+        to: params.to,
+        from: params.from,
+        subject: params.subject
+      });
       throw error;
     }
   }
@@ -264,17 +290,53 @@ ${feedback.message}
 }
 
 // Add a handler to make this function respond to direct HTTP requests
-export const handler = async (event) => {
+export const handler: Handler = async (event) => {
   console.log('Email service function directly invoked', {
     method: event.httpMethod,
     path: event.path,
     queryParams: event.queryStringParameters
   });
   
+  // Check if the test email parameter is provided
+  const testEmailAddress = event.queryStringParameters?.test;
+  
+  if (testEmailAddress && event.httpMethod === 'GET') {
+    try {
+      console.log('Attempting to send test email to:', testEmailAddress);
+      
+      await EmailService.sendEmail({
+        to: testEmailAddress,
+        from: 'notifications@userbird.co',
+        subject: 'Userbird Email Test',
+        text: 'This is a test email from Userbird to verify SendGrid integration is working properly.',
+        html: '<p>This is a test email from Userbird to verify SendGrid integration is working properly.</p>'
+      });
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'Test email sent successfully',
+          recipient: testEmailAddress,
+          timestamp: new Date().toISOString()
+        })
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          message: 'Failed to send test email',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+  }
+  
   return {
     statusCode: 200,
     body: JSON.stringify({ 
       message: 'Email service is running',
+      usage: 'Add ?test=your@email.com to the URL to send a test email',
       timestamp: new Date().toISOString()
     })
   };

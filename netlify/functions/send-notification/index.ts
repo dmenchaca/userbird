@@ -2,11 +2,12 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { EmailService } from '../email-service';
 
-// Log environment variables at startup
+// Log environment variables at startup with more details for debugging
 console.log('Notification function environment:', {
   hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
   hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   hasSendGridKey: !!process.env.SENDGRID_API_KEY,
+  sendGridKeyPartial: process.env.SENDGRID_API_KEY ? `${process.env.SENDGRID_API_KEY.substring(0, 4)}...${process.env.SENDGRID_API_KEY.substring(process.env.SENDGRID_API_KEY.length - 4)}` : 'not set',
   netlifyUrl: process.env.URL,
   netlifyContext: process.env.CONTEXT
 });
@@ -159,11 +160,20 @@ export const handler: Handler = async (event) => {
     console.error('Error in notification function:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       type: error instanceof Error ? error.constructor.name : typeof error,
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error && error.cause ? JSON.stringify(error.cause) : undefined
     });
+    
+    if (error instanceof Error && error.message.includes('SendGrid')) {
+      console.error('SendGrid error details:', error);
+    }
+    
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
     };
   }
 };
