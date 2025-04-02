@@ -124,7 +124,36 @@ function stripRawHeaders(emailText: string): string {
 
 // Function to extract and sanitize HTML content from email
 function extractHtmlContent(emailText: string): string | null {
-  // Try to find the HTML part in multipart emails
+  // First check for multipart/alternative with text/html part
+  const multipartMatch = emailText.match(/Content-Type: multipart\/alternative;\s*boundary="([^"]+)"/i);
+  
+  if (multipartMatch && multipartMatch[1]) {
+    const boundary = multipartMatch[1];
+    const parts = emailText.split(`--${boundary}`);
+    
+    // Find the HTML part
+    for (const part of parts) {
+      if (part.includes('Content-Type: text/html')) {
+        // Extract the HTML content
+        const contentStart = part.indexOf('\n\n');
+        if (contentStart !== -1) {
+          let htmlContent = part.substring(contentStart + 2);
+          
+          // Check if it's quoted-printable encoded
+          const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
+          if (isQuotedPrintable) {
+            htmlContent = decodeQuotedPrintable(htmlContent);
+          }
+          
+          // Sanitize and return the HTML
+          console.log('Extracted HTML content from multipart/alternative email');
+          return sanitizeHtml(htmlContent);
+        }
+      }
+    }
+  }
+  
+  // Fallback to standard Content-Type: text/html search if multipart parsing failed
   const htmlPartMatch = emailText.match(/Content-Type: text\/html[^]*?\n\n([^]*?)(?:--[^\n]*?(?:--)?$|\n*$)/mi);
   
   if (htmlPartMatch && htmlPartMatch[1]) {
@@ -137,9 +166,11 @@ function extractHtmlContent(emailText: string): string | null {
     }
     
     // Sanitize the HTML to remove any potentially harmful content
+    console.log('Extracted HTML content using regex pattern');
     return sanitizeHtml(htmlContent);
   }
   
+  console.log('No HTML content found in email');
   return null;
 }
 

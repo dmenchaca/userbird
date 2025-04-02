@@ -81,6 +81,27 @@ export const handler: Handler = async (event) => {
       console.error('Feedback not found:', feedbackId);
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
     }
+    
+    // If replyId is provided, fetch the html_content from the database
+    let processedHtmlContent = htmlContent;
+    if (replyId) {
+      const { data: replyData } = await supabase
+        .from('feedback_replies')
+        .select('html_content')
+        .eq('id', replyId)
+        .single();
+        
+      if (replyData?.html_content) {
+        console.log('Using html_content from database');
+        processedHtmlContent = replyData.html_content;
+      }
+    }
+    
+    // If still no HTML content, process the plain text
+    if (!processedHtmlContent) {
+      console.log('No HTML content found, processing plain text');
+      processedHtmlContent = processMarkdownSyntax(replyContent);
+    }
 
     // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
@@ -115,9 +136,6 @@ export const handler: Handler = async (event) => {
     const userEmail = feedback.user_email;
     
     console.log('Sending reply notification email to:', userEmail);
-
-    // If no HTML content was provided, process the plain text to HTML
-    const processedHtmlContent = htmlContent || processMarkdownSyntax(replyContent);
 
     const emailResult = await EmailService.sendReplyNotification({
       to: userEmail,
