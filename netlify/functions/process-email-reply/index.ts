@@ -205,6 +205,12 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Remove any remaining email headers
+    const headerEndIndex = replyContent.indexOf('\n\n');
+    if (headerEndIndex > -1) {
+      replyContent = replyContent.substring(headerEndIndex + 2).trim();
+    }
+
     console.log('Extracted reply content:', replyContent);
 
     // Store the reply in the database
