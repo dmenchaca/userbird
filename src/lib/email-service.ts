@@ -15,35 +15,16 @@ export interface EmailParams {
 export class EmailService {
   static async sendEmail(params: EmailParams) {
     try {
-      const content = [];
+      // Ensure we have at least text or html content
+      const text = params.text || '';
+      const html = params.html || '';
       
-      if (params.text) {
-        content.push({
-          type: 'text/plain',
-          value: params.text
-        });
-      }
-      
-      if (params.html) {
-        content.push({
-          type: 'text/html',
-          value: params.html
-        });
-      }
-
-      // If no content types provided, use text/plain with empty string
-      if (content.length === 0) {
-        content.push({
-          type: 'text/plain',
-          value: ''
-        });
-      }
-
       const msg = {
         to: params.to,
         from: params.from,
         subject: params.subject,
-        content,
+        text,
+        html,
         headers: params.headers
       };
 
