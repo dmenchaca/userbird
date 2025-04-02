@@ -14,6 +14,15 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Add interface for attachment structure
+interface EmailAttachment {
+  filename: string;
+  contentType: string;
+  contentId?: string;
+  data: Buffer;
+  isInline: boolean;
+}
+
 // Function to decode quoted-printable content (like =3D for =)
 function decodeQuotedPrintable(str: string): string {
   // Replace soft line breaks (=<CRLF>)
@@ -313,7 +322,8 @@ function sanitizeHtml(html: string): string {
   const blacklistPattern = /<script|<iframe|<object|<embed|<form|<input|<style|<link|javascript:|onclick|onerror|onload|onmouseover/gi;
   let sanitized = html.replace(blacklistPattern, '');
   
-  // Replace embedded image references with a text placeholder
+  // We no longer replace all embedded image references, we'll handle them based on cidToUrlMap
+  // Only replace cid: references that weren't processed earlier
   sanitized = sanitized.replace(/<img[^>]*src=(?:"|')cid:[^"']*(?:"|')[^>]*>/gi, '[Image attachment]');
   
   // Clean all attributes except for allowed ones on specific elements
@@ -334,19 +344,28 @@ function sanitizeHtml(html: string): string {
     }
     
     if (tagName.toLowerCase() === 'img') {
-      // Extract src and alt if they exist
+      // Extract src, alt, and width/height if they exist
       const srcMatch = attributes.match(/src\s*=\s*['"]([^'"]*)['"]/i);
       const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
       
-      // Handle "cid:" references which are embedded images
+      // Skip "cid:" references which are embedded images that we haven't processed
       if (srcMatch && srcMatch[1].startsWith('cid:')) {
         return '[Image attachment]';
       }
       
-      const src = srcMatch ? ` src="${srcMatch[1]}"` : '';
-      const alt = altMatch ? ` alt="${altMatch[1]}"` : '';
-      // Add width style to prevent oversized images
-      return `<img${src}${alt} style="max-width: 100%;">`;
+      // Keep URLs that are public (HTTP/HTTPS)
+      const src = srcMatch && (srcMatch[1].startsWith('http://') || srcMatch[1].startsWith('https://')) 
+        ? ` src="${srcMatch[1]}"` 
+        : '';
+      
+      const alt = altMatch ? ` alt="${altMatch[1]}"` : ' alt="Email attachment"';
+      
+      // Only return an img tag if we have a valid src
+      if (src) {
+        return `<img${src}${alt} style="max-width: 100%;">`;
+      } else {
+        return '[Image]';
+      }
     }
     
     // For all other allowed tags, strip all attributes
@@ -365,6 +384,189 @@ function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
+// Function to parse and extract attachments from a multipart email
+async function parseAttachments(emailText: string, replyId: string): Promise<{ attachments: EmailAttachment[], cidToUrlMap: Record<string, string> }> {
+  const attachments: EmailAttachment[] = [];
+  const cidToUrlMap: Record<string, string> = {};
+  
+  // Find the main boundary
+  const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
+  if (!boundaryMatch || !boundaryMatch[1]) {
+    console.log('No boundary found for attachments');
+    return { attachments, cidToUrlMap };
+  }
+  
+  const boundary = boundaryMatch[1];
+  const parts = emailText.split(`--${boundary}`);
+  
+  console.log(`Examining ${parts.length} email parts for potential attachments`);
+  
+  for (const part of parts) {
+    // Check if this part is an image or attachment
+    const contentTypeMatch = part.match(/Content-Type:\s*([^;\r\n]+)/i);
+    if (!contentTypeMatch) continue;
+    
+    const contentType = contentTypeMatch[1].trim();
+    
+    // Skip text/plain and text/html parts, we're looking for attachments
+    if (contentType === 'text/plain' || contentType === 'text/html') continue;
+    
+    // Parse content ID (for inline images)
+    let contentId: string | undefined;
+    const contentIdMatch = part.match(/Content-ID:\s*<([^>]+)>/i);
+    if (contentIdMatch && contentIdMatch[1]) {
+      contentId = contentIdMatch[1];
+      console.log(`Found attachment with Content-ID: ${contentId}`);
+    }
+    
+    // Parse filename
+    let filename = '';
+    const filenameMatch = part.match(/filename="([^"]+)"/i);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1];
+      console.log(`Found attachment with filename: ${filename}`);
+    } else {
+      // Generate a filename if none is provided
+      const extension = contentType.split('/')[1] || 'bin';
+      filename = `attachment-${Date.now()}.${extension}`;
+      console.log(`Generated filename for attachment: ${filename}`);
+    }
+    
+    // Determine if this is an inline attachment
+    const isInline = part.includes('Content-Disposition: inline') || !!contentId;
+    
+    // Extract the binary data
+    const contentStart = part.indexOf('\r\n\r\n');
+    if (contentStart === -1) continue;
+    
+    let data = part.substring(contentStart + 4);
+    
+    // Determine the encoding
+    const transferEncodingMatch = part.match(/Content-Transfer-Encoding:\s*([^\s;]+)/i);
+    const encoding = transferEncodingMatch ? transferEncodingMatch[1].toLowerCase() : '';
+    
+    // Handle different encodings
+    if (encoding === 'base64') {
+      // Clean up base64 string (remove newlines, etc.)
+      data = data.replace(/[\r\n\s]/g, '');
+      const buffer = Buffer.from(data, 'base64');
+      
+      attachments.push({
+        filename,
+        contentType,
+        contentId,
+        data: buffer,
+        isInline
+      });
+      
+      console.log(`Processed base64 attachment: ${filename}, size: ${buffer.length} bytes`);
+    } else {
+      console.log(`Unsupported encoding for attachment: ${encoding}`);
+    }
+  }
+  
+  console.log(`Found ${attachments.length} attachments in email`);
+  
+  // Upload attachments to Supabase Storage and create mapping
+  for (const attachment of attachments) {
+    if (attachment.isInline && attachment.contentId) {
+      try {
+        const filename = `${replyId}_${attachment.filename}`;
+        const storagePath = `feedback-replies/${replyId}/${filename}`;
+        
+        // Check if storage bucket exists
+        const { data: buckets, error: bucketsError } = await supabase
+          .storage
+          .listBuckets();
+        
+        const bucketName = 'userbird-attachments';
+        const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+        
+        if (!bucketExists) {
+          console.log(`Creating storage bucket: ${bucketName}`);
+          // Create the bucket if it doesn't exist
+          const { error: createBucketError } = await supabase
+            .storage
+            .createBucket(bucketName, {
+              public: true // Make bucket publicly accessible
+            });
+          
+          if (createBucketError) {
+            console.error(`Error creating storage bucket: ${bucketName}`, createBucketError);
+            continue;
+          }
+        }
+        
+        // Upload to Supabase Storage
+        const { data, error } = await supabase
+          .storage
+          .from(bucketName)
+          .upload(storagePath, attachment.data, {
+            contentType: attachment.contentType,
+            upsert: true
+          });
+        
+        if (error) {
+          console.error('Error uploading attachment to storage:', error);
+          continue;
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabase
+          .storage
+          .from(bucketName)
+          .getPublicUrl(storagePath);
+        
+        if (urlData && urlData.publicUrl) {
+          console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
+          cidToUrlMap[attachment.contentId] = urlData.publicUrl;
+          
+          // Store attachment metadata in database
+          const attachmentId = crypto.randomUUID();
+          const { error: insertError } = await supabase
+            .from('feedback_attachments')
+            .insert({
+              id: attachmentId,
+              reply_id: replyId,
+              filename: attachment.filename,
+              content_id: attachment.contentId,
+              content_type: attachment.contentType,
+              url: urlData.publicUrl,
+              is_inline: true
+            });
+          
+          if (insertError) {
+            console.error('Error storing attachment metadata:', insertError);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing attachment:', error);
+      }
+    }
+  }
+  
+  return { attachments, cidToUrlMap };
+}
+
+// Function to replace CID references in HTML with public URLs
+function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): string {
+  if (!html || Object.keys(cidToUrlMap).length === 0) return html;
+  
+  // Replace src="cid:xxx" and src=3D"cid:xxx" with public URLs
+  return html.replace(
+    /<img\s+[^>]*src=(?:"|'|3D")cid:([^"']+)(?:"|'|")[^>]*>/gi,
+    (match, cid) => {
+      const publicUrl = cidToUrlMap[cid];
+      if (publicUrl) {
+        console.log(`Replacing cid:${cid} with ${publicUrl}`);
+        return match.replace(/src=(?:"|'|3D")cid:[^"']+(?:"|'|")/, `src="${publicUrl}"`);
+      }
+      // If no matching URL found, replace with a placeholder
+      return '[Image attachment]';
+    }
+  );
+}
+
 export const handler: Handler = async (event) => {
   console.log('Process email reply function triggered:', {
     method: event.httpMethod,
@@ -374,6 +576,34 @@ export const handler: Handler = async (event) => {
     headers: event.headers,
     contentType: event.headers['content-type'] || event.headers['Content-Type']
   });
+
+  // Check for feedback_attachments table
+  try {
+    const { error } = await supabase.from('feedback_attachments').select('id').limit(1);
+    if (error && error.code === '42P01') { // Table does not exist
+      console.log('Creating feedback_attachments table');
+      const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS feedback_attachments (
+          id UUID PRIMARY KEY,
+          reply_id UUID REFERENCES feedback_replies(id),
+          filename TEXT NOT NULL,
+          content_id TEXT,
+          content_type TEXT NOT NULL,
+          url TEXT NOT NULL,
+          is_inline BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+        )
+      `;
+      const { error: createError } = await supabase.rpc('exec', { query: createTableQuery });
+      if (createError) {
+        console.error('Error creating feedback_attachments table:', createError);
+      } else {
+        console.log('Successfully created feedback_attachments table');
+      }
+    }
+  } catch (e) {
+    console.error('Error checking for feedback_attachments table:', e);
+  }
 
   // Allow GET requests for testing
   if (event.httpMethod === 'GET') {
@@ -842,6 +1072,15 @@ export const handler: Handler = async (event) => {
           .replace(/>/g, '&gt;')
           .replace(/\n/g, '<br>')}</div>`;
       }
+    }
+
+    // Parse attachments and get URL mapping for inline images
+    const { cidToUrlMap } = await parseAttachments(emailData.text, replyId);
+
+    // Replace CIDs with public URLs in HTML content
+    if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
+      console.log('Replacing CID references with public URLs');
+      htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap);
     }
 
     const { error: insertError } = await supabase
