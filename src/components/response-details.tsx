@@ -5,10 +5,21 @@ import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { Textarea } from './ui/textarea'
-import createDOMPurify from 'dompurify'
 
-// DOMPurify is already available in the browser environment
-const DOMPurify = createDOMPurify(window)
+// Simple HTML sanitizer for the client side
+function sanitizeAndFormatText(text: string): string {
+  return text
+    // Escape HTML special characters
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    // Convert URLs to links
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Convert newlines to <br> tags
+    .replace(/\n/g, '<br>');
+}
 
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
@@ -78,19 +89,8 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     
     setIsSubmitting(true)
     try {
-      // Convert plain text to simple HTML (preserving newlines, URLs, etc.)
-      const htmlContent = DOMPurify.sanitize(
-        replyContent
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;')
-          // Convert URLs to links
-          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')
-          // Convert newlines to <br> tags
-          .replace(/\n/g, '<br>')
-      );
+      // Create HTML version of reply content
+      const htmlContent = sanitizeAndFormatText(replyContent);
       
       const { data, error } = await supabase
         .from('feedback_replies')

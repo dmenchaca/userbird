@@ -24,8 +24,6 @@
     "busboy": "^1.6.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "dompurify": "^3.2.4",
-    "jsdom": "^26.0.0",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.358.0",
     "nanoid": "^5.0.6",

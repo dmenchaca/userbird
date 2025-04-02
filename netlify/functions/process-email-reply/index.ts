@@ -2,12 +2,6 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
-import createDOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
-
-// Initialize DOMPurify
-const { window } = new JSDOM('');
-const DOMPurify = createDOMPurify(window);
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -128,6 +122,60 @@ function stripRawHeaders(emailText: string): string {
   return cleanedText.replace(/^\s+/, ''); // trim leading newlines/spaces
 }
 
+// Simple HTML sanitizer function using regex patterns
+function sanitizeHtml(html: string): string {
+  // List of allowed tags - keep this limited for security
+  const allowedTags = [
+    'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 
+    'blockquote', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'img', 'span', 'div'
+  ];
+  
+  // Convert tag blacklist to pattern
+  const blacklistPattern = /<script|<iframe|<object|<embed|<form|<input|<style|<link|javascript:|onclick|onerror|onload|onmouseover/gi;
+  
+  // First remove blacklisted tags completely
+  let sanitized = html.replace(blacklistPattern, '');
+  
+  // Then clean all attributes except for a few safe ones on specific elements
+  const attrPattern = /<([a-z0-9]+)([^>]*?)>/gi;
+  
+  sanitized = sanitized.replace(attrPattern, (match, tagName, attributes) => {
+    if (!allowedTags.includes(tagName.toLowerCase())) {
+      // For non-allowed tags, just remove them completely
+      return '';
+    }
+    
+    // Handle specific tags that can have attributes
+    if (tagName.toLowerCase() === 'a') {
+      // Extract href and target if they exist
+      const hrefMatch = attributes.match(/href\s*=\s*['"]([^'"]*)['"]/i);
+      const href = hrefMatch ? ` href="${hrefMatch[1]}" target="_blank" rel="noopener noreferrer"` : '';
+      return `<a${href}>`;
+    }
+    
+    if (tagName.toLowerCase() === 'img') {
+      // Extract src and alt if they exist
+      const srcMatch = attributes.match(/src\s*=\s*['"]([^'"]*)['"]/i);
+      const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
+      const src = srcMatch ? ` src="${srcMatch[1]}"` : '';
+      const alt = altMatch ? ` alt="${altMatch[1]}"` : '';
+      return `<img${src}${alt}>`;
+    }
+    
+    // For all other allowed tags, strip all attributes
+    return `<${tagName}>`;
+  });
+  
+  // Clean closing tags - remove any that aren't in our allowlist
+  const closingTagPattern = /<\/([a-z0-9]+)>/gi;
+  sanitized = sanitized.replace(closingTagPattern, (match, tagName) => {
+    return allowedTags.includes(tagName.toLowerCase()) ? match : '';
+  });
+  
+  return sanitized;
+}
+
 // Function to extract and sanitize HTML content from email
 function extractHtmlContent(emailText: string): string | null {
   // Try to find the HTML part in multipart emails
@@ -143,18 +191,7 @@ function extractHtmlContent(emailText: string): string | null {
     }
     
     // Sanitize the HTML to remove any potentially harmful content
-    return DOMPurify.sanitize(htmlContent, {
-      ALLOWED_TAGS: [
-        'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'mark', 'small', 'del', 'ins', 'sub', 'sup',
-        'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'img', 'span', 'div'
-      ],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'target'],
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input'],
-      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
-      ADD_ATTR: ['target="_blank"' ], // Make links open in a new tab
-      ALLOW_DATA_ATTR: false,
-      USE_PROFILES: { html: true }
-    });
+    return sanitizeHtml(htmlContent);
   }
   
   return null;
@@ -387,42 +424,6 @@ export const handler: Handler = async (event) => {
 
     // Extract the email content, removing quoted parts and signatures
     let replyContent = stripRawHeaders(emailData.text);
-    
-    // Check if this might be quoted-printable that wasn't caught earlier
-    if (replyContent.includes('=3D') || replyContent.includes('=0A') || replyContent.includes('=20')) {
-      console.log('Found additional quoted-printable content, decoding it');
-      replyContent = decodeQuotedPrintable(replyContent);
-    }
-    
-    // Handle multipart/alternative emails
-    if (replyContent.includes('Content-Type: multipart/alternative')) {
-      // Find the text/plain part
-      const textPartStart = replyContent.indexOf('Content-Type: text/plain');
-      if (textPartStart > -1) {
-        // Find the end of headers (blank line after Content-Type)
-        const textContentStart = replyContent.indexOf('\n\n', textPartStart);
-        if (textContentStart > -1) {
-          // Find the boundary that ends this part
-          const boundaryMatch = replyContent.match(/boundary="([^"]+)"|boundary=([^\s"]+)/);
-          const boundary = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2]) : '';
-          
-          if (boundary) {
-            // Look for the next boundary or the end of the message
-            const nextBoundaryIndex = replyContent.indexOf(`--${boundary}`, textContentStart + 2);
-            if (nextBoundaryIndex > -1) {
-              // Found next boundary, extract content up to it
-              replyContent = replyContent.substring(textContentStart + 2, nextBoundaryIndex).trim();
-            } else {
-              // No next boundary found, take everything after headers
-              replyContent = replyContent.substring(textContentStart + 2).trim();
-            }
-          } else {
-            // No boundary found, take everything after headers
-            replyContent = replyContent.substring(textContentStart + 2).trim();
-          }
-        }
-      }
-    }
     
     // Look for and remove boundary markers - handle Gmail's specific boundary format too
     const boundaryRegex = /--[0-9a-f]+(--)?\s*$|--[0-9]{15,}[a-f0-9]{15,}(--)?\s*$/gm;
