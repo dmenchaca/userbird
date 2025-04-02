@@ -8,13 +8,8 @@
   status = 301
   force = true
 
-[[plugins]]
-  package = "@netlify/plugin-emails"
-
 [template.environment]
-  NETLIFY_EMAILS_PROVIDER = "sendgrid"
-  NETLIFY_EMAILS_SECRET = "Set this to a random string"
-  NETLIFY_EMAILS_PROVIDER_API_KEY = "Your SendGrid API key"
+  SENDGRID_API_KEY = "Your SendGrid API key"
 
 [[redirects]]
   from = "/*"

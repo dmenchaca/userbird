@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@netlify/functions": "^2.6.0",
-    "@netlify/plugin-emails": "^1.1.1",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-dropdown-menu": "^2.0.6",
@@ -19,6 +18,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
+    "@sendgrid/mail": "^8.1.4",
     "@supabase/supabase-js": "^2.39.7",
     "busboy": "^1.6.0",
     "class-variance-authority": "^0.7.0",

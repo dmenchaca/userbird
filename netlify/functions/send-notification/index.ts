@@ -1,12 +1,12 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import fetch from 'node-fetch';
+import { EmailService } from '../email-service';
 
 // Log environment variables at startup
 console.log('Notification function environment:', {
   hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
   hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-  hasEmailsSecret: !!process.env.NETLIFY_EMAILS_SECRET,
+  hasSendGridKey: !!process.env.SENDGRID_API_KEY,
   netlifyUrl: process.env.URL,
   netlifyContext: process.env.CONTEXT
 });
@@ -99,11 +99,6 @@ export const handler: Handler = async (event) => {
 
     // Send emails
     console.log('Sending emails to:', settings.length, 'recipients');
-    console.log('Email configuration:', {
-      hasEmailsSecret: !!process.env.NETLIFY_EMAILS_SECRET,
-      netlifyUrl: process.env.URL,
-      emailEndpoint: `${process.env.URL}/.netlify/functions/emails/feedback-notification`
-    });
     
     const emailPromises = settings.map(setting => {
       // Prepare email parameters based on selected attributes
@@ -146,39 +141,10 @@ export const handler: Handler = async (event) => {
         }
       });
 
-      // Add flags for showing sections based on selected attributes
-      emailParams.showUserInfo = ['user_id', 'user_email', 'user_name'].some(attr => 
-        selectedAttrs.includes(attr)
-      );
-      emailParams.showSystemInfo = ['operating_system', 'screen_category'].some(attr => 
-        selectedAttrs.includes(attr)
-      );
-
-      const emailUrl = `${process.env.URL}/.netlify/functions/emails/feedback-notification`;
-      
-      return fetch(emailUrl, {
-        method: 'POST',
-        headers: {
-          'netlify-emails-secret': process.env.NETLIFY_EMAILS_SECRET as string,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: 'notifications@userbird.co',
-          to: setting.email,
-          subject: `New feedback received for ${form.url}`,
-          parameters: emailParams
-        })
-      }).then(async response => {
-        const text = await response.text();
-        console.log('Email API response:', {
-          status: response.status,
-          ok: response.ok,
-          text: text.slice(0, 200)
-        });
-        if (!response.ok) {
-          throw new Error(`Email API failed: ${response.status} ${text}`);
-        }
-        return response;
+      return EmailService.sendFeedbackNotification({
+        to: setting.email,
+        formUrl: form.url,
+        ...emailParams
       });
     });
 
