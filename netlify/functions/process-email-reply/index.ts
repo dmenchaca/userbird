@@ -211,6 +211,10 @@ export const handler: Handler = async (event) => {
       replyContent = replyContent.substring(headerEndIndex + 2).trim();
     }
 
+    // Remove any remaining email headers that might be at the start
+    const emailHeaderRegex = /^(Received|From|To|Subject|Date|Message-ID|In-Reply-To|References|MIME-Version|Content-Type|Content-Transfer-Encoding|X-|DKIM-Signature|X-Google-DKIM-Signature|X-Gm-Message-State|X-Gm-Gg|X-Google-Smtp-Source|X-Received):/m;
+    replyContent = replyContent.replace(emailHeaderRegex, '').trim();
+
     console.log('Extracted reply content:', replyContent);
 
     // Store the reply in the database
