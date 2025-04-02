@@ -177,6 +177,20 @@ export const handler: Handler = async (event) => {
           }
         }
       }
+    } else if (replyContent.includes('Content-Type: multipart/alternative')) {
+      // Handle multipart/alternative emails
+      const textPartStart = replyContent.indexOf('Content-Type: text/plain');
+      if (textPartStart > -1) {
+        const textContentStart = replyContent.indexOf('\n\n', textPartStart);
+        if (textContentStart > -1) {
+          const textContentEnd = replyContent.indexOf('--', textContentStart + 2);
+          if (textContentEnd > -1) {
+            replyContent = replyContent.substring(textContentStart + 2, textContentEnd).trim();
+          } else {
+            replyContent = replyContent.substring(textContentStart + 2).trim();
+          }
+        }
+      }
     }
     
     // Remove everything after the original message marker if present
