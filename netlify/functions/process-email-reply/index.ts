@@ -132,14 +132,71 @@ function extractHtmlContent(emailText: string): string | null {
     console.log('Detected Gmail format email');
   }
   
+  // First, check for multipart/related and multipart/alternative with images
+  const multipartRelatedMatch = emailText.match(/Content-Type: multipart\/related;\s*boundary="([^"]+)"/i);
+  if (multipartRelatedMatch && multipartRelatedMatch[1]) {
+    console.log('Found multipart/related email with potential image attachments');
+    
+    const relatedBoundary = multipartRelatedMatch[1];
+    const relatedParts = emailText.split(`--${relatedBoundary}`);
+    
+    // Look for the multipart/alternative section, which contains the actual content
+    for (const part of relatedParts) {
+      if (part.includes('Content-Type: multipart/alternative')) {
+        console.log('Found multipart/alternative section within related parts');
+        
+        // Extract the alternative boundary
+        const altBoundaryMatch = part.match(/boundary="([^"]+)"/i);
+        if (altBoundaryMatch && altBoundaryMatch[1]) {
+          const altBoundary = altBoundaryMatch[1];
+          const altParts = part.split(`--${altBoundary}`);
+          
+          // Look for the HTML part
+          for (const altPart of altParts) {
+            if (altPart.includes('Content-Type: text/html')) {
+              console.log('Found HTML part in multipart/alternative within related');
+              
+              // Extract the HTML content
+              const contentStart = altPart.indexOf('\n\n');
+              if (contentStart !== -1) {
+                let htmlContent = altPart.substring(contentStart + 2).trim();
+                
+                // Check if it's quoted-printable encoded
+                if (altPart.includes('Content-Transfer-Encoding: quoted-printable')) {
+                  console.log('Content is quoted-printable encoded, decoding');
+                  htmlContent = decodeQuotedPrintable(htmlContent);
+                }
+                
+                // Gmail often includes quoted previous messages, which we want to exclude
+                if (isGmail && htmlContent.includes('gmail_quote')) {
+                  console.log('Removing Gmail quoted content');
+                  const quoteStartPos = htmlContent.indexOf('<div class="gmail_quote');
+                  if (quoteStartPos !== -1) {
+                    htmlContent = htmlContent.substring(0, quoteStartPos);
+                    console.log('Removed Gmail quoted content');
+                  }
+                }
+                
+                console.log('Successfully extracted HTML content from multipart structure');
+                return htmlContent;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Continue with the existing approach for non-related multipart emails
   // Gmail often uses this format with boundary
   const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
   if (boundaryMatch && boundaryMatch[1]) {
     const boundary = boundaryMatch[1];
-    console.log('Found email boundary:', boundary);
+    console.log(`Found email boundary: ${boundary}`);
     
     // Split by boundary
-    const parts = emailText.split(`--${boundary}`);
+    const boundaryDelimiter = `--${boundary}`;
+    const parts = emailText.split(boundaryDelimiter);
     console.log(`Email split into ${parts.length} parts by boundary`);
     
     // First look for text/html part
@@ -171,6 +228,11 @@ function extractHtmlContent(emailText: string): string | null {
             console.log('Content is quoted-printable encoded, decoding');
             htmlContent = decodeQuotedPrintable(htmlContent);
           }
+          
+          // Replace embedded image references with text placeholders
+          // Gmail uses 'cid:' references for embedded images
+          htmlContent = htmlContent.replace(/<img[^>]*src=3D"cid:[^"]*"[^>]*>/gi, '[Image attachment]');
+          htmlContent = htmlContent.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/gi, '[Image attachment]');
           
           // Gmail often includes quoted previous messages, which we want to exclude
           if (isGmail && htmlContent.includes('gmail_quote')) {
@@ -207,6 +269,10 @@ function extractHtmlContent(emailText: string): string | null {
       htmlContent = decodeQuotedPrintable(htmlContent);
     }
     
+    // Replace embedded image references
+    htmlContent = htmlContent.replace(/<img[^>]*src=3D"cid:[^"]*"[^>]*>/gi, '[Image attachment]');
+    htmlContent = htmlContent.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/gi, '[Image attachment]');
+    
     // Gmail often includes quoted previous messages, which we want to exclude
     if (isGmail && htmlContent.includes('gmail_quote')) {
       console.log('Removing Gmail quoted content from regex match');
@@ -230,6 +296,12 @@ function extractHtmlContent(emailText: string): string | null {
 function sanitizeHtml(html: string): string {
   if (!html) return '';
   
+  // Clean up email artifacts that might have leaked into the HTML
+  // Strip any boundary markers that leaked into the content
+  html = html.replace(/--[0-9a-f]+(?:--)?\s*$/gm, '');
+  html = html.replace(/Content-Type: [^<>\n]+\n/gi, '');
+  html = html.replace(/Content-Transfer-Encoding: [^<>\n]+\n/gi, '');
+  
   // List of allowed tags - keep this limited for security
   const allowedTags = [
     'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 
@@ -240,6 +312,9 @@ function sanitizeHtml(html: string): string {
   // Remove potentially harmful tags and patterns
   const blacklistPattern = /<script|<iframe|<object|<embed|<form|<input|<style|<link|javascript:|onclick|onerror|onload|onmouseover/gi;
   let sanitized = html.replace(blacklistPattern, '');
+  
+  // Replace embedded image references with a text placeholder
+  sanitized = sanitized.replace(/<img[^>]*src=(?:"|')cid:[^"']*(?:"|')[^>]*>/gi, '[Image attachment]');
   
   // Clean all attributes except for allowed ones on specific elements
   const attrPattern = /<([a-z0-9]+)([^>]*?)>/gi;
@@ -262,6 +337,12 @@ function sanitizeHtml(html: string): string {
       // Extract src and alt if they exist
       const srcMatch = attributes.match(/src\s*=\s*['"]([^'"]*)['"]/i);
       const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
+      
+      // Handle "cid:" references which are embedded images
+      if (srcMatch && srcMatch[1].startsWith('cid:')) {
+        return '[Image attachment]';
+      }
+      
       const src = srcMatch ? ` src="${srcMatch[1]}"` : '';
       const alt = altMatch ? ` alt="${altMatch[1]}"` : '';
       // Add width style to prevent oversized images
@@ -277,6 +358,9 @@ function sanitizeHtml(html: string): string {
   sanitized = sanitized.replace(closingTagPattern, (_, tagName) => {
     return allowedTags.includes(tagName.toLowerCase()) ? `</${tagName}>` : '';
   });
+  
+  // Final cleanup of any remaining email artifacts
+  sanitized = sanitized.replace(/--\s*$/gm, '');
   
   return sanitized;
 }
@@ -734,6 +818,31 @@ export const handler: Handler = async (event) => {
       htmlContentIsNull: htmlContent === null,
       htmlContentIsEmpty: htmlContent === ''
     });
+
+    // Add final validation to make sure we don't store invalid HTML
+    if (htmlContent) {
+      // Check if the content looks like a multipart boundary or contains only non-HTML content
+      if (htmlContent.startsWith('--') || 
+          htmlContent.startsWith('Content-Type:') || 
+          !htmlContent.includes('<')) {
+        console.log('HTML content appears to be invalid or contain boundary data:', htmlContent.substring(0, 100));
+        // Fallback to simple text-to-HTML conversion
+        htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>')}</div>`;
+        console.log('Replaced with fallback HTML content');
+      }
+      
+      // Final cleanup for any content beyond a certain length (likely not legitimate HTML)
+      if (htmlContent.length > 100000) {
+        console.log('HTML content is suspiciously large, truncating:', htmlContent.length);
+        htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>')}</div>`;
+      }
+    }
 
     const { error: insertError } = await supabase
       .from('feedback_replies')
