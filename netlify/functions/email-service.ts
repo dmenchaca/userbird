@@ -261,4 +261,21 @@ ${feedback.message}
       }
     });
   }
-} 
+}
+
+// Add a handler to make this function respond to direct HTTP requests
+export const handler = async (event) => {
+  console.log('Email service function directly invoked', {
+    method: event.httpMethod,
+    path: event.path,
+    queryParams: event.queryStringParameters
+  });
+  
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ 
+      message: 'Email service is running',
+      timestamp: new Date().toISOString()
+    })
+  };
+}; 
