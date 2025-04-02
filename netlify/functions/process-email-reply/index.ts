@@ -161,7 +161,7 @@ function sanitizeHtml(html: string): string {
   // Clean all attributes except for allowed ones on specific elements
   const attrPattern = /<([a-z0-9]+)([^>]*?)>/gi;
   
-  sanitized = sanitized.replace(attrPattern, (match, tagName, attributes) => {
+  sanitized = sanitized.replace(attrPattern, (_, tagName, attributes) => {
     if (!allowedTags.includes(tagName.toLowerCase())) {
       // For non-allowed tags, just remove them completely
       return '';
@@ -191,8 +191,8 @@ function sanitizeHtml(html: string): string {
   
   // Clean closing tags - remove any that aren't in our allowlist
   const closingTagPattern = /<\/([a-z0-9]+)>/gi;
-  sanitized = sanitized.replace(closingTagPattern, (match, tagName) => {
-    return allowedTags.includes(tagName.toLowerCase()) ? match : '';
+  sanitized = sanitized.replace(closingTagPattern, (_, tagName) => {
+    return allowedTags.includes(tagName.toLowerCase()) ? `</${tagName}>` : '';
   });
   
   return sanitized;
