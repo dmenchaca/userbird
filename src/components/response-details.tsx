@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Send, Paperclip, Loader, ChevronsDown, ChevronsUp } from 'lucide-react'
+import { X, Send, Paperclip, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
@@ -21,7 +21,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   const [replyContent, setReplyContent] = useState('')
   const [replies, setReplies] = useState<FeedbackReply[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [expandedQuotes, setExpandedQuotes] = useState<Record<string, boolean>>({})
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (response) {
@@ -245,27 +245,23 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
 
   // Toggle the expanded state for a reply's quoted content
   const toggleQuotedContent = (replyId: string) => {
-    setExpandedQuotes(prev => ({
-      ...prev,
-      [replyId]: !prev[replyId]
-    }))
-  }
-
-  // Check if the HTML content contains quoted content
-  const hasQuotedContent = (html: string | undefined): boolean => {
-    if (!html) return false
-    return html.includes('gmail_quote') || 
-           html.includes('<blockquote') || 
-           html.includes('On') && html.includes('wrote:') ||
-           html.includes('thread::')
+    setExpandedReplies(prev => {
+      const newExpandedReplies = new Set(prev);
+      if (newExpandedReplies.has(replyId)) {
+        newExpandedReplies.delete(replyId);
+      } else {
+        newExpandedReplies.add(replyId);
+      }
+      return newExpandedReplies;
+    });
   }
 
   // Process HTML content to separate main content from quoted content
-  const processHtmlContent = (html: string | undefined, replyId: string): { 
-    mainContent: string, 
-    dateLine: string | null,
-    quotedContent: string | null 
-  } => {
+  function processHtmlContent(html: string | undefined): {
+    mainContent: string;
+    dateLine: string | null;
+    quotedContent: string | null;
+  } {
     if (!html) return { mainContent: '', dateLine: null, quotedContent: null }
     
     // Look for common quoted content markers
@@ -352,8 +348,8 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
               
               <div className="space-y-3">
                 {replies.map((reply) => {
-                  const { mainContent, dateLine, quotedContent } = processHtmlContent(reply.html_content, reply.id);
-                  const isExpanded = expandedQuotes[reply.id] || false;
+                  const { mainContent, dateLine, quotedContent } = processHtmlContent(reply.html_content);
+                  const isExpanded = expandedReplies.has(reply.id)
                   
                   return (
                     <div
