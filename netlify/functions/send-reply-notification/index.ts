@@ -16,26 +16,28 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Processes markdown-like syntax to HTML
-function processMarkdownSyntax(content: string): string {
+// Convert plain text to HTML (for fallback when no HTML content is provided)
+function plainTextToHtml(content: string): string {
   if (!content) return '';
   
-  // Process bold text (**bold**)
-  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  
-  // Process italic text (*italic*)
-  content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  
+  // Escape HTML special characters
+  let html = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+    
   // Process line breaks
-  content = content.replace(/\n/g, '<br>');
+  html = html.replace(/\n/g, '<br>');
   
   // Process URLs
-  content = content.replace(
+  html = html.replace(
     /(https?:\/\/[^\s]+)/g, 
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
   );
   
-  return content;
+  return html;
 }
 
 export const handler: Handler = async (event) => {
@@ -97,10 +99,10 @@ export const handler: Handler = async (event) => {
       }
     }
     
-    // If still no HTML content, process the plain text
+    // If still no HTML content, convert the plain text to simple HTML
     if (!processedHtmlContent) {
-      console.log('No HTML content found, processing plain text');
-      processedHtmlContent = processMarkdownSyntax(replyContent);
+      console.log('No HTML content found, converting plain text to HTML');
+      processedHtmlContent = plainTextToHtml(replyContent);
     }
 
     // Check if this is the first reply and find the last message ID for threading

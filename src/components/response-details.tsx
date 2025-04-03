@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { X, Send, Paperclip, ChevronsDown, ChevronsUp } from 'lucide-react'
+import { X, Send, Paperclip, FoldVertical, UnfoldVertical } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
-import { Textarea } from './ui/textarea'
-import { textToHtml } from '@/lib/utils/html-sanitizer'
+import { TiptapEditor } from './tiptap-editor'
 
 // Remove the inline sanitizer function since we now use the utility
 interface ResponseDetailsProps {
@@ -115,15 +114,20 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     
     setIsSubmitting(true)
     try {
-      // Create HTML version of reply content using our new utility
-      const htmlContent = textToHtml(replyContent);
+      // Rich text content is already in HTML format
+      const htmlContent = replyContent;
+      
+      // Extract plain text from HTML for the content field
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = replyContent;
+      const plainTextContent = tempDiv.textContent || tempDiv.innerText || '';
       
       const { data, error } = await supabase
         .from('feedback_replies')
         .insert([{
           feedback_id: response.id,
           sender_type: 'admin',
-          content: replyContent.trim(),
+          content: plainTextContent.trim(),
           html_content: htmlContent
         }])
         .select()
@@ -138,7 +142,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
           },
           body: JSON.stringify({
             feedbackId: response.id,
-            replyContent: replyContent.trim(),
+            replyContent: plainTextContent.trim(),
             replyId: data?.[0]?.id,
             htmlContent: htmlContent
           }),
@@ -167,79 +171,12 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     document.body.removeChild(link)
   }
 
-  // Allow simple keyboard formatting: Ctrl+B for bold, Ctrl+I for italic
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  // Handle key events for Ctrl+Enter
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     // Send on Ctrl+Enter or Command+Enter
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault()
       handleSendReply()
-      return
-    }
-    
-    // Bold: Ctrl+B / Command+B
-    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-      e.preventDefault()
-      const textarea = e.currentTarget
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const text = textarea.value
-      
-      // If text is selected, wrap it in **bold**
-      if (start !== end) {
-        const beforeText = text.substring(0, start)
-        const selectedText = text.substring(start, end)
-        const afterText = text.substring(end)
-        
-        setReplyContent(`${beforeText}**${selectedText}**${afterText}`)
-        
-        // Set cursor position after the bold text (after the closing **)
-        setTimeout(() => {
-          textarea.selectionStart = end + 4
-          textarea.selectionEnd = end + 4
-        }, 0)
-      } else {
-        // If no text is selected, insert **** and place cursor in the middle
-        const newText = `${text.substring(0, start)}****${text.substring(end)}`
-        setReplyContent(newText)
-        
-        setTimeout(() => {
-          textarea.selectionStart = start + 2
-          textarea.selectionEnd = start + 2
-        }, 0)
-      }
-    }
-    
-    // Italic: Ctrl+I / Command+I
-    if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-      e.preventDefault()
-      const textarea = e.currentTarget
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const text = textarea.value
-      
-      // If text is selected, wrap it in *italic*
-      if (start !== end) {
-        const beforeText = text.substring(0, start)
-        const selectedText = text.substring(start, end)
-        const afterText = text.substring(end)
-        
-        setReplyContent(`${beforeText}*${selectedText}*${afterText}`)
-        
-        // Set cursor position after the italic text (after the closing *)
-        setTimeout(() => {
-          textarea.selectionStart = end + 2
-          textarea.selectionEnd = end + 2
-        }, 0)
-      } else {
-        // If no text is selected, insert ** and place cursor in the middle
-        const newText = `${text.substring(0, start)}**${text.substring(end)}`
-        setReplyContent(newText)
-        
-        setTimeout(() => {
-          textarea.selectionStart = start + 1
-          textarea.selectionEnd = start + 1
-        }, 0)
-      }
     }
   }
 
@@ -456,18 +393,13 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                               {/* Show/Hide quoted content button FIRST */}
                               <button
                                 onClick={() => toggleQuotedContent(reply.id)}
-                                className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 p-1 border border-gray-200 rounded"
+                                className="flex items-center justify-center text-xs text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors mt-1 p-1 border border-gray-200 rounded w-7 h-7"
+                                title={isExpanded ? "Hide quoted content" : "Show quoted content"}
                               >
                                 {isExpanded ? (
-                                  <>
-                                    <ChevronsUp size={14} className="mr-1" />
-                                    Hide quoted content
-                                  </>
+                                  <FoldVertical size={14} />
                                 ) : (
-                                  <>
-                                    <ChevronsDown size={14} className="mr-1" />
-                                    Show quoted content
-                                  </>
+                                  <UnfoldVertical size={14} />
                                 )}
                               </button>
                               
@@ -607,18 +539,13 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
               <span>
                 Reply to <strong>{response.user_email}</strong>
               </span>
-              <span className="ml-2 text-xs text-muted-foreground">
-                (Ctrl+B for bold, Ctrl+I for italic)
-              </span>
             </div>
             <div className="relative">
-              <Textarea
+              <TiptapEditor
                 value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
+                onChange={setReplyContent}
                 onKeyDown={handleKeyDown}
-                rows={3}
                 placeholder="Type your reply..."
-                className="resize-none text-sm"
               />
               <Button
                 size="sm" 
