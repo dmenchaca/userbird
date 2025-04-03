@@ -603,6 +603,36 @@ function replaceCidWithUrls(
     }
   );
   
+  // Handle [Image] placeholders in Gmail's processed HTML
+  if (result.includes('[Image]')) {
+    console.log('Found [Image] placeholders in content');
+    
+    // Check if we have any images to use
+    const imageUrls = Object.values(cidToUrlMap);
+    if (imageUrls.length > 0) {
+      // Replace [Image] placeholders with actual images
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
+        
+        // Extract filename for alt text
+        let altText = 'Email attachment';
+        const filenameMatch = imageUrl.match(/\/([^\/]+)$/);
+        if (filenameMatch && filenameMatch[1]) {
+          altText = decodeURIComponent(filenameMatch[1].split('_').pop() || 'Email attachment');
+        }
+        
+        // Replace the first occurrence of [Image] with this image
+        const placeholder = i === 0 ? '[Image]' : '[Image attachment]';
+        if (result.includes(placeholder)) {
+          result = result.replace(
+            placeholder,
+            `<img src="${imageUrl}" alt="${altText}" style="max-width: 100%;">`
+          );
+        }
+      }
+    }
+  }
+  
   // Next, handle Gmail's [image: filename.png] format
   // Get all the content IDs that we have URLs for
   const allContentIds = Object.keys(cidToUrlMap);
@@ -638,12 +668,6 @@ function replaceCidWithUrls(
       const plainTextCidPattern = new RegExp(`\\[cid:${cid}\\]`, 'gi');
       result = result.replace(plainTextCidPattern, (match) => {
         console.log(`Found plaintext CID reference: ${match}, replacing with <img> tag`);
-        return `<img src="${cidToUrlMap[cid]}" alt="Email attachment" style="max-width: 100%;">`;
-      });
-      
-      // Also replace [Image attachment] text with actual image
-      result = result.replace(/\[Image attachment\]/gi, (match) => {
-        console.log('Replacing [Image attachment] with <img> tag');
         return `<img src="${cidToUrlMap[cid]}" alt="Email attachment" style="max-width: 100%;">`;
       });
     }
@@ -720,6 +744,7 @@ function replaceCidWithUrls(
     }
   }
   
+  console.log('Content after CID replacement (preview):', result.substring(0, 200));
   return result;
 }
 
@@ -751,46 +776,87 @@ async function extractEmailContent(
     console.log('Email contains attachments');
   }
   
+  // For Gmail emails, the HTML content is often inside the text field in multipart/related format
+  const isGmailEmail = 
+    (emailData.headers && Object.keys(emailData.headers).some(key => key.toLowerCase().includes('google'))) ||
+    (emailData.text && emailData.text.includes('gmail_quote')) ||
+    (emailData.from && typeof emailData.from === 'string' && emailData.from.includes('gmail'));
+  
+  if (isGmailEmail) {
+    console.log('Detected Gmail email format');
+  }
+  
   // For SendGrid's inbound parse webhook, it places the entire email in the 'email' field
   // which we map to 'text' - need to extract HTML from this
-  if (emailData.text && !emailData.html) {
-    // First, try to extract HTML directly if the text field contains HTML content
-    // This handles Gmail and many other email clients that send HTML content
+  if (emailData.text) {
+    // First check for multipart content with images
+    if (emailData.text.includes('Content-Type: multipart/related') || 
+        emailData.text.includes('Content-Type: multipart/alternative')) {
+      console.log('Found multipart content in email text');
+      
+      // Try to extract HTML content from the multipart structure
+      const htmlFromMultipart = extractHtmlContent(emailData.text);
+      if (htmlFromMultipart) {
+        console.log('Successfully extracted HTML from multipart content');
+        htmlContent = htmlFromMultipart;
+      }
+    }
     
-    // Look for complete HTML document
-    const fullHtmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
-    if (fullHtmlMatch && fullHtmlMatch[0]) {
-      htmlContent = fullHtmlMatch[0];
-      console.log('Found complete HTML document in email text');
-    } else {
-      // Look for HTML body content
-      const bodyContentMatch = emailData.text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      if (bodyContentMatch && bodyContentMatch[1]) {
-        htmlContent = bodyContentMatch[1];
-        console.log('Found HTML body content in email text');
+    // If we don't have HTML content yet, look for HTML in the text field
+    if (!htmlContent) {
+      // Look for complete HTML document
+      const fullHtmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
+      if (fullHtmlMatch && fullHtmlMatch[0]) {
+        htmlContent = fullHtmlMatch[0];
+        console.log('Found complete HTML document in email text');
       } else {
-        // Look for div-wrapped content which is common in email clients
-        const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
-        if (divMatch && divMatch[0]) {
-          htmlContent = divMatch[0];
-          console.log('Found div-wrapped HTML content in email text');
+        // Look for HTML body content
+        const bodyContentMatch = emailData.text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        if (bodyContentMatch && bodyContentMatch[1]) {
+          htmlContent = bodyContentMatch[1];
+          console.log('Found HTML body content in email text');
+        } else {
+          // Look for div-wrapped content which is common in email clients
+          const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
+          if (divMatch && divMatch[0]) {
+            htmlContent = divMatch[0];
+            console.log('Found div-wrapped HTML content in email text');
+          }
         }
       }
     }
     
-    // Always keep the raw text as a fallback
-    textContent = emailData.text;
-  } else {
-    // Standard email format with separate html and text parts
-    if (emailData.html) {
-      htmlContent = emailData.html;
-      console.log('Found HTML content in email');
+    // Check specifically for Gmail's processed HTML format
+    if (!htmlContent && isGmailEmail && emailData.text.includes('[Image]')) {
+      console.log('Found Gmail-specific processed HTML with [Image] placeholders');
+      // Gmail sends HTML with [Image] placeholders
+      textContent = emailData.text;
+      
+      // Treat this as HTML
+      const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
+      if (gmailTextWithDivs && gmailTextWithDivs[0]) {
+        htmlContent = gmailTextWithDivs[0];
+        console.log('Extracted Gmail HTML content with image placeholders');
+      } else {
+        // Convert plain text with [Image] tags to basic HTML
+        htmlContent = emailData.text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>')
+          .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
+        console.log('Converted Gmail text with [Image] placeholders to HTML');
+      }
     }
     
-    if (emailData.text) {
-      textContent = emailData.text;
-      console.log('Found text content in email');
-    }
+    // Always keep the raw text as a fallback
+    textContent = textContent || emailData.text;
+  }
+  
+  // Standard email format with separate html and text parts
+  if (emailData.html && !htmlContent) {
+    htmlContent = emailData.html;
+    console.log('Found HTML content in email.html field');
   }
   
   // If we still don't have HTML content but have text, check for markdown-like formatting
@@ -812,21 +878,17 @@ async function extractEmailContent(
   
   // Process any embedded images in multipart emails
   // This is common with SendGrid's inbound parse webhook
-  if (textContent && (hasAttachments || textContent.includes('Content-Type: multipart/'))) {
+  if (textContent && (hasAttachments || 
+      textContent.includes('Content-Type: multipart/') || 
+      textContent.includes('Content-ID:') || 
+      isGmailEmail)) {
     console.log('Processing potential embedded content and images');
     try {
-      // Look for HTML content in multipart sections
-      if (!htmlContent) {
-        htmlContent = extractHtmlContent(textContent);
-        if (htmlContent) {
-          console.log('Extracted HTML content from multipart email');
-        }
-      }
-      
       // Process attachments if there are any indicators of them
       if (textContent.includes('Content-ID:') || 
           textContent.includes('Content-Disposition: attachment') || 
-          textContent.includes('Content-Disposition: inline')) {
+          textContent.includes('Content-Disposition: inline') ||
+          textContent.includes('Content-Type: image/')) {
         
         // Process the attachments - pass feedbackId instead of replyId
         const result = await parseAttachments(textContent, feedbackId);
