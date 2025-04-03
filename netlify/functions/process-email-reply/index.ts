@@ -740,93 +740,125 @@ async function extractEmailContent(
     console.log('Email contains attachments');
   }
   
-  // First, try to extract HTML content which should be preferred
-  if (emailData.html) {
-    htmlContent = emailData.html;
-    console.log('Found HTML content in email');
-  }
-  
-  // Next, extract text content as fallback
-  if (emailData.text) {
-    textContent = emailData.text;
-    console.log('Found text content in email');
-  }
-  
-  // For Gmail-formatted emails with attachments, we need to check for multiple content parts
-  if (emailData.text && hasAttachments) {
-    // Look for HTML content in the raw email text
-    const htmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
-    if (htmlMatch && htmlMatch[0]) {
-      // Found embedded HTML in the text content - this is common with Gmail
-      console.log('Found embedded HTML content in text portion');
-      htmlContent = htmlMatch[0];
+  // For SendGrid's inbound parse webhook, it places the entire email in the 'email' field
+  // which we map to 'text' - need to extract HTML from this
+  if (emailData.text && !emailData.html) {
+    // First, try to extract HTML directly if the text field contains HTML content
+    // This handles Gmail and many other email clients that send HTML content
+    
+    // Look for complete HTML document
+    const fullHtmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
+    if (fullHtmlMatch && fullHtmlMatch[0]) {
+      htmlContent = fullHtmlMatch[0];
+      console.log('Found complete HTML document in email text');
+    } else {
+      // Look for HTML body content
+      const bodyContentMatch = emailData.text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyContentMatch && bodyContentMatch[1]) {
+        htmlContent = bodyContentMatch[1];
+        console.log('Found HTML body content in email text');
+      } else {
+        // Look for div-wrapped content which is common in email clients
+        const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
+        if (divMatch && divMatch[0]) {
+          htmlContent = divMatch[0];
+          console.log('Found div-wrapped HTML content in email text');
+        }
+      }
     }
     
-    // Also check for div-wrapped content which might be HTML without full html tags
-    const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
-    if (!htmlContent && divMatch && divMatch[0]) {
-      console.log('Found div-wrapped content, treating as HTML');
-      htmlContent = divMatch[0];
+    // Always keep the raw text as a fallback
+    textContent = emailData.text;
+  } else {
+    // Standard email format with separate html and text parts
+    if (emailData.html) {
+      htmlContent = emailData.html;
+      console.log('Found HTML content in email');
+    }
+    
+    if (emailData.text) {
+      textContent = emailData.text;
+      console.log('Found text content in email');
     }
   }
   
   // If we still don't have HTML content but have text, check for markdown-like formatting
-  // which suggests the text is actually the formatted version
+  // which suggests the text might actually contain HTML elements
   if (!htmlContent && textContent) {
-    // Check for markdown-like characters that suggest this might be the formatted version
-    const hasMarkdownFormatting = /[*_~][\w\s]+[*_~]/.test(textContent) || 
-                                 /<img[^>]+>/.test(textContent) ||
-                                 /<div[^>]*>/.test(textContent);
+    // Check for HTML tags or markdown-like characters
+    const hasHtmlOrMarkdown = /<[a-z][^>]*>/i.test(textContent) || 
+                             /[*_~][\w\s]+[*_~]/.test(textContent) ||
+                             textContent.includes('<div') ||
+                             textContent.includes('<img') ||
+                             textContent.includes('<p') ||
+                             textContent.includes('<br');
     
-    if (hasMarkdownFormatting) {
-      console.log('Text content contains markdown or HTML markers, treating as HTML');
+    if (hasHtmlOrMarkdown) {
+      console.log('Text content contains HTML or markdown markers, treating as HTML');
       htmlContent = textContent;
-      // In this case, we don't need the same content in both places
-      textContent = null;
     }
   }
   
-  // Process attachments if there are any
-  if (hasAttachments) {
-    console.log('Processing attachments for content');
+  // Process any embedded images in multipart emails
+  // This is common with SendGrid's inbound parse webhook
+  if (textContent && (hasAttachments || textContent.includes('Content-Type: multipart/'))) {
+    console.log('Processing potential embedded content and images');
     try {
-      // First process the attachments
-      const { cidToUrlMap } = await parseAttachments(emailData.text, feedbackId);
-      console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
-      
-      // Get any parsed attachments
-      let parsedAttachments: EmailAttachment[] = [];
-      try {
-        if (emailData.attachments) {
-          parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
+      // Look for HTML content in multipart sections
+      if (!htmlContent) {
+        htmlContent = extractHtmlContent(textContent);
+        if (htmlContent) {
+          console.log('Extracted HTML content from multipart email');
         }
-      } catch (error) {
-        console.log('Error getting attachments:', error);
       }
       
-      // If we have HTML content and CID mappings, replace them
-      if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
-        console.log('Replacing CID references in HTML content');
-        htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
-      }
-      
-      // If we only have text content but we have attachments, convert to HTML
-      if (!htmlContent && textContent && Object.keys(cidToUrlMap).length > 0) {
-        console.log('Converting text content to HTML for attachment display');
-        // Convert text to basic HTML
-        const basicHtml = textContent
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>');
+      // Process attachments if there are any indicators of them
+      if (textContent.includes('Content-ID:') || 
+          textContent.includes('Content-Disposition: attachment') || 
+          textContent.includes('Content-Disposition: inline')) {
         
-        // Replace CIDs and add attachments
-        htmlContent = replaceCidWithUrls(basicHtml, cidToUrlMap, parsedAttachments, true);
+        // Process the attachments
+        const { cidToUrlMap } = await parseAttachments(textContent, feedbackId);
+        console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+        
+        // Get any parsed attachments
+        let parsedAttachments: EmailAttachment[] = [];
+        try {
+          if (emailData.attachments) {
+            parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
+          }
+        } catch (error) {
+          console.log('Error getting attachments:', error);
+        }
+        
+        // Replace CID references in HTML content
+        if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
+          console.log('Replacing CID references in HTML content');
+          htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
+        }
+        
+        // If we don't have HTML but have text and CID mappings, convert text to HTML
+        if (!htmlContent && textContent && Object.keys(cidToUrlMap).length > 0) {
+          console.log('Converting text content to HTML for attachment display');
+          const basicHtml = textContent
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+          
+          htmlContent = replaceCidWithUrls(basicHtml, cidToUrlMap, parsedAttachments, true);
+        }
       }
     } catch (error) {
-      console.error('Error processing attachments:', error);
+      console.error('Error processing embedded content:', error);
       // Continue with content as-is
     }
+  }
+  
+  // Final cleanup - make sure HTML content doesn't have raw email artifacts
+  if (htmlContent) {
+    // Remove any boundary markers or headers that leaked into the content
+    htmlContent = sanitizeHtml(htmlContent);
   }
   
   console.log(`Content extraction complete: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
@@ -987,9 +1019,6 @@ async function storeReply(
     // Extract content from the email - this is now async
     const { htmlContent, textContent, hasAttachments } = await extractEmailContent(emailData, feedbackId);
     
-    // Always prioritize HTML content
-    const finalContent = htmlContent || textContent || '';
-    
     // Extract sender information
     let senderEmail = '';
     let senderName = '';
@@ -1022,7 +1051,11 @@ async function storeReply(
     // Generate a UUID for the reply
     const replyId = crypto.randomUUID();
     
-    // Insert the reply with HTML content prioritized
+    // Always prioritize HTML content
+    const finalContent = textContent || '';
+    const htmlContentForDb = htmlContent || '';
+    
+    // Insert the reply using the existing schema structure (content and html_content)
     const { data: reply, error } = await supabase
       .from('feedback_replies')
       .insert({
@@ -1031,7 +1064,7 @@ async function storeReply(
         sender_name: senderName,
         sender_email: senderEmail,
         content: finalContent,
-        content_type: htmlContent ? 'html' : 'text',
+        html_content: htmlContentForDb, // Use html_content field instead of content_type
         message_id: messageId,
         in_reply_to: inReplyTo,
         created_at: new Date().toISOString()
@@ -1086,18 +1119,7 @@ export const handler: Handler = async (event) => {
     const { error } = await supabase.from('feedback_attachments').select('id').limit(1);
     if (error && error.code === '42P01') { // Table does not exist
       feedbackAttachmentsTableExists = false;
-      console.log('The feedback_attachments table does not exist. Please create it manually in the Supabase dashboard with these columns:');
-      console.log('- id: UUID PRIMARY KEY');
-      console.log('- reply_id: UUID REFERENCES feedback_replies(id)');
-      console.log('- filename: TEXT NOT NULL');
-      console.log('- content_id: TEXT');
-      console.log('- content_type: TEXT NOT NULL');
-      console.log('- url: TEXT NOT NULL');
-      console.log('- is_inline: BOOLEAN DEFAULT FALSE');
-      console.log('- created_at: TIMESTAMPTZ DEFAULT TIMEZONE(\'utc\', NOW())');
-      
-      // Store data about attachments in memory for this function execution
-      console.log('Creating in-memory storage for attachments for this request');
+      console.log('The feedback_attachments table does not exist. Please create it manually in the Supabase dashboard if needed');
     }
   } catch (e) {
     feedbackAttachmentsTableExists = false;
@@ -1133,24 +1155,29 @@ export const handler: Handler = async (event) => {
       const boundary = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2]) : '';
       
       if (boundary && event.body) {
-        // Convert body to buffer if it's a string
-        const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
-        const parts = multipart.parse(bodyBuffer, boundary);
-        
-        // Process parts into emailData
-        for (const part of parts) {
-          const fieldName = part.name || '';
-          const value = part.data.toString();
-          emailData[fieldName] = value;
-        }
-        
-        console.log('Parsed form data fields:', Object.keys(emailData));
-        
-        // Map SendGrid fields to expected fields if needed
-        // SendGrid puts the email content in the 'email' field
-        if (emailData.email && !emailData.text) {
-          console.log('Mapping SendGrid email field to text field');
-          emailData.text = emailData.email;
+        try {
+          // Convert body to buffer if it's a string
+          const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+          const parts = multipart.parse(bodyBuffer, boundary);
+          
+          // Process parts into emailData
+          for (const part of parts) {
+            const fieldName = part.name || '';
+            const value = part.data.toString();
+            emailData[fieldName] = value;
+          }
+          
+          console.log('Parsed form data fields:', Object.keys(emailData));
+          
+          // Map SendGrid fields to expected fields if needed
+          // SendGrid puts the email content in the 'email' field
+          if (emailData.email && !emailData.text) {
+            console.log('Mapping SendGrid email field to text field');
+            emailData.text = emailData.email;
+          }
+        } catch (parseError) {
+          console.error('Error parsing multipart data:', parseError);
+          // Continue with partial data
         }
       } else {
         console.log('Missing boundary or body in multipart data');
@@ -1184,6 +1211,16 @@ export const handler: Handler = async (event) => {
       }
     }
     
+    // Create headers object if not present
+    if (!emailData.headers) {
+      emailData.headers = {};
+      
+      // Copy headers from the event
+      for (const key in event.headers) {
+        emailData.headers[key] = event.headers[key];
+      }
+    }
+    
     console.log('Parsed email data:', {
       from: emailData.from,
       to: emailData.to,
@@ -1194,6 +1231,11 @@ export const handler: Handler = async (event) => {
       headers: emailData.headers ? Object.keys(emailData.headers) : 'No headers'
     });
     
+    // Preview the email text
+    if (emailData.text) {
+      console.log('Email text preview:', emailData.text.substring(0, 200) + '...');
+    }
+    
     // Extract feedback ID from the email - this is an async operation
     const feedbackId = await extractFeedbackId(emailData);
     
@@ -1203,6 +1245,23 @@ export const handler: Handler = async (event) => {
     }
     
     console.log('Extracted feedback_id:', feedbackId);
+    
+    // Verify feedback ID exists in the database
+    const { data: feedbackExists, error: feedbackError } = await supabase
+      .from('feedback')
+      .select('id')
+      .eq('id', feedbackId)
+      .maybeSingle();
+    
+    if (feedbackError) {
+      console.error('Error checking if feedback exists:', feedbackError);
+    } else if (!feedbackExists) {
+      console.error(`No feedback found with ID: ${feedbackId}`);
+      return { 
+        statusCode: 404, 
+        body: JSON.stringify({ error: 'Feedback ID not found' }) 
+      };
+    }
     
     // Extract Message-ID and In-Reply-To headers for threading
     let messageId = '';
@@ -1226,22 +1285,33 @@ export const handler: Handler = async (event) => {
     });
     
     // Store the reply using our consolidated function
-    const replyId = await storeReply(
-      emailData, 
-      feedbackId, 
-      messageId || `reply-${crypto.randomUUID()}`, // Provide a fallback value
-      inReplyTo || null // Ensure it's string | null
-    );
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        success: true,
-        replyId,
-        messageId,
-        inReplyTo
-      })
-    };
+    try {
+      const replyId = await storeReply(
+        emailData, 
+        feedbackId, 
+        messageId || `reply-${crypto.randomUUID()}`, // Provide a fallback value
+        inReplyTo || null // Ensure it's string | null
+      );
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+          success: true,
+          replyId,
+          messageId,
+          inReplyTo
+        })
+      };
+    } catch (storeError) {
+      console.error('Error storing reply:', storeError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ 
+          error: 'Error storing reply',
+          message: storeError instanceof Error ? storeError.message : 'Unknown error' 
+        })
+      };
+    }
   } catch (error) {
     console.error('Error processing email reply:', {
       error: error instanceof Error ? error.message : 'Unknown error',
