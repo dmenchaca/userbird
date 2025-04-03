@@ -21,6 +21,7 @@ interface EmailAttachment {
   contentId?: string;
   data: Buffer;
   isInline: boolean;
+  url?: string; // Add URL property for public access
 }
 
 // Function to decode quoted-printable content (like =3D for =)
@@ -310,9 +311,12 @@ function sanitizeHtml(html: string): string {
     }
     
     if (tagName.toLowerCase() === 'img') {
-      // Extract src, alt, and width/height if they exist
+      // Extract src, alt, style, width/height if they exist
       const srcMatch = attributes.match(/src\s*=\s*['"]([^'"]*)['"]/i);
       const altMatch = attributes.match(/alt\s*=\s*['"]([^'"]*)['"]/i);
+      const styleMatch = attributes.match(/style\s*=\s*['"]([^'"]*)['"]/i);
+      const widthMatch = attributes.match(/width\s*=\s*['"]([^'"]*)['"]/i);
+      const heightMatch = attributes.match(/height\s*=\s*['"]([^'"]*)['"]/i);
       
       // Skip "cid:" references which are embedded images that we haven't processed
       if (srcMatch && srcMatch[1].startsWith('cid:')) {
@@ -326,9 +330,32 @@ function sanitizeHtml(html: string): string {
       
       const alt = altMatch ? ` alt="${altMatch[1]}"` : ' alt="Email attachment"';
       
+      // Preserve styles, focusing only on max-width and other safe properties
+      let style = ' style="max-width: 100%;"';
+      if (styleMatch) {
+        const safeStyle = styleMatch[1]
+          .replace(/expression\s*\(/gi, '') // Remove JS expressions
+          .replace(/url\s*\(/gi, '') // Remove url() references
+          .replace(/position\s*:/gi, '') // Remove positioning
+          .replace(/z-index\s*:/gi, '') // Remove z-index
+          .trim();
+        
+        // If after sanitizing we still have style content, use it
+        if (safeStyle && !safeStyle.includes('javascript:')) {
+          // Ensure max-width is included for responsive display
+          style = safeStyle.includes('max-width') 
+            ? ` style="${safeStyle}"` 
+            : ` style="${safeStyle}; max-width: 100%;"`;
+        }
+      }
+      
+      // Preserve dimensions if specified
+      const width = widthMatch ? ` width="${widthMatch[1]}"` : '';
+      const height = heightMatch ? ` height="${heightMatch[1]}"` : '';
+      
       // Only return an img tag if we have a valid src
       if (src) {
-        return `<img${src}${alt} style="max-width: 100%;">`;
+        return `<img${src}${alt}${style}${width}${height}>`;
       } else {
         return '[Image]';
       }
@@ -348,9 +375,9 @@ function sanitizeHtml(html: string): string {
   sanitized = sanitized.replace(/--\s*$/gm, '');
   
   // Restore Gmail image references
-  sanitized = sanitized.replace(/__GMAIL_IMAGE_(\d+)__/g, (_, index) => {
-    return gmailImageReferences[parseInt(index)] || '[Image]';
-  });
+  for (let i = 0; i < gmailImageReferences.length; i++) {
+    sanitized = sanitized.replace(`__GMAIL_IMAGE_${i}__`, gmailImageReferences[i]);
+  }
   
   return sanitized;
 }
@@ -541,12 +568,20 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
 }
 
 // Function to replace CID references in HTML with public URLs
-function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): string {
-  if (!html || Object.keys(cidToUrlMap).length === 0) return html;
+function replaceCidWithUrls(
+  content: string, 
+  cidToUrlMap: Record<string, string>, 
+  attachments: EmailAttachment[] = [], 
+  isHtml: boolean = true
+): string {
+  if (!content || (Object.keys(cidToUrlMap).length === 0 && attachments.length === 0)) return content;
   
   console.log('CID to URL mappings:', JSON.stringify(cidToUrlMap));
-  console.log('HTML content before CID replacement (preview):', html.substring(0, 200));
+  console.log('Content before CID replacement (preview):', content.substring(0, 200));
 
+  // Convert text to HTML if needed
+  let html = isHtml ? content : content.replace(/\n/g, '<br>');
+  
   // First, replace standard <img src="cid:xxx"> format
   let result = html.replace(
     /<img\s+[^>]*src=(?:"|'|3D")cid:([^"']+)(?:"|'|")[^>]*>/gi,
@@ -554,7 +589,7 @@ function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): 
       const publicUrl = cidToUrlMap[cid];
       if (publicUrl) {
         console.log(`Replacing cid:${cid} with ${publicUrl}`);
-        return match.replace(/src=(?:"|'|3D")cid:[^"']+(?:"|'|")/, `src="${publicUrl}"`);
+        return `<img src="${publicUrl}" alt="Email attachment" style="max-width: 100%;">`;
       }
       // If no matching URL found, replace with a placeholder
       return '[Image attachment]';
@@ -591,6 +626,90 @@ function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): 
         console.log(`Found matching image reference: ${match}, replacing with <img> tag`);
         return `<img src="${cidToUrlMap[cid]}" alt="${capturedFilename || 'Email attachment'}" style="max-width: 100%;">`;
       });
+      
+      // Also look for plaintext image attachments like [cid:image001.png@01D9C77F.C0D1A240]
+      const plainTextCidPattern = new RegExp(`\\[cid:${cid}\\]`, 'gi');
+      result = result.replace(plainTextCidPattern, (match) => {
+        console.log(`Found plaintext CID reference: ${match}, replacing with <img> tag`);
+        return `<img src="${cidToUrlMap[cid]}" alt="Email attachment" style="max-width: 100%;">`;
+      });
+      
+      // Also replace [Image attachment] text with actual image
+      result = result.replace(/\[Image attachment\]/gi, (match) => {
+        console.log('Replacing [Image attachment] with <img> tag');
+        return `<img src="${cidToUrlMap[cid]}" alt="Email attachment" style="max-width: 100%;">`;
+      });
+    }
+  }
+  
+  // Add all attachments that weren't explicitly referenced
+  const imgTagCount = (result.match(/<img[^>]+>/g) || []).length;
+  
+  // Handle the case where we have images but no corresponding image tags in the content
+  if (Object.keys(cidToUrlMap).length > 0 && imgTagCount === 0) {
+    console.log('No image tags found in content, appending all attachments');
+    
+    // If any content exists, add a separator
+    if (result.trim().length > 0) {
+      result += '<br><br>';
+    }
+    
+    // Append all images
+    for (const cid of Object.keys(cidToUrlMap)) {
+      const publicUrl = cidToUrlMap[cid];
+      
+      // Try to extract filename for alt text
+      let altText = 'Email attachment';
+      const filenameMatch = publicUrl.match(/\/([^\/]+)$/);
+      if (filenameMatch && filenameMatch[1]) {
+        altText = decodeURIComponent(filenameMatch[1].split('_').pop() || 'Email attachment');
+      }
+      
+      result += `<img src="${publicUrl}" alt="${altText}" style="max-width: 100%;"><br>`;
+    }
+  }
+  
+  // Add any remaining attachments that aren't inline images but should be shown
+  // We can directly use the url property now
+  const nonInlineAttachments = attachments.filter(
+    attachment => !attachment.isInline && attachment.url && 
+    !Object.values(cidToUrlMap).some(url => url === attachment.url)
+  );
+  
+  if (nonInlineAttachments.length > 0) {
+    console.log(`Adding ${nonInlineAttachments.length} non-inline attachments`);
+    
+    // If any content exists, add a separator
+    if (result.trim().length > 0) {
+      result += '<br><br><div class="attachments-section">';
+    }
+    
+    // Add each attachment
+    for (const attachment of nonInlineAttachments) {
+      // We can now safely use attachment.url directly
+      if (attachment.url) {
+        // For images, display them
+        if (attachment.contentType?.startsWith('image/')) {
+          result += `<div class="attachment">
+            <img src="${attachment.url}" alt="${attachment.filename}" style="max-width: 100%;">
+            <div class="attachment-name">${attachment.filename}</div>
+          </div>`;
+        } else {
+          // For other files, add a download link
+          result += `<div class="attachment">
+            <a href="${attachment.url}" target="_blank" download="${attachment.filename}">
+              ${attachment.filename}
+            </a>
+          </div>`;
+        }
+      } else {
+        // Fallback for attachments without URLs
+        result += `<div class="attachment">[Attachment: ${attachment.filename}]</div>`;
+      }
+    }
+    
+    if (result.trim().length > 0) {
+      result += '</div>';
     }
   }
   
@@ -1143,8 +1262,20 @@ export const handler: Handler = async (event) => {
       // Log initial HTML content for debugging
       console.log('HTML before replacement (preview):', htmlContent.substring(0, 200));
       
+      // Get any parsed attachments
+      let parsedAttachments: EmailAttachment[] = [];
+      try {
+        // Try to get parsed attachments from emailData or attachments in the request
+        if (emailData.attachments) {
+          parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
+        }
+      } catch (error) {
+        console.log('Error getting attachments:', error);
+        // Continue without attachments
+      }
+      
       // Update the HTML content with the replaced CID references
-      const updatedHtmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap);
+      const updatedHtmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
       
       // Log updated HTML content for debugging
       console.log('HTML after replacement (preview):', updatedHtmlContent.substring(0, 200));
