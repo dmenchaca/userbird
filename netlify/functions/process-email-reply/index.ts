@@ -366,9 +366,57 @@ function extractHtmlContent(emailText: string): string {
   return '';
 }
 
+/**
+ * Decodes HTML entities and fixes character encoding issues
+ * @param html The HTML content that may contain entities or encoding issues
+ * @returns Cleaned HTML with properly decoded entities
+ */
+function decodeHtmlEntities(html: string): string {
+  if (!html) return '';
+  
+  console.log('Decoding HTML entities and fixing character encoding issues');
+  
+  // Create a temporary div element for decoding entities (would work in browser, but we're in Node)
+  // So we'll use string replacement for common entities
+  
+  // First, deal with UTF-8 character encoding issues that appear as Â followed by a character
+  // This is a common issue with non-breaking spaces that get double-encoded
+  html = html.replace(/Â /g, ' ');  // Non-breaking space with visual Â
+  html = html.replace(/Â\u00A0/g, ' '); // Another variant of the same issue
+  
+  // Fix other common encoding issues with special characters
+  html = html.replace(/â\u0080\u0099/g, "'"); // Fancy single quote
+  html = html.replace(/â\u0080\u009C/g, '"'); // Fancy open double quote
+  html = html.replace(/â\u0080\u009D/g, '"'); // Fancy close double quote
+  html = html.replace(/â\u0080\u0093/g, '–'); // En dash
+  html = html.replace(/â\u0080\u0094/g, '—'); // Em dash
+  html = html.replace(/â\u0080¦/g, '...'); // Ellipsis
+  html = html.replace(/â\u0080¢/g, '•'); // Bullet
+  
+  // Convert HTML entities to their actual characters
+  html = html.replace(/&nbsp;/g, ' ');
+  html = html.replace(/&amp;/g, '&');
+  html = html.replace(/&lt;/g, '<');
+  html = html.replace(/&gt;/g, '>');
+  html = html.replace(/&quot;/g, '"');
+  html = html.replace(/&#039;/g, "'");
+  html = html.replace(/&#x27;/g, "'");
+  html = html.replace(/&#x2F;/g, '/');
+  
+  // Also handle numeric entities
+  html = html.replace(/&#(\d+);/g, (match, dec) => {
+    return String.fromCharCode(dec);
+  });
+  
+  return html;
+}
+
 // Create a local copy of the sanitize function since Netlify functions can't import from src folder
 function sanitizeHtml(html: string): string {
   if (!html) return '';
+  
+  // First, decode HTML entities to ensure we're working with proper characters
+  html = decodeHtmlEntities(html);
   
   // Check if we have a multipart email artifact rather than HTML
   if (html.includes('Content-Type:') && html.includes('boundary=')) {
@@ -890,7 +938,9 @@ function replaceCidWithUrls(
   }
   
   console.log('Content after CID replacement (preview):', result.substring(0, 200));
-  return result;
+  
+  // After all replacements are done, ensure content is properly decoded
+  return decodeHtmlEntities(result);
 }
 
 // Add a global flag for table existence
@@ -927,6 +977,11 @@ async function extractEmailContent(
     (emailData.text && emailData.text.includes('gmail_quote')) ||
     (emailData.from && typeof emailData.from === 'string' && emailData.from.includes('gmail'));
     
+  // Add special handling for Gmail emails right after detection
+  if (isGmailEmail) {
+    console.log('Detected Gmail email format, applying special character encoding fixes');
+  }
+  
   // Check for iPhone email pattern
   const isIPhoneEmail = 
     (emailData.headers && Object.keys(emailData.headers).some(key => 
@@ -1036,24 +1091,31 @@ async function extractEmailContent(
           // For Gmail, extract just the new content - ignore the quoted reply
           const newContent = extractNewContent(actualContent);
           
-          const formattedContent = `<div>${newContent}</div>`;
+          // Apply Gmail-specific character decoding
+          const decodedContent = decodeHtmlEntities(newContent);
+          
+          const formattedContent = `<div>${decodedContent}</div>`;
           htmlContent = formattedContent;
           foundHtml = true;
         } else {
           // Gmail processed HTML with [Image] tags - we'll handle this as HTML
           const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
           if (gmailTextWithDivs && gmailTextWithDivs[0]) {
-            htmlContent = gmailTextWithDivs[0];
+            // Apply Gmail-specific character decoding
+            htmlContent = decodeHtmlEntities(gmailTextWithDivs[0]);
             foundHtml = true;
             console.log('Extracted Gmail HTML content with image placeholders');
           } else {
             // Convert plain text with [Image] tags to basic HTML
-            htmlContent = emailData.text
+            const basicHtml = emailData.text
               .replace(/&/g, '&amp;')
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;')
               .replace(/\n/g, '<br>')
               .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
+              
+            // Apply Gmail-specific character decoding
+            htmlContent = decodeHtmlEntities(basicHtml);
             foundHtml = true;
             console.log('Converted Gmail text with [Image] placeholders to HTML');
           }
@@ -1495,7 +1557,10 @@ async function storeReply(
     // IMPORTANT: Use HTML content when available, and text content only as a fallback
     // This prevents duplicate content from appearing in the database
     const finalContent = htmlContent ? '' : (textContent || '');
-    const htmlContentForDb = htmlContent || '';
+    
+    // Make sure HTML content is properly decoded before storing
+    // This ensures that Â and other encoding artifacts are properly handled
+    const decodedHtmlContent = htmlContent ? decodeHtmlEntities(htmlContent) : '';
     
     // Check the database schema to see what fields are available
     const { data: tableInfo, error: schemaError } = await supabase
@@ -1512,7 +1577,7 @@ async function storeReply(
       id: replyId,
       feedback_id: feedbackId,
       content: finalContent,
-      html_content: htmlContentForDb,
+      html_content: decodedHtmlContent,
       message_id: messageId,
       in_reply_to: inReplyTo,
       created_at: new Date().toISOString()
