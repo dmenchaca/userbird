@@ -223,6 +223,14 @@ function sanitizeHtml(html: string): string {
   html = html.replace(/Content-Type: [^<>\n]+\n/gi, '');
   html = html.replace(/Content-Transfer-Encoding: [^<>\n]+\n/gi, '');
   
+  // Preserve Gmail's image format for later processing
+  // This will be handled by replaceCidWithUrls function
+  const gmailImageReferences: string[] = [];
+  html = html.replace(/\[image:?\s*(.*?)\]/gi, (match) => {
+    gmailImageReferences.push(match);
+    return `__GMAIL_IMAGE_${gmailImageReferences.length - 1}__`;
+  });
+  
   // List of allowed tags - keep this limited for security
   const allowedTags = [
     'a', 'p', 'br', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 
@@ -293,6 +301,11 @@ function sanitizeHtml(html: string): string {
   // Final cleanup of any remaining email artifacts
   sanitized = sanitized.replace(/--\s*$/gm, '');
   
+  // Restore Gmail image references
+  sanitized = sanitized.replace(/__GMAIL_IMAGE_(\d+)__/g, (_, index) => {
+    return gmailImageReferences[parseInt(index)] || '[Image]';
+  });
+  
   return sanitized;
 }
 
@@ -316,12 +329,19 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
   for (const part of parts) {
     // Check if this part is an image or attachment
     const contentTypeMatch = part.match(/Content-Type:\s*([^;\r\n]+)/i);
-    if (!contentTypeMatch) continue;
+    if (!contentTypeMatch) {
+      console.log('No Content-Type header found in this part, skipping');
+      continue;
+    }
     
     const contentType = contentTypeMatch[1].trim();
+    console.log(`Found part with Content-Type: ${contentType}`);
     
     // Skip text/plain and text/html parts, we're looking for attachments
-    if (contentType === 'text/plain' || contentType === 'text/html') continue;
+    if (contentType === 'text/plain' || contentType === 'text/html') {
+      console.log('Skipping text/plain or text/html part');
+      continue;
+    }
     
     // Parse content ID (for inline images)
     let contentId: string | undefined;
@@ -469,6 +489,8 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
     }
   }
   
+  console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+  
   return { attachments, cidToUrlMap };
 }
 
@@ -476,8 +498,11 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
 function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): string {
   if (!html || Object.keys(cidToUrlMap).length === 0) return html;
   
-  // Replace src="cid:xxx" and src=3D"cid:xxx" with public URLs
-  return html.replace(
+  console.log('CID to URL mappings:', JSON.stringify(cidToUrlMap));
+  console.log('HTML content before CID replacement (preview):', html.substring(0, 200));
+
+  // First, replace standard <img src="cid:xxx"> format
+  let result = html.replace(
     /<img\s+[^>]*src=(?:"|'|3D")cid:([^"']+)(?:"|'|")[^>]*>/gi,
     (match, cid) => {
       const publicUrl = cidToUrlMap[cid];
@@ -489,6 +514,41 @@ function replaceCidWithUrls(html: string, cidToUrlMap: Record<string, string>): 
       return '[Image attachment]';
     }
   );
+  
+  // Next, handle Gmail's [image: filename.png] format
+  // Get all the content IDs that we have URLs for
+  const allContentIds = Object.keys(cidToUrlMap);
+  
+  // For each content ID, try to find a corresponding image reference
+  for (const cid of allContentIds) {
+    // Extract the filename from Supabase URL or content ID
+    let filename = '';
+    
+    // Try to extract from URL
+    const filenameFromUrl = cidToUrlMap[cid].match(/\/([^\/]+)$/);
+    if (filenameFromUrl && filenameFromUrl[1]) {
+      filename = decodeURIComponent(filenameFromUrl[1].split('_').pop() || '');
+    }
+    
+    // If no filename from URL, try the content ID itself
+    if (!filename && cid) {
+      filename = cid;
+    }
+    
+    if (filename) {
+      console.log(`Looking for image reference to ${filename} to replace with ${cidToUrlMap[cid]}`);
+      
+      // Match [image: filename.png] pattern - use non-greedy match with .*? to avoid over-matching
+      const gmailImagePattern = new RegExp(`\\[image:?\\s*(.*?${filename.replace(/\./g, '\\.')}.*?)\\]`, 'gi');
+      
+      result = result.replace(gmailImagePattern, (match, capturedFilename) => {
+        console.log(`Found matching image reference: ${match}, replacing with <img> tag`);
+        return `<img src="${cidToUrlMap[cid]}" alt="${capturedFilename || 'Email attachment'}" style="max-width: 100%;">`;
+      });
+    }
+  }
+  
+  return result;
 }
 
 // Add a global flag for table existence
@@ -996,6 +1056,9 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Before we call parseAttachments:
+    console.log('Attempting to parse attachments and extract CIDs');
+
     // First, insert the reply into the database
     const { data: insertedReply, error: insertError } = await supabase
       .from('feedback_replies')
@@ -1024,15 +1087,25 @@ export const handler: Handler = async (event) => {
     // Parse attachments and get URL mapping for inline images
     const { cidToUrlMap } = await parseAttachments(emailData.text, replyId);
 
+    // After we get the results:
+    console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+
     // Replace CIDs with public URLs in HTML content
     if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
       console.log('Replacing CID references with public URLs');
       
+      // Log initial HTML content for debugging
+      console.log('HTML before replacement (preview):', htmlContent.substring(0, 200));
+      
       // Update the HTML content with the replaced CID references
       const updatedHtmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap);
       
+      // Log updated HTML content for debugging
+      console.log('HTML after replacement (preview):', updatedHtmlContent.substring(0, 200));
+      
       // Only update if there were actually changes
       if (updatedHtmlContent !== htmlContent) {
+        console.log('HTML content was changed during CID replacement');
         htmlContent = updatedHtmlContent;
         
         // Update the reply with the new HTML content that includes public URLs
