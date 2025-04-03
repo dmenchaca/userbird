@@ -1117,8 +1117,9 @@ async function storeReply(
     // Generate a UUID for the reply
     const replyId = crypto.randomUUID();
     
-    // Always prioritize HTML content
-    const finalContent = textContent || '';
+    // IMPORTANT: Use HTML content when available, and text content only as a fallback
+    // This prevents duplicate content from appearing in the database
+    const finalContent = htmlContent ? '' : (textContent || '');
     const htmlContentForDb = htmlContent || '';
     
     // Check the database schema to see what fields are available
