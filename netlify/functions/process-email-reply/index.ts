@@ -993,14 +993,14 @@ export const handler: Handler = async (event) => {
         console.log('Created HTML content from markdown-like syntax');
       } else {
         // Simple conversion for plain text
-        htmlContent = replyContent
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;')
-          .replace(/\n/g, '<br>')
-          // Convert URLs to links
+      htmlContent = replyContent
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br>')
+        // Convert URLs to links
           .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
         
         console.log('Created simple HTML content from plain text');
@@ -1065,12 +1065,12 @@ export const handler: Handler = async (event) => {
       .insert([
         {
           id: replyId, // Keep the same ID for consistency
-          feedback_id: feedbackId,
+        feedback_id: feedbackId,
           sender_type: 'user',
-          content: replyContent,
-          html_content: htmlContent,
-          message_id: messageId,
-          in_reply_to: inReplyTo
+        content: replyContent,
+        html_content: htmlContent,
+        message_id: messageId,
+        in_reply_to: inReplyTo
         }
       ])
       .select()
