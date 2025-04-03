@@ -228,6 +228,7 @@ function extractHtmlContent(emailText: string): string {
     }
     
     // Extract the content after the headers
+    // Look for the empty line that separates headers from body
     const contentStart = part.indexOf('\r\n\r\n');
     if (contentStart === -1) {
       console.log(`No content separator found in part ${i+1}, skipping`);
@@ -247,13 +248,69 @@ function extractHtmlContent(emailText: string): string {
       console.log(`Decoded HTML content preview: ${htmlContent.substring(0, 100)}...`);
     }
     
+    // Remove boundary markers and email artifacts
+    // This is important to prevent duplicates in the output
+    htmlContent = htmlContent.replace(/--[a-zA-Z0-9]+(?:--)?\s*$/gm, '');
+    htmlContent = htmlContent.replace(/Content-Type: [^<>\n]+\n/gi, '');
+    htmlContent = htmlContent.replace(/Content-Transfer-Encoding: [^<>\n]+\n/gi, '');
+    
+    // Look specifically for the HTML body content in the part
+    const htmlBodyMatch = htmlContent.match(/<div[^>]*>([\s\S]*)<\/div>/i) || 
+                        htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i) ||
+                        htmlContent.match(/<html[^>]*>([\s\S]*)<\/html>/i);
+    
+    if (htmlBodyMatch && htmlBodyMatch[1]) {
+      // Extract just the actual content, without the email headers
+      htmlContent = htmlBodyMatch[1];
+      console.log('Extracted inner HTML content from the email part');
+    }
+    
+    // For Gmail-specific emails, also check for [image:] tags
+    if (htmlContent.includes('[image:') || htmlContent.includes('[Image:') || htmlContent.includes('[image ')) {
+      console.log('Found Gmail image placeholders in content');
+    }
+    
     // Check if the content looks like HTML (contains at least one tag)
-    if (!htmlContent.includes('<')) {
-      console.log('Content doesn\'t appear to be valid HTML (no tags found)');
+    if (!htmlContent.includes('<') && !htmlContent.includes('[image')) {
+      console.log('Content doesn\'t appear to be valid HTML (no tags or image placeholders found)');
       continue;
     }
     
     return htmlContent.trim();
+  }
+  
+  // Look for Gmail's text part with [image] tags as a fallback
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    
+    // Check if this part contains image placeholders
+    if (part.includes('[image:') || part.includes('[Image:') || part.includes('[image ')) {
+      console.log(`Found image placeholders in part ${i+1}`);
+      
+      // Extract the content after the headers
+      const contentStart = part.indexOf('\r\n\r\n');
+      if (contentStart === -1) continue;
+      
+      let textContent = part.substring(contentStart + 4);
+      
+      // Check if it's quoted-printable
+      const encodingMatch = part.match(/Content-Transfer-Encoding:\s*quoted-printable/i);
+      const isQuotedPrintable = !!encodingMatch;
+      
+      if (isQuotedPrintable) {
+        textContent = decodeQuotedPrintable(textContent);
+      }
+      
+      // Convert to simple HTML for display
+      const simpleHtml = textContent
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      
+      console.log('Converted text with image placeholders to simple HTML');
+      return simpleHtml.trim();
+    }
   }
   
   console.log('No HTML content found in any part of the email');
@@ -264,11 +321,35 @@ function extractHtmlContent(emailText: string): string {
 function sanitizeHtml(html: string): string {
   if (!html) return '';
   
+  // Check if we have a multipart email artifact rather than HTML
+  if (html.includes('Content-Type:') && html.includes('boundary=')) {
+    console.log('HTML content appears to contain email headers, cleaning up');
+    
+    // Extract Gmail-style div content if present
+    const divMatch = html.match(/<div[\s\S]*<\/div>/i);
+    if (divMatch && divMatch[0]) {
+      console.log('Found div content in HTML, extracting');
+      html = divMatch[0];
+    } else {
+      // Try to extract just the email body after headers
+      const bodyStart = html.indexOf('\r\n\r\n');
+      if (bodyStart !== -1) {
+        html = html.substring(bodyStart + 4);
+        console.log('Stripped email headers from HTML content');
+      }
+    }
+  }
+  
   // Clean up email artifacts that might have leaked into the HTML
   // Strip any boundary markers that leaked into the content
   html = html.replace(/--[0-9a-f]+(?:--)?\s*$/gm, '');
   html = html.replace(/Content-Type: [^<>\n]+\n/gi, '');
   html = html.replace(/Content-Transfer-Encoding: [^<>\n]+\n/gi, '');
+  html = html.replace(/--\s*\n/g, ''); // Boundary ending markers
+  html = html.replace(/^MIME-Version:[^\n]*\n/gim, '');
+  
+  // Remove any multipart email headers that might remain
+  html = html.replace(/^(From|To|Subject|Date|Content-Type|Content-Transfer-Encoding|Message-ID|References|In-Reply-To):[^\n]*\n/gim, '');
   
   // Preserve Gmail's image format for later processing
   // This will be handled by replaceCidWithUrls function
@@ -373,6 +454,12 @@ function sanitizeHtml(html: string): string {
   
   // Final cleanup of any remaining email artifacts
   sanitized = sanitized.replace(/--\s*$/gm, '');
+  
+  // If after all this sanitizing, there are no HTML tags left but we have Gmail image references,
+  // convert it to a basic HTML structure
+  if (!sanitized.includes('<') && gmailImageReferences.length > 0) {
+    sanitized = `<div>${sanitized}</div>`;
+  }
   
   // Restore Gmail image references
   for (let i = 0; i < gmailImageReferences.length; i++) {
@@ -798,6 +885,7 @@ async function extractEmailContent(
       const htmlFromMultipart = extractHtmlContent(emailData.text);
       if (htmlFromMultipart) {
         console.log('Successfully extracted HTML from multipart content');
+        // Clean extracted HTML to ensure no email artifacts
         htmlContent = htmlFromMultipart;
         
         // For Gmail emails with both HTML and text, we want to avoid having both versions
@@ -842,25 +930,41 @@ async function extractEmailContent(
       }
       
       // Check specifically for Gmail's processed HTML format with [Image] placeholders
-      if (!foundHtml && isGmailEmail && emailData.text.includes('[Image]')) {
+      if (!foundHtml && isGmailEmail && 
+          (emailData.text.includes('[Image]') || 
+           emailData.text.includes('[image:') || 
+           emailData.text.includes('[Image:'))) {
         console.log('Found Gmail-specific processed HTML with [Image] placeholders');
         
-        // Gmail processed HTML with [Image] tags - we'll handle this as HTML
-        const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
-        if (gmailTextWithDivs && gmailTextWithDivs[0]) {
-          htmlContent = gmailTextWithDivs[0];
+        // Extract the actual email content from the raw email data
+        // This is a common pattern in Gmail emails
+        const actualContent = extractActualContent(emailData.text);
+        if (actualContent) {
+          console.log('Successfully extracted the actual content part from Gmail email');
+          // For Gmail, extract just the new content - ignore the quoted reply
+          const newContent = extractNewContent(actualContent);
+          
+          const formattedContent = `<div>${newContent}</div>`;
+          htmlContent = formattedContent;
           foundHtml = true;
-          console.log('Extracted Gmail HTML content with image placeholders');
         } else {
-          // Convert plain text with [Image] tags to basic HTML
-          htmlContent = emailData.text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>')
-            .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
-          foundHtml = true;
-          console.log('Converted Gmail text with [Image] placeholders to HTML');
+          // Gmail processed HTML with [Image] tags - we'll handle this as HTML
+          const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
+          if (gmailTextWithDivs && gmailTextWithDivs[0]) {
+            htmlContent = gmailTextWithDivs[0];
+            foundHtml = true;
+            console.log('Extracted Gmail HTML content with image placeholders');
+          } else {
+            // Convert plain text with [Image] tags to basic HTML
+            htmlContent = emailData.text
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\n/g, '<br>')
+              .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
+            foundHtml = true;
+            console.log('Converted Gmail text with [Image] placeholders to HTML');
+          }
         }
       }
       
@@ -976,6 +1080,72 @@ async function extractEmailContent(
   
   console.log(`Content extraction complete: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
   return { htmlContent, textContent, hasAttachments, attachments: parsedAttachments, cidToUrlMap };
+}
+
+// Helper function to extract the actual content part from raw email text
+function extractActualContent(emailText: string): string | null {
+  // For Gmail emails, the actual content is usually before the quoted reply
+  // Look for common Gmail patterns like "On Thu, Apr 3, 2025..."
+  
+  // First, try to find the email body after headers
+  const bodyStart = emailText.indexOf('\r\n\r\n');
+  if (bodyStart === -1) return null;
+  
+  let emailBody = emailText.substring(bodyStart + 4);
+  
+  // Try to find where the new content ends and the quoted reply begins
+  const quoteStart = emailBody.match(/On .+, .+ \d+, \d{4}(,| at) \d+:\d+.+(AM|PM|am|pm).+wrote:/);
+  if (quoteStart && quoteStart.index) {
+    // Return everything before the quote
+    return emailBody.substring(0, quoteStart.index).trim();
+  }
+  
+  // Alternative Gmail pattern
+  const altQuoteStart = emailBody.match(/On .+ wrote:/);
+  if (altQuoteStart && altQuoteStart.index) {
+    return emailBody.substring(0, altQuoteStart.index).trim();
+  }
+  
+  // If no quote patterns are found, return the whole body
+  return emailBody;
+}
+
+// Function to extract just the new content, ignoring quoted replies
+function extractNewContent(content: string): string {
+  // If the content has an image tag or placeholder, capture that part
+  if (content.includes('[image:') || content.includes('[Image:') || content.includes('[image ')) {
+    // Split by newlines to find the image reference
+    const lines = content.split('\n');
+    let result = '';
+    let foundImage = false;
+    
+    // Keep only the lines up to and including the image
+    for (const line of lines) {
+      if (line.includes('[image:') || line.includes('[Image:') || line.includes('[image ')) {
+        foundImage = true;
+        result += line + '\n';
+      } else if (!foundImage) {
+        // If we haven't found the image yet, keep adding lines
+        result += line + '\n';
+      } else if (line.trim() !== '') {
+        // After the image, only add non-empty lines that might be part of the message
+        // Stop if we hit a line that looks like signature or quote
+        if (line.includes('--') || line.includes('On ') || line.includes('wrote:')) {
+          break;
+        }
+        result += line + '\n';
+      }
+    }
+    return result.trim();
+  }
+  
+  // If no image, just return the content with common signatures and quotes removed
+  const signatureIndex = content.indexOf('--\n');
+  if (signatureIndex !== -1) {
+    return content.substring(0, signatureIndex).trim();
+  }
+  
+  return content;
 }
 
 // Function to extract the feedback ID from an email
