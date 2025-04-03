@@ -80,31 +80,45 @@ function extractAppleMailContent(emailText: string): string | null {
         content = decodeQuotedPrintable(content);
       }
       
-      // Remove the signature and quoted reply
-      const signatureIndex = content.indexOf('Sent from my iPhone');
-      if (signatureIndex !== -1) {
-        content = content.substring(0, signatureIndex).trim();
+      // Preserve full content including signature and quoted replies
+      // Just remove email artifacts and clean up formatting
+      content = content.replace(/\r/g, '').trim();
+      
+      // Check if we have meaningful content
+      if (content && content.trim().length > 0) {
+        console.log('Successfully extracted complete text content from Apple Mail text/plain part');
+        return content; // Return immediately after finding valid text content
       }
       
-      // Remove quoted reply (lines starting with >)
-      // This is common in plain text Apple Mail replies
-      content = content.split('\n')
+      // If no meaningful content found, try progressive cleanup
+      // First, look for content without quoted lines
+      const cleanedContent = content.split('\n')
         .filter(line => !line.trim().startsWith('>'))
         .join('\n');
       
-      // Remove "On ... wrote:" lines which often precede quoted content
-      const onWroteMatch = content.match(/On .+, .+ \d+, \d{4}(,| at) \d+:\d+.+(AM|PM|am|pm).+wrote:/);
-      if (onWroteMatch && onWroteMatch.index) {
-        content = content.substring(0, onWroteMatch.index).trim();
+      if (cleanedContent && cleanedContent.trim().length > 0) {
+        console.log('Extracted text content after removing quoted lines');
+        return cleanedContent;
       }
       
-      // Additional cleanup for common Apple Mail artifacts
-      content = content.replace(/\r/g, '').trim();
+      // If still no meaningful content, try removing the signature
+      const signatureIndex = content.indexOf('Sent from my iPhone');
+      if (signatureIndex !== -1) {
+        const contentBeforeSignature = content.substring(0, signatureIndex).trim();
+        if (contentBeforeSignature && contentBeforeSignature.length > 0) {
+          console.log('Extracted text content before iPhone signature');
+          return contentBeforeSignature;
+        }
+      }
       
-      // Only return if we actually have content
-      if (content && content.trim().length > 0) {
-        console.log('Successfully extracted content from Apple Mail text/plain part');
-        return content; // Return immediately after finding valid text content
+      // Remove "On ... wrote:" lines as a last resort
+      const onWroteMatch = content.match(/On .+, .+ \d+, \d{4}(,| at) \d+:\d+.+(AM|PM|am|pm).+wrote:/);
+      if (onWroteMatch && onWroteMatch.index) {
+        const contentBeforeQuote = content.substring(0, onWroteMatch.index).trim();
+        if (contentBeforeQuote && contentBeforeQuote.length > 0) {
+          console.log('Extracted text content before quoted reply');
+          return contentBeforeQuote;
+        }
       }
     }
   }
@@ -139,66 +153,23 @@ function extractAppleMailContent(emailText: string): string | null {
       if (bodyMatch && bodyMatch[1]) {
         let bodyContent = bodyMatch[1];
         
-        // First, try to remove blockquote elements which typically contain quoted text
-        // Save the original content in case we're removing too much
-        const originalContent = bodyContent;
-        
-        // Remove blockquote sections (these contain quoted replies)
-        bodyContent = bodyContent.replace(/<blockquote[\s\S]*?<\/blockquote>/gi, '');
-        
-        // Remove "On ... wrote:" lines which often precede quoted content
-        bodyContent = bodyContent.replace(/On .+, .+ \d+, \d{4}(,| at) \d+:\d+.+(AM|PM|am|pm).+wrote:/g, '');
-        
-        // Remove any divs with quoted content marker classes (common in Apple Mail)
-        bodyContent = bodyContent.replace(/<div[^>]*class="[^"]*quoted[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
-        
-        // Remove signature if present
-        const signatureIndex = bodyContent.indexOf('Sent from my iPhone');
-        if (signatureIndex !== -1) {
-          bodyContent = bodyContent.substring(0, signatureIndex).trim();
-        }
-        
-        // Check if we have meaningful content left after removing quotes
-        let strippedContent = bodyContent.replace(/<[^>]*>/g, ' ').trim();
+        // Instead of removing content, preserve the full body content
+        // Just check if we have meaningful text in the body
+        const strippedContent = bodyContent.replace(/<[^>]*>/g, ' ').trim();
         
         if (strippedContent.length > 0) {
-          console.log('Successfully extracted body content after removing quoted parts');
+          console.log('Successfully extracted complete body content');
           bestHtmlContent = bodyContent;
           break;
-        } else {
-          // If nothing meaningful is left, we may have removed too much
-          // Try just removing the signature
-          const signatureIndex = originalContent.indexOf('Sent from my iPhone');
-          if (signatureIndex !== -1) {
-            bodyContent = originalContent.substring(0, signatureIndex).trim();
-            strippedContent = bodyContent.replace(/<[^>]*>/g, ' ').trim();
-            
-            if (strippedContent.length > 0) {
-              console.log('Extracted content before signature, keeping quoted content');
-              bestHtmlContent = bodyContent;
-              break;
-            }
-          }
-          
-          // If we still don't have meaningful content, try one more approach:
-          // Look for the first proper content section
-          const firstDiv = originalContent.match(/<div[^>]*>([\s\S]*?)<\/div>/i);
-          if (firstDiv && firstDiv[1] && 
-              firstDiv[1].replace(/<[^>]*>/g, ' ').trim().length > 0 &&
-              !firstDiv[1].includes('Sent from my iPhone')) {
-            console.log('Using first div content');
-            bestHtmlContent = firstDiv[1];
-            break;
-          }
-          
-          // If all else fails, use whatever content is directly in the body before any divs or elements
-          // This catches text nodes that are direct children of the body tag
-          const bodyStartText = originalContent.match(/^([^<]+)/);
-          if (bodyStartText && bodyStartText[1] && bodyStartText[1].trim().length > 0) {
-            console.log('Using text directly inside body tag');
-            bestHtmlContent = bodyStartText[1].trim();
-            break;
-          }
+        }
+        
+        // If we don't have any meaningful content in the body,
+        // try to extract the first text node directly in the body tag
+        const bodyStartText = bodyContent.match(/^([^<]+)/);
+        if (bodyStartText && bodyStartText[1] && bodyStartText[1].trim().length > 0) {
+          console.log('Using text directly inside body tag');
+          bestHtmlContent = bodyStartText[1].trim();
+          break;
         }
       }
       
