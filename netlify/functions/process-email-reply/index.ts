@@ -383,7 +383,11 @@ function sanitizeHtml(html: string): string {
 }
 
 // Function to parse and extract attachments from a multipart email
-async function parseAttachments(emailText: string, replyId: string): Promise<{ attachments: EmailAttachment[], cidToUrlMap: Record<string, string> }> {
+async function parseAttachments(
+  emailText: string, 
+  feedbackId: string,
+  replyId?: string // Make replyId optional
+): Promise<{ attachments: EmailAttachment[], cidToUrlMap: Record<string, string> }> {
   const attachments: EmailAttachment[] = [];
   const cidToUrlMap: Record<string, string> = {};
   
@@ -476,8 +480,8 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
   for (const attachment of attachments) {
     if (attachment.isInline && attachment.contentId) {
       try {
-        const filename = `${replyId}_${attachment.filename}`;
-        const storagePath = `feedback-replies/${replyId}/${filename}`;
+        const filename = `${feedbackId}_${attachment.filename}`;
+        const storagePath = `feedback-replies/${feedbackId}/${filename}`;
         
         // Check if storage bucket exists
         const { data: buckets, error: bucketsError } = await supabase
@@ -525,9 +529,11 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
         if (urlData && urlData.publicUrl) {
           console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
           cidToUrlMap[attachment.contentId] = urlData.publicUrl;
+          attachment.url = urlData.publicUrl; // Set URL in the attachment object
           
-          // Store attachment metadata in database only if the table exists
-          if (feedbackAttachmentsTableExists) {
+          // Only store attachment metadata if we have a valid replyId
+          // Otherwise, we'll need to update this later after reply is created
+          if (feedbackAttachmentsTableExists && replyId) {
             try {
               const attachmentId = crypto.randomUUID();
               const { error: insertError } = await supabase
@@ -535,6 +541,7 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
                 .insert({
                   id: attachmentId,
                   reply_id: replyId,
+                  feedback_id: feedbackId, // Add feedback_id as a fallback reference
                   filename: attachment.filename,
                   content_id: attachment.contentId,
                   content_type: attachment.contentType,
@@ -553,7 +560,7 @@ async function parseAttachments(emailText: string, replyId: string): Promise<{ a
               // so we continue processing
             }
           } else {
-            console.log('Skipping attachment metadata storage because the feedback_attachments table does not exist');
+            console.log('Skipping attachment metadata storage because replyId is not available yet');
           }
         }
       } catch (error) {
@@ -727,12 +734,16 @@ async function extractEmailContent(
   htmlContent: string | null; 
   textContent: string | null; 
   hasAttachments: boolean;
+  attachments: EmailAttachment[];
+  cidToUrlMap: Record<string, string>;
 }> {
   console.log('Extracting email content');
   
   let htmlContent: string | null = null;
   let textContent: string | null = null;
   let hasAttachments = false;
+  let parsedAttachments: EmailAttachment[] = [];
+  let cidToUrlMap: Record<string, string> = {};
   
   // Check if the email contains attachments
   if (emailData.attachments && Array.isArray(emailData.attachments) && emailData.attachments.length > 0) {
@@ -817,19 +828,12 @@ async function extractEmailContent(
           textContent.includes('Content-Disposition: attachment') || 
           textContent.includes('Content-Disposition: inline')) {
         
-        // Process the attachments
-        const { cidToUrlMap } = await parseAttachments(textContent, feedbackId);
-        console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+        // Process the attachments - pass feedbackId instead of replyId
+        const result = await parseAttachments(textContent, feedbackId);
+        parsedAttachments = result.attachments;
+        cidToUrlMap = result.cidToUrlMap;
         
-        // Get any parsed attachments
-        let parsedAttachments: EmailAttachment[] = [];
-        try {
-          if (emailData.attachments) {
-            parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
-          }
-        } catch (error) {
-          console.log('Error getting attachments:', error);
-        }
+        console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
         
         // Replace CID references in HTML content
         if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
@@ -862,7 +866,7 @@ async function extractEmailContent(
   }
   
   console.log(`Content extraction complete: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
-  return { htmlContent, textContent, hasAttachments };
+  return { htmlContent, textContent, hasAttachments, attachments: parsedAttachments, cidToUrlMap };
 }
 
 // Function to extract the feedback ID from an email
@@ -1017,9 +1021,9 @@ async function storeReply(
 ): Promise<string> {
   try {
     // Extract content from the email - this is now async
-    const { htmlContent, textContent, hasAttachments } = await extractEmailContent(emailData, feedbackId);
+    const { htmlContent, textContent, hasAttachments, attachments, cidToUrlMap } = await extractEmailContent(emailData, feedbackId);
     
-    // Extract sender information
+    // Extract sender information - will be stored in the log but not in the database
     let senderEmail = '';
     let senderName = '';
     
@@ -1055,20 +1059,39 @@ async function storeReply(
     const finalContent = textContent || '';
     const htmlContentForDb = htmlContent || '';
     
-    // Insert the reply using the existing schema structure (content and html_content)
+    // Check the database schema to see what fields are available
+    const { data: tableInfo, error: schemaError } = await supabase
+      .from('feedback_replies')
+      .select('id')
+      .limit(1);
+    
+    if (schemaError) {
+      console.error('Error checking table schema:', schemaError);
+    }
+    
+    // Create an object with only the fields we know exist in the database
+    const replyData: any = {
+      id: replyId,
+      feedback_id: feedbackId,
+      content: finalContent,
+      html_content: htmlContentForDb,
+      message_id: messageId,
+      in_reply_to: inReplyTo,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add sender info if it was extracted cleanly
+    if (senderName) {
+      replyData.sender_type = 'user';
+    }
+    
+    // Log the data we're about to insert
+    console.log('Inserting reply with data:', Object.keys(replyData));
+    
+    // Insert the reply using the existing schema structure
     const { data: reply, error } = await supabase
       .from('feedback_replies')
-      .insert({
-        id: replyId,
-        feedback_id: feedbackId,
-        sender_name: senderName,
-        sender_email: senderEmail,
-        content: finalContent,
-        html_content: htmlContentForDb, // Use html_content field instead of content_type
-        message_id: messageId,
-        in_reply_to: inReplyTo,
-        created_at: new Date().toISOString()
-      })
+      .insert(replyData)
       .select('id')
       .single();
     
@@ -1082,6 +1105,37 @@ async function storeReply(
     }
     
     console.log(`Reply stored with ID: ${reply.id}`);
+    
+    // Now that we have a valid reply ID, store the attachment metadata
+    if (feedbackAttachmentsTableExists && attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment.url) {
+          try {
+            const attachmentId = crypto.randomUUID();
+            const { error: insertError } = await supabase
+              .from('feedback_attachments')
+              .insert({
+                id: attachmentId,
+                reply_id: replyId,
+                feedback_id: feedbackId,
+                filename: attachment.filename,
+                content_id: attachment.contentId,
+                content_type: attachment.contentType,
+                url: attachment.url,
+                is_inline: attachment.isInline
+              });
+            
+            if (insertError) {
+              console.error('Error storing attachment metadata after reply creation:', insertError);
+            } else {
+              console.log(`Successfully stored attachment metadata with ID: ${attachmentId}`);
+            }
+          } catch (insertErr) {
+            console.error('Exception while inserting attachment metadata after reply creation:', insertErr);
+          }
+        }
+      }
+    }
     
     // Update the feedback record to show it has replies
     const { error: updateError } = await supabase
