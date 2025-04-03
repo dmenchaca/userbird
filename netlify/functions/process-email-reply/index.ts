@@ -799,64 +799,92 @@ async function extractEmailContent(
       if (htmlFromMultipart) {
         console.log('Successfully extracted HTML from multipart content');
         htmlContent = htmlFromMultipart;
+        
+        // For Gmail emails with both HTML and text, we want to avoid having both versions
+        // Don't set textContent if we have HTML content from a Gmail email
+        if (isGmailEmail) {
+          console.log('Gmail email with HTML content - not setting text content to avoid duplication');
+          textContent = null;
+        } else {
+          // For non-Gmail emails, keep the text version as a fallback
+          textContent = emailData.text;
+        }
+      } else {
+        // No HTML found, use text content
+        textContent = emailData.text;
       }
-    }
-    
-    // If we don't have HTML content yet, look for HTML in the text field
-    if (!htmlContent) {
+    } else {
+      // If not multipart, just process as text unless we find HTML
+      let foundHtml = false;
+      
       // Look for complete HTML document
       const fullHtmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
       if (fullHtmlMatch && fullHtmlMatch[0]) {
         htmlContent = fullHtmlMatch[0];
+        foundHtml = true;
         console.log('Found complete HTML document in email text');
       } else {
         // Look for HTML body content
         const bodyContentMatch = emailData.text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
         if (bodyContentMatch && bodyContentMatch[1]) {
           htmlContent = bodyContentMatch[1];
+          foundHtml = true;
           console.log('Found HTML body content in email text');
         } else {
           // Look for div-wrapped content which is common in email clients
           const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
           if (divMatch && divMatch[0]) {
             htmlContent = divMatch[0];
+            foundHtml = true;
             console.log('Found div-wrapped HTML content in email text');
           }
         }
       }
-    }
-    
-    // Check specifically for Gmail's processed HTML format
-    if (!htmlContent && isGmailEmail && emailData.text.includes('[Image]')) {
-      console.log('Found Gmail-specific processed HTML with [Image] placeholders');
-      // Gmail sends HTML with [Image] placeholders
-      textContent = emailData.text;
       
-      // Treat this as HTML
-      const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
-      if (gmailTextWithDivs && gmailTextWithDivs[0]) {
-        htmlContent = gmailTextWithDivs[0];
-        console.log('Extracted Gmail HTML content with image placeholders');
+      // Check specifically for Gmail's processed HTML format with [Image] placeholders
+      if (!foundHtml && isGmailEmail && emailData.text.includes('[Image]')) {
+        console.log('Found Gmail-specific processed HTML with [Image] placeholders');
+        
+        // Gmail processed HTML with [Image] tags - we'll handle this as HTML
+        const gmailTextWithDivs = emailData.text.match(/<div[\s\S]*<\/div>/i);
+        if (gmailTextWithDivs && gmailTextWithDivs[0]) {
+          htmlContent = gmailTextWithDivs[0];
+          foundHtml = true;
+          console.log('Extracted Gmail HTML content with image placeholders');
+        } else {
+          // Convert plain text with [Image] tags to basic HTML
+          htmlContent = emailData.text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>')
+            .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
+          foundHtml = true;
+          console.log('Converted Gmail text with [Image] placeholders to HTML');
+        }
+      }
+      
+      // For Gmail emails, if we found HTML, don't set textContent to avoid duplication
+      if (isGmailEmail && foundHtml) {
+        console.log('Gmail email with HTML content - not setting text content to avoid duplication');
+        textContent = null;
       } else {
-        // Convert plain text with [Image] tags to basic HTML
-        htmlContent = emailData.text
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>')
-          .replace(/\[Image\]/g, '[Image]'); // Preserve [Image] tags for replacement
-        console.log('Converted Gmail text with [Image] placeholders to HTML');
+        // For non-Gmail emails or Gmail emails without HTML, use text content
+        textContent = emailData.text;
       }
     }
-    
-    // Always keep the raw text as a fallback
-    textContent = textContent || emailData.text;
   }
   
   // Standard email format with separate html and text parts
   if (emailData.html && !htmlContent) {
     htmlContent = emailData.html;
     console.log('Found HTML content in email.html field');
+    
+    // For Gmail emails, clear text content if we have HTML to avoid duplication
+    if (isGmailEmail) {
+      textContent = null;
+      console.log('Gmail email with HTML content - clearing text content to avoid duplication');
+    }
   }
   
   // If we still don't have HTML content but have text, check for markdown-like formatting
@@ -873,25 +901,38 @@ async function extractEmailContent(
     if (hasHtmlOrMarkdown) {
       console.log('Text content contains HTML or markdown markers, treating as HTML');
       htmlContent = textContent;
+      
+      // For Gmail emails, clear text content if we have HTML to avoid duplication
+      if (isGmailEmail) {
+        textContent = null;
+        console.log('Gmail email with HTML content - clearing text content to avoid duplication');
+      }
     }
+  }
+  
+  // For Gmail emails, ensure we're not duplicating content
+  // If we have both HTML and text content from a Gmail email, prefer HTML
+  if (isGmailEmail && htmlContent && textContent) {
+    console.log('Gmail email with both HTML and text content - clearing text content to avoid duplication');
+    textContent = null;
   }
   
   // Process any embedded images in multipart emails
   // This is common with SendGrid's inbound parse webhook
-  if (textContent && (hasAttachments || 
-      textContent.includes('Content-Type: multipart/') || 
-      textContent.includes('Content-ID:') || 
+  if ((htmlContent || textContent) && (hasAttachments || 
+      (emailData.text && emailData.text.includes('Content-Type: multipart/')) || 
+      (emailData.text && emailData.text.includes('Content-ID:')) || 
       isGmailEmail)) {
     console.log('Processing potential embedded content and images');
     try {
       // Process attachments if there are any indicators of them
-      if (textContent.includes('Content-ID:') || 
-          textContent.includes('Content-Disposition: attachment') || 
-          textContent.includes('Content-Disposition: inline') ||
-          textContent.includes('Content-Type: image/')) {
+      if ((emailData.text && emailData.text.includes('Content-ID:')) || 
+          (emailData.text && emailData.text.includes('Content-Disposition: attachment')) || 
+          (emailData.text && emailData.text.includes('Content-Disposition: inline')) ||
+          (emailData.text && emailData.text.includes('Content-Type: image/'))) {
         
         // Process the attachments - pass feedbackId instead of replyId
-        const result = await parseAttachments(textContent, feedbackId);
+        const result = await parseAttachments(emailData.text || '', feedbackId);
         parsedAttachments = result.attachments;
         cidToUrlMap = result.cidToUrlMap;
         
@@ -913,6 +954,12 @@ async function extractEmailContent(
             .replace(/\n/g, '<br>');
           
           htmlContent = replaceCidWithUrls(basicHtml, cidToUrlMap, parsedAttachments, true);
+          
+          // For Gmail emails, clear text content to avoid duplication
+          if (isGmailEmail) {
+            textContent = null;
+            console.log('Gmail email with generated HTML content - clearing text content to avoid duplication');
+          }
         }
       }
     } catch (error) {
