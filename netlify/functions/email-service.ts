@@ -255,7 +255,7 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Create HTML version with proper styling matching the template
+    // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
 <html>
   <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
@@ -346,14 +346,35 @@ ${image_url}
 
 ` : ''}${created_at ? `Received on ${created_at}` : ''}`;
 
-    return this.sendEmail({
+    // Skip the sanitization for this template by sending directly to SendGrid
+    const msg = {
       to,
       from: 'notifications@userbird.co',
       subject: `New feedback received for ${formUrl}`,
       text: textMessage,
       html: htmlMessage,
-      feedbackId
-    });
+      headers: feedbackId ? {
+        'Message-ID': `<feedback-${feedbackId}@userbird.co>`
+      } : undefined
+    };
+
+    try {
+      console.log('Sending feedback notification email directly via SendGrid');
+      await sgMail.send(msg);
+      console.log('Feedback notification email sent successfully');
+      
+      return { 
+        success: true,
+        messageId: feedbackId ? `<feedback-${feedbackId}@userbird.co>` : undefined
+      };
+    } catch (error) {
+      console.error('Error sending feedback notification email:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
   }
 
   static async sendReplyNotification(params: {

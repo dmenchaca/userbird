@@ -70,7 +70,7 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Create HTML version with proper styling matching the template
+    // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
 <html>
   <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
@@ -139,8 +139,8 @@ export class EmailService {
   </body>
 </html>`;
 
-    // Create plain text version
-    const textMessage = `
+  // Create plain text version
+  const textMessage = `
 New feedback received for ${formUrl}
 
 ${message ? `Message:
@@ -161,14 +161,23 @@ ${image_url}
 
 ` : ''}${created_at ? `Received on ${created_at}` : ''}`;
 
-    return this.sendEmail({
-      to,
-      from: 'notifications@userbird.co',
-      subject: `New feedback received for ${formUrl}`,
-      text: textMessage,
-      html: htmlMessage
-    });
+  // Skip the sanitization for this template by sending directly to SendGrid
+  const msg = {
+    to,
+    from: 'notifications@userbird.co',
+    subject: `New feedback received for ${formUrl}`,
+    text: textMessage,
+    html: htmlMessage
+  };
+
+  try {
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending feedback notification email:', error);
+    throw error;
   }
+}
 
   static async sendReplyNotification(params: {
     to: string;
