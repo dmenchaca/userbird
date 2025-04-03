@@ -28,17 +28,63 @@ function decodeQuotedPrintable(str: string): string {
   // Replace soft line breaks (=<CRLF>)
   str = str.replace(/=(\r\n|\n|\r)/g, '');
   
-  // Replace hex-encoded characters
-  str = str.replace(/=([0-9A-F]{2})/gi, (_, hex) => {
-    return String.fromCharCode(parseInt(hex, 16));
-  });
+  // First, let's process multi-byte UTF-8 sequences (2 or more bytes)
+  let result = '';
+  let i = 0;
   
-  // Handle special Unicode character cases
-  str = str.replace(/=C2=A0/g, ' '); // Non-breaking space
-  str = str.replace(/=C2=BF/g, '¿'); // Inverted question mark
-  str = str.replace(/=C2=A1/g, '¡'); // Inverted exclamation mark
+  while (i < str.length) {
+    // Check if we have a sequence of =XX=XX pattern (potential UTF-8 multi-byte sequence)
+    if (str[i] === '=' && i + 2 < str.length) {
+      const hexBytes: number[] = [];
+      let currentIndex = i;
+      let isValidSequence = true;
+      
+      // Collect all consecutive =XX patterns
+      while (currentIndex < str.length && str[currentIndex] === '=' && currentIndex + 2 < str.length) {
+        const hex = str.substring(currentIndex + 1, currentIndex + 3);
+        if (/^[0-9A-F]{2}$/i.test(hex)) {
+          hexBytes.push(parseInt(hex, 16));
+          currentIndex += 3; // Move past the =XX
+        } else {
+          isValidSequence = false;
+          break;
+        }
+      }
+      
+      // Check if this is likely a multi-byte UTF-8 sequence (2+ bytes)
+      if (hexBytes.length >= 2 && isValidSequence) {
+        try {
+          // Try to decode as UTF-8
+          const buffer = Buffer.from(hexBytes);
+          const decoded = buffer.toString('utf8');
+          result += decoded;
+          i = currentIndex; // Move past the entire sequence
+        } catch (e) {
+          // If decoding fails, handle as individual bytes
+          result += '=';
+          i++; // Move past the = and process one by one
+        }
+      } else {
+        // Single byte or invalid sequence
+        if (i + 2 < str.length && /^[0-9A-F]{2}$/i.test(str.substring(i + 1, i + 3))) {
+          // Valid =XX pattern (single byte)
+          const hex = str.substring(i + 1, i + 3);
+          result += String.fromCharCode(parseInt(hex, 16));
+          i += 3;
+        } else {
+          // Regular character
+          result += str[i];
+          i++;
+        }
+      }
+    } else {
+      // Regular character
+      result += str[i];
+      i++;
+    }
+  }
   
-  return str;
+  return result;
 }
 
 // Function to strip raw email headers and better handle email formats
