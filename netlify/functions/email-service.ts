@@ -233,6 +233,7 @@ export class EmailService {
     image_name?: string;
     created_at?: string;
     feedbackId?: string;
+    formId?: string;
   }) {
     const {
       to,
@@ -247,70 +248,81 @@ export class EmailService {
       image_url,
       image_name,
       created_at,
-      feedbackId
+      feedbackId,
+      formId
     } = params;
 
-    const showUserInfo = user_id || user_email || user_name;
+    const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Create HTML version
-    const htmlMessage = `
-      <div style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
-        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-          <div style="margin-bottom: 24px;">
-            <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-              New feedback received for <strong>${formUrl}</strong>
-            </h3>
-          </div>
+    // Create HTML version with proper styling matching the template
+    const htmlMessage = `<!DOCTYPE html>
+<html>
+  <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+      <div style="margin-bottom: 24px;">
+        <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
+          New feedback received for <strong>${formUrl}</strong>
+        </h3>
+      </div>
 
-          <div style="margin-bottom: 24px;">
-            ${message ? `
-            <div style="margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Message</h4>
-              <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
-            </div>
-            ` : ''}
+      <div style="margin-bottom: 24px;">
+        ${message ? `
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Message</h4>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
+        </div>
+        ` : ''}
 
-            ${showUserInfo ? `
-            <div style="margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">User Information</h4>
-              <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
-                ${url_path ? `<p style="margin: 0;">Page URL: ${url_path}</p>` : ''}
-                ${user_id ? `<p style="margin: 0;">ID: ${user_id}</p>` : ''}
-                ${user_email ? `<p style="margin: 0;">Email: ${user_email}</p>` : ''}
-                ${user_name ? `<p style="margin: 0;">Name: ${user_name}</p>` : ''}
-              </div>
-            </div>
-            ` : ''}
-
-            ${showSystemInfo ? `
-            <div style="margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">System Information</h4>
-              <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
-                ${operating_system ? `<p style="margin: 0;">Operating System: ${operating_system}</p>` : ''}
-                ${screen_category ? `<p style="margin: 0;">Screen Category: ${screen_category}</p>` : ''}
-              </div>
-            </div>
-            ` : ''}
-
-            ${image_url ? `
-            <div style="margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Screenshot</h4>
-              <p style="margin: 0;">
-                <a href="${image_url}" style="color: #0284c7; text-decoration: none;">${image_name || 'View Screenshot'}</a>
-              </p>
-            </div>
-            ` : ''}
-
-            ${created_at ? `
-            <div style="margin-top: 16px;">
-              <p style="color: #6b7280; font-size: 12px; font-style: italic; margin: 0;">Received on ${created_at}</p>
-            </div>
-            ` : ''}
+        ${showUserInfo ? `
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">User Information</h4>
+          <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
+            ${url_path ? `<p style="margin: 0;">Page URL: ${url_path}</p>` : ''}
+            ${user_id ? `<p style="margin: 0;">ID: ${user_id}</p>` : ''}
+            ${user_email ? `<p style="margin: 0;">Email: ${user_email}</p>` : ''}
+            ${user_name ? `<p style="margin: 0;">Name: ${user_name}</p>` : ''}
           </div>
         </div>
+        ` : ''}
+
+        ${showSystemInfo ? `
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">System Information</h4>
+          <div style="color: #1f2937; font-size: 14px; line-height: 1.6;">
+            ${operating_system ? `<p style="margin: 0;">OS: ${operating_system}</p>` : ''}
+            ${screen_category ? `<p style="margin: 0;">Device: ${screen_category}</p>` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        ${image_url ? `
+        <div style="margin-bottom: 16px;">
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Image</h4>
+          <div style="margin-top: 8px;">
+            <img src="${image_url}" alt="Feedback image" style="max-width: 100%; border-radius: 4px;" />
+            ${image_name ? `<p style="color: #6b7280; font-size: 12px; margin: 4px 0 0;">${image_name}</p>` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        ${created_at ? `
+        <div>
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Date</h4>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">${created_at}</p>
+        </div>
+        ` : ''}
       </div>
-    `;
+
+      <div style="text-align: center;">
+        <a href="https://app.userbird.co/forms/${formId || feedbackId?.split('-')[0] || ''}" 
+           style="display: inline-block; background: #1f2937; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+          View All Responses
+        </a>
+      </div>
+    </div>
+  </body>
+</html>`;
 
     // Create plain text version
     const textMessage = `

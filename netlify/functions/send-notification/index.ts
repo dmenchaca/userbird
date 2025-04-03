@@ -108,7 +108,7 @@ export const handler: Handler = async (event) => {
       // Create email parameters object with only selected attributes
       const emailParams: Record<string, any> = {
         formUrl: form.url,
-        formId,
+        formId: typeof form === 'object' && 'id' in form ? form.id : formId,
         url_path: feedback.url_path,
         feedbackId: feedback.id // Add feedbackId for message ID generation
       };
