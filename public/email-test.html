@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Email Test Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    textarea { width: 100%; height: 300px; margin-bottom: 10px; }
+    button { padding: 10px; margin-right: 10px; }
+    pre { background: #f5f5f5; padding: 10px; overflow: auto; max-height: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Email Processing Test</h1>
+  <p>This form lets you test the email processing endpoint.</p>
+  
+  <form action="/.netlify/functions/process-email-reply" method="post" target="_blank">
+    <h2>Raw Email Format</h2>
+    <textarea name="rawEmail" placeholder="Paste raw email here">MIME-Version: 1.0
+Date: Thu, 3 Apr 2025 19:16:42 +0200
+References: <feedback-e7231782-220f-4954-923e-1a7af99e6b00@userbird.co>
+In-Reply-To: <feedback-e7231782-220f-4954-923e-1a7af99e6b00@userbird.co>
+Message-ID: <CAFw94p1mc-vjtF4XczRwL_nRNtd+s7JGDjoaZPHMLr8bfyQriQ@mail.gmail.com>
+Subject: Re: Feedback submitted by hi@diego.bio
+From: Diego Menchaca <hi@diego.bio>
+To: notifications@userbird.co
+Content-Type: multipart/alternative; boundary="0000000000000a8d7f0631e2efd8"
+
+--0000000000000a8d7f0631e2efd8
+Content-Type: text/plain; charset="UTF-8"
+
+Your welcome, I'm happy to help!
+
+Warm regards,
+Diego</textarea>
+    <div>
+      <button type="submit">Submit Raw Email</button>
+    </div>
+  </form>
+  
+  <br>
+  <p>Note: For a more interactive testing experience with JSON options, open your browser console and use fetch:</p>
+  <pre>
+fetch("/.netlify/functions/process-email-reply", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    from: "testuser@gmail.com",
+    to: "notifications@userbird.co",
+    subject: "Re: Feedback submission",
+    text: "This is a test reply",
+    headers: {
+      "In-Reply-To": "<feedback-e7231782-220f-4954-923e-1a7af99e6b00@userbird.co>"
+    }
+  })
+}).then(r => r.json()).then(console.log)
+  </pre>
+</body>
+</html> 
