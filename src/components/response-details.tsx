@@ -348,7 +348,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
               
               <div className="space-y-3">
                 {replies.map((reply) => {
-                  const { mainContent, dateLine, quotedContent } = processHtmlContent(reply.html_content);
+                  const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
                   const isExpanded = expandedReplies.has(reply.id)
                   
                   console.log("Reply ID:", reply.id);
