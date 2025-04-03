@@ -144,7 +144,8 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
             feedbackId: response.id,
             replyContent: plainTextContent.trim(),
             replyId: data?.[0]?.id,
-            htmlContent: htmlContent
+            htmlContent: htmlContent,
+            isAdminDashboardReply: true
           }),
         })
 

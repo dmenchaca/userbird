@@ -169,6 +169,7 @@ ${image_url}
     isFirstReply: boolean;
     feedbackId: string;
     replyId: string;
+    isAdminDashboardReply?: boolean;
   }) {
     const {
       to,
@@ -176,7 +177,8 @@ ${image_url}
       feedback,
       isFirstReply,
       feedbackId,
-      replyId
+      replyId,
+      isAdminDashboardReply = false
     } = params;
 
     // Format date for original message
@@ -200,36 +202,44 @@ ${feedback.message}
 
 ` : ''}`;
 
-    // Create HTML version
-    const htmlMessage = `
-      <div style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
-        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-          <div style="margin-bottom: 24px;">
-            <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-              You received a reply to your feedback
-            </h3>
-          </div>
-
-          <div style="margin-bottom: 24px;">
-            ${isFirstReply ? `
-            <div style="margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Your original message</h4>
-              <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #f3f4f6; padding: 12px; border-radius: 6px; margin-top: 8px;">${feedback.message}</p>
+    // Use minimal template for admin dashboard replies
+    let htmlMessage;
+    
+    if (isAdminDashboardReply) {
+      // For admin dashboard replies, use minimal styling
+      htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+    } else {
+      // For automated replies, use full styling
+      htmlMessage = `
+        <div style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+            <div style="margin-bottom: 24px;">
+              <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
+                You received a reply to your feedback
+              </h3>
             </div>
-            ` : ''}
 
-            <div style="margin-top: 24px; margin-bottom: 16px;">
-              <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
-              <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${replyContent}</p>
+            <div style="margin-bottom: 24px;">
+              ${isFirstReply ? `
+              <div style="margin-bottom: 16px;">
+                <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Your original message</h4>
+                <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #f3f4f6; padding: 12px; border-radius: 6px; margin-top: 8px;">${feedback.message}</p>
+              </div>
+              ` : ''}
+
+              <div style="margin-top: 24px; margin-bottom: 16px;">
+                <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
+                <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${replyContent}</p>
+              </div>
             </div>
-          </div>
 
-          <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
+            <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
+              <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
 
     return this.sendEmail({
       to,
