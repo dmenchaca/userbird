@@ -179,16 +179,7 @@ ${image_url}
       replyId
     } = params;
 
-    // Format dates
-    const formattedDate = new Date().toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-
+    // Format date for original message
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
       month: '2-digit',
       day: '2-digit',
@@ -197,9 +188,6 @@ ${image_url}
       minute: '2-digit',
       hour12: true
     });
-
-    // Create thread identifier
-    const threadIdentifier = `thread::${feedbackId}::`;
 
     // Create plain text version
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
