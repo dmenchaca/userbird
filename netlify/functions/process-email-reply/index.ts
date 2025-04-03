@@ -88,14 +88,18 @@ function extractAppleMailContent(emailText: string): string | null {
       
       // Additional cleanup for common Apple Mail artifacts
       content = content.replace(/\r/g, '').trim();
-      if (content) {
+      
+      // Only return if we actually have content
+      if (content && content.trim().length > 0) {
         console.log('Successfully extracted content from Apple Mail text/plain part');
-        return content;
+        return content; // Return immediately after finding valid text content
       }
     }
   }
   
   // If text/plain part wasn't useful, try the HTML part
+  let bestHtmlContent: string | null = null;
+  
   for (const part of parts) {
     if (part.includes('Content-Type: text/html')) {
       const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
@@ -111,26 +115,49 @@ function extractAppleMailContent(emailText: string): string | null {
         htmlContent = decodeQuotedPrintable(htmlContent);
       }
       
+      // Skip if HTML only contains the signature
+      if (htmlContent.includes('Sent from my iPhone') && 
+          htmlContent.replace(/Sent from my iPhone/g, '').replace(/<[^>]*>/g, '').trim().length === 0) {
+        console.log('Skipping HTML part that only contains signature');
+        continue;
+      }
+      
       // Look for the actual content - first div is usually the message in Apple Mail
       const contentMatch = htmlContent.match(/<div[^>]*>(.*?)<\/div>/s);
       if (contentMatch && contentMatch[1] && contentMatch[1].trim()) {
+        // Check if it's just the signature
+        const strippedContent = contentMatch[1].replace(/<[^>]*>/g, '').trim();
+        if (strippedContent === 'Sent from my iPhone') {
+          console.log('Skipping HTML content that only contains signature');
+          continue;
+        }
+        
         console.log('Successfully extracted content from Apple Mail HTML part');
-        return contentMatch[1].trim();
+        bestHtmlContent = contentMatch[1].trim();
+        break;
       }
       
       // Try to extract content before the signature and quoted reply
       const signatureIndex = htmlContent.indexOf('Sent from my iPhone');
       if (signatureIndex !== -1) {
         const mainContent = htmlContent.substring(0, signatureIndex).trim();
-        if (mainContent) {
+        if (mainContent && mainContent.replace(/<[^>]*>/g, '').trim().length > 0) {
           console.log('Successfully extracted content before signature in Apple Mail HTML');
-          return mainContent;
+          bestHtmlContent = mainContent;
+          break;
         }
       }
       
-      // If all else fails, just return the entire HTML content
-      return htmlContent.trim();
+      // If all else fails, just use the entire HTML content if it has meaningful text
+      const strippedHtml = htmlContent.replace(/<[^>]*>/g, '').trim();
+      if (strippedHtml.length > 0 && strippedHtml !== 'Sent from my iPhone') {
+        bestHtmlContent = htmlContent.trim();
+      }
     }
+  }
+  
+  if (bestHtmlContent) {
+    return bestHtmlContent;
   }
   
   console.log('Failed to extract content from Apple Mail structure');
