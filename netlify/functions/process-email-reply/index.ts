@@ -25,67 +25,116 @@ interface EmailAttachment {
 }
 
 // Function to decode quoted-printable content (like =3D for =)
-function decodeQuotedPrintable(str: string): string {
-  // Replace soft line breaks (=<CRLF>)
-  str = str.replace(/=(\r\n|\n|\r)/g, '');
+function decodeQuotedPrintable(input: string): string {
+  if (!input) return '';
   
-  // First, let's process multi-byte UTF-8 sequences (2 or more bytes)
-  let result = '';
-  let i = 0;
+  // Replace = followed by CRLF with nothing (soft line break)
+  let output = input.replace(/=\r\n/g, '').replace(/=\n/g, '');
   
-  while (i < str.length) {
-    // Check if we have a sequence of =XX=XX pattern (potential UTF-8 multi-byte sequence)
-    if (str[i] === '=' && i + 2 < str.length) {
-      const hexBytes: number[] = [];
-      let currentIndex = i;
-      let isValidSequence = true;
+  // Replace =XX with the corresponding character
+  output = output.replace(/=([0-9A-F]{2})/gi, (_, hex) => {
+    return String.fromCharCode(parseInt(hex, 16));
+  });
+  
+  return output;
+}
+
+// Function to extract content from Apple Mail multipart structure
+function extractAppleMailContent(emailText: string): string | null {
+  if (!emailText) return null;
+  
+  // Check if this is Apple Mail
+  if (!emailText.includes('Apple-Mail') && !emailText.includes('X-Mailer: iPhone Mail')) {
+    return null;
+  }
+  
+  console.log('Detected Apple Mail format, attempting specialized extraction');
+  
+  // Find the Apple Mail boundary
+  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail-[^"\r\n]+)(?:"?)/i);
+  if (!boundaryMatch || !boundaryMatch[1]) {
+    console.log('Failed to find Apple Mail boundary');
+    return null;
+  }
+  
+  const boundary = boundaryMatch[1];
+  console.log(`Found Apple Mail boundary: ${boundary}`);
+  
+  // Split by boundary
+  const parts = emailText.split(`--${boundary}`);
+  console.log(`Apple Mail email split into ${parts.length} parts`);
+  
+  // First look for text/plain part - this is usually cleaner for content extraction
+  for (const part of parts) {
+    if (part.includes('Content-Type: text/plain')) {
+      const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
       
-      // Collect all consecutive =XX patterns
-      while (currentIndex < str.length && str[currentIndex] === '=' && currentIndex + 2 < str.length) {
-        const hex = str.substring(currentIndex + 1, currentIndex + 3);
-        if (/^[0-9A-F]{2}$/i.test(hex)) {
-          hexBytes.push(parseInt(hex, 16));
-          currentIndex += 3; // Move past the =XX
-        } else {
-          isValidSequence = false;
-          break;
-        }
+      // Extract content after the header block
+      const headerEnd = part.indexOf('\r\n\r\n');
+      if (headerEnd === -1) continue;
+      
+      let content = part.substring(headerEnd + 4);
+      
+      // Check for quoted-printable encoding
+      if (isQuotedPrintable) {
+        content = decodeQuotedPrintable(content);
       }
       
-      // Check if this is likely a multi-byte UTF-8 sequence (2+ bytes)
-      if (hexBytes.length >= 2 && isValidSequence) {
-        try {
-          // Try to decode as UTF-8
-          const buffer = Buffer.from(hexBytes);
-          const decoded = buffer.toString('utf8');
-          result += decoded;
-          i = currentIndex; // Move past the entire sequence
-        } catch (e) {
-          // If decoding fails, handle as individual bytes
-          result += '=';
-          i++; // Move past the = and process one by one
-        }
-      } else {
-        // Single byte or invalid sequence
-        if (i + 2 < str.length && /^[0-9A-F]{2}$/i.test(str.substring(i + 1, i + 3))) {
-          // Valid =XX pattern (single byte)
-          const hex = str.substring(i + 1, i + 3);
-          result += String.fromCharCode(parseInt(hex, 16));
-          i += 3;
-        } else {
-          // Regular character
-          result += str[i];
-          i++;
-        }
+      // Remove the signature and quoted reply
+      const signatureIndex = content.indexOf('Sent from my iPhone');
+      if (signatureIndex !== -1) {
+        content = content.substring(0, signatureIndex).trim();
       }
-    } else {
-      // Regular character
-      result += str[i];
-      i++;
+      
+      // Additional cleanup for common Apple Mail artifacts
+      content = content.replace(/\r/g, '').trim();
+      if (content) {
+        console.log('Successfully extracted content from Apple Mail text/plain part');
+        return content;
+      }
     }
   }
   
-  return result;
+  // If text/plain part wasn't useful, try the HTML part
+  for (const part of parts) {
+    if (part.includes('Content-Type: text/html')) {
+      const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
+      
+      // Extract content after the header block
+      const headerEnd = part.indexOf('\r\n\r\n');
+      if (headerEnd === -1) continue;
+      
+      let htmlContent = part.substring(headerEnd + 4);
+      
+      // Check for quoted-printable encoding
+      if (isQuotedPrintable) {
+        htmlContent = decodeQuotedPrintable(htmlContent);
+      }
+      
+      // Look for the actual content - first div is usually the message in Apple Mail
+      const contentMatch = htmlContent.match(/<div[^>]*>(.*?)<\/div>/s);
+      if (contentMatch && contentMatch[1] && contentMatch[1].trim()) {
+        console.log('Successfully extracted content from Apple Mail HTML part');
+        return contentMatch[1].trim();
+      }
+      
+      // Try to extract content before the signature and quoted reply
+      const signatureIndex = htmlContent.indexOf('Sent from my iPhone');
+      if (signatureIndex !== -1) {
+        const mainContent = htmlContent.substring(0, signatureIndex).trim();
+        if (mainContent) {
+          console.log('Successfully extracted content before signature in Apple Mail HTML');
+          return mainContent;
+        }
+      }
+      
+      // If all else fails, just return the entire HTML content
+      return htmlContent.trim();
+    }
+  }
+  
+  console.log('Failed to extract content from Apple Mail structure');
+  return null;
 }
 
 // Function to strip raw email headers and better handle email formats
@@ -615,7 +664,7 @@ async function parseAttachments(
         
         if (urlData && urlData.publicUrl) {
           console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
-          cidToUrlMap[attachment.contentId] = urlData.publicUrl;
+          cidToUrlMap[attachment.contentId] = urlData.publicUrl; // Set URL in the attachment object
           attachment.url = urlData.publicUrl; // Set URL in the attachment object
           
           // Only store attachment metadata if we have a valid replyId
@@ -877,9 +926,43 @@ async function extractEmailContent(
     (emailData.headers && Object.keys(emailData.headers).some(key => key.toLowerCase().includes('google'))) ||
     (emailData.text && emailData.text.includes('gmail_quote')) ||
     (emailData.from && typeof emailData.from === 'string' && emailData.from.includes('gmail'));
+    
+  // Check for iPhone email pattern
+  const isIPhoneEmail = 
+    (emailData.headers && Object.keys(emailData.headers).some(key => 
+      emailData.headers[key] && 
+      typeof emailData.headers[key] === 'string' && 
+      emailData.headers[key].includes('iPhone Mail'))) ||
+    (emailData.text && emailData.text.includes('Sent from my iPhone'));
   
   if (isGmailEmail) {
     console.log('Detected Gmail email format');
+  }
+  
+  if (isIPhoneEmail) {
+    console.log('Detected iPhone email format');
+    
+    // Try specialized Apple Mail content extraction for multipart emails
+    if (emailData.text && (
+        emailData.text.includes('Apple-Mail') || 
+        emailData.text.includes('X-Mailer: iPhone Mail') ||
+        emailData.text.includes('multipart/alternative')
+    )) {
+      const appleContent = extractAppleMailContent(emailData.text);
+      if (appleContent) {
+        // If the extracted content looks like HTML, use it as HTML content
+        if (appleContent.includes('<') && appleContent.includes('>')) {
+          htmlContent = appleContent;
+          console.log('Using Apple Mail extracted HTML content');
+        } else {
+          // Otherwise, convert it to HTML and set it as HTML content
+          htmlContent = `<div>${appleContent.replace(/\n/g, '<br>')}</div>`;
+          console.log('Converted Apple Mail extracted text to HTML');
+        }
+        // Don't set text content to avoid duplication
+        textContent = null;
+      }
+    }
   }
   
   // For SendGrid's inbound parse webhook, it places the entire email in the 'email' field
@@ -1035,9 +1118,56 @@ async function extractEmailContent(
   if ((htmlContent || textContent) && (hasAttachments || 
       (emailData.text && emailData.text.includes('Content-Type: multipart/')) || 
       (emailData.text && emailData.text.includes('Content-ID:')) || 
-      isGmailEmail)) {
+      isGmailEmail || isIPhoneEmail)) {
     console.log('Processing potential embedded content and images');
     try {
+      // Special handling for iPhone emails with quoted content
+      if (isIPhoneEmail && htmlContent && 
+          (htmlContent.includes('Sent from my iPhone') || 
+           htmlContent.includes('blockquote'))) {
+        console.log('Processing iPhone email with quoted content');
+        
+        // Check for extremely simple content like just "Cool"
+        const strippedHtml = htmlContent.replace(/<[^>]+>/g, ' ').trim();
+        const firstLine = strippedHtml.split(/[\r\n]/)[0].trim();
+        
+        // If the content starts with a very short text followed by iPhone signature
+        // This is common in replies with just a word or two like "Thanks" or "Cool"
+        if (firstLine.length < 20 && 
+            strippedHtml.includes('Sent from my iPhone') && 
+            !firstLine.includes('Sent from my iPhone')) {
+          console.log('Found simple iPhone reply with basic content:', firstLine);
+          htmlContent = `<div>${firstLine}</div>`;
+        } else {
+          // Extract the main content from the HTML
+          // First check for the most common iPhone mail pattern
+          if (htmlContent.indexOf('Cool') === 0 || htmlContent.match(/^[\w\s]+<br>/)) {
+            // This pattern matches when the content is at the beginning
+            // Extract the content before signature or blockquote
+            const mainContentMatch = htmlContent.match(/^([\s\S]*?)(?:<br><div>Sent from my iPhone<\/div>|<div[^>]*>Sent from my iPhone<\/div>|<blockquote)/i);
+            if (mainContentMatch && mainContentMatch[1] && mainContentMatch[1].trim()) {
+              htmlContent = `<div>${mainContentMatch[1].trim()}</div>`;
+              console.log('Extracted main content from iPhone email using pattern match');
+            }
+          } else {
+            // Try different split methods if the first approach didn't work
+            const iPhoneHtmlParts = htmlContent.split(/<br>(?:\s*<div>)?Sent from my iPhone(?:<\/div>)?/i);
+            if (iPhoneHtmlParts.length > 1 && iPhoneHtmlParts[0].trim()) {
+              // Main content is before the signature
+              htmlContent = `<div>${iPhoneHtmlParts[0].trim()}</div>`;
+              console.log('Extracted main content from iPhone email');
+            } else if (htmlContent.match(/<div[^>]*>([^<]+)<\/div>/i)) {
+              // Try to extract just the first div content which often contains the message
+              const firstDivMatch = htmlContent.match(/<div[^>]*>([^<]+)<\/div>/i);
+              if (firstDivMatch && firstDivMatch[1] && firstDivMatch[1].trim()) {
+                htmlContent = `<div>${firstDivMatch[1].trim()}</div>`;
+                console.log('Extracted content from first div in iPhone email');
+              }
+            }
+          }
+        }
+      }
+      
       // Process attachments if there are any indicators of them
       if ((emailData.text && emailData.text.includes('Content-ID:')) || 
           (emailData.text && emailData.text.includes('Content-Disposition: attachment')) || 
@@ -1102,6 +1232,18 @@ function extractActualContent(emailText: string): string | null {
   
   let emailBody = emailText.substring(bodyStart + 4);
   
+  // Look for iPhone signature pattern which often precedes the quoted content
+  const iPhoneSignatureIndex = emailBody.indexOf('Sent from my iPhone');
+  if (iPhoneSignatureIndex !== -1) {
+    // Extract everything before the signature
+    const mainContent = emailBody.substring(0, iPhoneSignatureIndex).trim();
+    if (mainContent) {
+      console.log('Extracted content before iPhone signature');
+      return mainContent;
+    }
+    // If no content before signature, continue with other extraction methods
+  }
+  
   // Try to find where the new content ends and the quoted reply begins
   const quoteStart = emailBody.match(/On .+, .+ \d+, \d{4}(,| at) \d+:\d+.+(AM|PM|am|pm).+wrote:/);
   if (quoteStart && quoteStart.index) {
@@ -1121,6 +1263,13 @@ function extractActualContent(emailText: string): string | null {
 
 // Function to extract just the new content, ignoring quoted replies
 function extractNewContent(content: string): string {
+  // Check for iPhone signature pattern first
+  const iPhoneSignatureIndex = content.indexOf('Sent from my iPhone');
+  if (iPhoneSignatureIndex !== -1) {
+    // Return only the content before the signature
+    return content.substring(0, iPhoneSignatureIndex).trim();
+  }
+  
   // If the content has an image tag or placeholder, capture that part
   if (content.includes('[image:') || content.includes('[Image:') || content.includes('[image ')) {
     // Split by newlines to find the image reference
