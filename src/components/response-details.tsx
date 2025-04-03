@@ -264,60 +264,123 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   } {
     if (!html) return { mainContent: '', dateLine: null, quotedContent: null }
     
-    // Look for common quoted content markers
+    console.log("Processing HTML content:", html.substring(0, 200) + "...");
     
-    // First try to match the "On [date]... wrote:" pattern, which we'll use as the trigger
+    // Look for common date line patterns
+    
+    // First try to match the "On [date]... wrote:" pattern
     const onWrotePattern = /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On [^<>]+wrote:(<\/div>|<\/p>|<\/span>)?/i;
     const onWroteMatch = html.match(onWrotePattern);
     
     if (onWroteMatch && onWroteMatch[0]) {
+      console.log("Found 'On... wrote:' pattern:", onWroteMatch[0]);
       const dateLineIndex = html.indexOf(onWroteMatch[0]);
       if (dateLineIndex > 0) {
         // The main content is everything before the date line
         const mainContent = html.substring(0, dateLineIndex);
         
-        // The date line is the "On [date]... wrote:" pattern
-        const dateLine = onWroteMatch[0];
-        
-        // The quoted content is everything starting from the date line
+        // The quoted content is everything starting from the date line (including it)
         const quotedContent = html.substring(dateLineIndex);
+        
+        console.log("Split content at index:", dateLineIndex);
+        console.log("Main content length:", mainContent.length);
+        console.log("Quoted content length:", quotedContent.length);
         
         return {
           mainContent,
-          dateLine,
+          dateLine: onWroteMatch[0],
           quotedContent
         };
       }
     }
     
-    // Fall back to other methods if we can't find a date line
-    const gmailQuoteMatch = html.match(/<div class="?gmail_quote"?.*?>[\s\S]*?<\/div>$/i) || 
-                          html.match(/<div class="?gmail_quote.*?<\/div><\/div>$/i);
-
-    if (gmailQuoteMatch && gmailQuoteMatch[0]) {
-      const quoteIndex = html.indexOf(gmailQuoteMatch[0]);
-      if (quoteIndex > 0) {
+    // Second, look for other date patterns like "On Thursday, April 3rd, ..."
+    // Update pattern to match more variations including "On Thu, Apr 3, 2025 at 9:41â¯AM"
+    const genericDatePattern = /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On (Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+[^<>]+(?:at|@)[\s\S]*?(?:wrote:|said:|<br>)/i;
+    const genericDateMatch = html.match(genericDatePattern);
+    
+    if (genericDateMatch && genericDateMatch[0]) {
+      console.log("Found generic date pattern:", genericDateMatch[0]);
+      const dateLineIndex = html.indexOf(genericDateMatch[0]);
+      if (dateLineIndex > 0) {
+        // The main content is everything before the date line
+        const mainContent = html.substring(0, dateLineIndex);
+        
+        // The quoted content is everything starting from the date line (including it)
+        const quotedContent = html.substring(dateLineIndex);
+        
+        console.log("Split content at index:", dateLineIndex);
+        console.log("Main content length:", mainContent.length);
+        console.log("Quoted content length:", quotedContent.length);
+        
         return {
-          mainContent: html.substring(0, quoteIndex),
-          dateLine: null,
-          quotedContent: gmailQuoteMatch[0]
+          mainContent,
+          dateLine: genericDateMatch[0],
+          quotedContent
         };
+      }
+    } else {
+      console.log("No generic date pattern found");
+      
+      // Try a more specific pattern for the exact format in the example
+      const gmailDatePattern = /<div><div>On Thu, Apr \d+, \d{4} at[\s\S]*?<\/div>/i;
+      const gmailDateMatch = html.match(gmailDatePattern);
+      
+      if (gmailDateMatch && gmailDateMatch[0]) {
+        console.log("Found Gmail-specific date pattern:", gmailDateMatch[0]);
+        const dateLineIndex = html.indexOf(gmailDateMatch[0]);
+        if (dateLineIndex > 0) {
+          // The main content is everything before the date line
+          const mainContent = html.substring(0, dateLineIndex);
+          
+          // The quoted content is everything starting from the date line (including it)
+          const quotedContent = html.substring(dateLineIndex);
+          
+          console.log("Split content at index:", dateLineIndex);
+          console.log("Main content length:", mainContent.length);
+          console.log("Quoted content length:", quotedContent.length);
+          
+          return {
+            mainContent,
+            dateLine: gmailDateMatch[0],
+            quotedContent
+          };
+        }
+      } else {
+        console.log("No Gmail-specific date pattern found");
+        
+        // Try a final fallback pattern for date lines
+        const simpleDatePattern = /<br><div><div>On.*?<\/div>/i;
+        const simpleDateMatch = html.match(simpleDatePattern);
+        
+        if (simpleDateMatch && simpleDateMatch[0]) {
+          console.log("Found simple date pattern:", simpleDateMatch[0]);
+          const dateLineIndex = html.indexOf(simpleDateMatch[0]);
+          if (dateLineIndex > 0) {
+            // The main content is everything before the date line
+            const mainContent = html.substring(0, dateLineIndex);
+            
+            // The quoted content is everything starting from the date line (including it)
+            const quotedContent = html.substring(dateLineIndex);
+            
+            console.log("Split content at index:", dateLineIndex);
+            console.log("Main content length:", mainContent.length);
+            console.log("Quoted content length:", quotedContent.length);
+            
+            return {
+              mainContent,
+              dateLine: simpleDateMatch[0],
+              quotedContent
+            };
+          }
+        } else {
+          console.log("No simple date pattern found");
+        }
       }
     }
     
-    // Look for blockquote tags
-    const blockquoteMatch = html.match(/<blockquote[\s\S]*?<\/blockquote>/i);
-    if (blockquoteMatch && blockquoteMatch[0]) {
-      const quoteIndex = html.indexOf(blockquoteMatch[0]);
-      if (quoteIndex > 0) {
-        return {
-          mainContent: html.substring(0, quoteIndex),
-          dateLine: null,
-          quotedContent: blockquoteMatch[0]
-        };
-      }
-    }
-    
+    // If no date patterns are found, return the entire content as main content
+    console.log("No date patterns found, returning entire content as main");
     return { mainContent: html, dateLine: null, quotedContent: null };
   }
 
@@ -350,6 +413,10 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                 {replies.map((reply) => {
                   const { mainContent, dateLine, quotedContent } = processHtmlContent(reply.html_content);
                   const isExpanded = expandedReplies.has(reply.id)
+                  
+                  console.log("Reply ID:", reply.id);
+                  console.log("Has quoted content:", !!quotedContent);
+                  console.log("Is expanded:", isExpanded);
                   
                   return (
                     <div
@@ -384,12 +451,12 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                           />
                           
                           {/* Quoted content section */}
-                          {(dateLine || quotedContent) && (
+                          {quotedContent ? (
                             <>
                               {/* Show/Hide quoted content button FIRST */}
                               <button
                                 onClick={() => toggleQuotedContent(reply.id)}
-                                className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
+                                className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 p-1 border border-gray-200 rounded"
                               >
                                 {isExpanded ? (
                                   <>
@@ -405,7 +472,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                               </button>
                               
                               {/* Collapsible content INCLUDING date line */}
-                              {isExpanded && quotedContent && (
+                              {isExpanded && (
                                 <div className="mt-2 pl-3 border-l-2 border-muted text-muted-foreground">
                                   {/* All quoted content including date line */}
                                   <div 
@@ -415,7 +482,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                                 </div>
                               )}
                             </>
-                          )}
+                          ) : null}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap">{reply.content}</p>
