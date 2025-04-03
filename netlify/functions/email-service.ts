@@ -401,7 +401,7 @@ Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
 
-` : ''}Please do not modify this line or token as it may impact our ability to properly process your reply: ${threadIdentifier}`;
+` : ''}`;
 
     // Create HTML version
     const htmlMessage = `
@@ -425,15 +425,10 @@ ${feedback.message}
               <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
               <div style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${htmlReplyContent || replyContent}</div>
             </div>
-
-            <div style="margin-top: 16px;">
-              <p style="color: #6b7280; font-size: 12px; font-style: italic; margin: 0;">Reply sent on ${formattedDate}</p>
-            </div>
           </div>
 
           <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
             <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
-            <p style="color: #6b7280; font-size: 12px; margin: 0; text-align: center;">Please do not modify this line or token as it may impact our ability to properly process your reply: ${threadIdentifier}</p>
           </div>
         </div>
       </div>
