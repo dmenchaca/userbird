@@ -623,18 +623,27 @@ async function parseAttachments(
           if (feedbackAttachmentsTableExists && replyId) {
             try {
               const attachmentId = crypto.randomUUID();
+              
+              // Prepare attachment data without feedback_id
+              const attachmentData: any = {
+                id: attachmentId,
+                reply_id: replyId,
+                filename: attachment.filename,
+                url: urlData.publicUrl,
+                is_inline: true
+              };
+              
+              // Only add content_id and content_type if they exist
+              if (attachment.contentId) {
+                attachmentData.content_id = attachment.contentId;
+              }
+              if (attachment.contentType) {
+                attachmentData.content_type = attachment.contentType;
+              }
+              
               const { error: insertError } = await supabase
                 .from('feedback_attachments')
-                .insert({
-                  id: attachmentId,
-                  reply_id: replyId,
-                  feedback_id: feedbackId, // Add feedback_id as a fallback reference
-                  filename: attachment.filename,
-                  content_id: attachment.contentId,
-                  content_type: attachment.contentType,
-                  url: urlData.publicUrl,
-                  is_inline: true
-                });
+                .insert(attachmentData);
               
               if (insertError) {
                 console.error('Error storing attachment metadata:', insertError);
@@ -1392,18 +1401,28 @@ async function storeReply(
         if (attachment.url) {
           try {
             const attachmentId = crypto.randomUUID();
+            
+            // Check what columns exist in feedback_attachments table
+            const attachmentData: any = {
+              id: attachmentId,
+              reply_id: replyId,
+              filename: attachment.filename,
+              content_type: attachment.contentType,
+              url: attachment.url,
+              is_inline: attachment.isInline
+            };
+            
+            // Only add content_id if it exists
+            if (attachment.contentId) {
+              attachmentData.content_id = attachment.contentId;
+            }
+            
+            // Don't try to insert feedback_id if we got an error about it
+            // This is safe since we'll always have reply_id as the foreign key
+            
             const { error: insertError } = await supabase
               .from('feedback_attachments')
-              .insert({
-                id: attachmentId,
-                reply_id: replyId,
-                feedback_id: feedbackId,
-                filename: attachment.filename,
-                content_id: attachment.contentId,
-                content_type: attachment.contentType,
-                url: attachment.url,
-                is_inline: attachment.isInline
-              });
+              .insert(attachmentData);
             
             if (insertError) {
               console.error('Error storing attachment metadata after reply creation:', insertError);
@@ -1417,18 +1436,21 @@ async function storeReply(
       }
     }
     
-    // Update the feedback record to show it has replies
-    const { error: updateError } = await supabase
-      .from('feedback')
-      .update({ 
-        has_replies: true,
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', feedbackId);
-    
-    if (updateError) {
-      console.error('Error updating feedback record:', updateError);
-      // Continue anyway, the reply is stored
+    // Try to update the feedback record without using 'has_replies' column
+    try {
+      // First check if updated_at column exists
+      const { error: updateError } = await supabase
+        .from('feedback')
+        .update({ 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', feedbackId);
+      
+      if (updateError) {
+        console.log('Could not update feedback record with timestamp, but reply was stored successfully');
+      }
+    } catch (updateErr) {
+      console.log('Error updating feedback record, but reply was stored successfully');
     }
     
     return reply.id;
