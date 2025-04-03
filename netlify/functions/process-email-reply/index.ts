@@ -122,7 +122,46 @@ function extractAppleMailContent(emailText: string): string | null {
         continue;
       }
       
+      // NEW APPROACH: First try to extract all text content from the body tag
+      // This catches text that appears outside the first div but inside the body
+      const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      if (bodyMatch && bodyMatch[1]) {
+        const bodyContent = bodyMatch[1];
+        
+        // Extract text before the "Sent from my iPhone" signature
+        const signatureIndex = bodyContent.indexOf('Sent from my iPhone');
+        if (signatureIndex !== -1) {
+          const mainContent = bodyContent.substring(0, signatureIndex).trim();
+          if (mainContent && mainContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+            console.log('Extracted content before iPhone signature in body');
+            bestHtmlContent = mainContent;
+            break;
+          }
+        }
+        
+        // If no signature found but body has content, use the whole body
+        const strippedBody = bodyContent.replace(/<[^>]*>/g, ' ').trim();
+        if (strippedBody.length > 0 && strippedBody !== 'Sent from my iPhone') {
+          console.log('Using full body content from iPhone email');
+          bestHtmlContent = bodyContent;
+          break;
+        }
+      }
+      
       // Look for the actual content - first div is usually the message in Apple Mail
+      // but it might only contain the signature, so check the full HTML first
+      // Try to extract text before signature or blockquote
+      const iPhoneSignatureIndex = htmlContent.indexOf('Sent from my iPhone');
+      if (iPhoneSignatureIndex !== -1) {
+        const mainContent = htmlContent.substring(0, iPhoneSignatureIndex).trim();
+        if (mainContent && mainContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+          console.log('Extracted content before iPhone signature in HTML');
+          bestHtmlContent = mainContent;
+          break;
+        }
+      }
+      
+      // If we still don't have content, try extracting from the first div
       const contentMatch = htmlContent.match(/<div[^>]*>(.*?)<\/div>/s);
       if (contentMatch && contentMatch[1] && contentMatch[1].trim()) {
         // Check if it's just the signature
@@ -135,17 +174,6 @@ function extractAppleMailContent(emailText: string): string | null {
         console.log('Successfully extracted content from Apple Mail HTML part');
         bestHtmlContent = contentMatch[1].trim();
         break;
-      }
-      
-      // Try to extract content before the signature and quoted reply
-      const signatureIndex = htmlContent.indexOf('Sent from my iPhone');
-      if (signatureIndex !== -1) {
-        const mainContent = htmlContent.substring(0, signatureIndex).trim();
-        if (mainContent && mainContent.replace(/<[^>]*>/g, '').trim().length > 0) {
-          console.log('Successfully extracted content before signature in Apple Mail HTML');
-          bestHtmlContent = mainContent;
-          break;
-        }
       }
       
       // If all else fails, just use the entire HTML content if it has meaningful text
@@ -1229,8 +1257,15 @@ async function extractEmailContent(
           htmlContent = `<div>${firstLine}</div>`;
         } else {
           // Extract the main content from the HTML
-          // First check for the most common iPhone mail pattern
-          if (htmlContent.indexOf('Cool') === 0 || htmlContent.match(/^[\w\s]+<br>/)) {
+          // First try to extract all content before the "Sent from my iPhone" signature
+          const iPhoneSignatureIndex = htmlContent.indexOf('Sent from my iPhone');
+          if (iPhoneSignatureIndex !== -1) {
+            const mainContent = htmlContent.substring(0, iPhoneSignatureIndex).trim();
+            if (mainContent && mainContent.replace(/<[^>]*>/g, '').trim().length > 0) {
+              console.log('Extracted text before iPhone signature in extracted HTML');
+              htmlContent = `<div>${mainContent}</div>`;
+            }
+          } else if (htmlContent.indexOf('Cool') === 0 || htmlContent.match(/^[\w\s]+<br>/)) {
             // This pattern matches when the content is at the beginning
             // Extract the content before signature or blockquote
             const mainContentMatch = htmlContent.match(/^([\s\S]*?)(?:<br><div>Sent from my iPhone<\/div>|<div[^>]*>Sent from my iPhone<\/div>|<blockquote)/i);
@@ -1249,8 +1284,21 @@ async function extractEmailContent(
               // Try to extract just the first div content which often contains the message
               const firstDivMatch = htmlContent.match(/<div[^>]*>([^<]+)<\/div>/i);
               if (firstDivMatch && firstDivMatch[1] && firstDivMatch[1].trim()) {
-                htmlContent = `<div>${firstDivMatch[1].trim()}</div>`;
-                console.log('Extracted content from first div in iPhone email');
+                // Check if it's just the signature
+                if (firstDivMatch[1].trim() !== 'Sent from my iPhone') {
+                  htmlContent = `<div>${firstDivMatch[1].trim()}</div>`;
+                  console.log('Extracted content from first div in iPhone email');
+                } else {
+                  // If the first div is just the signature, check if there's text outside the div
+                  const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<div/i);
+                  if (bodyMatch && bodyMatch[1] && bodyMatch[1].trim()) {
+                    const textBeforeDiv = bodyMatch[1].trim();
+                    if (textBeforeDiv) {
+                      htmlContent = `<div>${textBeforeDiv}</div>`;
+                      console.log('Extracted text before signature div in iPhone email');
+                    }
+                  }
+                }
               }
             }
           }
@@ -1548,6 +1596,14 @@ async function storeReply(
   try {
     // Extract content from the email - this is now async
     const { htmlContent, textContent, hasAttachments, attachments, cidToUrlMap } = await extractEmailContent(emailData, feedbackId);
+    
+    // Add debug logging to see the final extracted content
+    if (htmlContent) {
+      console.log('Final htmlContent preview:', htmlContent.substring(0, 200) + (htmlContent.length > 200 ? '...' : ''));
+    }
+    if (textContent) {
+      console.log('Final textContent preview:', textContent.substring(0, 200) + (textContent.length > 200 ? '...' : ''));
+    }
     
     // Extract sender information - will be stored in the log but not in the database
     let senderEmail = '';
