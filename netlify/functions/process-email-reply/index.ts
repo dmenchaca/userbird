@@ -719,6 +719,358 @@ function replaceCidWithUrls(
 // Add a global flag for table existence
 let feedbackAttachmentsTableExists = true;
 
+// Function to extract HTML or text content based on priority
+async function extractEmailContent(
+  emailData: any, 
+  feedbackId: string
+): Promise<{ 
+  htmlContent: string | null; 
+  textContent: string | null; 
+  hasAttachments: boolean;
+}> {
+  console.log('Extracting email content');
+  
+  let htmlContent: string | null = null;
+  let textContent: string | null = null;
+  let hasAttachments = false;
+  
+  // Check if the email contains attachments
+  if (emailData.attachments && Array.isArray(emailData.attachments) && emailData.attachments.length > 0) {
+    hasAttachments = true;
+    console.log('Email contains attachments');
+  }
+  
+  // First, try to extract HTML content which should be preferred
+  if (emailData.html) {
+    htmlContent = emailData.html;
+    console.log('Found HTML content in email');
+  }
+  
+  // Next, extract text content as fallback
+  if (emailData.text) {
+    textContent = emailData.text;
+    console.log('Found text content in email');
+  }
+  
+  // For Gmail-formatted emails with attachments, we need to check for multiple content parts
+  if (emailData.text && hasAttachments) {
+    // Look for HTML content in the raw email text
+    const htmlMatch = emailData.text.match(/<html[^>]*>[\s\S]*<\/html>/i);
+    if (htmlMatch && htmlMatch[0]) {
+      // Found embedded HTML in the text content - this is common with Gmail
+      console.log('Found embedded HTML content in text portion');
+      htmlContent = htmlMatch[0];
+    }
+    
+    // Also check for div-wrapped content which might be HTML without full html tags
+    const divMatch = emailData.text.match(/<div[\s\S]*<\/div>/i);
+    if (!htmlContent && divMatch && divMatch[0]) {
+      console.log('Found div-wrapped content, treating as HTML');
+      htmlContent = divMatch[0];
+    }
+  }
+  
+  // If we still don't have HTML content but have text, check for markdown-like formatting
+  // which suggests the text is actually the formatted version
+  if (!htmlContent && textContent) {
+    // Check for markdown-like characters that suggest this might be the formatted version
+    const hasMarkdownFormatting = /[*_~][\w\s]+[*_~]/.test(textContent) || 
+                                 /<img[^>]+>/.test(textContent) ||
+                                 /<div[^>]*>/.test(textContent);
+    
+    if (hasMarkdownFormatting) {
+      console.log('Text content contains markdown or HTML markers, treating as HTML');
+      htmlContent = textContent;
+      // In this case, we don't need the same content in both places
+      textContent = null;
+    }
+  }
+  
+  // Process attachments if there are any
+  if (hasAttachments) {
+    console.log('Processing attachments for content');
+    try {
+      // First process the attachments
+      const { cidToUrlMap } = await parseAttachments(emailData.text, feedbackId);
+      console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+      
+      // Get any parsed attachments
+      let parsedAttachments: EmailAttachment[] = [];
+      try {
+        if (emailData.attachments) {
+          parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
+        }
+      } catch (error) {
+        console.log('Error getting attachments:', error);
+      }
+      
+      // If we have HTML content and CID mappings, replace them
+      if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
+        console.log('Replacing CID references in HTML content');
+        htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
+      }
+      
+      // If we only have text content but we have attachments, convert to HTML
+      if (!htmlContent && textContent && Object.keys(cidToUrlMap).length > 0) {
+        console.log('Converting text content to HTML for attachment display');
+        // Convert text to basic HTML
+        const basicHtml = textContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
+        
+        // Replace CIDs and add attachments
+        htmlContent = replaceCidWithUrls(basicHtml, cidToUrlMap, parsedAttachments, true);
+      }
+    } catch (error) {
+      console.error('Error processing attachments:', error);
+      // Continue with content as-is
+    }
+  }
+  
+  console.log(`Content extraction complete: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
+  return { htmlContent, textContent, hasAttachments };
+}
+
+// Function to extract the feedback ID from an email
+async function extractFeedbackId(emailData: any): Promise<string | undefined> {
+  console.log('Extracting feedback ID from email');
+  
+  // First check In-Reply-To header
+  let feedbackId: string | undefined;
+  
+  if (emailData.headers) {
+    // Try to extract from In-Reply-To or References headers
+    const headers = emailData.headers;
+    let inReplyTo = '';
+    let references = '';
+    
+    for (const key in headers) {
+      if (key.toLowerCase() === 'in-reply-to') {
+        inReplyTo = headers[key];
+      } else if (key.toLowerCase() === 'references') {
+        references = headers[key];
+      }
+    }
+    
+    // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
+    if (inReplyTo) {
+      const feedbackIdMatch = inReplyTo.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
+      if (feedbackIdMatch) {
+        feedbackId = feedbackIdMatch[1];
+        console.log('Found feedback ID in In-Reply-To:', feedbackId);
+        return feedbackId;
+      }
+    }
+    
+    // Try References field if In-Reply-To didn't work
+    if (references) {
+      const feedbackIdMatch = references.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
+      if (feedbackIdMatch) {
+        feedbackId = feedbackIdMatch[1];
+        console.log('Found feedback ID in References:', feedbackId);
+        return feedbackId;
+      }
+    }
+  }
+  
+  // Try to extract from email raw content
+  if (emailData.text) {
+    // Try custom thread identifier format: thread::UUID::
+    const threadRegex = /thread::([a-f0-9-]+)::/i;
+    
+    // First try to find thread ID in subject
+    let threadMatch = emailData.subject?.match(threadRegex);
+    if (threadMatch) {
+      feedbackId = threadMatch[1];
+      console.log('Found feedback ID in subject thread identifier:', feedbackId);
+      return feedbackId;
+    }
+    
+    // If not found in subject, try the body
+    threadMatch = emailData.text.match(threadRegex);
+    if (threadMatch) {
+      feedbackId = threadMatch[1];
+      console.log('Found feedback ID in body thread identifier:', feedbackId);
+      return feedbackId;
+    }
+    
+    // Try to find feedback ID in raw header format
+    const rawHeaderMatch = emailData.text.match(/In-Reply-To:\s*<feedback-([a-f0-9-]+)@userbird\.co>/i);
+    if (rawHeaderMatch) {
+      feedbackId = rawHeaderMatch[1];
+      console.log('Found feedback ID in raw In-Reply-To header:', feedbackId);
+      return feedbackId;
+    }
+    
+    // Try to find any UUID-like pattern
+    const uuidMatches = emailData.text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
+    if (uuidMatches) {
+      // Check if any of these UUIDs exist in our feedback table
+      for (const possibleId of uuidMatches) {
+        const { data } = await supabase
+          .from('feedback')
+          .select('id')
+          .eq('id', possibleId)
+          .single();
+          
+        if (data) {
+          feedbackId = possibleId;
+          console.log('Found feedback ID by matching UUID pattern:', feedbackId);
+          return feedbackId;
+        }
+      }
+    }
+  }
+  
+  // Try to match by subject and sender email
+  if (emailData.subject && (emailData.from || emailData.sender)) {
+    // Extract the original feedback submitter's email from the subject
+    const subjectMatch = emailData.subject.match(/Re: Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
+    if (subjectMatch) {
+      const email = subjectMatch[1];
+      // Query feedback table to find the most recent feedback from this email
+      const { data: feedbackData } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('user_email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (feedbackData) {
+        feedbackId = feedbackData.id;
+        console.log('Found feedback ID by email lookup from subject:', feedbackId);
+        return feedbackId;
+      }
+    }
+  }
+  
+  // Look up by Message-ID in our replies table
+  if (emailData.headers) {
+    let messageId = '';
+    for (const key in emailData.headers) {
+      if (key.toLowerCase() === 'message-id') {
+        messageId = emailData.headers[key];
+        break;
+      }
+    }
+    
+    if (messageId) {
+      const { data: replyData } = await supabase
+        .from('feedback_replies')
+        .select('feedback_id')
+        .eq('message_id', messageId)
+        .single();
+        
+      if (replyData) {
+        feedbackId = replyData.feedback_id;
+        console.log('Found feedback ID from message_id lookup:', feedbackId);
+        return feedbackId;
+      }
+    }
+  }
+  
+  console.log('No feedback ID found after all extraction attempts');
+  return undefined;
+}
+
+// Update storeReply to use the async extractEmailContent
+async function storeReply(
+  emailData: any, 
+  feedbackId: string, 
+  messageId: string,
+  inReplyTo: string | null
+): Promise<string> {
+  try {
+    // Extract content from the email - this is now async
+    const { htmlContent, textContent, hasAttachments } = await extractEmailContent(emailData, feedbackId);
+    
+    // Always prioritize HTML content
+    const finalContent = htmlContent || textContent || '';
+    
+    // Extract sender information
+    let senderEmail = '';
+    let senderName = '';
+    
+    if (emailData.from) {
+      if (typeof emailData.from === 'string') {
+        // Try to extract name and email from string format
+        const matches = emailData.from.match(/([^<]+)<([^>]+)>/);
+        if (matches) {
+          senderName = matches[1].trim();
+          senderEmail = matches[2].trim();
+        } else {
+          senderEmail = emailData.from.trim();
+        }
+      } else if (typeof emailData.from === 'object') {
+        // Handle object format
+        senderEmail = emailData.from.address || '';
+        senderName = emailData.from.name || '';
+      }
+    }
+    
+    if (!senderEmail && emailData.sender) {
+      senderEmail = typeof emailData.sender === 'string' 
+        ? emailData.sender 
+        : (emailData.sender.address || '');
+    }
+    
+    console.log(`Storing reply from ${senderName} <${senderEmail}>`);
+    
+    // Generate a UUID for the reply
+    const replyId = crypto.randomUUID();
+    
+    // Insert the reply with HTML content prioritized
+    const { data: reply, error } = await supabase
+      .from('feedback_replies')
+      .insert({
+        id: replyId,
+        feedback_id: feedbackId,
+        sender_name: senderName,
+        sender_email: senderEmail,
+        content: finalContent,
+        content_type: htmlContent ? 'html' : 'text',
+        message_id: messageId,
+        in_reply_to: inReplyTo,
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error storing reply:', error);
+      throw new Error(`Failed to store reply: ${error.message}`);
+    }
+    
+    if (!reply) {
+      throw new Error('No reply data returned after insert');
+    }
+    
+    console.log(`Reply stored with ID: ${reply.id}`);
+    
+    // Update the feedback record to show it has replies
+    const { error: updateError } = await supabase
+      .from('feedback')
+      .update({ 
+        has_replies: true,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', feedbackId);
+    
+    if (updateError) {
+      console.error('Error updating feedback record:', updateError);
+      // Continue anyway, the reply is stored
+    }
+    
+    return reply.id;
+  } catch (error) {
+    console.error('Error in storeReply:', error);
+    throw error;
+  }
+}
+
 export const handler: Handler = async (event) => {
   console.log('Process email reply function triggered:', {
     method: event.httpMethod,
@@ -819,486 +1171,67 @@ export const handler: Handler = async (event) => {
       }
     }
     
-    console.log('Parsed email data:', { 
-      hasFrom: !!emailData.from,
-      hasTo: !!emailData.to,
-      hasSubject: !!emailData.subject,
-      hasText: !!emailData.text,
-      textLength: emailData.text?.length
-    });
-    
-    // For testing: log the full email content with thread identifier
-    console.log('Full email content for debugging:', emailData.text?.substring(0, 500));
-
-    if (!emailData.text) {
-      return { 
-        statusCode: 400, 
-        body: JSON.stringify({ error: 'Missing required email content' }) 
-      };
-    }
-
-    // Extract message headers
-    let messageId: string | undefined;
-    let inReplyTo: string | undefined;
-    
-    // Extract Message-ID from email headers
-    const messageIdMatch = emailData.text.match(/Message-ID:\s*<([^>]+)>/i);
-    if (messageIdMatch) {
-      messageId = `<${messageIdMatch[1]}>`;
-      console.log('Found Message-ID:', messageId);
-    }
-    
-    // Extract In-Reply-To from email headers
-    const inReplyToMatch = emailData.text.match(/In-Reply-To:\s*<([^>]+)>/i);
-    if (inReplyToMatch) {
-      inReplyTo = `<${inReplyToMatch[1]}>`;
-      console.log('Found In-Reply-To:', inReplyTo);
-    }
-    
-    // Try to extract feedbackId from In-Reply-To if it matches our format
-    let feedbackId: string | undefined;
-    
-    if (inReplyTo) {
-      // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
-      const feedbackIdMatch = inReplyTo.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
-      if (feedbackIdMatch) {
-        feedbackId = feedbackIdMatch[1];
-        console.log('Found feedback ID in In-Reply-To:', feedbackId);
-      }
-    }
-    
-    // If not found via In-Reply-To, try the thread identifier in the body
-    if (!feedbackId) {
-      const threadRegex = /thread::([a-f0-9-]+)::/i;
-      
-      // First try to find thread ID in subject
-      let threadMatch = emailData.subject?.match(threadRegex);
-      feedbackId = threadMatch?.[1];
-      
-      // If not found in subject, try the body
-      if (!feedbackId) {
-        threadMatch = emailData.text.match(threadRegex);
-        feedbackId = threadMatch?.[1];
-      }
-    }
-    
-    // Try to extract from email headers if still not found
-    if (!feedbackId && emailData.headers) {
-      // Look for References or In-Reply-To headers
-      const references = typeof emailData.headers === 'string' 
-        ? emailData.headers 
-        : JSON.stringify(emailData.headers);
-
-      const refMatch = references.match(/feedback-([a-f0-9-]+)@userbird\.co/i);
-      if (refMatch) {
-        feedbackId = refMatch[1];
-      }
-    }
-
-    // Look up the message_id in the database if we have one but no feedback ID
-    if (!feedbackId && inReplyTo) {
-      const { data: replyData } = await supabase
-        .from('feedback_replies')
-        .select('feedback_id')
-        .eq('in_reply_to', inReplyTo)
-        .single();
-        
-      if (replyData) {
-        feedbackId = replyData.feedback_id;
-        console.log('Found feedback ID from in_reply_to lookup:', feedbackId);
-      }
-    }
-    
-    // If still not found, try to match subject with feedback ID
-    if (!feedbackId) {
-      // Extract the original feedback ID from the subject
-      const subjectMatch = emailData.subject?.match(/Re: Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
-      if (subjectMatch) {
-        const email = subjectMatch[1];
-        // Query feedback table to find the most recent feedback from this email
-        const { data: feedbackData, error: feedbackError } = await supabase
-          .from('feedback')
-          .select('id')
-          .eq('user_email', email)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-          
-        if (!feedbackError && feedbackData) {
-          feedbackId = feedbackData.id;
-          console.log('Found feedback ID by email lookup:', feedbackId);
-        }
-      }
-    }
-    
-    if (!feedbackId) {
-      console.error('No thread identifier found in email');
-      // For debugging - look for any ID-like patterns
-      const possibleIds = emailData.text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
-      console.log('Possible UUID-like strings found:', possibleIds);
-      
-      return { 
-        statusCode: 200, // Return 200 so email services don't retry
-        body: JSON.stringify({ 
-          warning: 'No thread identifier found in email',
-          success: false 
-        }) 
-      };
-    }
-
-    console.log('Extracted feedback ID:', feedbackId);
-
-    // Verify the feedback exists
-    const { data: feedback, error: feedbackError } = await supabase
-      .from('feedback')
-      .select('*')
-      .eq('id', feedbackId)
-      .single();
-
-    if (feedbackError || !feedback) {
-      console.error('Feedback not found:', feedbackId, feedbackError);
-      return { 
-        statusCode: 200, // Return 200 so email services don't retry
-        body: JSON.stringify({ 
-          warning: 'Feedback not found', 
-          feedbackId,
-          success: false 
-        }) 
-      };
-    }
-
-    // Extract the email content, removing quoted parts and signatures
-    let replyContent = stripRawHeaders(emailData.text);
-    
-    // Look for and remove boundary markers - handle Gmail's specific boundary format too
-    const boundaryRegex = /--[0-9a-f]+(--)?\s*$|--[0-9]{15,}[a-f0-9]{15,}(--)?\s*$/gm;
-    replyContent = replyContent.replace(boundaryRegex, '');
-    
-    // Handle Content-Type headers that might be in the content
-    replyContent = replyContent.replace(/Content-Type: text\/plain; charset="[^"]+"\s*\n?/g, '');
-    replyContent = replyContent.replace(/Content-Type: text\/html; charset="[^"]+"\s*\n?/g, '');
-    replyContent = replyContent.replace(/Content-Type: text\/plain;?\s*\n?/g, '');
-    replyContent = replyContent.replace(/Content-Type: text\/html;?\s*\n?/g, '');
-    replyContent = replyContent.replace(/; charset="[^"]+"\s*\n?/g, '');
-    
-    // Remove MIME-Version headers that might be in the content
-    replyContent = replyContent.replace(/MIME-Version: 1.0\s*\n?/g, '');
-    
-    // Check for HTML content and extract text
-    if (replyContent.includes('<div') || replyContent.includes('<p') || 
-        replyContent.includes('</div>') || replyContent.includes('</p>') || 
-        replyContent.includes('<a href')) {
-      console.log('Detected HTML content, extracting text and preserving links');
-      
-      // First, preserve links by converting them to text + URL format
-      // Replace <a href="URL">text</a> with text (URL)
-      replyContent = replyContent.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, 
-        (match, url, text) => {
-          // If the text is the same as the URL, just return the URL
-          if (text.trim() === url.trim()) {
-            return url;
-          }
-          // Otherwise return text (URL)
-          return `${text} (${url})`;
-        }
-      );
-      
-      // Then remove remaining HTML tags and decode entities
-      replyContent = replyContent
-        .replace(/<[^>]*>/g, ' ')  // Replace tags with space
-        .replace(/&nbsp;/g, ' ')   // Replace non-breaking spaces
-        .replace(/&amp;/g, '&')    // Replace ampersand
-        .replace(/&lt;/g, '<')     // Replace less than
-        .replace(/&gt;/g, '>')     // Replace greater than
-        .replace(/&quot;/g, '"')   // Replace quotes
-        .replace(/&#39;/g, "'")    // Replace apostrophe
-        .replace(/\s+/g, ' ')      // Consolidate whitespace
-        .trim();
-    }
-    
-    // Remove everything after the original message marker if present
-    // Check for multiple variants of "original message" markers
-    const originalMessageMarkers = [
-      '--------------- Original Message ---------------',
-      'Original Message',
-      'On .* wrote:',
-      '________________________________',
-      '‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐',
-      '-----Original Message-----',
-      'From:',
-      'Reply to this email directly or view it on GitHub',
-      'Please do not modify this line or token'
-    ];
-
-    // Find the first occurrence of any marker
-    let earliestMarkerIndex = replyContent.length;
-    for (const marker of originalMessageMarkers) {
-      const index = replyContent.indexOf(marker);
-      if (index > -1 && index < earliestMarkerIndex) {
-        earliestMarkerIndex = index;
-      }
-      
-      // Also check for regex patterns like "On DATE, NAME wrote:"
-      if (marker === 'On .* wrote:') {
-        const match = replyContent.match(/On [A-Za-z]{3}, [A-Za-z]{3} \d{1,2}, \d{4} at \d{1,2}:\d{2} (?:AM|PM) [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,} wrote:/);
-        if (match && match.index !== undefined && match.index < earliestMarkerIndex) {
-          earliestMarkerIndex = match.index;
-        }
-      }
-    }
-    
-    // Truncate at the earliest marker
-    if (earliestMarkerIndex < replyContent.length) {
-      replyContent = replyContent.substring(0, earliestMarkerIndex).trim();
-    }
-    
-    // Alternative marker patterns for quoted content
-    const quotedMarkers = [
-      'On Mon,',
-      'On Tue,',
-      'On Wed,',
-      'On Thu,',
-      'On Fri,',
-      'On Sat,',
-      'On Sun,',
-      '> ',
-      'wrote:',
-      '----- Original Message -----'
-    ];
-    
-    for (const marker of quotedMarkers) {
-      const markerIndex = replyContent.indexOf(marker);
-      if (markerIndex > 0) { // Only if it's not at the start
-        replyContent = replyContent.substring(0, markerIndex).trim();
-      }
-    }
-
-    // Handle common signature delimiters (but don't truncate if they appear at the very beginning)
-    const signatureMarkers = [
-      '\n-- \n',
-      '\n--\n',
-      '\n_______________\n',
-      '\n------------\n',
-      '\nRegards,\n',
-      '\nKind regards,\n',
-      '\nBest regards,\n',
-      '\nWarm regards,\n',
-      '\nThanks,\n',
-      '\nThank you,\n',
-      '\nCheers,\n',
-      '\nSincerely,\n'
-    ];
-    
-    for (const marker of signatureMarkers) {
-      const markerIndex = replyContent.indexOf(marker);
-      // Make sure we're not at the start and there's actual content before the signature
-      if (markerIndex > 20) { 
-        // Check if there's meaningful content after signature or just boilerplate 
-        const afterSignature = replyContent.substring(markerIndex).toLowerCase();
-        
-        // Skip trimming if there's a URL or meaningful content after the signature
-        if (!afterSignature.includes('http://') && 
-            !afterSignature.includes('https://') && 
-            !afterSignature.includes('@') && 
-            !afterSignature.includes('call') &&
-            afterSignature.length < 200) {
-          replyContent = replyContent.substring(0, markerIndex).trim();
-        }
-      }
-    }
-
-    console.log('Extracted reply content:', replyContent);
-
-    // Remove excess whitespace
-    replyContent = replyContent.trim();
-    
-    // Add debug logging for final content
-    console.log('Final extracted reply content:', {
-      length: replyContent.length,
-      preview: replyContent.substring(0, 100) + (replyContent.length > 100 ? '...' : '')
-    });
-
-    // Save the reply to the database
-    const replyId = crypto.randomUUID();
-    
-    // Extract HTML content and ensure it's properly stored
-    let htmlContent = extractHtmlContent(emailData.text);
-    
-    // For debugging - log the extracted HTML content
-    console.log('Extracted HTML content preview:', {
-      hasHtmlContent: !!htmlContent,
-      previewHtml: htmlContent ? htmlContent.substring(0, 200) + '...' : 'None found',
-      contentType: emailData.headers?.['content-type'] || 'Unknown'
-    });
-
-    // If no HTML content was found in multipart sections, check for markdown-like syntax or create basic HTML
-    if (!htmlContent) {
-      console.log('No HTML content extracted, checking for markdown syntax');
-      // First check if we have any markdown-like formatting in the text
-      const hasMarkdown = replyContent.match(/\*\*.*?\*\*|\*.*?\*/);
-      
-      if (hasMarkdown) {
-        // Process markdown-like syntax
-        htmlContent = replyContent
-          // Escape HTML special characters first
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;')
-          // Process bold text (**bold**)
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          // Process italic text (*italic*)
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          // Convert URLs to links
-          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-          // Convert newlines to <br> tags
-          .replace(/\n/g, '<br>');
-        
-        console.log('Created HTML content from markdown-like syntax');
-      } else {
-        // Simple conversion for plain text
-      htmlContent = replyContent
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
-        .replace(/\n/g, '<br>')
-        // Convert URLs to links
-          .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-        
-        console.log('Created simple HTML content from plain text');
-      }
-    }
-
-    // Ensure the HTML content is properly sanitized
-    if (htmlContent) {
-      // Make sure to sanitize the HTML content before storing
-      const rawHtmlPreview = htmlContent.substring(0, 100);
-      console.log('Raw HTML content before sanitizing:', rawHtmlPreview);
-      
-      htmlContent = sanitizeHtml(htmlContent);
-      console.log('Final sanitized HTML content preview:', htmlContent.substring(0, 100) + '...');
-    } else {
-      console.error('No HTML content could be extracted or created');
-      // Fallback to simple text-to-HTML conversion
-      htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/\n/g, '<br>')}</div>`;
-      console.log('Created fallback HTML content');
-    }
-
-    // Add more detailed logging for the inserted content
-    console.log('Content being stored in database:', {
-      plainTextLength: replyContent?.length,
-      htmlContentLength: htmlContent?.length,
-      htmlContentType: typeof htmlContent,
-      htmlContentIsNull: htmlContent === null,
-      htmlContentIsEmpty: htmlContent === ''
-    });
-
-    // Add final validation to make sure we don't store invalid HTML
-    if (htmlContent) {
-      // Check if the content looks like a multipart boundary or contains only non-HTML content
-      if (htmlContent.startsWith('--') || 
-          htmlContent.startsWith('Content-Type:') || 
-          !htmlContent.includes('<')) {
-        console.log('HTML content appears to be invalid or contain boundary data:', htmlContent.substring(0, 100));
-        // Fallback to simple text-to-HTML conversion
-        htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>')}</div>`;
-        console.log('Replaced with fallback HTML content');
-      }
-      
-      // Final cleanup for any content beyond a certain length (likely not legitimate HTML)
-      if (htmlContent.length > 100000) {
-        console.log('HTML content is suspiciously large, truncating:', htmlContent.length);
-        htmlContent = `<div style="white-space: pre-wrap;">${replyContent.replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>')}</div>`;
-      }
-    }
-
-    // Before we call parseAttachments:
-    console.log('Attempting to parse attachments and extract CIDs');
-
-    // First, insert the reply into the database
-    const { data: insertedReply, error: insertError } = await supabase
-      .from('feedback_replies')
-      .insert([
-        {
-          id: replyId, // Keep the same ID for consistency
-        feedback_id: feedbackId,
-          sender_type: 'user',
-        content: replyContent,
-        html_content: htmlContent,
-        message_id: messageId,
-        in_reply_to: inReplyTo
-        }
-      ])
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Error inserting reply into database:', insertError);
-      return { statusCode: 500, body: JSON.stringify({ error: 'Database error during reply storage' }) };
-    }
-
-    console.log('Successfully stored reply with HTML content in database');
-
-    // Now that we have a valid reply ID, process attachments
-    // Parse attachments and get URL mapping for inline images
-    const { cidToUrlMap } = await parseAttachments(emailData.text, replyId);
-
-    // After we get the results:
-    console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
-
-    // Replace CIDs with public URLs in HTML content
-    if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
-      console.log('Replacing CID references with public URLs');
-      
-      // Log initial HTML content for debugging
-      console.log('HTML before replacement (preview):', htmlContent.substring(0, 200));
-      
-      // Get any parsed attachments
-      let parsedAttachments: EmailAttachment[] = [];
+    // For SendGrid's inbound parse webhook, extract attachments
+    if (emailData.attachments) {
       try {
-        // Try to get parsed attachments from emailData or attachments in the request
-        if (emailData.attachments) {
-          parsedAttachments = Array.isArray(emailData.attachments) ? emailData.attachments : [];
+        // SendGrid stores attachments as a JSON string
+        if (typeof emailData.attachments === 'string') {
+          emailData.attachments = JSON.parse(emailData.attachments);
         }
       } catch (error) {
-        console.log('Error getting attachments:', error);
-        // Continue without attachments
+        console.error('Error parsing attachments:', error);
+        emailData.attachments = [];
       }
-      
-      // Update the HTML content with the replaced CID references
-      const updatedHtmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
-      
-      // Log updated HTML content for debugging
-      console.log('HTML after replacement (preview):', updatedHtmlContent.substring(0, 200));
-      
-      // Only update if there were actually changes
-      if (updatedHtmlContent !== htmlContent) {
-        console.log('HTML content was changed during CID replacement');
-        htmlContent = updatedHtmlContent;
-        
-        // Update the reply with the new HTML content that includes public URLs
-        const { error: updateError } = await supabase
-          .from('feedback_replies')
-          .update({ html_content: htmlContent })
-          .eq('id', replyId);
-        
-        if (updateError) {
-          console.error('Error updating reply with public image URLs:', updateError);
-          // Continue anyway - the reply is stored but might have cid: references
-        } else {
-          console.log('Updated reply with public image URLs');
+    }
+    
+    console.log('Parsed email data:', {
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject,
+      hasText: !!emailData.text,
+      hasHtml: !!emailData.html,
+      hasAttachments: !!(emailData.attachments && emailData.attachments.length),
+      headers: emailData.headers ? Object.keys(emailData.headers) : 'No headers'
+    });
+    
+    // Extract feedback ID from the email - this is an async operation
+    const feedbackId = await extractFeedbackId(emailData);
+    
+    if (!feedbackId) {
+      console.error('Could not extract feedback_id from email');
+      return { statusCode: 400, body: JSON.stringify({ error: 'Could not extract feedback_id from email' }) };
+    }
+    
+    console.log('Extracted feedback_id:', feedbackId);
+    
+    // Extract Message-ID and In-Reply-To headers for threading
+    let messageId = '';
+    let inReplyTo = '';
+    
+    if (emailData.headers) {
+      // Access the headers in a case-insensitive way
+      const headers = emailData.headers;
+      for (const key in headers) {
+        if (key.toLowerCase() === 'message-id') {
+          messageId = headers[key];
+        } else if (key.toLowerCase() === 'in-reply-to') {
+          inReplyTo = headers[key];
         }
       }
     }
+    
+    console.log('Email headers for threading:', {
+      messageId,
+      inReplyTo
+    });
+    
+    // Store the reply using our consolidated function
+    const replyId = await storeReply(
+      emailData, 
+      feedbackId, 
+      messageId || `reply-${crypto.randomUUID()}`, // Provide a fallback value
+      inReplyTo || null // Ensure it's string | null
+    );
 
     return {
       statusCode: 200,
