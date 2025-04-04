@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader, Trash2, Smartphone, Tablet, Monitor, Check, Circle } from 'lucide-react'
+import { Loader, Trash2, Smartphone, Tablet, Monitor, Check, Circle, Inbox, CheckCircle, ListFilter } from 'lucide-react'
 import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import {
@@ -16,14 +16,37 @@ import {
 
 interface ResponsesTableProps {
   formId: string
+  statusFilter?: 'all' | 'open' | 'closed'
+  onFilterChange?: (filter: 'all' | 'open' | 'closed') => void
 }
 
-export function ResponsesTable({ formId }: ResponsesTableProps) {
+export function ResponsesTable({ 
+  formId,
+  statusFilter: externalStatusFilter = 'all',
+  onFilterChange
+}: ResponsesTableProps) {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'closed'>('all')
+  const [internalStatusFilter, setInternalStatusFilter] = useState<'all' | 'open' | 'closed'>(externalStatusFilter)
+  
+  // Sync internal filter state with external filter
+  useEffect(() => {
+    setInternalStatusFilter(externalStatusFilter);
+  }, [externalStatusFilter]);
+
+  // Use the status filter coming from props or the internal state
+  const currentStatusFilter = externalStatusFilter;
+
+  // Handle filter changes
+  const handleFilterChange = (filter: 'all' | 'open' | 'closed') => {
+    setInternalStatusFilter(filter);
+    // Propagate the change to parent component if callback provided
+    if (onFilterChange) {
+      onFilterChange(filter);
+    }
+  };
 
   const handleDelete = async () => {
     if (!responseToDelete) return
@@ -73,8 +96,8 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           .order('created_at', { ascending: false })
         
         // Apply status filter if not showing all
-        if (statusFilter !== 'all') {
-          query = query.eq('status', statusFilter)
+        if (currentStatusFilter !== 'all') {
+          query = query.eq('status', currentStatusFilter)
         }
 
         const { data: responses, error } = await query
@@ -107,8 +130,8 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
           .order('created_at', { ascending: false })
         
         // Apply status filter if not showing all
-        if (statusFilter !== 'all') {
-          query = query.eq('status', statusFilter)
+        if (currentStatusFilter !== 'all') {
+          query = query.eq('status', currentStatusFilter)
         }
         
         const { data } = await query
@@ -122,7 +145,7 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
     return () => {
       channel.unsubscribe()
     }
-  }, [formId, statusFilter])
+  }, [formId, currentStatusFilter])
 
   if (loading) {
     return (
@@ -145,28 +168,31 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
       <div className="flex justify-end">
         <div className="inline-flex rounded-md shadow-sm">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1 text-xs font-medium rounded-l-md border ${
-              statusFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-background'
+            onClick={() => handleFilterChange('open')}
+            className={`px-3 py-1 text-xs font-medium rounded-l-md border flex items-center ${
+              currentStatusFilter === 'open' ? 'bg-primary text-primary-foreground' : 'bg-background'
             }`}
           >
-            All
+            <Inbox className="w-3 h-3 mr-1.5" />
+            Inbox
           </button>
           <button
-            onClick={() => setStatusFilter('open')}
-            className={`px-3 py-1 text-xs font-medium border-y border-r ${
-              statusFilter === 'open' ? 'bg-primary text-primary-foreground' : 'bg-background'
+            onClick={() => handleFilterChange('closed')}
+            className={`px-3 py-1 text-xs font-medium border-y border-r flex items-center ${
+              currentStatusFilter === 'closed' ? 'bg-primary text-primary-foreground' : 'bg-background'
             }`}
           >
-            Open
-          </button>
-          <button
-            onClick={() => setStatusFilter('closed')}
-            className={`px-3 py-1 text-xs font-medium rounded-r-md border-y border-r ${
-              statusFilter === 'closed' ? 'bg-primary text-primary-foreground' : 'bg-background'
-            }`}
-          >
+            <CheckCircle className="w-3 h-3 mr-1.5" />
             Closed
+          </button>
+          <button
+            onClick={() => handleFilterChange('all')}
+            className={`px-3 py-1 text-xs font-medium rounded-r-md border-y border-r flex items-center ${
+              currentStatusFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-background'
+            }`}
+          >
+            <ListFilter className="w-3 h-3 mr-1.5" />
+            View all
           </button>
         </div>
       </div>
@@ -272,9 +298,9 @@ export function ResponsesTable({ formId }: ResponsesTableProps) {
                         : 'text-green-500'
                     }`}>
                       {response.status === 'open' 
-                        ? <Circle className="w-3 h-3 mr-1" /> 
-                        : <Check className="w-3 h-3 mr-1" />}
-                      {response.status === 'open' ? 'Open' : 'Closed'}
+                        ? <Inbox className="w-3 h-3 mr-1" /> 
+                        : <CheckCircle className="w-3 h-3 mr-1" />}
+                      {response.status === 'open' ? 'Inbox' : 'Closed'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-sm text-muted-foreground">

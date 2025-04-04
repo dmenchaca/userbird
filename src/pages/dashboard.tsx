@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { FormsList } from '@/components/forms-list'
 import { ResponsesTable } from '@/components/responses-table'
 import { Button } from '@/components/ui/button'
-import { Bird, Download, Plus, Code2, Settings2, Loader } from 'lucide-react'
+import { Bird, Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, ListFilter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
 import { FormsDropdown } from '@/components/forms-dropdown'
+import { cn } from '@/lib/utils'
 
 interface DashboardProps {
   initialFormId?: string
@@ -36,6 +37,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [hasAnyForms, setHasAnyForms] = useState(false)
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
+  const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
+  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('all')
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -150,6 +153,64 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   }, [selectedFormId])
 
+  // Fetch feedback counts
+  useEffect(() => {
+    if (!selectedFormId) {
+      setFeedbackCounts({ open: 0, closed: 0 });
+      return;
+    }
+    
+    const fetchCounts = async () => {
+      try {
+        // Get open feedback count
+        const { count: openCount } = await supabase
+          .from('feedback')
+          .select('id', { count: 'exact' })
+          .eq('form_id', selectedFormId)
+          .eq('status', 'open');
+          
+        // Get closed feedback count
+        const { count: closedCount } = await supabase
+          .from('feedback')
+          .select('id', { count: 'exact' })
+          .eq('form_id', selectedFormId)
+          .eq('status', 'closed');
+          
+        setFeedbackCounts({
+          open: openCount || 0,
+          closed: closedCount || 0
+        });
+      } catch (error) {
+        console.error('Error fetching feedback counts:', error);
+      }
+    };
+    
+    fetchCounts();
+    
+    // Set up subscription to feedback changes
+    const feedbackChannel = supabase
+      .channel(`feedback_counts_${selectedFormId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'feedback',
+        filter: `form_id=eq.${selectedFormId}`
+      }, () => {
+        // Refetch counts when feedback changes
+        fetchCounts();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(feedbackChannel);
+    };
+  }, [selectedFormId]);
+  
+  // Handle filter change from both sidebar and table
+  const handleFilterChange = (filter: 'all' | 'open' | 'closed') => {
+    setActiveFilter(filter);
+  };
+
   const handleExport = useCallback(async () => {
     if (!selectedFormId) return
 
@@ -236,7 +297,56 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             />
           </div>
           <div className="flex-1 p-4 space-y-4">
-            {/* Future navigation items would go here */}
+            {selectedFormId && (
+              <nav className="space-y-1">
+                <Button
+                  variant={activeFilter === 'open' ? 'secondary' : 'ghost'}
+                  className="w-full justify-between h-10 px-3 font-normal"
+                  onClick={() => handleFilterChange('open')}
+                >
+                  <div className="flex items-center">
+                    <Inbox className="mr-2 h-4 w-4" />
+                    <span>Inbox</span>
+                  </div>
+                  <span className={cn(
+                    "text-xs rounded-full px-2 py-0.5 tabular-nums",
+                    feedbackCounts.open > 0 
+                      ? "bg-primary/10 text-primary font-medium" 
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {feedbackCounts.open}
+                  </span>
+                </Button>
+                
+                <Button
+                  variant={activeFilter === 'closed' ? 'secondary' : 'ghost'}
+                  className="w-full justify-between h-10 px-3 font-normal"
+                  onClick={() => handleFilterChange('closed')}
+                >
+                  <div className="flex items-center">
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    <span>Closed</span>
+                  </div>
+                  <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 tabular-nums">
+                    {feedbackCounts.closed}
+                  </span>
+                </Button>
+                
+                <Button
+                  variant={activeFilter === 'all' ? 'secondary' : 'ghost'}
+                  className="w-full justify-between h-10 px-3 font-normal"
+                  onClick={() => handleFilterChange('all')}
+                >
+                  <div className="flex items-center">
+                    <ListFilter className="mr-2 h-4 w-4" />
+                    <span>View all</span>
+                  </div>
+                  <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 tabular-nums">
+                    {feedbackCounts.open + feedbackCounts.closed}
+                  </span>
+                </Button>
+              </nav>
+            )}
           </div>
           <UserMenu />
         </div>
@@ -306,7 +416,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         <div className="container py-12 px-8 space-y-8">
           {selectedFormId ? (
             <div className="space-y-6">
-              <ResponsesTable formId={selectedFormId} />
+              <ResponsesTable 
+                formId={selectedFormId} 
+                statusFilter={activeFilter} 
+                onFilterChange={handleFilterChange}
+              />
             </div>
           ) : (
             <div className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex items-center">
