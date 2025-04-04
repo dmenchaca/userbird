@@ -657,102 +657,358 @@ async function parseAttachments(
   // Find the main boundary
   const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
   if (!boundaryMatch || !boundaryMatch[1]) {
+    // Try alternative boundary patterns for Apple Mail
+    const appleBoundaryMatch = emailText.match(/boundary=(?:"?)([^";\r\n]+)(?:"?)/i) || 
+                              emailText.match(/Apple-Mail=_([a-zA-Z0-9-]+)/i);
+    
+    if (appleBoundaryMatch && appleBoundaryMatch[1]) {
+      const appleBoundary = appleBoundaryMatch[1];
+      console.log(`Found Apple Mail boundary: ${appleBoundary}`);
+      
+      // Split by both possible boundary formats
+      const parts1 = emailText.split(`--${appleBoundary}`);
+      const parts2 = emailText.split(`Content-Type: multipart/related`);
+      
+      // Use whichever split gives us more parts
+      const parts = parts1.length >= parts2.length ? parts1 : parts2;
+      
+      console.log(`Apple Mail email split into ${parts.length} parts`);
+      
+      // Process each part
+      for (const part of parts) {
+        // Skip parts that don't look like they contain attachments
+        if (!part.includes('Content-Type:')) continue;
+        
+        // Check if this part is an image or attachment
+        const contentTypeMatch = part.match(/Content-Type:\s*([^;\r\n]+)/i);
+        if (!contentTypeMatch) continue;
+        
+        const contentType = contentTypeMatch[1].trim();
+        console.log(`Found part with Content-Type: ${contentType}`);
+        
+        // Skip text/plain and text/html parts, we're looking for attachments
+        if (contentType === 'text/plain' || contentType === 'text/html') {
+          console.log('Skipping text/plain or text/html part');
+          continue;
+        }
+        
+        // Parse content ID (for inline images)
+        let contentId: string | undefined;
+        const contentIdMatch = part.match(/Content-ID:\s*<([^>]+)>/i);
+        if (contentIdMatch && contentIdMatch[1]) {
+          contentId = contentIdMatch[1];
+          console.log(`Found attachment with Content-ID: ${contentId}`);
+        } else if (isAppleMail && contentType.startsWith('image/')) {
+          // For Apple Mail, generate a content ID if missing for images
+          contentId = `apple-mail-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          console.log(`Generated Content-ID for Apple Mail image: ${contentId}`);
+        }
+        
+        // Parse filename
+        let filename = '';
+        const filenameMatch = part.match(/filename="([^"]+)"/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+          console.log(`Found attachment with filename: ${filename}`);
+        } else if (isAppleMail) {
+          // Try alternative patterns for Apple Mail
+          const altFilenameMatch = part.match(/name="?([^";\r\n]+)"?/i) || 
+                                  part.match(/filename=([^;\r\n\s]+)/i);
+          if (altFilenameMatch && altFilenameMatch[1]) {
+            filename = altFilenameMatch[1].trim();
+            console.log(`Found Apple Mail attachment with alternative filename pattern: ${filename}`);
+          } else if (contentType.startsWith('image/')) {
+            // Generate a filename for Apple Mail images if missing
+            const extension = contentType.split('/')[1] || 'png';
+            filename = `apple-mail-image-${Date.now()}.${extension}`;
+            console.log(`Generated filename for Apple Mail image: ${filename}`);
+          } else {
+            // Generate a generic filename if none is provided
+            const extension = contentType.split('/')[1] || 'bin';
+            filename = `attachment-${Date.now()}.${extension}`;
+            console.log(`Generated filename for attachment: ${filename}`);
+          }
+        } else {
+          // Generate a generic filename if none is provided
+          const extension = contentType.split('/')[1] || 'bin';
+          filename = `attachment-${Date.now()}.${extension}`;
+          console.log(`Generated filename for attachment: ${filename}`);
+        }
+        
+        // Determine if this is an inline attachment
+        const isInline = part.includes('Content-Disposition: inline') || 
+                       !!contentId || 
+                       (isAppleMail && contentType.startsWith('image/')); // Treat Apple Mail images as inline
+        
+        // Extract the binary data
+        const contentStart = part.indexOf('\r\n\r\n');
+        if (contentStart === -1) continue;
+        
+        let data = part.substring(contentStart + 4);
+        
+        // Determine the encoding
+        const transferEncodingMatch = part.match(/Content-Transfer-Encoding:\s*([^\s;]+)/i);
+        const encoding = transferEncodingMatch ? transferEncodingMatch[1].toLowerCase() : '';
+        
+        // Handle different encodings
+        if (encoding === 'base64') {
+          // Clean up base64 string (remove newlines, etc.)
+          data = data.replace(/[\r\n\s]/g, '');
+          try {
+            const buffer = Buffer.from(data, 'base64');
+            
+            attachments.push({
+              filename,
+              contentType,
+              contentId,
+              data: buffer,
+              isInline
+            });
+            
+            console.log(`Processed base64 attachment: ${filename}, size: ${buffer.length} bytes, isInline: ${isInline}`);
+          } catch (error) {
+            console.error(`Error processing base64 data for attachment ${filename}:`, error);
+          }
+        } else if (encoding === '7bit' || encoding === '8bit' || encoding === 'binary' || encoding === '' || isAppleMail) {
+          // For Apple Mail, try to process attachments regardless of encoding
+          try {
+            // Special handling for Apple Mail images with 7bit encoding
+            if (isAppleMail && contentType.startsWith('image/')) {
+              console.log(`Special processing for Apple Mail image with ${encoding || 'unspecified'} encoding: ${filename}`);
+              
+              // For Apple Mail with 7bit encoding, the data might need additional processing
+              // Try to find more reliable content boundaries
+              const headerEndIndex = data.indexOf('\n\n');
+              const headerEndIndex2 = data.indexOf('\r\n\r\n');
+              
+              // Use whichever marker we find, or default to the start
+              let contentStartIndex = 0;
+              if (headerEndIndex > 0) {
+                contentStartIndex = headerEndIndex + 2;
+                console.log(`Found content start after headers at position ${contentStartIndex}`);
+              } else if (headerEndIndex2 > 0) {
+                contentStartIndex = headerEndIndex2 + 4;
+                console.log(`Found content start after headers at position ${contentStartIndex}`);
+              }
+              
+              // Extract the data part after headers
+              const possibleImageData = data.substring(contentStartIndex);
+              
+              // Check for common image signatures
+              const imageSignatures = [
+                { format: 'PNG', sig: [0x89, 0x50, 0x4E, 0x47] },
+                { format: 'JPEG', sig: [0xFF, 0xD8, 0xFF] },
+                { format: 'GIF', sig: [0x47, 0x49, 0x46, 0x38] }, // 'GIF8'
+                { format: 'BMP', sig: [0x42, 0x4D] }              // 'BM'
+              ];
+              
+              let foundBinary = false;
+              let binaryData = possibleImageData;
+              
+              // Look for image signatures in the data
+              for (const sig of imageSignatures) {
+                const sigBuffer = Buffer.from(sig.sig);
+                const sigStr = sigBuffer.toString('binary');
+                const sigIndex = binaryData.indexOf(sigStr);
+                
+                if (sigIndex !== -1) {
+                  console.log(`Found ${sig.format} signature at position ${sigIndex} in ${filename}`);
+                  binaryData = binaryData.substring(sigIndex);
+                  foundBinary = true;
+                  break;
+                }
+              }
+              
+              // If we didn't find a signature but this is Apple Mail, try using the content anyway
+              if (!foundBinary && isAppleMail) {
+                console.log(`No image signature found in Apple Mail attachment, using content as-is`);
+              }
+              
+              // Try to convert the data to a buffer
+              try {
+                const buffer = Buffer.from(binaryData, 'binary');
+                
+                // Only use the buffer if it has a reasonable size
+                if (buffer.length > 100) {
+                  attachments.push({
+                    filename,
+                    contentType,
+                    contentId,
+                    data: buffer,
+                    isInline: true // Force inline for Apple Mail images
+                  });
+                  
+                  console.log(`Processed Apple Mail ${encoding || 'binary'} image: ${filename}, size: ${buffer.length} bytes`);
+                  
+                  // Skip the rest of the processing for this part
+                  continue;
+                } else {
+                  console.log(`Binary data too small (${buffer.length} bytes) for ${filename}, falling back to standard processing`);
+                }
+              } catch (bufferError) {
+                console.error(`Error creating buffer for Apple Mail image ${filename}:`, bufferError);
+              }
+            }
+            
+            // For 7bit/8bit encodings or when no encoding is specified, we need to look for binary data
+            // Apple Mail often sends binary data directly, we need to find where it actually starts
+            
+            // First try searching for common binary image headers (for PNG, JPEG, etc.)
+            let binaryStart = -1;
+            
+            // Check for PNG signature
+            const pngSignature = Buffer.from([0x89, 0x50, 0x4E, 0x47]);
+            const pngIndex = data.indexOf(pngSignature.toString('binary'));
+            if (pngIndex !== -1) {
+              binaryStart = pngIndex;
+              console.log(`Found PNG signature at position ${pngIndex} in ${filename}`);
+            }
+            
+            // Check for JPEG signature (if PNG not found)
+            if (binaryStart === -1) {
+              const jpegSignature = Buffer.from([0xFF, 0xD8, 0xFF]);
+              const jpegIndex = data.indexOf(jpegSignature.toString('binary'));
+              if (jpegIndex !== -1) {
+                binaryStart = jpegIndex;
+                console.log(`Found JPEG signature at position ${jpegIndex} in ${filename}`);
+              }
+            }
+            
+            // If we found binary data or this is Apple Mail (try anyway)
+            if (binaryStart !== -1 || isAppleMail) {
+              // If binary start found, extract only from that point
+              const binaryData = binaryStart !== -1 ? data.substring(binaryStart) : data;
+              const buffer = Buffer.from(binaryData, 'binary');
+              
+              // For Apple Mail, we'll try to process it even if we're not sure it's valid
+              if (buffer.length > 100 || isAppleMail) { // Ensure it's not just a few bytes
+                attachments.push({
+                  filename,
+                  contentType,
+                  contentId,
+                  data: buffer,
+                  isInline
+                });
+                
+                console.log(`Processed ${encoding || 'binary'} attachment: ${filename}, size: ${buffer.length} bytes, isInline: ${isInline}`);
+              } else {
+                console.log(`Binary data too small (${buffer.length} bytes) for ${filename}, skipping`);
+              }
+            } else {
+              console.log(`Could not find binary data in ${encoding || 'unknown'} encoded attachment: ${filename}`);
+            }
+          } catch (error) {
+            console.error(`Error processing ${encoding || 'binary'} data for attachment ${filename}:`, error);
+          }
+        } else {
+          console.log(`Unsupported encoding for attachment: ${encoding}`);
+        }
+      }
+      
+      console.log(`Found ${attachments.length} attachments in Apple Mail email`);
+      return { attachments, cidToUrlMap };
+    }
+    
     console.log('No boundary found for attachments');
     return { attachments, cidToUrlMap };
   }
   
-  const boundary = boundaryMatch[1];
-  const parts = emailText.split(`--${boundary}`);
+  console.log(`Found ${attachments.length} attachments in email`);
   
-  console.log(`Examining ${parts.length} email parts for potential attachments`);
-  
-  for (const part of parts) {
-    // Check if this part is an image or attachment
-    const contentTypeMatch = part.match(/Content-Type:\s*([^;\r\n]+)/i);
-    if (!contentTypeMatch) {
-      console.log('No Content-Type header found in this part, skipping');
-      continue;
-    }
+  // Special fallback for Apple Mail when no attachments were detected
+  if (attachments.length === 0 && isAppleMail && emailText.includes('[Image attachment]')) {
+    console.log('No attachments were detected, but [Image attachment] placeholder exists in Apple Mail email');
+    console.log('Attempting fallback attachment detection for Apple Mail');
     
-    const contentType = contentTypeMatch[1].trim();
-    console.log(`Found part with Content-Type: ${contentType}`);
-    
-    // Skip text/plain and text/html parts, we're looking for attachments
-    if (contentType === 'text/plain' || contentType === 'text/html') {
-      console.log('Skipping text/plain or text/html part');
-      continue;
-    }
-    
-    // Parse content ID (for inline images)
-    let contentId: string | undefined;
-    const contentIdMatch = part.match(/Content-ID:\s*<([^>]+)>/i);
-    if (contentIdMatch && contentIdMatch[1]) {
-      contentId = contentIdMatch[1];
-      console.log(`Found attachment with Content-ID: ${contentId}`);
-    } else if (isAppleMail && contentType.startsWith('image/')) {
-      // For Apple Mail, generate a content ID if missing for images
-      contentId = `apple-mail-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      console.log(`Generated Content-ID for Apple Mail image: ${contentId}`);
-    }
-    
-    // Parse filename
-    let filename = '';
-    const filenameMatch = part.match(/filename="([^"]+)"/i);
-    if (filenameMatch && filenameMatch[1]) {
-      filename = filenameMatch[1];
-      console.log(`Found attachment with filename: ${filename}`);
-    } else if (isAppleMail && contentType.startsWith('image/')) {
-      // Generate a filename for Apple Mail images if missing
-      const extension = contentType.split('/')[1] || 'png';
-      filename = `apple-mail-image-${Date.now()}.${extension}`;
-      console.log(`Generated filename for Apple Mail image: ${filename}`);
-    } else {
-      // Generate a generic filename if none is provided
-      const extension = contentType.split('/')[1] || 'bin';
-      filename = `attachment-${Date.now()}.${extension}`;
-      console.log(`Generated filename for attachment: ${filename}`);
-    }
-    
-    // Determine if this is an inline attachment
-    const isInline = part.includes('Content-Disposition: inline') || 
-                   !!contentId || 
-                   (isAppleMail && contentType.startsWith('image/')); // Treat Apple Mail images as inline
-    
-    // Extract the binary data
-    const contentStart = part.indexOf('\r\n\r\n');
-    if (contentStart === -1) continue;
-    
-    let data = part.substring(contentStart + 4);
-    
-    // Determine the encoding
-    const transferEncodingMatch = part.match(/Content-Transfer-Encoding:\s*([^\s;]+)/i);
-    const encoding = transferEncodingMatch ? transferEncodingMatch[1].toLowerCase() : '';
-    
-    // Handle different encodings
-    if (encoding === 'base64') {
-      // Clean up base64 string (remove newlines, etc.)
-      data = data.replace(/[\r\n\s]/g, '');
-      try {
-        const buffer = Buffer.from(data, 'base64');
+    // Look for content-type sections that might indicate image content
+    const imageSections = emailText.match(/Content-Type: image\/[^;\r\n]+/gi);
+    if (imageSections && imageSections.length > 0) {
+      console.log(`Found ${imageSections.length} image content sections in Apple Mail email`);
+      
+      // For each image section, try to extract the content
+      for (const section of imageSections) {
+        // Determine the content type
+        const contentTypeMatch = section.match(/Content-Type: (image\/[^;\r\n]+)/i);
+        if (!contentTypeMatch) continue;
         
-        attachments.push({
-          filename,
-          contentType,
-          contentId,
-          data: buffer,
-          isInline
-        });
+        const contentType = contentTypeMatch[1].trim();
+        const extension = contentType.split('/')[1] || 'png';
+        const filename = `apple-mail-fallback-${Date.now()}.${extension}`;
         
-        console.log(`Processed base64 attachment: ${filename}, size: ${buffer.length} bytes, isInline: ${isInline}`);
-      } catch (error) {
-        console.error(`Error processing base64 data for attachment ${filename}:`, error);
+        console.log(`Attempting to extract ${contentType} content as ${filename}`);
+        
+        // Find where this section begins in the email
+        const sectionIndex = emailText.indexOf(section);
+        if (sectionIndex === -1) continue;
+        
+        // Extract a portion of text after this header that might contain the image data
+        const sectionText = emailText.substring(sectionIndex);
+        
+        // Find where the headers end and content begins
+        const contentStart = sectionText.indexOf('\r\n\r\n');
+        if (contentStart === -1) continue;
+        
+        // Extract content (limit to a reasonable size to avoid grabbing too much)
+        const maxSize = 500000; // Limit to 500KB to avoid grabbing too much data
+        let imageData = sectionText.substring(contentStart + 4, contentStart + 4 + maxSize);
+        
+        // Try to find where the content ends (at a boundary or next section)
+        const boundaryIndex = imageData.indexOf('--');
+        if (boundaryIndex > 0) {
+          imageData = imageData.substring(0, boundaryIndex);
+        }
+        
+        // Try to find image signatures within this data
+        const imageSignatures = [
+          { format: 'PNG', sig: [0x89, 0x50, 0x4E, 0x47] },
+          { format: 'JPEG', sig: [0xFF, 0xD8, 0xFF] },
+          { format: 'GIF', sig: [0x47, 0x49, 0x46, 0x38] },
+          { format: 'BMP', sig: [0x42, 0x4D] }
+        ];
+        
+        let foundBinary = false;
+        let binaryData = imageData;
+        
+        // Look for image signatures
+        for (const sig of imageSignatures) {
+          const sigBuffer = Buffer.from(sig.sig);
+          const sigStr = sigBuffer.toString('binary');
+          const sigIndex = binaryData.indexOf(sigStr);
+          
+          if (sigIndex !== -1) {
+            console.log(`Found ${sig.format} signature at position ${sigIndex} in fallback section`);
+            binaryData = binaryData.substring(sigIndex);
+            foundBinary = true;
+            break;
+          }
+        }
+        
+        // If we found binary content or this is our last resort, try to use it
+        if (foundBinary || imageSections.length === 1) {
+          try {
+            const buffer = Buffer.from(binaryData, 'binary');
+            
+            // Only use if it has meaningful size
+            if (buffer.length > 100) {
+              const contentId = `apple-mail-fallback-${Date.now()}`;
+              
+              attachments.push({
+                filename,
+                contentType,
+                contentId,
+                data: buffer,
+                isInline: true
+              });
+              
+              console.log(`Created fallback attachment from Apple Mail image section: ${filename}, size: ${buffer.length} bytes`);
+            }
+          } catch (error) {
+            console.error('Error processing fallback Apple Mail attachment:', error);
+          }
+        }
       }
-    } else {
-      console.log(`Unsupported encoding for attachment: ${encoding}`);
     }
   }
-  
-  console.log(`Found ${attachments.length} attachments in email`);
   
   // Upload attachments to Supabase Storage and create mapping
   for (const attachment of attachments) {
