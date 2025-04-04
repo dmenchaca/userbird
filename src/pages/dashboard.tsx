@@ -10,6 +10,7 @@ import { NewFormDialog } from '@/components/new-form-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
+import { FormsDropdown } from '@/components/forms-dropdown'
 
 interface DashboardProps {
   initialFormId?: string
@@ -227,31 +228,15 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     <div className="min-h-screen bg-background flex">
       <aside className="fixed left-0 w-64 h-screen border-r bg-[#FAFAFA]">
         <div className="flex flex-col h-full">
-          <div className="p-4">
-            <a href="/" className="flex items-center gap-2 font-medium">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <Bird className="size-4" />
-              </div>
-              Userbird
-            </a>
-          </div>
-          <div className="flex-1 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-medium">Forms</h2>
-              <button
-                onClick={() => setShowNewFormDialog(true)}
-                className="w-6 h-6 rounded-full hover:bg-accent flex items-center justify-center group relative"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  Create new form
-                </span>
-              </button>
-            </div>
-            <FormsList
+          <div className="px-3 py-4 border-b">
+            <FormsDropdown 
               selectedFormId={selectedFormId}
               onFormSelect={setSelectedFormId}
+              onNewFormClick={() => setShowNewFormDialog(true)}
             />
+          </div>
+          <div className="flex-1 p-4 space-y-4">
+            {/* Future navigation items would go here */}
           </div>
           <UserMenu />
         </div>
