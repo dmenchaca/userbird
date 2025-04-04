@@ -153,6 +153,15 @@ function extractAppleMailContent(emailText: string): string | null {
       if (bodyMatch && bodyMatch[1]) {
         let bodyContent = bodyMatch[1];
         
+        // For Apple Mail specifically, check if there's text content immediately after the body opening tag
+        // This is often where the actual message text is located
+        const bodyTextMatch = htmlContent.match(/<body[^>]*>([^<]+)/i);
+        if (bodyTextMatch && bodyTextMatch[1] && bodyTextMatch[1].trim().length > 0) {
+          console.log('Found text content immediately after body tag opening');
+          bestHtmlContent = bodyTextMatch[1].trim();
+          break;
+        }
+        
         // Instead of removing content, preserve the full body content
         // Just check if we have meaningful text in the body
         const strippedContent = bodyContent.replace(/<[^>]*>/g, ' ').trim();
@@ -308,143 +317,118 @@ function stripRawHeaders(emailText: string): string {
   return cleanedText.replace(/^\s+/, ''); // trim leading newlines/spaces
 }
 
-// Function to extract and sanitize HTML content from email
-function extractHtmlContent(emailText: string): string {
-  if (!emailText) return '';
-  
-  console.log('Starting HTML content extraction');
-  
-  // Check if this is a multipart/related email (which often has images)
-  const isMultipartRelated = emailText.includes('Content-Type: multipart/related');
-  
-  if (isMultipartRelated) {
-    console.log('Detected multipart/related email structure');
-  }
-  
-  // Find the boundary marker in the email
-  const boundaryMatch = emailText.match(/boundary="?([^"\r\n]+)"?/i);
-  if (!boundaryMatch || !boundaryMatch[1]) {
-    console.log('No boundary found, treating as plain text email');
-    return '';
-  }
-  
-  const boundary = boundaryMatch[1];
-  console.log(`Found boundary: ${boundary}`);
-  
-  // Split the email based on the boundary
-  const parts = emailText.split(`--${boundary}`);
-  console.log(`Email split into ${parts.length} parts`);
-  
-  // Look for the HTML content in the parts
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    console.log(`Examining part ${i+1}/${parts.length}, length: ${part.length} characters`);
-    
-    // Check if this part is HTML
-    const contentTypeMatch = part.match(/Content-Type:\s*text\/html/i);
-    if (!contentTypeMatch) {
-      console.log(`Part ${i+1} is not HTML, skipping`);
-      continue;
+// Function to extract HTML content from a multipart email
+function extractHtmlContent(emailText: string): string | null {
+  try {
+    // Check for Apple Mail format and attempt specialized extraction
+    if (emailText.includes('Apple-Mail') || emailText.includes('X-Mailer: Apple Mail')) {
+      console.log('Detected Apple Mail format in extractHtmlContent, attempting specialized extraction');
+      return extractAppleMailContent(emailText);
     }
     
-    console.log(`Found HTML content in part ${i+1}`);
-    
-    // Check if it's quoted-printable
-    const encodingMatch = part.match(/Content-Transfer-Encoding:\s*quoted-printable/i);
-    const isQuotedPrintable = !!encodingMatch;
-    
-    if (isQuotedPrintable) {
-      console.log('Content is quoted-printable encoded, will decode');
+    // Look for content-type headers for HTML parts
+    const htmlHeaderMatch = emailText.match(/Content-Type: text\/html/gi);
+    if (!htmlHeaderMatch) {
+      console.log('No HTML content-type headers found');
+      return null;
     }
     
-    // Extract the content after the headers
-    // Look for the empty line that separates headers from body
-    const contentStart = part.indexOf('\r\n\r\n');
-    if (contentStart === -1) {
-      console.log(`No content separator found in part ${i+1}, skipping`);
-      continue;
+    console.log('Starting HTML content extraction');
+    
+    // Find the boundary that separates the email parts
+    const boundaryMatch = emailText.match(/boundary=(?:"?)([^"\r\n]+)(?:"?)/i);
+    if (!boundaryMatch || !boundaryMatch[1]) {
+      console.log('No boundary found for multipart message');
+      return null;
     }
     
-    let htmlContent = part.substring(contentStart + 4);
+    const boundary = boundaryMatch[1];
+    console.log(`Found boundary: ${boundary}`);
     
-    // Log the raw content length
-    console.log(`Raw HTML content length: ${htmlContent.length} characters`);
-    console.log(`Raw HTML content preview: ${htmlContent.substring(0, 100)}...`);
+    // Split the email into parts based on the boundary
+    const parts = emailText.split(`--${boundary}`);
+    console.log(`Email split into ${parts.length} parts`);
     
-    // Decode if necessary
-    if (isQuotedPrintable) {
-      htmlContent = decodeQuotedPrintable(htmlContent);
-      console.log(`Decoded HTML content length: ${htmlContent.length} characters`);
-      console.log(`Decoded HTML content preview: ${htmlContent.substring(0, 100)}...`);
-    }
-    
-    // Remove boundary markers and email artifacts
-    // This is important to prevent duplicates in the output
-    htmlContent = htmlContent.replace(/--[a-zA-Z0-9]+(?:--)?\s*$/gm, '');
-    htmlContent = htmlContent.replace(/Content-Type: [^<>\n]+\n/gi, '');
-    htmlContent = htmlContent.replace(/Content-Transfer-Encoding: [^<>\n]+\n/gi, '');
-    
-    // Look specifically for the HTML body content in the part
-    const htmlBodyMatch = htmlContent.match(/<div[^>]*>([\s\S]*)<\/div>/i) || 
-                        htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i) ||
-                        htmlContent.match(/<html[^>]*>([\s\S]*)<\/html>/i);
-    
-    if (htmlBodyMatch && htmlBodyMatch[1]) {
-      // Extract just the actual content, without the email headers
-      htmlContent = htmlBodyMatch[1];
-      console.log('Extracted inner HTML content from the email part');
-    }
-    
-    // For Gmail-specific emails, also check for [image:] tags
-    if (htmlContent.includes('[image:') || htmlContent.includes('[Image:') || htmlContent.includes('[image ')) {
-      console.log('Found Gmail image placeholders in content');
-    }
-    
-    // Check if the content looks like HTML (contains at least one tag)
-    if (!htmlContent.includes('<') && !htmlContent.includes('[image')) {
-      console.log('Content doesn\'t appear to be valid HTML (no tags or image placeholders found)');
-      continue;
-    }
-    
-    return htmlContent.trim();
-  }
-  
-  // Look for Gmail's text part with [image] tags as a fallback
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    
-    // Check if this part contains image placeholders
-    if (part.includes('[image:') || part.includes('[Image:') || part.includes('[image ')) {
-      console.log(`Found image placeholders in part ${i+1}`);
+    // Loop through each part looking for HTML content
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      console.log(`Examining part ${i + 1}/${parts.length}, length: ${part.length} characters`);
       
-      // Extract the content after the headers
-      const contentStart = part.indexOf('\r\n\r\n');
-      if (contentStart === -1) continue;
-      
-      let textContent = part.substring(contentStart + 4);
-      
-      // Check if it's quoted-printable
-      const encodingMatch = part.match(/Content-Transfer-Encoding:\s*quoted-printable/i);
-      const isQuotedPrintable = !!encodingMatch;
-      
-      if (isQuotedPrintable) {
-        textContent = decodeQuotedPrintable(textContent);
+      // Check if this part is HTML
+      if (part.includes('Content-Type: text/html')) {
+        console.log(`Found HTML content in part ${i + 1}`);
+        
+        // Extract the content after the headers
+        const headerEndIndex = part.indexOf('\r\n\r\n');
+        if (headerEndIndex === -1) {
+          console.log('Could not find end of headers');
+          continue;
+        }
+        
+        let rawHtmlContent = part.substring(headerEndIndex + 4);
+        console.log(`Raw HTML content length: ${rawHtmlContent.length} characters`);
+        console.log(`Raw HTML content preview: ${rawHtmlContent.substring(0, 100)}...`);
+        
+        // Check for quoted-printable encoding
+        const isQuotedPrintable = part.includes('Content-Transfer-Encoding: quoted-printable');
+        if (isQuotedPrintable) {
+          console.log('Content is quoted-printable encoded, decoding...');
+          rawHtmlContent = decodeQuotedPrintable(rawHtmlContent);
+        }
+        
+        // Try to extract content within <html> tags if present
+        let htmlContent = rawHtmlContent;
+        const htmlTagMatch = rawHtmlContent.match(/<html[^>]*>([\s\S]*?)<\/html>/i);
+        if (htmlTagMatch && htmlTagMatch[1]) {
+          console.log('Extracted content within HTML tags');
+          htmlContent = htmlTagMatch[0]; // Keep the full HTML structure
+        }
+        
+        // For Apple Mail, specifically check for text right after the body tag
+        // This is likely the actual message content
+        if (emailText.includes('Apple-Mail') || emailText.includes('X-Mailer: Apple Mail')) {
+          // First, try to extract text from body opening until the first div
+          // This handles cases where the message is directly after the body tag
+          const bodyToFirstDivMatch = htmlContent.match(/<body[^>]*>([^<]*)<div/i);
+          if (bodyToFirstDivMatch && bodyToFirstDivMatch[1] && bodyToFirstDivMatch[1].trim().length > 0) {
+            console.log('Found Apple Mail text content directly after body tag before first div');
+            // Keep the extracted text but wrap it in a div for proper HTML structure
+            return `<div>${bodyToFirstDivMatch[1].trim()}</div>`;
+          }
+          
+          // Second case: text directly after body tag
+          const bodyTextMatch = htmlContent.match(/<body[^>]*>([^<]+)/i);
+          if (bodyTextMatch && bodyTextMatch[1] && bodyTextMatch[1].trim().length > 0) {
+            console.log('Found Apple Mail text content directly after body tag opening');
+            // Keep the extracted text but wrap it in a div for proper HTML structure
+            return `<div>${bodyTextMatch[1].trim()}</div>`;
+          }
+        }
+        
+        // Try to extract just the body content if available
+        const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch && bodyMatch[1]) {
+          console.log('Extracted inner HTML content from the email part');
+          
+          // Check if there's meaningful content
+          const strippedBody = bodyMatch[1].replace(/<[^>]*>/g, ' ').trim();
+          if (strippedBody.length > 0) {
+            // Return the body content - this preserves any formatting, links, etc.
+            return bodyMatch[1];
+          }
+        }
+        
+        // If we couldn't extract specific content but have HTML, return what we found
+        return htmlContent;
       }
-      
-      // Convert to simple HTML for display
-      const simpleHtml = textContent
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
-      
-      console.log('Converted text with image placeholders to simple HTML');
-      return simpleHtml.trim();
     }
+    
+    console.log('No HTML content found in any part');
+    return null;
+  } catch (error) {
+    console.error('Error extracting HTML content:', error);
+    return null;
   }
-  
-  console.log('No HTML content found in any part of the email');
-  return '';
 }
 
 /**
