@@ -642,18 +642,46 @@ function extractAppleMailHtmlSimple(emailText: string): string | null {
   
   console.log('Attempting simple Apple Mail HTML extraction');
   
-  // Look for the HTML content part marker
-  const htmlMarkerIndex = emailText.indexOf('Content-Type: text/html; charset=us-ascii');
-  if (htmlMarkerIndex === -1) {
+  // Look for the HTML content part marker - use regex for more flexibility
+  const htmlMarkerRegex = /content-type:\s*text\/html;\s*charset=us-ascii/i;
+  const htmlMarkerMatch = emailText.match(htmlMarkerRegex);
+  
+  if (!htmlMarkerMatch) {
     console.log('Could not find Apple Mail HTML content marker');
     return null;
   }
   
+  const htmlMarkerIndex = htmlMarkerMatch.index;
+  
   // Find the end of the header section (empty line after the content-type)
   const headerEnd = emailText.indexOf('\r\n\r\n', htmlMarkerIndex);
   if (headerEnd === -1) {
-    console.log('Could not find end of Apple Mail HTML headers');
-    return null;
+    // Try alternative line endings
+    const altHeaderEnd = emailText.indexOf('\n\n', htmlMarkerIndex);
+    if (altHeaderEnd === -1) {
+      console.log('Could not find end of Apple Mail HTML headers');
+      return null;
+    }
+    console.log('Found header end with alternative line endings');
+    
+    // Extract all content after the header
+    const htmlContent = emailText.substring(altHeaderEnd + 2);
+    
+    // Look for the boundary to know where to stop - updated pattern to match Apple-Mail=_XXXXXXX format
+    const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail[=_-][^"\r\n]+)(?:"?)/i);
+    let htmlPart = htmlContent;
+    
+    if (boundaryMatch && boundaryMatch[1]) {
+      // Find the end boundary marker
+      const boundaryEnd = htmlContent.indexOf(`--${boundaryMatch[1]}--`);
+      if (boundaryEnd !== -1) {
+        // Extract just up to the end boundary
+        htmlPart = htmlContent.substring(0, boundaryEnd).trim();
+      }
+    }
+    
+    console.log('Successfully extracted simple Apple Mail HTML content');
+    return htmlPart;
   }
   
   // Extract all content after the header
