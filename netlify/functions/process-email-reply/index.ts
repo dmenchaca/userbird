@@ -50,8 +50,8 @@ function extractAppleMailContent(emailText: string): string | null {
   
   console.log('Detected Apple Mail format, attempting specialized extraction');
   
-  // Find the Apple Mail boundary
-  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail-[^"\r\n]+)(?:"?)/i);
+  // Find the Apple Mail boundary - updated pattern to match Apple-Mail=_XXXXXXX format
+  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail[=_-][^"\r\n]+)(?:"?)/i);
   if (!boundaryMatch || !boundaryMatch[1]) {
     console.log('Failed to find Apple Mail boundary');
     return null;
@@ -663,8 +663,8 @@ function extractAppleMailHtmlSimple(emailText: string): string | null {
   const htmlContent = emailText.substring(headerEnd + 4);
   console.log('Extracted HTML content (first 1000 chars):', htmlContent.substring(0, 1000));
   
-  // Look for the boundary to know where to stop
-  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail-[^"\r\n]+)(?:"?)/i);
+  // Look for the boundary to know where to stop - updated pattern to match Apple-Mail=_XXXXXXX format
+  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail[=_-][^"\r\n]+)(?:"?)/i);
   let htmlPart = htmlContent;
   
   if (boundaryMatch && boundaryMatch[1]) {
