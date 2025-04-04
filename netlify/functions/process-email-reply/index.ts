@@ -622,13 +622,58 @@ function sanitizeHtml(html: string): string {
   if (!sanitized.includes('<') && gmailImageReferences.length > 0) {
     sanitized = `<div>${sanitized}</div>`;
   }
-  
+    
   // Restore Gmail image references
   for (let i = 0; i < gmailImageReferences.length; i++) {
     sanitized = sanitized.replace(`__GMAIL_IMAGE_${i}__`, gmailImageReferences[i]);
   }
   
   return sanitized;
+}
+
+// Function to extract HTML content from Apple Mail specifically
+function extractAppleMailHtmlSimple(emailText: string): string | null {
+  if (!emailText) return null;
+  
+  // Check if this is Apple Mail format
+  if (!emailText.includes('Apple-Mail') && !emailText.includes('X-Mailer: Apple Mail')) {
+    return null;
+  }
+  
+  console.log('Attempting simple Apple Mail HTML extraction');
+  
+  // Look for the HTML content part marker
+  const htmlMarkerIndex = emailText.indexOf('Content-Type: text/html; charset=us-ascii');
+  if (htmlMarkerIndex === -1) {
+    console.log('Could not find Apple Mail HTML content marker');
+    return null;
+  }
+  
+  // Find the end of the header section (empty line after the content-type)
+  const headerEnd = emailText.indexOf('\r\n\r\n', htmlMarkerIndex);
+  if (headerEnd === -1) {
+    console.log('Could not find end of Apple Mail HTML headers');
+    return null;
+  }
+  
+  // Extract all content after the header
+  const htmlContent = emailText.substring(headerEnd + 4);
+  
+  // Look for the boundary to know where to stop
+  const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail-[^"\r\n]+)(?:"?)/i);
+  let htmlPart = htmlContent;
+  
+  if (boundaryMatch && boundaryMatch[1]) {
+    // Find the end boundary marker
+    const boundaryEnd = htmlContent.indexOf(`--${boundaryMatch[1]}--`);
+    if (boundaryEnd !== -1) {
+      // Extract just up to the end boundary
+      htmlPart = htmlContent.substring(0, boundaryEnd).trim();
+    }
+  }
+  
+  console.log('Successfully extracted simple Apple Mail HTML content');
+  return htmlPart;
 }
 
 // Function to parse and extract attachments from a multipart email
@@ -1055,13 +1100,38 @@ async function extractEmailContent(
       emailData.headers[key].includes('iPhone Mail'))) ||
     (emailData.text && emailData.text.includes('Sent from my iPhone'));
   
+  // Check for Apple Mail (macOS) pattern
+  const isAppleMail = 
+    (emailData.headers && Object.keys(emailData.headers).some(key => 
+      emailData.headers[key] && 
+      typeof emailData.headers[key] === 'string' && 
+      emailData.headers[key].includes('Apple Mail'))) ||
+    (emailData.text && (emailData.text.includes('Apple-Mail') || emailData.text.includes('X-Mailer: Apple Mail')));
+  
   if (isGmailEmail) {
     console.log('Detected Gmail email format');
   }
   
   if (isIPhoneEmail) {
     console.log('Detected iPhone email format');
+  }
+  
+  if (isAppleMail) {
+    console.log('Detected Apple Mail (macOS) format');
     
+    // Try our simple Apple Mail extraction first
+    if (emailData.text) {
+      const simpleHtmlContent = extractAppleMailHtmlSimple(emailData.text);
+      if (simpleHtmlContent) {
+        console.log('Successfully extracted HTML using simple Apple Mail extraction');
+        htmlContent = simpleHtmlContent;
+        textContent = null; // Clear text content to avoid duplication
+      }
+    }
+  }
+  
+  // If we already have content from simple extraction, skip the special handlers
+  if (!htmlContent && isIPhoneEmail) {
     // Try specialized Apple Mail content extraction for multipart emails
     if (emailData.text && (
         emailData.text.includes('Apple-Mail') || 
@@ -1615,6 +1685,31 @@ async function storeReply(
       console.log('Final textContent preview:', textContent.substring(0, 200) + (textContent.length > 200 ? '...' : ''));
     }
     
+    // Process Apple Mail content to extract just the message before any blockquotes
+    let finalHtmlContent = htmlContent;
+    if (htmlContent && (
+        emailData.headers && Object.keys(emailData.headers).some(key => 
+          emailData.headers[key] && 
+          typeof emailData.headers[key] === 'string' && 
+          emailData.headers[key].includes('Apple Mail')
+        ) || 
+        htmlContent.includes('<blockquote') || 
+        emailData.text && emailData.text.includes('Apple-Mail')
+    )) {
+      console.log('Cleaning up Apple Mail content before storage');
+      
+      // Try to extract content before blockquote
+      const parts = htmlContent.split(/<blockquote/i);
+      if (parts.length > 1 && parts[0].trim()) {
+        // Verify that there's actual content before the blockquote
+        const strippedContent = parts[0].replace(/<[^>]*>/g, ' ').trim();
+        if (strippedContent.length > 0) {
+          console.log('Extracted content before blockquote:', strippedContent);
+          finalHtmlContent = parts[0].trim();
+        }
+      }
+    }
+    
     // Extract sender information - will be stored in the log but not in the database
     let senderEmail = '';
     let senderName = '';
@@ -1653,7 +1748,7 @@ async function storeReply(
     
     // Make sure HTML content is properly decoded before storing
     // This ensures that Â and other encoding artifacts are properly handled
-    const decodedHtmlContent = htmlContent ? decodeHtmlEntities(htmlContent) : '';
+    const decodedHtmlContent = finalHtmlContent ? decodeHtmlEntities(finalHtmlContent) : '';
     
     // Check the database schema to see what fields are available
     const { data: tableInfo, error: schemaError } = await supabase
