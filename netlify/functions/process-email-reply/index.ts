@@ -648,6 +648,12 @@ async function parseAttachments(
   const attachments: EmailAttachment[] = [];
   const cidToUrlMap: Record<string, string> = {};
   
+  // Detect Apple Mail format
+  const isAppleMail = emailText.includes('Apple-Mail') || emailText.includes('X-Mailer: Apple Mail');
+  if (isAppleMail) {
+    console.log('Detected Apple Mail format in parseAttachments');
+  }
+  
   // Find the main boundary
   const boundaryMatch = emailText.match(/boundary="([^"]+)"/i);
   if (!boundaryMatch || !boundaryMatch[1]) {
@@ -683,6 +689,10 @@ async function parseAttachments(
     if (contentIdMatch && contentIdMatch[1]) {
       contentId = contentIdMatch[1];
       console.log(`Found attachment with Content-ID: ${contentId}`);
+    } else if (isAppleMail && contentType.startsWith('image/')) {
+      // For Apple Mail, generate a content ID if missing for images
+      contentId = `apple-mail-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      console.log(`Generated Content-ID for Apple Mail image: ${contentId}`);
     }
     
     // Parse filename
@@ -691,15 +701,22 @@ async function parseAttachments(
     if (filenameMatch && filenameMatch[1]) {
       filename = filenameMatch[1];
       console.log(`Found attachment with filename: ${filename}`);
+    } else if (isAppleMail && contentType.startsWith('image/')) {
+      // Generate a filename for Apple Mail images if missing
+      const extension = contentType.split('/')[1] || 'png';
+      filename = `apple-mail-image-${Date.now()}.${extension}`;
+      console.log(`Generated filename for Apple Mail image: ${filename}`);
     } else {
-      // Generate a filename if none is provided
+      // Generate a generic filename if none is provided
       const extension = contentType.split('/')[1] || 'bin';
       filename = `attachment-${Date.now()}.${extension}`;
       console.log(`Generated filename for attachment: ${filename}`);
     }
     
     // Determine if this is an inline attachment
-    const isInline = part.includes('Content-Disposition: inline') || !!contentId;
+    const isInline = part.includes('Content-Disposition: inline') || 
+                   !!contentId || 
+                   (isAppleMail && contentType.startsWith('image/')); // Treat Apple Mail images as inline
     
     // Extract the binary data
     const contentStart = part.indexOf('\r\n\r\n');
@@ -715,17 +732,21 @@ async function parseAttachments(
     if (encoding === 'base64') {
       // Clean up base64 string (remove newlines, etc.)
       data = data.replace(/[\r\n\s]/g, '');
-      const buffer = Buffer.from(data, 'base64');
-      
-      attachments.push({
-        filename,
-        contentType,
-        contentId,
-        data: buffer,
-        isInline
-      });
-      
-      console.log(`Processed base64 attachment: ${filename}, size: ${buffer.length} bytes`);
+      try {
+        const buffer = Buffer.from(data, 'base64');
+        
+        attachments.push({
+          filename,
+          contentType,
+          contentId,
+          data: buffer,
+          isInline
+        });
+        
+        console.log(`Processed base64 attachment: ${filename}, size: ${buffer.length} bytes, isInline: ${isInline}`);
+      } catch (error) {
+        console.error(`Error processing base64 data for attachment ${filename}:`, error);
+      }
     } else {
       console.log(`Unsupported encoding for attachment: ${encoding}`);
     }
@@ -735,7 +756,11 @@ async function parseAttachments(
   
   // Upload attachments to Supabase Storage and create mapping
   for (const attachment of attachments) {
-    if (attachment.isInline && attachment.contentId) {
+    // For Apple Mail, process all image attachments regardless of contentId
+    const shouldProcess = (attachment.isInline && attachment.contentId) || 
+                         (isAppleMail && attachment.contentType && attachment.contentType.startsWith('image/'));
+    
+    if (shouldProcess) {
       try {
         const filename = `${feedbackId}_${attachment.filename}`;
         const storagePath = `feedback-replies/${feedbackId}/${filename}`;
@@ -784,9 +809,20 @@ async function parseAttachments(
           .getPublicUrl(storagePath);
         
         if (urlData && urlData.publicUrl) {
-          console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
-          cidToUrlMap[attachment.contentId] = urlData.publicUrl; // Set URL in the attachment object
-          attachment.url = urlData.publicUrl; // Set URL in the attachment object
+          // Store URL and handle content ID
+          if (attachment.contentId) {
+            console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
+            cidToUrlMap[attachment.contentId] = urlData.publicUrl;
+          } else {
+            // For attachments without content ID (especially Apple Mail images)
+            // Generate a key for the CID map based on filename
+            const cidKey = `generated-${attachment.filename}-${Date.now()}`;
+            console.log(`Generated key ${cidKey} for attachment without content ID: ${urlData.publicUrl}`);
+            cidToUrlMap[cidKey] = urlData.publicUrl;
+          }
+          
+          // Set URL in the attachment object regardless of content ID
+          attachment.url = urlData.publicUrl;
           
           // Only store attachment metadata if we have a valid replyId
           // Otherwise, we'll need to update this later after reply is created
@@ -869,14 +905,14 @@ function replaceCidWithUrls(
     }
   );
   
-  // Handle [Image] placeholders in Gmail's processed HTML
-  if (result.includes('[Image]')) {
-    console.log('Found [Image] placeholders in content');
+  // Handle [Image] and [Image attachment] placeholders in both Gmail and Apple Mail
+  if (result.includes('[Image]') || result.includes('[Image attachment]')) {
+    console.log('Found image placeholders in content');
     
     // Check if we have any images to use
     const imageUrls = Object.values(cidToUrlMap);
     if (imageUrls.length > 0) {
-      // Replace [Image] placeholders with actual images
+      // Replace [Image] and [Image attachment] placeholders with actual images
       for (let i = 0; i < imageUrls.length; i++) {
         const imageUrl = imageUrls[i];
         
@@ -887,13 +923,18 @@ function replaceCidWithUrls(
           altText = decodeURIComponent(filenameMatch[1].split('_').pop() || 'Email attachment');
         }
         
-        // Replace the first occurrence of [Image] with this image
-        const placeholder = i === 0 ? '[Image]' : '[Image attachment]';
-        if (result.includes(placeholder)) {
-          result = result.replace(
-            placeholder,
-            `<img src="${imageUrl}" alt="${altText}" style="max-width: 100%;">`
-          );
+        // Replace image placeholders with actual images
+        // Handle both Gmail's [Image] and Apple Mail's [Image attachment]
+        const placeholders = ['[Image]', '[Image attachment]'];
+        
+        for (const placeholder of placeholders) {
+          if (result.includes(placeholder)) {
+            result = result.replace(
+              placeholder,
+              `<img src="${imageUrl}" alt="${altText}" style="max-width: 100%;">`
+            );
+            break; // Only replace one placeholder per image URL
+          }
         }
       }
     }
@@ -1278,7 +1319,7 @@ async function extractEmailContent(
   if ((htmlContent || textContent) && (hasAttachments || 
       (emailData.text && emailData.text.includes('Content-Type: multipart/')) || 
       (emailData.text && emailData.text.includes('Content-ID:')) || 
-      isGmailEmail || isIPhoneEmail)) {
+      isGmailEmail || isIPhoneEmail || isAppleMail)) {
     console.log('Processing potential embedded content and images');
     try {
       // Special handling for iPhone emails with quoted content
@@ -1352,7 +1393,8 @@ async function extractEmailContent(
       if ((emailData.text && emailData.text.includes('Content-ID:')) || 
           (emailData.text && emailData.text.includes('Content-Disposition: attachment')) || 
           (emailData.text && emailData.text.includes('Content-Disposition: inline')) ||
-          (emailData.text && emailData.text.includes('Content-Type: image/'))) {
+          (emailData.text && emailData.text.includes('Content-Type: image/')) ||
+          (isAppleMail && emailData.text && emailData.text.includes('Content-Type: image/'))) {
         
         // Process the attachments - pass feedbackId instead of replyId
         const result = await parseAttachments(emailData.text || '', feedbackId);
@@ -1365,6 +1407,20 @@ async function extractEmailContent(
         if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
           console.log('Replacing CID references in HTML content');
           htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, parsedAttachments, true);
+        }
+        
+        // Special handling for Apple Mail [Image attachment] placeholder
+        if (isAppleMail && htmlContent && htmlContent.includes('[Image attachment]') && Object.keys(cidToUrlMap).length > 0) {
+          console.log('Found [Image attachment] placeholder in Apple Mail content');
+          // Force replacement of [Image attachment] with actual images
+          const imageUrls = Object.values(cidToUrlMap);
+          if (imageUrls.length > 0) {
+            console.log(`Replacing Apple Mail [Image attachment] with ${imageUrls[0]}`);
+            htmlContent = htmlContent.replace(
+              /\[Image attachment\]/g, 
+              `<img src="${imageUrls[0]}" alt="Email attachment" style="max-width: 100%;">`
+            );
+          }
         }
         
         // If we don't have HTML but have text and CID mappings, convert text to HTML
