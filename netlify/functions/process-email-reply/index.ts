@@ -1508,11 +1508,26 @@ function extractActualContent(emailText: string): string | null {
 
 // Function to extract just the new content, ignoring quoted replies
 function extractNewContent(content: string): string {
-  // Check for iPhone signature pattern first
-  const iPhoneSignatureIndex = content.indexOf('Sent from my iPhone');
-  if (iPhoneSignatureIndex !== -1) {
-    // Return only the content before the signature
-    return content.substring(0, iPhoneSignatureIndex).trim();
+  // Check for Apple Mail signature patterns first (expanded to match more variations)
+  const appleSigPatterns = [
+    'Sent from my iPhone', 
+    'Sent from my iPad', 
+    'Sent from my Mac',
+    'Sent from Mail',
+    'Sent from my mobile device',
+    'Get Outlook for iOS'
+  ];
+  
+  for (const pattern of appleSigPatterns) {
+    const signatureIndex = content.indexOf(pattern);
+    if (signatureIndex !== -1) {
+      // Return only the content before the signature
+      const beforeSig = content.substring(0, signatureIndex).trim();
+      if (beforeSig) {
+        console.log(`Found signature pattern "${pattern}", extracting content before it`);
+        return beforeSig;
+      }
+    }
   }
   
   // If the content has an image tag or placeholder, capture that part
@@ -1726,15 +1741,40 @@ async function storeReply(
     )) {
       console.log('Cleaning up Apple Mail content before storage');
       
-      // Try to extract content before blockquote
-      const parts = htmlContent.split(/<blockquote/i);
-      if (parts.length > 1 && parts[0].trim()) {
-        // Verify that there's actual content before the blockquote
-        const strippedContent = parts[0].replace(/<[^>]*>/g, ' ').trim();
-        if (strippedContent.length > 0) {
-          console.log('Extracted content before blockquote:', strippedContent);
-          finalHtmlContent = parts[0].trim();
+      // Extract content using patterns similar to Gmail approach rather than just blockquotes
+      let cleanedContent = htmlContent;
+      let usedPattern = false;
+      
+      // Pattern 1: Look for date/time pattern like "On [date] at [time], [name] wrote:"
+      const datePattern = /On\s+(?:(?:[A-Za-z]+,\s+)?[A-Za-z]+\s+\d+|\d+\s+[A-Za-z]+)(?:,\s+|\s+)\d+(?:,|\s+)?\s+at\s+\d+:\d+(?:\s+[AP]M)?/i;
+      const dateMatch = htmlContent.match(datePattern);
+      if (dateMatch && dateMatch.index) {
+        console.log('Found Apple Mail date/time quote pattern');
+        cleanedContent = htmlContent.substring(0, dateMatch.index).trim();
+        usedPattern = true;
+      }
+      
+      // Pattern 2: Fall back to blockquote splitting if the patterns didn't match
+      if (!usedPattern) {
+        const parts = htmlContent.split(/<blockquote/i);
+        if (parts.length > 1 && parts[0].trim()) {
+          console.log('Falling back to blockquote splitting for Apple Mail');
+          cleanedContent = parts[0].trim();
+          usedPattern = true;
         }
+      }
+      
+      // Verify we have actual content after removing quote
+      if (usedPattern) {
+        const strippedContent = cleanedContent.replace(/<[^>]*>/g, ' ').trim();
+        if (strippedContent.length > 0) {
+          console.log('Extracted Apple Mail content using pattern matching:', strippedContent.substring(0, 100) + (strippedContent.length > 100 ? '...' : ''));
+          finalHtmlContent = cleanedContent;
+        } else {
+          console.log('No meaningful content found after removing Apple Mail quote, keeping original content');
+        }
+      } else {
+        console.log('No Apple Mail quote patterns matched, keeping original content');
       }
     }
     
