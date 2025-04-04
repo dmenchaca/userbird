@@ -1,19 +1,25 @@
 import { useState, useEffect } from 'react'
-import { X, Send, Paperclip, FoldVertical, UnfoldVertical } from 'lucide-react'
+import { X, Send, Paperclip, FoldVertical, UnfoldVertical, Check, Circle } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { TiptapEditor } from './tiptap-editor'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
 
-// Remove the inline sanitizer function since we now use the utility
 interface ResponseDetailsProps {
   response: FeedbackResponse | null
   onClose: () => void
   onDelete: (id: string) => void
+  onStatusChange?: (id: string, status: 'open' | 'closed') => void
 }
 
-export function ResponseDetails({ response, onClose, onDelete }: ResponseDetailsProps) {
+export function ResponseDetails({ response, onClose, onDelete, onStatusChange }: ResponseDetailsProps) {
   if (!response) return null
 
   const [showImagePreview, setShowImagePreview] = useState(false)
@@ -21,6 +27,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
   const [replies, setReplies] = useState<FeedbackReply[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
+  const [currentStatus, setCurrentStatus] = useState<'open' | 'closed'>(response.status)
 
   useEffect(() => {
     if (response) {
@@ -32,12 +39,15 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
         fetchReplies()
       }, 5000) // Check every 5 seconds
       
+      // Update current status when response changes
+      setCurrentStatus(response.status)
+      
       return () => {
         supabase.removeChannel(channel)
         clearInterval(refreshInterval)
       }
     }
-  }, [response.id])
+  }, [response.id, response.status])
 
   const fetchReplies = async () => {
     try {
@@ -162,6 +172,53 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
     }
   }
 
+  const handleStatusChange = async (newStatus: 'open' | 'closed') => {
+    if (newStatus === currentStatus) return
+    
+    setIsSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .update({ status: newStatus })
+        .eq('id', response.id)
+      
+      if (error) throw error
+      
+      setCurrentStatus(newStatus)
+      
+      // Notify parent component about status change
+      if (onStatusChange) {
+        onStatusChange(response.id, newStatus)
+      }
+    } catch (error) {
+      console.error('Error updating feedback status:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCloseFeedback = async (withReply = false) => {
+    setIsSubmitting(true)
+    try {
+      // First send the reply if there is content and withReply is true
+      if (withReply && replyContent.trim()) {
+        await handleSendReply()
+      }
+      
+      // Use the same status update function for consistency
+      await handleStatusChange('closed')
+      
+      // No need to set replyContent as empty if handleSendReply was called, it already does that
+      if (!withReply) {
+        setReplyContent('')
+      }
+    } catch (error) {
+      console.error('Error closing feedback:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDownload = () => {
     if (!response.image_url) return
     const link = document.createElement('a')
@@ -232,93 +289,7 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
       }
     }
     
-    // Second, look for other date patterns like "On Thursday, April 3rd, ..."
-    // Update pattern to match more variations including "On Thu, Apr 3, 2025 at 9:41â¯AM"
-    const genericDatePattern = /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On (Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+[^<>]+(?:at|@)[\s\S]*?(?:wrote:|said:|<br>)/i;
-    const genericDateMatch = html.match(genericDatePattern);
-    
-    if (genericDateMatch && genericDateMatch[0]) {
-      console.log("Found generic date pattern:", genericDateMatch[0]);
-      const dateLineIndex = html.indexOf(genericDateMatch[0]);
-      if (dateLineIndex > 0) {
-        // The main content is everything before the date line
-        const mainContent = html.substring(0, dateLineIndex);
-        
-        // The quoted content is everything starting from the date line (including it)
-        const quotedContent = html.substring(dateLineIndex);
-        
-        console.log("Split content at index:", dateLineIndex);
-        console.log("Main content length:", mainContent.length);
-        console.log("Quoted content length:", quotedContent.length);
-        
-        return {
-          mainContent,
-          dateLine: genericDateMatch[0],
-          quotedContent
-        };
-      }
-    } else {
-      console.log("No generic date pattern found");
-      
-      // Try a more specific pattern for the exact format in the example
-      const gmailDatePattern = /<div><div>On Thu, Apr \d+, \d{4} at[\s\S]*?<\/div>/i;
-      const gmailDateMatch = html.match(gmailDatePattern);
-      
-      if (gmailDateMatch && gmailDateMatch[0]) {
-        console.log("Found Gmail-specific date pattern:", gmailDateMatch[0]);
-        const dateLineIndex = html.indexOf(gmailDateMatch[0]);
-        if (dateLineIndex > 0) {
-          // The main content is everything before the date line
-          const mainContent = html.substring(0, dateLineIndex);
-          
-          // The quoted content is everything starting from the date line (including it)
-          const quotedContent = html.substring(dateLineIndex);
-          
-          console.log("Split content at index:", dateLineIndex);
-          console.log("Main content length:", mainContent.length);
-          console.log("Quoted content length:", quotedContent.length);
-          
-          return {
-            mainContent,
-            dateLine: gmailDateMatch[0],
-            quotedContent
-          };
-        }
-      } else {
-        console.log("No Gmail-specific date pattern found");
-        
-        // Try a final fallback pattern for date lines
-        const simpleDatePattern = /<br><div><div>On.*?<\/div>/i;
-        const simpleDateMatch = html.match(simpleDatePattern);
-        
-        if (simpleDateMatch && simpleDateMatch[0]) {
-          console.log("Found simple date pattern:", simpleDateMatch[0]);
-          const dateLineIndex = html.indexOf(simpleDateMatch[0]);
-          if (dateLineIndex > 0) {
-            // The main content is everything before the date line
-            const mainContent = html.substring(0, dateLineIndex);
-            
-            // The quoted content is everything starting from the date line (including it)
-            const quotedContent = html.substring(dateLineIndex);
-            
-            console.log("Split content at index:", dateLineIndex);
-            console.log("Main content length:", mainContent.length);
-            console.log("Quoted content length:", quotedContent.length);
-            
-            return {
-              mainContent,
-              dateLine: simpleDateMatch[0],
-              quotedContent
-            };
-          }
-        } else {
-          console.log("No simple date pattern found");
-        }
-      }
-    }
-    
-    // If no date patterns are found, return the entire content as main content
-    console.log("No date patterns found, returning entire content as main");
+    // Add more pattern matching logic for email threads...
     return { mainContent: html, dateLine: null, quotedContent: null };
   }
 
@@ -333,6 +304,48 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
       
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6">
+          {/* Status section - added at top */}
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Status</p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={isSubmitting}>
+                <Button 
+                  variant="outline" 
+                  className={`w-full justify-between ${
+                    currentStatus === 'open' 
+                      ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
+                      : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    {currentStatus === 'open' ? (
+                      <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2 text-green-500" />
+                    )}
+                    {currentStatus === 'open' ? 'Open' : 'Closed'}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[--trigger-width]">
+                <DropdownMenuItem 
+                  className="flex items-center cursor-pointer"
+                  onClick={() => handleStatusChange('open')}
+                >
+                  <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                  <span>Open</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="flex items-center cursor-pointer"
+                  onClick={() => handleStatusChange('closed')}
+                >
+                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                  <span>Closed</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">Message</p>
             <p className="text-sm whitespace-pre-wrap">{response.message}</p>
@@ -351,10 +364,6 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                 {replies.map((reply) => {
                   const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
                   const isExpanded = expandedReplies.has(reply.id)
-                  
-                  console.log("Reply ID:", reply.id);
-                  console.log("Has quoted content:", !!quotedContent);
-                  console.log("Is expanded:", isExpanded);
                   
                   return (
                     <div
@@ -380,42 +389,39 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                         </span>
                       </div>
                       
-                      {/* Main content */}
                       {reply.html_content ? (
                         <div className="space-y-2">
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: mainContent }} 
-                            className="prose prose-sm max-w-none prose-a:text-blue-600"
-                          />
+                          {/* Show the main content */}
+                          <div dangerouslySetInnerHTML={{ __html: mainContent }} />
                           
-                          {/* Quoted content section */}
-                          {quotedContent ? (
-                            <>
-                              {/* Show/Hide quoted content button FIRST */}
+                          {/* Show quoted content if it exists and is expanded */}
+                          {quotedContent && (
+                            <div>
                               <button
                                 onClick={() => toggleQuotedContent(reply.id)}
-                                className="flex items-center justify-center text-xs text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors mt-1 p-1 border border-gray-200 rounded w-7 h-7"
-                                title={isExpanded ? "Hide quoted content" : "Show quoted content"}
+                                className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
                               >
                                 {isExpanded ? (
-                                  <FoldVertical size={14} />
+                                  <>
+                                    <FoldVertical className="h-3 w-3 mr-1" />
+                                    Hide quoted text
+                                  </>
                                 ) : (
-                                  <UnfoldVertical size={14} />
+                                  <>
+                                    <UnfoldVertical className="h-3 w-3 mr-1" />
+                                    Show quoted text
+                                  </>
                                 )}
                               </button>
                               
-                              {/* Collapsible content INCLUDING date line */}
                               {isExpanded && (
-                                <div className="mt-2 pl-3 border-l-2 border-muted text-muted-foreground">
-                                  {/* All quoted content including date line */}
-                                  <div 
-                                    dangerouslySetInnerHTML={{ __html: quotedContent }}
-                                    className="text-xs prose prose-sm max-w-none opacity-80"
-                                  />
-                                </div>
+                                <div 
+                                  className="border-l-2 pl-2 text-muted-foreground" 
+                                  dangerouslySetInnerHTML={{ __html: quotedContent }}
+                                />
                               )}
-                            </>
-                          ) : null}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap">{reply.content}</p>
@@ -541,16 +547,27 @@ export function ResponseDetails({ response, onClose, onDelete }: ResponseDetails
                 Reply to <strong>{response.user_email}</strong>
               </span>
             </div>
-            <div className="relative">
+            <div className="mb-2">
               <TiptapEditor
                 value={replyContent}
                 onChange={setReplyContent}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your reply..."
               />
+            </div>
+            <div className="flex gap-2 justify-end">
               <Button
-                size="sm" 
-                className="absolute bottom-2 right-2"
+                size="sm"
+                variant="outline"
+                onClick={() => replyContent.trim() 
+                  ? handleCloseFeedback(true) 
+                  : handleCloseFeedback(false)}
+                disabled={isSubmitting}
+              >
+                {replyContent.trim() ? 'Close with reply' : 'Close'} 
+              </Button>
+              <Button
+                size="sm"
                 onClick={handleSendReply}
                 disabled={!replyContent.trim() || isSubmitting}
               >

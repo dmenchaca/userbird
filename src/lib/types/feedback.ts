@@ -11,6 +11,7 @@ export interface FeedbackResponse {
   operating_system: string
   screen_category: string
   created_at: string
+  status: 'open' | 'closed'
 }
 
 export interface FeedbackReply {
