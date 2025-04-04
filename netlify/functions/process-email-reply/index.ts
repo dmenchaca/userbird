@@ -1739,43 +1739,10 @@ async function storeReply(
         htmlContent.includes('<blockquote') || 
         emailData.text && emailData.text.includes('Apple-Mail')
     )) {
-      console.log('Cleaning up Apple Mail content before storage');
-      
-      // Extract content using patterns similar to Gmail approach rather than just blockquotes
-      let cleanedContent = htmlContent;
-      let usedPattern = false;
-      
-      // Pattern 1: Look for date/time pattern like "On [date] at [time], [name] wrote:"
-      const datePattern = /On\s+(?:(?:[A-Za-z]+,\s+)?[A-Za-z]+\s+\d+|\d+\s+[A-Za-z]+)(?:,\s+|\s+)\d+(?:,|\s+)?\s+at\s+\d+:\d+(?:\s+[AP]M)?/i;
-      const dateMatch = htmlContent.match(datePattern);
-      if (dateMatch && dateMatch.index) {
-        console.log('Found Apple Mail date/time quote pattern');
-        cleanedContent = htmlContent.substring(0, dateMatch.index).trim();
-        usedPattern = true;
-      }
-      
-      // Pattern 2: Fall back to blockquote splitting if the patterns didn't match
-      if (!usedPattern) {
-        const parts = htmlContent.split(/<blockquote/i);
-        if (parts.length > 1 && parts[0].trim()) {
-          console.log('Falling back to blockquote splitting for Apple Mail');
-          cleanedContent = parts[0].trim();
-          usedPattern = true;
-        }
-      }
-      
-      // Verify we have actual content after removing quote
-      if (usedPattern) {
-        const strippedContent = cleanedContent.replace(/<[^>]*>/g, ' ').trim();
-        if (strippedContent.length > 0) {
-          console.log('Extracted Apple Mail content using pattern matching:', strippedContent.substring(0, 100) + (strippedContent.length > 100 ? '...' : ''));
-          finalHtmlContent = cleanedContent;
-        } else {
-          console.log('No meaningful content found after removing Apple Mail quote, keeping original content');
-        }
-      } else {
-        console.log('No Apple Mail quote patterns matched, keeping original content');
-      }
+      console.log('Apple Mail format detected - preserving entire content for frontend processing');
+      // No longer removing quoted content from Apple Mail emails
+      // This lets the frontend handle the expand/collapse functionality consistently
+      finalHtmlContent = htmlContent;
     }
     
     // Extract sender information - will be stored in the log but not in the database
