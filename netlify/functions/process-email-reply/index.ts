@@ -642,6 +642,9 @@ function extractAppleMailHtmlSimple(emailText: string): string | null {
   
   console.log('Attempting simple Apple Mail HTML extraction');
   
+  // Log the full content for debugging
+  console.log('Full Apple Mail content (first 2000 chars):', emailText.substring(0, 2000));
+  
   // Look for the HTML content part marker
   const htmlMarkerIndex = emailText.indexOf('Content-Type: text/html; charset=us-ascii');
   if (htmlMarkerIndex === -1) {
@@ -658,6 +661,7 @@ function extractAppleMailHtmlSimple(emailText: string): string | null {
   
   // Extract all content after the header
   const htmlContent = emailText.substring(headerEnd + 4);
+  console.log('Extracted HTML content (first 1000 chars):', htmlContent.substring(0, 1000));
   
   // Look for the boundary to know where to stop
   const boundaryMatch = emailText.match(/boundary=(?:"?)(Apple-Mail-[^"\r\n]+)(?:"?)/i);
@@ -669,6 +673,7 @@ function extractAppleMailHtmlSimple(emailText: string): string | null {
     if (boundaryEnd !== -1) {
       // Extract just up to the end boundary
       htmlPart = htmlContent.substring(0, boundaryEnd).trim();
+      console.log('Final extracted HTML part with boundary (first 1000 chars):', htmlPart.substring(0, 1000));
     }
   }
   
@@ -1069,6 +1074,11 @@ async function extractEmailContent(
 }> {
   console.log('Extracting email content');
   
+  // Log the full raw email for debugging
+  if (emailData.text) {
+    console.log('Full raw email text:', emailData.text);
+  }
+  
   let htmlContent: string | null = null;
   let textContent: string | null = null;
   let hasAttachments = false;
@@ -1167,6 +1177,7 @@ async function extractEmailContent(
       const htmlFromMultipart = extractHtmlContent(emailData.text);
       if (htmlFromMultipart) {
         console.log('Successfully extracted HTML from multipart content');
+        console.log('Full extracted HTML content:', htmlFromMultipart);
         // Clean extracted HTML to ensure no email artifacts
         htmlContent = htmlFromMultipart;
         
@@ -1677,12 +1688,12 @@ async function storeReply(
     // Extract content from the email - this is now async
     const { htmlContent, textContent, hasAttachments, attachments, cidToUrlMap } = await extractEmailContent(emailData, feedbackId);
     
-    // Add debug logging to see the final extracted content
+    // Add debug logging to see the full extracted content
     if (htmlContent) {
-      console.log('Final htmlContent preview:', htmlContent.substring(0, 200) + (htmlContent.length > 200 ? '...' : ''));
+      console.log('Full final htmlContent:', htmlContent);
     }
     if (textContent) {
-      console.log('Final textContent preview:', textContent.substring(0, 200) + (textContent.length > 200 ? '...' : ''));
+      console.log('Full final textContent:', textContent);
     }
     
     // Process Apple Mail content to extract just the message before any blockquotes
@@ -1706,6 +1717,7 @@ async function storeReply(
         if (strippedContent.length > 0) {
           console.log('Extracted content before blockquote:', strippedContent);
           finalHtmlContent = parts[0].trim();
+          console.log('Full final cleaned htmlContent:', finalHtmlContent);
         }
       }
     }
