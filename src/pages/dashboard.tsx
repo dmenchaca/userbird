@@ -42,7 +42,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
-  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('open')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed' | { type: 'tag', id: string, name: string }>('open')
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
@@ -216,8 +216,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   }, [selectedFormId]);
   
   // Handle filter change from both sidebar and table
-  const handleFilterChange = (filter: 'all' | 'open' | 'closed') => {
+  const handleFilterChange = (filter: typeof activeFilter) => {
     setActiveFilter(filter);
+    // Clear selected response when changing filters
+    setSelectedResponse(null);
   };
 
   const handleExport = useCallback(async () => {
@@ -527,6 +529,35 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 </a>
               </nav>
             )}
+            {selectedFormId && availableTags.length > 0 && (
+              <div className="mt-4 px-2">
+                <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider px-3 mb-2">Tags</p>
+                <nav className="grid gap-1">
+                  {availableTags.map(tag => (
+                    <a
+                      key={tag.id}
+                      href="#"
+                      className={cn(
+                        "flex items-center gap-2 whitespace-nowrap text-sm font-medium h-9 rounded-md px-3 transition-colors",
+                        typeof activeFilter === 'object' && activeFilter.id === tag.id
+                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleFilterChange({ type: 'tag', id: tag.id, name: tag.name });
+                      }}
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate">{tag.name}</span>
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            )}
           </div>
           
           {/* Form Action Buttons */}
@@ -595,7 +626,13 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 <div className="container py-4 px-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base truncate">
-                      {activeFilter === 'open' ? 'Inbox' : activeFilter === 'closed' ? 'Closed' : 'All Feedback'}
+                      {typeof activeFilter === 'object' && activeFilter.type === 'tag' 
+                        ? `Tag: ${activeFilter.name}`
+                        : activeFilter === 'open' 
+                          ? 'Inbox' 
+                          : activeFilter === 'closed' 
+                            ? 'Closed' 
+                            : 'All Feedback'}
                     </h2>
                     <div className="flex gap-2">
                       {/* Buttons moved to sidebar */}
@@ -608,7 +645,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <FeedbackInbox 
                     ref={inboxRef}
                     formId={selectedFormId} 
-                    statusFilter={activeFilter}
+                    statusFilter={typeof activeFilter === 'object' ? 'all' : activeFilter}
+                    tagFilter={typeof activeFilter === 'object' ? activeFilter.id : undefined}
                     onResponseSelect={setSelectedResponse}
                     onSelectionChange={setSelectedBatchIds}
                   />
@@ -631,13 +669,13 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                                 size="sm"
                                 className={`${
                                   selectedResponse.status === 'open' 
-                                    ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
+                                    ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100' 
                                     : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
                                 }`}
                               >
                                 <div className="flex items-center">
                                   {selectedResponse.status === 'open' ? (
-                                    <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                                    <Circle className="h-3 w-3 mr-2 fill-blue-100 text-blue-600" />
                                   ) : (
                                     <Check className="h-4 w-4 mr-2 text-green-500" />
                                   )}
@@ -650,7 +688,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                                 className="flex items-center cursor-pointer"
                                 onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
                               >
-                                <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                                <Circle className="h-3 w-3 mr-2 fill-blue-100 text-blue-600" />
                                 <span>Open</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem 

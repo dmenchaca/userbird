@@ -9,6 +9,7 @@ import { Checkbox } from './ui/checkbox'
 interface FeedbackInboxProps {
   formId: string
   statusFilter?: 'all' | 'open' | 'closed'
+  tagFilter?: string
   onResponseSelect?: (response: FeedbackResponse) => void
   onSelectionChange?: (selectedIds: string[]) => void
 }
@@ -21,15 +22,32 @@ export interface FeedbackInboxRef {
 export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({ 
   formId,
   statusFilter: externalStatusFilter = 'all',
+  tagFilter,
   onResponseSelect,
   onSelectionChange
 }, ref) => {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
+  
+  // Filter responses based on search query
+  const filteredResponses = responses.filter(response => {
+    if (!searchQuery.trim()) return true
+    
+    const query = searchQuery.toLowerCase()
+    return (
+      (response.message && response.message.toLowerCase().includes(query)) ||
+      (response.user_name && response.user_name.toLowerCase().includes(query)) ||
+      (response.user_email && response.user_email.toLowerCase().includes(query)) ||
+      (response.operating_system && response.operating_system.toLowerCase().includes(query)) ||
+      (response.screen_category && response.screen_category.toLowerCase().includes(query)) ||
+      (response.tag && response.tag.name.toLowerCase().includes(query))
+    )
+  })
 
   // Function to fetch responses
   const fetchResponses = async () => {
@@ -65,6 +83,11 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         query = query.eq('status', currentStatusFilter)
       }
 
+      // Apply tag filter if specified
+      if (tagFilter) {
+        query = query.eq('tag_id', tagFilter)
+      }
+
       const { data, error } = await query
 
       if (error) throw error
@@ -96,13 +119,13 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     clearSelection: () => setSelectedIds([])
   }));
 
-  // Reset selection when responses change
+  // Reset selection when responses change or filters change
   useEffect(() => {
     setSelectedIds([]);
     if (onSelectionChange) {
       onSelectionChange([]);
     }
-  }, [formId, currentStatusFilter, onSelectionChange]);
+  }, [formId, currentStatusFilter, tagFilter, onSelectionChange]);
 
   // Notify parent of selection changes
   useEffect(() => {
@@ -114,7 +137,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   // Select or deselect all items
   const selectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedIds(responses.map(r => r.id));
+      setSelectedIds(filteredResponses.map(r => r.id));
     } else {
       setSelectedIds([]);
     }
@@ -140,7 +163,12 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     return () => {
       channel.unsubscribe()
     }
-  }, [formId, currentStatusFilter])
+  }, [formId, currentStatusFilter, tagFilter])
+
+  // Reset search when filter changes
+  useEffect(() => {
+    setSearchQuery('')
+  }, [formId, currentStatusFilter, tagFilter])
 
   if (loading) {
     return (
@@ -183,122 +211,158 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
 
   return (
     <div className="space-y-4">
-      {responses.length > 0 && (
-        <div className="flex items-center mb-3">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              id="select-all"
-              checked={selectedIds.length === responses.length && responses.length > 0}
-              indeterminate={selectedIds.length > 0 && selectedIds.length < responses.length}
-              onCheckedChange={selectAll}
-              aria-label={selectedIds.length === responses.length ? "Deselect all" : "Select all"}
-            />
-            <label htmlFor="select-all" className="text-xs text-muted-foreground cursor-pointer">
-              {selectedIds.length > 0 
-                ? `${selectedIds.length} of ${responses.length} selected` 
-                : "Select all"}
-            </label>
-          </div>
+      {/* Search bar */}
+      <div className="relative">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
         </div>
-      )}
-      <div className="flex flex-col gap-4">
-        {responses.map((response) => (
-          <div
-            key={response.id}
-            className={cn(
-              "flex flex-col rounded-lg border p-3 text-left text-sm transition-all w-full",
-              selectedIds.includes(response.id) ? "bg-primary/5 border-primary/20" : "hover:bg-accent"
-            )}
+        <input
+          type="text"
+          placeholder="Search messages..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-8 py-2 bg-background border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-input"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
-            <div className="flex items-start gap-3 w-full">
-              <div className="flex-shrink-0 pt-1">
-                <Checkbox 
-                  checked={selectedIds.includes(response.id)}
-                  onCheckedChange={(checked: boolean) => {
-                    if (checked) {
-                      setSelectedIds(prev => [...prev, response.id]);
-                    } else {
-                      setSelectedIds(prev => prev.filter(id => id !== response.id));
-                    }
-                  }}
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation(); // Just stop propagation, don't toggle selection
-                  }}
-                  aria-label={`Select ${formatName(response)}'s feedback`}
-                />
-              </div>
-              <button
-                className="flex flex-col items-start gap-2 w-full"
-                onClick={() => {
-                  if (onResponseSelect) {
-                    onResponseSelect(response);
-                  }
-                }}
-              >
-                <div className="flex w-full flex-col gap-1">
-                  <div className="flex items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="font-semibold">{formatName(response)}</div>
-                    </div>
-                    <div className="ml-auto text-xs text-muted-foreground">
-                      {formatTimeAgo(response.created_at)}
-                    </div>
-                  </div>
-                </div>
-                <div className="line-clamp-2 text-xs text-muted-foreground">
-                  {response.message}
-                </div>
-                <div className="flex items-center gap-2">
-                  {response.tag ? (
-                    <div 
-                      className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent"
-                      style={{ 
-                        backgroundColor: `${response.tag.color}20`, // Adding 20 for opacity
-                        color: response.tag.color,
-                        borderColor: `${response.tag.color}40` // Adding 40 for opacity
-                      }}
-                    >
-                      {response.tag.name}
-                    </div>
-                  ) : (
-                    <>
-                      {response.operating_system && (
-                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                          {response.operating_system}
-                        </div>
-                      )}
-                      {response.screen_category && (
-                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                          {response.screen_category}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {response.status && (
-                    <div className={cn(
-                      "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent",
-                      response.status === 'open' 
-                        ? "bg-primary text-primary-foreground shadow hover:bg-primary/80" 
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    )}>
-                      {response.status}
-                    </div>
-                  )}
-                  {/* Extract hashtags from message as tags */}
-                  {extractTags(response.message).map((tag, index) => (
-                    <div 
-                      key={index}
-                      className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    >
-                      {tag}
-                    </div>
-                  ))}
-                </div>
-              </button>
-            </div>
-          </div>
-        ))}
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        )}
       </div>
+      
+      {filteredResponses.length === 0 && searchQuery.trim() !== '' ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No matches found for "{searchQuery}"
+        </div>
+      ) : (
+        <>
+          {filteredResponses.length > 0 && (
+            <div className="flex items-center mb-3">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="select-all"
+                  checked={selectedIds.length === filteredResponses.length && filteredResponses.length > 0}
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < filteredResponses.length}
+                  onCheckedChange={selectAll}
+                  aria-label={selectedIds.length === filteredResponses.length ? "Deselect all" : "Select all"}
+                />
+                <label htmlFor="select-all" className="text-xs text-muted-foreground cursor-pointer">
+                  {selectedIds.length > 0 
+                    ? `${selectedIds.length} of ${filteredResponses.length} selected` 
+                    : "Select all"}
+                </label>
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-4">
+            {filteredResponses.map((response) => (
+              <div
+                key={response.id}
+                className={cn(
+                  "flex flex-col rounded-lg border p-3 text-left text-sm transition-all w-full",
+                  selectedIds.includes(response.id) ? "bg-primary/5 border-primary/20" : "hover:bg-accent"
+                )}
+              >
+                <div className="flex items-start gap-3 w-full">
+                  <div className="flex-shrink-0 pt-1">
+                    <Checkbox 
+                      checked={selectedIds.includes(response.id)}
+                      onCheckedChange={(checked: boolean) => {
+                        if (checked) {
+                          setSelectedIds(prev => [...prev, response.id]);
+                        } else {
+                          setSelectedIds(prev => prev.filter(id => id !== response.id));
+                        }
+                      }}
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                        e.stopPropagation(); // Just stop propagation, don't toggle selection
+                      }}
+                      aria-label={`Select ${formatName(response)}'s feedback`}
+                    />
+                  </div>
+                  <button
+                    className="flex flex-col items-start gap-2 w-full"
+                    onClick={() => {
+                      if (onResponseSelect) {
+                        onResponseSelect(response);
+                      }
+                    }}
+                  >
+                    <div className="flex w-full flex-col gap-1">
+                      <div className="flex items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold">{formatName(response)}</div>
+                        </div>
+                        <div className="ml-auto text-xs text-muted-foreground">
+                          {formatTimeAgo(response.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="line-clamp-2 text-xs text-muted-foreground">
+                      {response.message}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {response.tag ? (
+                        <div 
+                          className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent"
+                          style={{ 
+                            backgroundColor: `${response.tag.color}20`, // Adding 20 for opacity
+                            color: response.tag.color,
+                            borderColor: `${response.tag.color}40` // Adding 40 for opacity
+                          }}
+                        >
+                          {response.tag.name}
+                        </div>
+                      ) : (
+                        <>
+                          {response.operating_system && (
+                            <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                              {response.operating_system}
+                            </div>
+                          )}
+                          {response.screen_category && (
+                            <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                              {response.screen_category}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {response.status && (
+                        <div className={cn(
+                          "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent",
+                          response.status === 'open' 
+                            ? "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100" 
+                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        )}>
+                          {response.status === 'open' ? 'Open' : 'Closed'}
+                        </div>
+                      )}
+                      {/* Extract hashtags from message as tags */}
+                      {extractTags(response.message).map((tag, index) => (
+                        <div 
+                          key={index}
+                          className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        >
+                          {tag}
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }) 
