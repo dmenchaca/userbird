@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader, Trash2, Smartphone, Tablet, Monitor, Check, Circle, Inbox, CheckCircle, ListFilter } from 'lucide-react'
+import { Loader, Trash2, Smartphone, Tablet, Monitor, Inbox, CheckCircle, ListFilter } from 'lucide-react'
 import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import {
@@ -29,19 +29,18 @@ export function ResponsesTable({
   const [loading, setLoading] = useState(true)
   const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
-  const [internalStatusFilter, setInternalStatusFilter] = useState<'all' | 'open' | 'closed'>(externalStatusFilter)
   
-  // Sync internal filter state with external filter
+  // Sync internal filter state with external filter - not actually using this but keeping for future use
   useEffect(() => {
-    setInternalStatusFilter(externalStatusFilter);
+    // This is intentionally left empty to avoid unused variable warning
+    // The currentStatusFilter is used directly from props
   }, [externalStatusFilter]);
 
-  // Use the status filter coming from props or the internal state
+  // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
 
   // Handle filter changes
   const handleFilterChange = (filter: 'all' | 'open' | 'closed') => {
-    setInternalStatusFilter(filter);
     // Propagate the change to parent component if callback provided
     if (onFilterChange) {
       onFilterChange(filter);
