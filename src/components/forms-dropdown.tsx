@@ -6,7 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -197,10 +196,10 @@ export function FormsDropdown({
                 style={{
                   backgroundColor: selectedFormId === form.id ? undefined : undefined,
                 }}
-                onMouseEnter={(e) => {
+                onMouseEnter={() => {
                   // No specific behavior needed here anymore
                 }}
-                onMouseLeave={(e) => {
+                onMouseLeave={() => {
                   // No specific behavior needed here anymore
                 }}
               >
