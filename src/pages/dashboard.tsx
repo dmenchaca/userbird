@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom'
 import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
 import { FeedbackInbox } from '@/components/feedback-inbox'
+import { FeedbackResponse } from '@/lib/types/feedback'
+import { ResponseDetails } from '@/components/response-details'
 
 interface DashboardProps {
   initialFormId?: string
@@ -38,6 +40,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const showFeedbackHint = !selectedFormId
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('open')
+  const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -276,6 +279,44 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   }, [selectedFormId, user?.id])
 
+  const handleResponseStatusChange = async (id: string, status: 'open' | 'closed') => {
+    try {
+      // Update the status in Supabase
+      await supabase
+        .from('feedback')
+        .update({ status })
+        .eq('id', id);
+      
+      // Update selected response if it's the one that changed
+      if (selectedResponse && selectedResponse.id === id) {
+        setSelectedResponse({
+          ...selectedResponse,
+          status
+        });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  const handleResponseDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Clear the selected response if it was deleted
+      if (selectedResponse && selectedResponse.id === id) {
+        setSelectedResponse(null);
+      }
+    } catch (error) {
+      console.error('Error deleting response:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -417,28 +458,66 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           </div>
         )}
       </aside>
-      <main className="ml-64 flex-1">
+      <main className="ml-64 flex-1 flex">
         {selectedFormId && (
-          <header className="border-b border-border">
-            <div className="container py-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base">{formName}</h2>
-                <div className="flex gap-2">
-                  {/* Buttons moved to sidebar */}
+          <>
+            <div className="flex-1 inbox-wrapper flex flex-col">
+              <header className="border-b border-border sticky top-0 bg-background z-10">
+                <div className="container py-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base">
+                      {activeFilter === 'open' ? 'Inbox' : activeFilter === 'closed' ? 'Closed' : 'All Feedback'}
+                    </h2>
+                    <div className="flex gap-2">
+                      {/* Buttons moved to sidebar */}
+                    </div>
+                  </div>
+                </div>
+              </header>
+              <div className="container py-6 px-8 overflow-y-auto flex-1">
+                <div className="space-y-4">
+                  <FeedbackInbox 
+                    formId={selectedFormId} 
+                    statusFilter={activeFilter}
+                    onResponseSelect={setSelectedResponse}
+                  />
                 </div>
               </div>
             </div>
-          </header>
-        )}
-        <div className="container py-12 px-8 space-y-8">
-          {selectedFormId ? (
-            <div className="space-y-6">
-              <FeedbackInbox 
-                formId={selectedFormId} 
-                statusFilter={activeFilter} 
-              />
+            <div className="flex-1 conversation-wrapper border-l">
+              <header className="border-b border-border">
+                <div className="container py-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base">
+                      {selectedResponse ? 'Conversation' : 'No conversation selected'}
+                    </h2>
+                    <div className="flex gap-2">
+                      {/* Buttons moved to sidebar */}
+                    </div>
+                  </div>
+                </div>
+              </header>
+              <div className="container px-8 flex-1 h-[calc(100vh-65px)] overflow-y-auto">
+                {selectedResponse ? (
+                  <div className="pt-8">
+                    <ResponseDetails 
+                      response={selectedResponse} 
+                      onClose={() => setSelectedResponse(null)}
+                      onDelete={handleResponseDelete}
+                      onStatusChange={handleResponseStatusChange}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Select a message to view the conversation
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
+          </>
+        )}
+        {!selectedFormId && (
+          <div className="container py-12 px-8 space-y-8 w-full">
             <div className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex items-center">
               <div className="text-center space-y-2 mb-4">
                 <h1 className="text-3xl font-semibold welcome-title">Welcome to Userbird 🎉</h1>
@@ -472,8 +551,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               {/* Commented out form creator for now */}
               {/* <FormCreator /> */}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <NewFormDialog
           open={showNewFormDialog}
           onOpenChange={setShowNewFormDialog}

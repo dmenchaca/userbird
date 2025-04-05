@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
-import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -9,38 +8,19 @@ import { cn } from '@/lib/utils'
 interface FeedbackInboxProps {
   formId: string
   statusFilter?: 'all' | 'open' | 'closed'
-  onFilterChange?: (filter: 'all' | 'open' | 'closed') => void
+  onResponseSelect?: (response: FeedbackResponse) => void
 }
 
 export function FeedbackInbox({ 
   formId,
   statusFilter: externalStatusFilter = 'all',
+  onResponseSelect
 }: FeedbackInboxProps) {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
-
-  const handleStatusChange = (id: string, status: 'open' | 'closed') => {
-    // Update the status in our local state
-    setResponses(current => 
-      current.map(response => 
-        response.id === id 
-          ? { ...response, status } 
-          : response
-      )
-    )
-    
-    // Also update the selected response if it's the one that changed
-    if (selectedResponse && selectedResponse.id === id) {
-      setSelectedResponse({
-        ...selectedResponse,
-        status
-      })
-    }
-  }
 
   useEffect(() => {
     async function fetchResponses() {
@@ -144,12 +124,16 @@ export function FeedbackInbox({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4">
         {responses.map((response) => (
           <button
             key={response.id}
-            className="flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-accent"
-            onClick={() => setSelectedResponse(response)}
+            className="flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-accent w-full"
+            onClick={() => {
+              if (onResponseSelect) {
+                onResponseSelect(response);
+              }
+            }}
           >
             <div className="flex w-full flex-col gap-1">
               <div className="flex items-center">
@@ -201,20 +185,6 @@ export function FeedbackInbox({
           </button>
         ))}
       </div>
-      
-      {/* Response details dialog */}
-      {selectedResponse && (
-        <ResponseDetails 
-          response={selectedResponse} 
-          onClose={() => setSelectedResponse(null)}
-          onDelete={(id) => {
-            // Handle delete - could be enhanced with confirmation dialog
-            setResponses(current => current.filter(r => r.id !== id))
-            setSelectedResponse(null)
-          }}
-          onStatusChange={handleStatusChange}
-        />
-      )}
     </div>
   )
 } 
