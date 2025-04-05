@@ -502,11 +502,48 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               <>
                 <div className="w-[43%] conversation-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
                   <header className="border-b border-border">
-                    <div className="container py-4 px-4">
+                    <div className="container py-3 px-4">
                       <div className="flex items-center justify-between">
                         <h2 className="text-base truncate">Conversation</h2>
                         <div className="flex gap-2">
-                          {/* Buttons moved to sidebar */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className={`${
+                                  selectedResponse.status === 'open' 
+                                    ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
+                                    : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
+                                }`}
+                              >
+                                <div className="flex items-center">
+                                  {selectedResponse.status === 'open' ? (
+                                    <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                                  ) : (
+                                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                                  )}
+                                  {selectedResponse.status === 'open' ? 'Open' : 'Closed'}
+                                </div>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                className="flex items-center cursor-pointer"
+                                onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
+                              >
+                                <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                                <span>Open</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="flex items-center cursor-pointer"
+                                onClick={() => handleResponseStatusChange(selectedResponse.id, 'closed')}
+                              >
+                                <Check className="h-4 w-4 mr-2 text-green-500" />
+                                <span>Closed</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>
@@ -529,47 +566,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   </header>
                   <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
                     <div className="space-y-6">
-                      {/* Status section - added at top */}
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              className={`w-full justify-between ${
-                                selectedResponse.status === 'open' 
-                                  ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
-                                  : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
-                              }`}
-                            >
-                              <div className="flex items-center">
-                                {selectedResponse.status === 'open' ? (
-                                  <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
-                                ) : (
-                                  <Check className="h-4 w-4 mr-2 text-green-500" />
-                                )}
-                                {selectedResponse.status === 'open' ? 'Open' : 'Closed'}
-                              </div>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-[--trigger-width]">
-                            <DropdownMenuItem 
-                              className="flex items-center cursor-pointer"
-                              onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
-                            >
-                              <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
-                              <span>Open</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="flex items-center cursor-pointer"
-                              onClick={() => handleResponseStatusChange(selectedResponse.id, 'closed')}
-                            >
-                              <Check className="h-4 w-4 mr-2 text-green-500" />
-                              <span>Closed</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      {/* Status section - removed as it's now in the conversation header */}
                       
                       {selectedResponse.image_url && (
                         <div className="space-y-2">

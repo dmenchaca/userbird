@@ -391,7 +391,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 Reply to <strong className="break-all">{response.user_email}</strong>
               </span>
             </div>
-            <div className="mb-2 overflow-hidden">
+            <div className="mb-2">
               <TiptapEditor
                 value={replyContent}
                 onChange={setReplyContent}
