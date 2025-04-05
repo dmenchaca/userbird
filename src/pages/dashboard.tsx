@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -10,11 +10,12 @@ import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
 import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
-import { FeedbackInbox } from '@/components/feedback-inbox'
+import { FeedbackInbox, FeedbackInboxRef } from '@/components/feedback-inbox'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import { ConversationThread } from '@/components/conversation-thread'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { BatchActionBar } from '@/components/batch-action-bar'
 
 interface DashboardProps {
   initialFormId?: string
@@ -44,6 +45,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('open')
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   const [showImagePreview, setShowImagePreview] = useState(false)
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
+  const inboxRef = useRef<FeedbackInboxRef>(null)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -282,6 +285,40 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   }, [selectedFormId, user?.id])
 
+  // Handle batch status change
+  const handleBatchStatusChange = async (ids: string[], status: 'open' | 'closed') => {
+    if (!ids.length) return;
+    
+    try {
+      // Update the status for all selected items in Supabase
+      const { error } = await supabase
+        .from('feedback')
+        .update({ status })
+        .in('id', ids);
+      
+      if (error) throw error;
+      
+      // Clear selection after batch action
+      setSelectedBatchIds([]);
+      
+      // Update selected response if it's in the batch
+      if (selectedResponse && ids.includes(selectedResponse.id)) {
+        setSelectedResponse({
+          ...selectedResponse,
+          status
+        });
+      }
+      
+      // Refresh the inbox data directly using the ref
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
+      }
+    } catch (error) {
+      console.error('Error batch updating status:', error);
+    }
+  };
+
+  // Update existing handleResponseStatusChange to reset batch selections on individual updates
   const handleResponseStatusChange = async (id: string, status: 'open' | 'closed') => {
     try {
       // Update the status in Supabase
@@ -296,6 +333,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           ...selectedResponse,
           status
         });
+      }
+      
+      // Clear any batch selections when updating individual items
+      setSelectedBatchIds([]);
+      
+      // Refresh the inbox data directly
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -411,37 +456,31 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           {selectedFormId && (
             <div className="px-3 pb-3 pt-1 space-y-2">
               <Button
-                variant="outline"
-                className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                variant="ghost"
+                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
                 onClick={() => setShowSettingsDialog(true)}
               >
-                <span className="flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" />
-                  <span>Settings</span>
-                </span>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Settings
               </Button>
               
               <Button
-                variant="outline"
-                className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                variant="ghost"
+                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
                 onClick={handleExport}
               >
-                <span className="flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  <span>Export CSV</span>
-                </span>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
               </Button>
               
               {!hasResponses && (
                 <Button
-                  variant="outline"
-                  className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                  variant="ghost"
+                  className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
                   onClick={() => setShowInstallModal(true)}
                 >
-                  <span className="flex items-center gap-2">
-                    <Code2 className="h-4 w-4" />
-                    <span>Install Instructions</span>
-                  </span>
+                  <Code2 className="mr-2 h-4 w-4" />
+                  Install Instructions
                 </Button>
               )}
             </div>
@@ -490,9 +529,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               <div className="container py-4 px-4 overflow-y-auto flex-1 h-[calc(100vh-65px)]">
                 <div className="space-y-4">
                   <FeedbackInbox 
+                    ref={inboxRef}
                     formId={selectedFormId} 
                     statusFilter={activeFilter}
                     onResponseSelect={setSelectedResponse}
+                    onSelectionChange={setSelectedBatchIds}
                   />
                 </div>
               </div>
@@ -759,6 +800,17 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             </DialogContent>
           </Dialog>
         )}
+        {/* Batch action bar */}
+        <BatchActionBar 
+          selectedIds={selectedBatchIds}
+          onClearSelection={() => {
+            setSelectedBatchIds([]);
+            if (inboxRef.current) {
+              inboxRef.current.clearSelection();
+            }
+          }}
+          onStatusChange={handleBatchStatusChange}
+        />
       </main>
     </div>
   )
