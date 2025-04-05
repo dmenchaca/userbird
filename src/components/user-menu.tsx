@@ -3,7 +3,6 @@ import { useAuth } from '@/lib/auth';
 import { initUserbird } from '@/lib/userbird';
 import {
   BadgeCheck,
-  ChevronsUpDown,
   LogOut,
   MessageSquare,
   ChevronDown,
