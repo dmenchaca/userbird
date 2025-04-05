@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -12,7 +12,9 @@ import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
 import { FeedbackInbox } from '@/components/feedback-inbox'
 import { FeedbackResponse } from '@/lib/types/feedback'
-import { ResponseDetails } from '@/components/response-details'
+import { ConversationThread } from '@/components/conversation-thread'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 interface DashboardProps {
   initialFormId?: string
@@ -41,6 +43,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('open')
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
+  const [showImagePreview, setShowImagePreview] = useState(false)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -317,6 +320,16 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   };
 
+  const handleDownload = useCallback(() => {
+    if (!selectedResponse?.image_url) return;
+    const link = document.createElement('a');
+    link.href = selectedResponse.image_url;
+    link.download = selectedResponse.image_name || 'feedback-image';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [selectedResponse]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -458,14 +471,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           </div>
         )}
       </aside>
-      <main className="ml-64 flex-1 flex">
+      <main className="ml-64 flex-1 flex overflow-hidden h-screen">
         {selectedFormId && (
           <>
-            <div className="flex-1 inbox-wrapper flex flex-col">
+            <div className="w-[30%] inbox-wrapper flex flex-col min-w-0 max-w-full h-full overflow-hidden">
               <header className="border-b border-border sticky top-0 bg-background z-10">
-                <div className="container py-4">
+                <div className="container py-4 px-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base">
+                    <h2 className="text-base truncate">
                       {activeFilter === 'open' ? 'Inbox' : activeFilter === 'closed' ? 'Closed' : 'All Feedback'}
                     </h2>
                     <div className="flex gap-2">
@@ -474,7 +487,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   </div>
                 </div>
               </header>
-              <div className="container py-6 px-8 overflow-y-auto flex-1">
+              <div className="container py-4 px-4 overflow-y-auto flex-1 h-[calc(100vh-65px)]">
                 <div className="space-y-4">
                   <FeedbackInbox 
                     formId={selectedFormId} 
@@ -484,36 +497,153 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 </div>
               </div>
             </div>
-            <div className="flex-1 conversation-wrapper border-l">
-              <header className="border-b border-border">
-                <div className="container py-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-base">
-                      {selectedResponse ? 'Conversation' : 'No conversation selected'}
-                    </h2>
-                    <div className="flex gap-2">
-                      {/* Buttons moved to sidebar */}
+            
+            {selectedResponse ? (
+              <>
+                <div className="w-[43%] conversation-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
+                  <header className="border-b border-border">
+                    <div className="container py-4 px-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-base truncate">Conversation</h2>
+                        <div className="flex gap-2">
+                          {/* Buttons moved to sidebar */}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </header>
-              <div className="container px-8 flex-1 h-[calc(100vh-65px)] overflow-y-auto">
-                {selectedResponse ? (
-                  <div className="pt-8">
-                    <ResponseDetails 
+                  </header>
+                  <div className="container px-0 flex-1 h-[calc(100vh-65px)] overflow-hidden">
+                    <ConversationThread 
                       response={selectedResponse} 
-                      onClose={() => setSelectedResponse(null)}
-                      onDelete={handleResponseDelete}
                       onStatusChange={handleResponseStatusChange}
                     />
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Select a message to view the conversation
+                </div>
+                
+                <div className="hidden md:block w-[27%] flex-shrink-0 details-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
+                  <header className="border-b border-border">
+                    <div className="container py-4 px-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-base truncate">Details</h2>
+                      </div>
+                    </div>
+                  </header>
+                  <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
+                    <div className="space-y-6">
+                      {/* Status section - added at top */}
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Status</p>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className={`w-full justify-between ${
+                                selectedResponse.status === 'open' 
+                                  ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
+                                  : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                {selectedResponse.status === 'open' ? (
+                                  <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                                ) : (
+                                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                                )}
+                                {selectedResponse.status === 'open' ? 'Open' : 'Closed'}
+                              </div>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-[--trigger-width]">
+                            <DropdownMenuItem 
+                              className="flex items-center cursor-pointer"
+                              onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
+                            >
+                              <Circle className="h-3 w-3 mr-2 fill-blue-500 text-blue-500" />
+                              <span>Open</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="flex items-center cursor-pointer"
+                              onClick={() => handleResponseStatusChange(selectedResponse.id, 'closed')}
+                            >
+                              <Check className="h-4 w-4 mr-2 text-green-500" />
+                              <span>Closed</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      
+                      {selectedResponse.image_url && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Image</p>
+                          <button
+                            onClick={() => setShowImagePreview(true)}
+                            className="w-full rounded-lg border overflow-hidden hover:opacity-90 transition-opacity"
+                          >
+                            <img 
+                              src={selectedResponse.image_url} 
+                              alt={selectedResponse.image_name || 'Feedback image'} 
+                              className="w-full"
+                            />
+                          </button>
+                          {selectedResponse.image_name && (
+                            <p className="text-xs text-muted-foreground">{selectedResponse.image_name}</p>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">User Information</p>
+                          <div className="text-sm space-y-1">
+                            <p>ID: <span className="break-all">{selectedResponse.user_id || '-'}</span></p>
+                            <p>Email: <span className="break-all">{selectedResponse.user_email || '-'}</span></p>
+                            <p>Name: <span className="break-all">{selectedResponse.user_name || '-'}</span></p>
+                            <p>Page URL: <span className="break-all">{selectedResponse.url_path || '-'}</span></p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">System Information</p>
+                          <div className="text-sm space-y-1">
+                            <p>OS: <span className="break-all">{selectedResponse.operating_system}</span></p>
+                            <p>Device: <span className="break-all">{selectedResponse.screen_category}</span></p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Date</p>
+                          <p className="text-sm">
+                            {new Date(selectedResponse.created_at).toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: 'numeric',
+                              hour12: true
+                            })}
+                          </p>
+                        </div>
+                        
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleResponseDelete(selectedResponse.id)}
+                        >
+                          Delete Feedback
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
+              </>
+            ) : (
+              <div className="w-[70%] flex items-center justify-center border-l h-full overflow-hidden">
+                <div className="text-center text-muted-foreground">
+                  <h3 className="text-lg font-medium mb-2">No message selected</h3>
+                  <p>Select a message from the inbox to view the conversation</p>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
         {!selectedFormId && (
@@ -604,6 +734,33 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             }}
             onDelete={handleDelete}
           />
+        )}
+        {/* Image preview dialog */}
+        {selectedResponse?.image_url && showImagePreview && (
+          <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+            <DialogContent className="max-w-3xl">
+              <div className="flex justify-between mb-4">
+                <h3 className="font-medium">Image Preview</h3>
+                <div className="space-x-2">
+                  <Button size="sm" onClick={handleDownload}>Download</Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setShowImagePreview(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] overflow-auto">
+                <img 
+                  src={selectedResponse.image_url} 
+                  alt={selectedResponse.image_name || 'Feedback image'} 
+                  className="w-full"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </main>
     </div>
