@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { ChevronDown, Plus, Loader2 } from 'lucide-react'
+import { ChevronDown, Plus, Loader2, Check } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -188,21 +188,28 @@ export function FormsDropdown({
           className="w-[var(--radix-dropdown-menu-trigger-width)]" 
           align="start"
         >
-          <DropdownMenuLabel>Your Forms</DropdownMenuLabel>
-          <DropdownMenuSeparator />
           <div className="max-h-[300px] overflow-y-auto">
             {forms.map((form) => (
               <DropdownMenuItem
                 key={form.id}
-                className={`cursor-pointer flex justify-between ${selectedFormId === form.id ? 'bg-accent' : ''}`}
+                className={`cursor-pointer flex justify-between group hover:bg-accent`}
                 onClick={() => onFormSelect(form.id)}
+                style={{
+                  backgroundColor: selectedFormId === form.id ? undefined : undefined,
+                }}
+                onMouseEnter={(e) => {
+                  // No specific behavior needed here anymore
+                }}
+                onMouseLeave={(e) => {
+                  // No specific behavior needed here anymore
+                }}
               >
                 <span className="truncate max-w-[180px]">{truncateUrl(form.url)}</span>
-                {form.feedback?.[0]?.count !== undefined && (
-                  <span className="text-xs text-muted-foreground ml-2 tabular-nums">
-                    {form.feedback[0].count}
-                  </span>
-                )}
+                <div className="flex items-center">
+                  {selectedFormId === form.id && (
+                    <Check className="h-4 w-4 ml-1 shrink-0" />
+                  )}
+                </div>
               </DropdownMenuItem>
             ))}
           </div>
