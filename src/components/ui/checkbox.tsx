@@ -22,7 +22,7 @@ const Checkbox = React.forwardRef<
           "peer h-4 w-4 shrink-0 flex items-center justify-center border border-primary bg-primary text-primary-foreground rounded-sm",
           className
         )}
-        onClick={(e) => {
+        onClick={() => {
           if (props.onCheckedChange) {
             props.onCheckedChange(true);
           }

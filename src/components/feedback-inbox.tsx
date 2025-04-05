@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader, Check } from 'lucide-react'
+import { Loader } from 'lucide-react'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -77,19 +77,6 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     }
   }, [selectedIds, onSelectionChange]);
 
-  // Handle item selection toggle
-  const toggleItemSelection = (id: string, e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation(); // Prevent triggering the row click
-    
-    setSelectedIds(prev => {
-      if (prev.includes(id)) {
-        return prev.filter(itemId => itemId !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
-  
   // Select or deselect all items
   const selectAll = (selected: boolean) => {
     if (selected) {
