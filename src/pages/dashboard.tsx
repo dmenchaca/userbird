@@ -475,11 +475,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           </div>
           <div className="flex-1 group py-2">
             {selectedFormId && (
-              <nav className="grid gap-1 px-2">
+              <nav className="grid gap-0.5 px-2">
                 <a 
                   href="#"
                   className={cn(
-                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
+                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start",
                     activeFilter === 'open'
                       ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "hover:bg-accent hover:text-accent-foreground"
@@ -506,7 +506,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 <a 
                   href="#"
                   className={cn(
-                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
+                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start",
                     activeFilter === 'closed'
                       ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "hover:bg-accent hover:text-accent-foreground"
@@ -530,15 +530,15 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               </nav>
             )}
             {selectedFormId && availableTags.length > 0 && (
-              <div className="mt-4 px-2">
-                <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider px-3 mb-2">Tags</p>
-                <nav className="grid gap-1">
+              <div className="mt-5 px-2">
+                <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider px-3 mb-1">Tags</p>
+                <nav className="grid gap-0.5">
                   {availableTags.map(tag => (
                     <a
                       key={tag.id}
                       href="#"
                       className={cn(
-                        "flex items-center gap-2 whitespace-nowrap text-sm font-medium h-9 rounded-md px-3 transition-colors",
+                        "flex items-center gap-2 whitespace-nowrap text-sm font-medium h-8 rounded-md px-3 transition-colors",
                         typeof activeFilter === 'object' && activeFilter.id === tag.id
                           ? "bg-accent text-accent-foreground hover:bg-accent/90"
                           : "hover:bg-accent hover:text-accent-foreground"
@@ -562,10 +562,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           
           {/* Form Action Buttons */}
           {selectedFormId && (
-            <div className="px-3 pb-3 pt-1 space-y-2">
+            <div className="px-3 pb-3 pt-1 space-y-1">
               <Button
                 variant="ghost"
-                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
+                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
                 onClick={() => setShowSettingsDialog(true)}
               >
                 <Settings2 className="mr-2 h-4 w-4" />
@@ -574,7 +574,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               
               <Button
                 variant="ghost"
-                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
+                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
                 onClick={handleExport}
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -584,7 +584,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               {!hasResponses && (
                 <Button
                   variant="ghost"
-                  className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start w-full"
+                  className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
                   onClick={() => setShowInstallModal(true)}
                 >
                   <Code2 className="mr-2 h-4 w-4" />
