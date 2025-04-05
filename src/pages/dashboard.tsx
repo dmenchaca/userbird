@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { ResponsesTable } from '@/components/responses-table'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, ListFilter } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -11,6 +10,7 @@ import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
 import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
+import { FeedbackInbox } from '@/components/feedback-inbox'
 
 interface DashboardProps {
   initialFormId?: string
@@ -433,7 +433,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         <div className="container py-12 px-8 space-y-8">
           {selectedFormId ? (
             <div className="space-y-6">
-              <ResponsesTable 
+              <FeedbackInbox 
                 formId={selectedFormId} 
                 statusFilter={activeFilter} 
                 onFilterChange={handleFilterChange}

@@ -1,5 +1,5 @@
 import { Button } from './ui/button'
-import { ResponsesTable } from './responses-table'
+import { FeedbackInbox } from './feedback-inbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 
 interface FormInstructionsProps {
@@ -152,7 +152,7 @@ function App() {
 
         <div className="pt-8">
           <h3 className="text-lg font-semibold mb-4">Form Responses</h3>
-          <ResponsesTable formId={formId} />
+          <FeedbackInbox formId={formId} />
         </div>
       </div>
     </div>
