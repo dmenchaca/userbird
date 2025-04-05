@@ -15,7 +15,6 @@ interface FeedbackInboxProps {
 export function FeedbackInbox({ 
   formId,
   statusFilter: externalStatusFilter = 'all',
-  onFilterChange
 }: FeedbackInboxProps) {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)

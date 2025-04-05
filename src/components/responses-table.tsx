@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader, Trash2, Smartphone, Tablet, Monitor, Inbox, CheckCircle, ListFilter } from 'lucide-react'
+import { Loader, Trash2, Smartphone, Tablet, Monitor, Inbox, CheckCircle } from 'lucide-react'
 import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import {
@@ -12,7 +12,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from './ui/alert-dialog'
 
 interface ResponsesTableProps {
   formId: string
@@ -20,32 +20,17 @@ interface ResponsesTableProps {
   onFilterChange?: (filter: 'all' | 'open' | 'closed') => void
 }
 
-export function ResponsesTable({ 
+export function ResponsesTable({
   formId,
   statusFilter: externalStatusFilter = 'all',
-  onFilterChange
 }: ResponsesTableProps) {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [responseToDelete, setResponseToDelete] = useState<string | null>(null)
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   
-  // Sync internal filter state with external filter - not actually using this but keeping for future use
-  useEffect(() => {
-    // This is intentionally left empty to avoid unused variable warning
-    // The currentStatusFilter is used directly from props
-  }, [externalStatusFilter]);
-
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
-
-  // Handle filter changes
-  const handleFilterChange = (filter: 'all' | 'open' | 'closed') => {
-    // Propagate the change to parent component if callback provided
-    if (onFilterChange) {
-      onFilterChange(filter);
-    }
-  };
 
   const handleDelete = async () => {
     if (!responseToDelete) return

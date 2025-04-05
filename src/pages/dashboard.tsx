@@ -436,7 +436,6 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               <FeedbackInbox 
                 formId={selectedFormId} 
                 statusFilter={activeFilter} 
-                onFilterChange={handleFilterChange}
               />
             </div>
           ) : (
