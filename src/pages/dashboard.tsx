@@ -48,6 +48,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
   const inboxRef = useRef<FeedbackInboxRef>(null)
   const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
+  const tagDropdownTriggerRef = useRef<HTMLButtonElement>(null)
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -497,6 +499,39 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     fetchTags();
   }, []);
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only trigger shortcuts when a response is selected and not in an input field
+      if (!selectedResponse || 
+          event.target instanceof HTMLInputElement || 
+          event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // "T" key to open tag dropdown
+      if (event.key === 't' || event.key === 'T') {
+        event.preventDefault();
+        // Click the tag dropdown trigger
+        if (tagDropdownTriggerRef.current) {
+          tagDropdownTriggerRef.current.click();
+          setIsTagDropdownOpen(true);
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedResponse]);
+
+  // Handle dropdown state tracking
+  const handleTagDropdownOpenChange = (open: boolean) => {
+    setIsTagDropdownOpen(open);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -761,10 +796,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                       
                       {/* Tag section */}
                       <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">Tag</p>
-                        <DropdownMenu>
+                        <p className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                          <span>Tag</span>
+                          <span className="text-xs bg-muted px-1.5 py-0.5 rounded">Press T</span>
+                        </p>
+                        <DropdownMenu open={isTagDropdownOpen} onOpenChange={handleTagDropdownOpenChange}>
                           <DropdownMenuTrigger asChild>
                             <Button 
+                              ref={tagDropdownTriggerRef}
                               variant="outline"
                               className="w-full justify-between"
                             >
@@ -783,7 +822,19 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                               )}
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-[--trigger-width]">
+                          <DropdownMenuContent 
+                            align="start" 
+                            className="w-[--trigger-width]"
+                            onKeyDown={(e) => {
+                              // Handle enter key to select the focused item
+                              if (e.key === 'Enter') {
+                                const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
+                                if (focusedItem) {
+                                  focusedItem.click();
+                                }
+                              }
+                            }}
+                          >
                             {availableTags.map(tag => (
                               <DropdownMenuItem 
                                 key={tag.id}
