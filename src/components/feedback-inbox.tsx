@@ -266,7 +266,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                 )}
               >
                 <div className="flex items-start gap-3 w-full">
-                  <div className="flex-shrink-0 pt-1">
+                  <div className="flex-shrink-0 pt-0.5">
                     <Checkbox 
                       checked={selectedIds.includes(response.id)}
                       onCheckedChange={(checked: boolean) => {

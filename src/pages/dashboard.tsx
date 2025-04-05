@@ -321,6 +321,49 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   };
 
+  // Handle batch tag change
+  const handleBatchTagChange = async (ids: string[], tagId: string | null) => {
+    if (!ids.length) return;
+    
+    try {
+      // Update the tag_id for all selected items in Supabase
+      const { error } = await supabase
+        .from('feedback')
+        .update({ tag_id: tagId })
+        .in('id', ids);
+      
+      if (error) throw error;
+      
+      // Clear selection after batch action
+      setSelectedBatchIds([]);
+      
+      // Update selected response if it's in the batch
+      if (selectedResponse && ids.includes(selectedResponse.id)) {
+        // Find the tag object if a tag was applied
+        let updatedTag = null;
+        if (tagId) {
+          const matchingTag = availableTags.find(tag => tag.id === tagId);
+          if (matchingTag) {
+            updatedTag = matchingTag;
+          }
+        }
+        
+        setSelectedResponse({
+          ...selectedResponse,
+          tag_id: tagId,
+          tag: updatedTag
+        });
+      }
+      
+      // Refresh the inbox data directly using the ref
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
+      }
+    } catch (error) {
+      console.error('Error batch updating tags:', error);
+    }
+  };
+
   // Update existing handleResponseStatusChange to reset batch selections on individual updates
   const handleResponseStatusChange = async (id: string, status: 'open' | 'closed') => {
     try {
@@ -967,6 +1010,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             }
           }}
           onStatusChange={handleBatchStatusChange}
+          onTagChange={handleBatchTagChange}
+          availableTags={availableTags}
         />
       </main>
     </div>
