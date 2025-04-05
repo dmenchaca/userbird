@@ -186,13 +186,6 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     )
   }
 
-  // Helper function to extract tags from a message
-  const extractTags = (message: string) => {
-    const tagRegex = /#(\w+)/g
-    const matches = [...message.matchAll(tagRegex)]
-    return matches.map(match => match[1])
-  }
-
   // Helper to format the user name
   const formatName = (response: FeedbackResponse) => {
     if (response.user_name) return response.user_name

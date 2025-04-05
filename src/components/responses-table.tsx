@@ -50,25 +50,6 @@ export function ResponsesTable({
     }
   }
 
-  const handleStatusChange = (id: string, status: 'open' | 'closed') => {
-    // Update the status in our local state
-    setResponses(current => 
-      current.map(response => 
-        response.id === id 
-          ? { ...response, status } 
-          : response
-      )
-    )
-    
-    // Also update the selected response if it's the one that changed
-    if (selectedResponse && selectedResponse.id === id) {
-      setSelectedResponse({
-        ...selectedResponse,
-        status
-      })
-    }
-  }
-
   useEffect(() => {
     async function fetchResponses() {
       try {

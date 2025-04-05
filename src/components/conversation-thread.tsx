@@ -4,6 +4,8 @@ import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { TiptapEditor } from './tiptap-editor'
+import { useAuth } from '@/lib/auth'
+import { Avatar, AvatarFallback } from './ui/avatar'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -13,10 +15,16 @@ interface ConversationThreadProps {
 export function ConversationThread({ response, onStatusChange }: ConversationThreadProps) {
   if (!response) return null
 
+  const { user } = useAuth()
   const [replyContent, setReplyContent] = useState('')
   const [replies, setReplies] = useState<FeedbackReply[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
+
+  // Get admin display information
+  const adminName = user?.user_metadata?.full_name || user?.email || 'Admin'
+  const adminInitials = adminName?.[0]?.toUpperCase() || 'A'
+  const adminAvatarUrl = user?.user_metadata?.avatar_url
 
   useEffect(() => {
     if (response) {
@@ -254,7 +262,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
           {/* Original message */}
           <div className="p-2 rounded-lg text-sm overflow-hidden bg-muted mr-6">
             <div className="flex justify-between items-center mb-1">
-              <span className="font-medium text-xs">User</span>
+              <span className="font-medium text-xs">{response.user_name || 'Anonymous'}</span>
               <span className="text-xs text-muted-foreground">
                 {new Date(response.created_at).toLocaleString('en-US', {
                   month: 'short',
@@ -283,8 +291,19 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className="font-medium text-xs">
-                    {reply.sender_type === 'admin' ? 'You' : 'User'}
+                  <span className="font-medium text-xs flex items-center">
+                    {reply.sender_type === 'admin' ? (
+                      <span className="flex items-center gap-1.5">
+                        <Avatar className="h-5 w-5 rounded-full">
+                          {adminAvatarUrl ? (
+                            <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                          ) : (
+                            <AvatarFallback className="rounded-full text-[10px]">{adminInitials}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        {adminName}
+                      </span>
+                    ) : (response.user_name || 'Anonymous')}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(reply.created_at).toLocaleString('en-US', {
