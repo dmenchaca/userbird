@@ -6,6 +6,7 @@ import {
   ChevronsUpDown,
   LogOut,
   MessageSquare,
+  ChevronDown,
 } from "lucide-react"
 import {
   Avatar,
@@ -63,31 +64,33 @@ export function UserMenu() {
       <Button 
         id="userbird-trigger-4hNUB7DVhf"
         variant="outline"
-        className="w-full justify-start h-10"
+        className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
       >
-        <MessageSquare className="mr-2 h-4 w-4" />
-        Feedback
-        <span className="ml-auto px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">L</span>
+        <span className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          <span>Feedback</span>
+        </span>
+        <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">L</span>
       </Button>
       
       {/* User Profile Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="ghost"
-            className="w-full justify-start h-10 data-[state=open]:bg-accent"
+            variant="outline"
+            className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
           >
-            <Avatar className="h-7 w-7 rounded-full mr-2">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover rounded-full" />
-              ) : (
-                <AvatarFallback className="rounded-full text-sm">{initials}</AvatarFallback>
-              )}
-            </Avatar>
-            <div className="flex-1 text-left leading-none">
-              <span className="block truncate font-medium">{displayName}</span>
-            </div>
-            <ChevronsUpDown className="ml-auto size-4 opacity-70" />
+            <span className="flex items-center gap-2">
+              <Avatar className="h-5 w-5 rounded-full">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover rounded-full" />
+                ) : (
+                  <AvatarFallback className="rounded-full text-xs">{initials}</AvatarFallback>
+                )}
+              </Avatar>
+              <span className="truncate">{displayName}</span>
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

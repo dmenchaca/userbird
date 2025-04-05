@@ -136,80 +136,87 @@ export function FormsDropdown({
 
   if (loading) {
     return (
-      <Button 
-        variant="ghost" 
-        disabled 
-        className="w-full justify-between h-10 font-medium"
-      >
-        <span className="flex items-center">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Loading forms...
-        </span>
-        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </Button>
+      <div className="flex h-[52px] items-center justify-center px-2">
+        <Button 
+          variant="outline" 
+          disabled 
+          className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+        >
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="ml-2">Loading forms...</span>
+          </span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </div>
     )
   }
 
   if (forms.length === 0) {
     return (
-      <Button
-        variant="ghost"
-        onClick={onNewFormClick}
-        className="w-full justify-start h-10 font-medium"
-      >
-        <span className="flex items-center">
-          <Plus className="mr-2 h-4 w-4" />
-          Create your first form
-        </span>
-      </Button>
+      <div className="flex h-[52px] items-center justify-center px-2">
+        <Button
+          variant="outline"
+          onClick={onNewFormClick}
+          className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+        >
+          <span className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="ml-2">Create your first form</span>
+          </span>
+        </Button>
+      </div>
     )
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          className="w-full justify-between h-10 font-medium text-base px-3"
+    <div className="flex h-[52px] items-center justify-center px-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
+          >
+            <span style={{ pointerEvents: 'none' }}>
+              {currentForm && <span className="ml-2">{truncateUrl(currentForm.url)}</span>}
+              {!currentForm && <span className="ml-2">Select a form</span>}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent 
+          className="w-[var(--radix-dropdown-menu-trigger-width)]" 
+          align="start"
         >
-          <span className="truncate max-w-[180px]">
-            {currentForm ? truncateUrl(currentForm.url) : "Select a form"}
-          </span>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-70" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        className="w-[var(--radix-dropdown-menu-trigger-width)]" 
-        align="start"
-      >
-        <DropdownMenuLabel>Your Forms</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <div className="max-h-[300px] overflow-y-auto">
-          {forms.map((form) => (
-            <DropdownMenuItem
-              key={form.id}
-              className={`cursor-pointer flex justify-between ${selectedFormId === form.id ? 'bg-accent' : ''}`}
-              onClick={() => onFormSelect(form.id)}
-            >
-              <span className="truncate max-w-[180px]">{truncateUrl(form.url)}</span>
-              {form.feedback?.[0]?.count !== undefined && (
-                <span className="text-xs text-muted-foreground ml-2 tabular-nums">
-                  {form.feedback[0].count}
-                </span>
-              )}
-            </DropdownMenuItem>
-          ))}
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          className="cursor-pointer"
-          onClick={onNewFormClick}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          <span>Create new form</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuLabel>Your Forms</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <div className="max-h-[300px] overflow-y-auto">
+            {forms.map((form) => (
+              <DropdownMenuItem
+                key={form.id}
+                className={`cursor-pointer flex justify-between ${selectedFormId === form.id ? 'bg-accent' : ''}`}
+                onClick={() => onFormSelect(form.id)}
+              >
+                <span className="truncate max-w-[180px]">{truncateUrl(form.url)}</span>
+                {form.feedback?.[0]?.count !== undefined && (
+                  <span className="text-xs text-muted-foreground ml-2 tabular-nums">
+                    {form.feedback[0].count}
+                  </span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            className="cursor-pointer"
+            onClick={onNewFormClick}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Create new form</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
 

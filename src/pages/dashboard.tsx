@@ -288,62 +288,92 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     <div className="min-h-screen bg-background flex">
       <aside className="fixed left-0 w-64 h-screen border-r bg-[#FAFAFA]">
         <div className="flex flex-col h-full">
-          <div className="px-3 py-4 border-b">
+          <div className="border-b">
             <FormsDropdown 
               selectedFormId={selectedFormId}
               onFormSelect={setSelectedFormId}
               onNewFormClick={() => setShowNewFormDialog(true)}
             />
           </div>
-          <div className="flex-1 p-4 space-y-4">
+          <div className="flex-1 group py-2">
             {selectedFormId && (
-              <nav className="space-y-1">
-                <Button
-                  variant={activeFilter === 'open' ? 'secondary' : 'ghost'}
-                  className="w-full justify-between h-10 px-3 font-normal"
-                  onClick={() => handleFilterChange('open')}
+              <nav className="grid gap-1 px-2">
+                <a 
+                  href="#"
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
+                    activeFilter === 'open'
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleFilterChange('open');
+                  }}
                 >
-                  <div className="flex items-center">
-                    <Inbox className="mr-2 h-4 w-4" />
-                    <span>Inbox</span>
-                  </div>
+                  <Inbox className="mr-2 h-4 w-4" />
+                  Inbox
                   <span className={cn(
-                    "text-xs rounded-full px-2 py-0.5 tabular-nums",
-                    feedbackCounts.open > 0 
-                      ? "bg-primary/10 text-primary font-medium" 
-                      : "bg-muted text-muted-foreground"
+                    "ml-auto tabular-nums",
+                    activeFilter === 'open' 
+                      ? "text-primary-foreground"
+                      : feedbackCounts.open > 0 
+                        ? "text-primary font-medium" 
+                        : "text-muted-foreground"
                   )}>
                     {feedbackCounts.open}
                   </span>
-                </Button>
+                </a>
                 
-                <Button
-                  variant={activeFilter === 'closed' ? 'secondary' : 'ghost'}
-                  className="w-full justify-between h-10 px-3 font-normal"
-                  onClick={() => handleFilterChange('closed')}
+                <a 
+                  href="#"
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
+                    activeFilter === 'closed'
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleFilterChange('closed');
+                  }}
                 >
-                  <div className="flex items-center">
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    <span>Closed</span>
-                  </div>
-                  <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 tabular-nums">
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Closed
+                  <span className={cn(
+                    "ml-auto tabular-nums",
+                    activeFilter === 'closed'
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}>
                     {feedbackCounts.closed}
                   </span>
-                </Button>
+                </a>
                 
-                <Button
-                  variant={activeFilter === 'all' ? 'secondary' : 'ghost'}
-                  className="w-full justify-between h-10 px-3 font-normal"
-                  onClick={() => handleFilterChange('all')}
+                <a 
+                  href="#"
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
+                    activeFilter === 'all'
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleFilterChange('all');
+                  }}
                 >
-                  <div className="flex items-center">
-                    <ListFilter className="mr-2 h-4 w-4" />
-                    <span>View all</span>
-                  </div>
-                  <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 tabular-nums">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  View all
+                  <span className={cn(
+                    "ml-auto tabular-nums",
+                    activeFilter === 'all'
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}>
                     {feedbackCounts.open + feedbackCounts.closed}
                   </span>
-                </Button>
+                </a>
               </nav>
             )}
           </div>
