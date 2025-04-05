@@ -322,20 +322,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         >
                           {response.tag.name}
                         </div>
-                      ) : (
-                        <>
-                          {response.operating_system && (
-                            <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                              {response.operating_system}
-                            </div>
-                          )}
-                          {response.screen_category && (
-                            <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                              {response.screen_category}
-                            </div>
-                          )}
-                        </>
-                      )}
+                      ) : null}
                       {response.status && (
                         <div className={cn(
                           "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent",
@@ -346,15 +333,6 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           {response.status === 'open' ? 'Open' : 'Closed'}
                         </div>
                       )}
-                      {/* Extract hashtags from message as tags */}
-                      {extractTags(response.message).map((tag, index) => (
-                        <div 
-                          key={index}
-                          className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                        >
-                          {tag}
-                        </div>
-                      ))}
                     </div>
                   </button>
                 </div>

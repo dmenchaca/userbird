@@ -518,14 +518,6 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
                   Closed
-                  <span className={cn(
-                    "ml-auto tabular-nums",
-                    activeFilter === 'closed'
-                      ? "text-accent-foreground"
-                      : "text-muted-foreground"
-                  )}>
-                    {feedbackCounts.closed}
-                  </span>
                 </a>
               </nav>
             )}
