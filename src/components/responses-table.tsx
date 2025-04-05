@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader, Trash2, Smartphone, Tablet, Monitor, Inbox, CheckCircle } from 'lucide-react'
-import { ResponseDetails } from './response-details'
 import { FeedbackResponse } from '@/lib/types/feedback'
 import {
   AlertDialog,
@@ -289,15 +288,70 @@ export function ResponsesTable({
       </div>
       
       {selectedResponse && (
-        <ResponseDetails 
-          response={selectedResponse} 
-          onClose={() => setSelectedResponse(null)}
-          onDelete={(id) => {
-            setResponseToDelete(id)
-            setSelectedResponse(null)
-          }}
-          onStatusChange={handleStatusChange}
-        />
+        <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l shadow-lg z-50 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h3 className="font-medium">Feedback Details</h3>
+            <button 
+              className="rounded-full p-1 hover:bg-muted transition-colors"
+              onClick={() => setSelectedResponse(null)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-4">
+              <p className="text-sm whitespace-pre-wrap">{selectedResponse.message}</p>
+              
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">User Information</p>
+                  <div className="text-sm space-y-1">
+                    <p>ID: {selectedResponse.user_id || '-'}</p>
+                    <p>Email: {selectedResponse.user_email || '-'}</p>
+                    <p>Name: {selectedResponse.user_name || '-'}</p>
+                    <p>Page URL: {selectedResponse.url_path || '-'}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">System Information</p>
+                  <div className="text-sm space-y-1">
+                    <p>OS: {selectedResponse.operating_system}</p>
+                    <p>Device: {selectedResponse.screen_category}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Date</p>
+                  <p className="text-sm">
+                    {new Date(selectedResponse.created_at).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: 'numeric',
+                      hour12: true
+                    })}
+                  </p>
+                </div>
+                
+                <button 
+                  className="w-full py-2 px-4 bg-destructive text-destructive-foreground rounded-md text-sm hover:bg-destructive/90 transition-colors"
+                  onClick={() => {
+                    setResponseToDelete(selectedResponse.id)
+                    setSelectedResponse(null)
+                  }}
+                >
+                  Delete Feedback
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       
       <AlertDialog open={!!responseToDelete} onOpenChange={() => setResponseToDelete(null)}>
