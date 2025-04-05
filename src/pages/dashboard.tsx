@@ -37,7 +37,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
-  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed'>('open')
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -303,7 +303,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   className={cn(
                     "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
                     activeFilter === 'open'
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "hover:bg-accent hover:text-accent-foreground"
                   )}
                   onClick={(e) => {
@@ -316,7 +316,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <span className={cn(
                     "ml-auto tabular-nums",
                     activeFilter === 'open' 
-                      ? "text-primary-foreground"
+                      ? "text-accent-foreground"
                       : feedbackCounts.open > 0 
                         ? "text-primary font-medium" 
                         : "text-muted-foreground"
@@ -330,7 +330,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   className={cn(
                     "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
                     activeFilter === 'closed'
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "hover:bg-accent hover:text-accent-foreground"
                   )}
                   onClick={(e) => {
@@ -343,40 +343,56 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <span className={cn(
                     "ml-auto tabular-nums",
                     activeFilter === 'closed'
-                      ? "text-primary-foreground"
+                      ? "text-accent-foreground"
                       : "text-muted-foreground"
                   )}>
                     {feedbackCounts.closed}
                   </span>
                 </a>
-                
-                <a 
-                  href="#"
-                  className={cn(
-                    "inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 justify-start",
-                    activeFilter === 'all'
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleFilterChange('all');
-                  }}
-                >
-                  <ListFilter className="mr-2 h-4 w-4" />
-                  View all
-                  <span className={cn(
-                    "ml-auto tabular-nums",
-                    activeFilter === 'all'
-                      ? "text-primary-foreground"
-                      : "text-muted-foreground"
-                  )}>
-                    {feedbackCounts.open + feedbackCounts.closed}
-                  </span>
-                </a>
               </nav>
             )}
           </div>
+          
+          {/* Form Action Buttons */}
+          {selectedFormId && (
+            <div className="px-3 pb-3 pt-1 space-y-2">
+              <Button
+                variant="outline"
+                className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                onClick={() => setShowSettingsDialog(true)}
+              >
+                <span className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  <span>Settings</span>
+                </span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                onClick={handleExport}
+              >
+                <span className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  <span>Export CSV</span>
+                </span>
+              </Button>
+              
+              {!hasResponses && (
+                <Button
+                  variant="outline"
+                  className="h-9 w-full justify-start whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+                  onClick={() => setShowInstallModal(true)}
+                >
+                  <span className="flex items-center gap-2">
+                    <Code2 className="h-4 w-4" />
+                    <span>Install Instructions</span>
+                  </span>
+                </Button>
+              )}
+            </div>
+          )}
+          
           <UserMenu />
         </div>
         {showFeedbackHint && (
@@ -408,35 +424,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               <div className="flex items-center justify-between">
                 <h2 className="text-base">{formName}</h2>
                 <div className="flex gap-2">
-                  {!hasResponses && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setShowInstallModal(true)}
-                      className="gap-2"
-                    >
-                      <Code2 className="w-4 h-4" />
-                      Install Instructions
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSettingsDialog(true)}
-                    className="gap-2"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                    Settings
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExport}
-                    className="gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                  </Button>
+                  {/* Buttons moved to sidebar */}
                 </div>
               </div>
             </div>

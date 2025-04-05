@@ -164,38 +164,6 @@ export function ResponsesTable({
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-end">
-        <div className="inline-flex rounded-md shadow-sm">
-          <button
-            onClick={() => handleFilterChange('open')}
-            className={`px-3 py-1 text-xs font-medium rounded-l-md border flex items-center ${
-              currentStatusFilter === 'open' ? 'bg-primary text-primary-foreground' : 'bg-background'
-            }`}
-          >
-            <Inbox className="w-3 h-3 mr-1.5" />
-            Inbox
-          </button>
-          <button
-            onClick={() => handleFilterChange('closed')}
-            className={`px-3 py-1 text-xs font-medium border-y border-r flex items-center ${
-              currentStatusFilter === 'closed' ? 'bg-primary text-primary-foreground' : 'bg-background'
-            }`}
-          >
-            <CheckCircle className="w-3 h-3 mr-1.5" />
-            Closed
-          </button>
-          <button
-            onClick={() => handleFilterChange('all')}
-            className={`px-3 py-1 text-xs font-medium rounded-r-md border-y border-r flex items-center ${
-              currentStatusFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-background'
-            }`}
-          >
-            <ListFilter className="w-3 h-3 mr-1.5" />
-            View all
-          </button>
-        </div>
-      </div>
-      
       <div className="relative rounded-lg border bg-white">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed">
@@ -333,7 +301,9 @@ export function ResponsesTable({
             </tbody>
           </table>
         </div>
-        
+      </div>
+      
+      {selectedResponse && (
         <ResponseDetails 
           response={selectedResponse} 
           onClose={() => setSelectedResponse(null)}
@@ -343,27 +313,24 @@ export function ResponsesTable({
           }}
           onStatusChange={handleStatusChange}
         />
-        
-        <AlertDialog open={!!responseToDelete} onOpenChange={() => setResponseToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Response</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this response? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setResponseToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      )}
+      
+      <AlertDialog open={!!responseToDelete} onOpenChange={() => setResponseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the response.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
