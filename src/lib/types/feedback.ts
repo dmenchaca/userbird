@@ -12,6 +12,16 @@ export interface FeedbackResponse {
   screen_category: string
   created_at: string
   status: 'open' | 'closed'
+  tag_id: string | null
+  tag?: FeedbackTag | null
+}
+
+export interface FeedbackTag {
+  id: string
+  name: string
+  color: string
+  form_id: string | null
+  created_at: string
 }
 
 export interface FeedbackReply {

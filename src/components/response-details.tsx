@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Send, Paperclip, FoldVertical, UnfoldVertical, Check, Circle } from 'lucide-react'
 import { Button } from './ui/button'
 import { Dialog, DialogContent } from './ui/dialog'
-import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { TiptapEditor } from './tiptap-editor'
 import {
@@ -28,10 +28,14 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
   const [currentStatus, setCurrentStatus] = useState<'open' | 'closed'>(response.status)
+  const [currentTagId, setCurrentTagId] = useState<string | null>(response.tag_id)
+  const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
+  const [selectedTag, setSelectedTag] = useState<FeedbackTag | null>(null)
 
   useEffect(() => {
     if (response) {
       fetchReplies()
+      fetchTags()
       const channel = subscribeToReplies()
       
       // Set up an interval to periodically check for new replies
@@ -39,15 +43,39 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
         fetchReplies()
       }, 5000) // Check every 5 seconds
       
-      // Update current status when response changes
+      // Update current status and tag when response changes
       setCurrentStatus(response.status)
+      setCurrentTagId(response.tag_id)
       
       return () => {
         supabase.removeChannel(channel)
         clearInterval(refreshInterval)
       }
     }
-  }, [response.id, response.status])
+  }, [response.id, response.status, response.tag_id])
+
+  const fetchTags = async () => {
+    try {
+      const { data: tags, error } = await supabase
+        .from('feedback_tags')
+        .select('*')
+        .order('name')
+      
+      if (error) throw error
+      
+      setAvailableTags(tags || [])
+      
+      // Find the selected tag if tag_id is set
+      if (response.tag_id) {
+        const tag = tags?.find(tag => tag.id === response.tag_id) || null
+        setSelectedTag(tag)
+      } else {
+        setSelectedTag(null)
+      }
+    } catch (error) {
+      console.error('Error fetching tags:', error)
+    }
+  }
 
   const fetchReplies = async () => {
     try {
@@ -197,6 +225,34 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
     }
   }
 
+  const handleTagChange = async (newTagId: string | null) => {
+    if (newTagId === currentTagId) return
+    
+    setIsSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('feedback')
+        .update({ tag_id: newTagId })
+        .eq('id', response.id)
+      
+      if (error) throw error
+      
+      setCurrentTagId(newTagId)
+      
+      // Update selected tag
+      if (newTagId) {
+        const tag = availableTags.find(tag => tag.id === newTagId) || null
+        setSelectedTag(tag)
+      } else {
+        setSelectedTag(null)
+      }
+    } catch (error) {
+      console.error('Error updating feedback tag:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleCloseFeedback = async (withReply = false) => {
     setIsSubmitting(true)
     try {
@@ -304,7 +360,7 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
       
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6">
-          {/* Status section - added at top */}
+          {/* Status section */}
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">Status</p>
             <DropdownMenu>
@@ -342,6 +398,56 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
                   <Check className="h-4 w-4 mr-2 text-green-500" />
                   <span>Closed</span>
                 </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          {/* Tag section */}
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-muted-foreground">Tag</p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={isSubmitting}>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between"
+                >
+                  {selectedTag ? (
+                    <div className="flex items-center">
+                      <div 
+                        className="w-3 h-3 rounded-full mr-2" 
+                        style={{ backgroundColor: selectedTag.color }}
+                      />
+                      {selectedTag.name}
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      Select a tag
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[--trigger-width]">
+                {availableTags.map(tag => (
+                  <DropdownMenuItem 
+                    key={tag.id}
+                    className="flex items-center cursor-pointer"
+                    onClick={() => handleTagChange(tag.id)}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2" 
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    <span>{tag.name}</span>
+                  </DropdownMenuItem>
+                ))}
+                {currentTagId && (
+                  <DropdownMenuItem 
+                    className="flex items-center cursor-pointer border-t mt-1 pt-1"
+                    onClick={() => handleTagChange(null)}
+                  >
+                    <span>Clear tag</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -578,7 +684,7 @@ export function ResponseDetails({ response, onClose, onDelete, onStatusChange }:
         </div>
       )}
       
-      {/* Image preview dialog - keep this part */}
+      {/* Image preview dialog */}
       {response.image_url && showImagePreview && (
         <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
           <DialogContent className="max-w-3xl">

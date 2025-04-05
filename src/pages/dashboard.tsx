@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
 import { FeedbackInbox, FeedbackInboxRef } from '@/components/feedback-inbox'
-import { FeedbackResponse } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
 import { ConversationThread } from '@/components/conversation-thread'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -47,6 +47,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
   const inboxRef = useRef<FeedbackInboxRef>(null)
+  const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -375,6 +376,82 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     document.body.removeChild(link);
   }, [selectedResponse]);
 
+  const handleTagChange = async (id: string, tagName: string | null) => {
+    try {
+      let tagId = null;
+      
+      // If tagName is provided, find the corresponding tag_id
+      if (tagName) {
+        const { data: tagData, error: tagError } = await supabase
+          .from('feedback_tags')
+          .select('id')
+          .eq('name', tagName)
+          .single();
+          
+        if (tagError) throw tagError;
+        tagId = tagData?.id;
+      }
+      
+      // Update the feedback with the tag_id
+      const { error } = await supabase
+        .from('feedback')
+        .update({ tag_id: tagId })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Refresh the inbox data
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
+      }
+      
+      // If the updated response is currently selected, fetch it again to update the UI
+      if (selectedResponse && selectedResponse.id === id) {
+        const { data: updatedResponse, error: fetchError } = await supabase
+          .from('feedback')
+          .select(`
+            *,
+            tag:feedback_tags(*)
+          `)
+          .eq('id', id)
+          .single();
+          
+        if (fetchError) throw fetchError;
+        
+        // Update the selected response with the latest data
+        if (updatedResponse) {
+          setSelectedResponse({
+            ...updatedResponse,
+            tag: updatedResponse.tag as any
+          });
+        }
+      }
+      
+      // Clear any batch selections
+      setSelectedBatchIds([]);
+    } catch (error) {
+      console.error('Error updating tag:', error);
+    }
+  };
+
+  // Fetch all available tags
+  useEffect(() => {
+    const fetchTags = async () => {
+      const { data, error } = await supabase
+        .from('feedback_tags')
+        .select('*')
+        .order('name');
+        
+      if (error) {
+        console.error('Error fetching tags:', error);
+      } else {
+        setAvailableTags(data || []);
+      }
+    };
+    
+    fetchTags();
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -608,6 +685,56 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
                     <div className="space-y-6">
                       {/* Status section - removed as it's now in the conversation header */}
+                      
+                      {/* Tag section */}
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Tag</p>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline"
+                              className="w-full justify-between"
+                            >
+                              {selectedResponse.tag ? (
+                                <div className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-full mr-2" 
+                                    style={{ backgroundColor: selectedResponse.tag.color }}
+                                  />
+                                  {selectedResponse.tag.name}
+                                </div>
+                              ) : (
+                                <div className="flex items-center">
+                                  Select a tag
+                                </div>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-[--trigger-width]">
+                            {availableTags.map(tag => (
+                              <DropdownMenuItem 
+                                key={tag.id}
+                                className="flex items-center cursor-pointer"
+                                onClick={() => handleTagChange(selectedResponse.id, tag.name)}
+                              >
+                                <div 
+                                  className="w-3 h-3 rounded-full mr-2" 
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                <span>{tag.name}</span>
+                              </DropdownMenuItem>
+                            ))}
+                            {selectedResponse.tag_id && (
+                              <DropdownMenuItem 
+                                className="flex items-center cursor-pointer border-t mt-1 pt-1"
+                                onClick={() => handleTagChange(selectedResponse.id, null)}
+                              >
+                                Clear tag
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       
                       {selectedResponse.image_url && (
                         <div className="space-y-2">

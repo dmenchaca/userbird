@@ -1,7 +1,7 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
-import { FeedbackResponse } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
@@ -34,6 +34,26 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   // Function to fetch responses
   const fetchResponses = async () => {
     try {
+      setLoading(true)
+      
+      // First, fetch all available tags
+      const { data: tagsData, error: tagsError } = await supabase
+        .from('feedback_tags')
+        .select('*')
+      
+      if (tagsError) {
+        console.error('Error fetching tags:', tagsError)
+      }
+      
+      // Convert tags array to a lookup object
+      const tagsLookup: Record<string, FeedbackTag> = {}
+      if (tagsData) {
+        tagsData.forEach(tag => {
+          tagsLookup[tag.id] = tag
+        })
+      }
+      
+      // Then fetch feedback data
       let query = supabase
         .from('feedback')
         .select('*')
@@ -45,10 +65,24 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         query = query.eq('status', currentStatusFilter)
       }
 
-      const { data: responses, error } = await query
+      const { data, error } = await query
 
       if (error) throw error
-      setResponses(responses || [])
+      
+      // Enhance the responses with their tag data
+      const enhancedResponses = data?.map(item => {
+        // Create a copy of the response
+        const response = { ...item } as FeedbackResponse
+        
+        // If the response has a tag_id, add the corresponding tag object
+        if (response.tag_id && tagsLookup[response.tag_id]) {
+          response.tag = tagsLookup[response.tag_id]
+        }
+        
+        return response
+      }) || []
+      
+      setResponses(enhancedResponses)
     } catch (error) {
       console.error('Error fetching responses:', error)
     } finally {
@@ -215,15 +249,30 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                   {response.message}
                 </div>
                 <div className="flex items-center gap-2">
-                  {response.operating_system && (
-                    <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                      {response.operating_system}
+                  {response.tag ? (
+                    <div 
+                      className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent"
+                      style={{ 
+                        backgroundColor: `${response.tag.color}20`, // Adding 20 for opacity
+                        color: response.tag.color,
+                        borderColor: `${response.tag.color}40` // Adding 40 for opacity
+                      }}
+                    >
+                      {response.tag.name}
                     </div>
-                  )}
-                  {response.screen_category && (
-                    <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                      {response.screen_category}
-                    </div>
+                  ) : (
+                    <>
+                      {response.operating_system && (
+                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                          {response.operating_system}
+                        </div>
+                      )}
+                      {response.screen_category && (
+                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                          {response.screen_category}
+                        </div>
+                      )}
+                    </>
                   )}
                   {response.status && (
                     <div className={cn(
