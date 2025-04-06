@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -16,6 +16,11 @@ import { ConversationThread } from '@/components/conversation-thread'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { BatchActionBar } from '@/components/batch-action-bar'
+import { TagManager } from '@/components/tag-manager'
+import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface DashboardProps {
   initialFormId?: string
@@ -50,8 +55,24 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
   const tagDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
+  const [showAddTagPopover, setShowAddTagPopover] = useState(false)
+  const [quickTagName, setQuickTagName] = useState('')
+  const [quickTagColor, setQuickTagColor] = useState('#3B82F6')
   const statusDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
+  
+  // Color palette inspired by Notion
+  const colorOptions = [
+    { name: 'Gray', value: '#64748B' },    // Slate
+    { name: 'Brown', value: '#78716C' },   // Stone
+    { name: 'Orange', value: '#F97316' },  // Orange
+    { name: 'Yellow', value: '#EAB308' },  // Yellow
+    { name: 'Green', value: '#10B981' },   // Emerald
+    { name: 'Blue', value: '#3B82F6' },    // Blue
+    { name: 'Purple', value: '#8B5CF6' },  // Violet
+    { name: 'Pink', value: '#EC4899' },    // Pink
+    { name: 'Red', value: '#EF4444' },     // Red
+  ]
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -486,9 +507,13 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   // Fetch all available tags
   useEffect(() => {
     const fetchTags = async () => {
+      if (!selectedFormId) return;
+      
+      // Fetch both global tags (form_id is null) and form-specific tags
       const { data, error } = await supabase
         .from('feedback_tags')
         .select('*')
+        .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
         .order('name');
         
       if (error) {
@@ -499,7 +524,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     };
     
     fetchTags();
-  }, []);
+  }, [selectedFormId]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -551,6 +576,59 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   // Handle status dropdown state tracking
   const handleStatusDropdownOpenChange = (open: boolean) => {
     setIsStatusDropdownOpen(open);
+  };
+
+  // Add quick tag creation function
+  const createQuickTag = async () => {
+    if (!selectedFormId || !quickTagName.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from('feedback_tags')
+        .insert({
+          name: quickTagName.trim(),
+          color: quickTagColor,
+          form_id: selectedFormId // Make tag specific to this form
+        })
+        .select();
+      
+      if (error) throw error;
+      
+      // Refresh tags
+      const { data: updatedTags, error: tagsError } = await supabase
+        .from('feedback_tags')
+        .select('*')
+        .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
+        .order('name');
+        
+      if (tagsError) {
+        console.error('Error fetching tags:', tagsError);
+      } else {
+        setAvailableTags(updatedTags || []);
+      }
+      
+      // Reset form
+      setQuickTagName('');
+      setQuickTagColor('#3B82F6');
+      setShowAddTagPopover(false);
+      
+      toast.success("Tag created", {
+        description: `"${quickTagName}" tag has been created.`
+      });
+    } catch (error: any) {
+      console.error('Error creating tag:', error);
+      
+      // Handle unique constraint error
+      if (error.code === '23505') {
+        toast.error("Error", {
+          description: "A tag with this name already exists."
+        });
+      } else {
+        toast.error("Error", {
+          description: "Failed to create tag."
+        });
+      }
+    }
   };
 
   if (loading) {
@@ -620,7 +698,106 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             )}
             {selectedFormId && availableTags.length > 0 && (
               <div className="mt-5 px-2">
-                <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider px-3 mb-1">Tags</p>
+                <div className="flex justify-between items-center mb-1 px-3">
+                  <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Tags</p>
+                  <Popover open={showAddTagPopover} onOpenChange={setShowAddTagPopover}>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-5 w-5 p-0" 
+                        onClick={() => setShowAddTagPopover(true)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" side="right">
+                      <div className="space-y-4">
+                        <div className="font-medium text-sm">Create New Tag</div>
+                        <div className="space-y-2">
+                          <Label htmlFor="quick-tag-name">Tag Name</Label>
+                          <Input 
+                            id="quick-tag-name"
+                            value={quickTagName}
+                            onChange={e => setQuickTagName(e.target.value)}
+                            placeholder="e.g., Feature Request"
+                            className="w-full"
+                            autoFocus
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Tag Color</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-between"
+                              >
+                                <div className="flex items-center">
+                                  <div
+                                    className="w-4 h-4 rounded border"
+                                    style={{ 
+                                      backgroundColor: `${quickTagColor}30`,
+                                      borderColor: `${quickTagColor}70`
+                                    }}
+                                  />
+                                  <span className="ml-2 text-sm text-foreground">
+                                    {colorOptions.find(c => c.value === quickTagColor)?.name || 'Select color'}
+                                  </span>
+                                </div>
+                                <ChevronDown className="h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-0" align="start">
+                              <div className="flex flex-col py-1">
+                                {colorOptions.map(color => (
+                                  <button
+                                    key={color.value}
+                                    type="button"
+                                    onClick={() => setQuickTagColor(color.value)}
+                                    className={cn(
+                                      "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left",
+                                      quickTagColor === color.value ? "bg-accent" : ""
+                                    )}
+                                  >
+                                    <div 
+                                      className="w-5 h-5 rounded border" 
+                                      style={{ 
+                                        backgroundColor: `${color.value}30`,
+                                        borderColor: `${color.value}70`
+                                      }}
+                                    />
+                                    <span className="text-sm text-foreground">{color.name}</span>
+                                    {quickTagColor === color.value && (
+                                      <Check className="h-4 w-4 ml-auto" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button variant="outline" type="button" onClick={() => {
+                            setQuickTagName('');
+                            setQuickTagColor('#3B82F6');
+                            setShowAddTagPopover(false);
+                          }}>
+                            Cancel
+                          </Button>
+                          <Button onClick={() => {
+                            createQuickTag();
+                            setShowAddTagPopover(false);
+                          }} disabled={!quickTagName.trim()}>
+                            Create Tag
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <nav className="grid gap-0.5">
                   {availableTags.map(tag => (
                     <a
@@ -882,7 +1059,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                                   className="w-3 h-3 rounded-full mr-2" 
                                   style={{ backgroundColor: tag.color }}
                                 />
-                                <span>{tag.name}</span>
+                                <span className="truncate">{tag.name}</span>
                               </DropdownMenuItem>
                             ))}
                             {selectedResponse.tag_id && (
@@ -1059,7 +1236,31 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                 });
             }}
             onDelete={handleDelete}
-          />
+          >
+            <TagManager
+              formId={selectedFormId}
+              onTagsChange={() => {
+                // Refresh tags
+                const fetchTags = async () => {
+                  if (!selectedFormId) return;
+                  
+                  const { data, error } = await supabase
+                    .from('feedback_tags')
+                    .select('*')
+                    .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
+                    .order('name');
+                    
+                  if (error) {
+                    console.error('Error fetching tags:', error);
+                  } else {
+                    setAvailableTags(data || []);
+                  }
+                };
+                
+                fetchTags();
+              }}
+            />
+          </FormSettingsDialog>
         )}
         {/* Image preview dialog */}
         {selectedResponse?.image_url && showImagePreview && (

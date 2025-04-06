@@ -75,7 +75,7 @@ export function BatchActionBar({
                   onClick={() => onTagChange(selectedIds, tag.id)}
                 >
                   <div 
-                    className="h-3 w-3 rounded-full mr-2"
+                    className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: tag.color }}
                   />
                   <span>{tag.name}</span>

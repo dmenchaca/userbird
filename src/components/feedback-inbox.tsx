@@ -306,14 +306,22 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                     <div className="flex items-center gap-2">
                       {response.tag ? (
                         <div 
-                          className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent"
+                          className="overflow-hidden max-w-[190px] rounded-md py-[3px] px-[6px] pl-[3px] font-medium cursor-pointer transition-colors"
                           style={{ 
-                            backgroundColor: `${response.tag.color}20`, // Adding 20 for opacity
-                            color: response.tag.color,
-                            borderColor: `${response.tag.color}40` // Adding 40 for opacity
+                            userSelect: "none"
                           }}
                         >
-                          {response.tag.name}
+                          <div 
+                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-[3px] px-[6px] text-[12px] leading-[120%]"
+                            style={{ 
+                              backgroundColor: `${response.tag.color}20`,
+                              color: `${response.tag.color}E0`
+                            }}
+                          >
+                            <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">
+                              <span className="whitespace-nowrap overflow-hidden text-ellipsis">{response.tag.name}</span>
+                            </div>
+                          </div>
                         </div>
                       ) : null}
                       {response.status === 'closed' && (

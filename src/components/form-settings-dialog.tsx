@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -33,9 +33,10 @@ interface FormSettingsDialogProps {
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
   onDelete: () => void
+  children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'delete'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -50,7 +51,8 @@ export function FormSettingsDialog({
   open, 
   onOpenChange,
   onSettingsSaved,
-  onDelete
+  onDelete,
+  children
 }: FormSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('styling')
   const [originalValues, setOriginalValues] = useState({
@@ -1052,6 +1054,16 @@ export function FormSettingsDialog({
                   Webhooks
                 </button>
                 <button
+                  onClick={() => handleTabSwitch('tags')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'tags' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Tag className="w-4 h-4" />
+                  Tags
+                </button>
+                <button
                   onClick={() => handleTabSwitch('delete')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
@@ -1373,6 +1385,12 @@ export function FormSettingsDialog({
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === 'tags' && (
+                  <div className="space-y-6">
+                    {children}
                   </div>
                 )}
 
