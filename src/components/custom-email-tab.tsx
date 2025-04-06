@@ -45,10 +45,6 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
   const [hasSettings, setHasSettings] = useState(false)
   const [savingEmail, setSavingEmail] = useState(false)
   const [emailError, setEmailError] = useState('')
-  const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [showDomainVerification, setShowDomainVerification] = useState<boolean>(false)
   const [verifyingDns, setVerifyingDns] = useState<boolean>(false)
 
   const fetchCustomEmailSettings = async () => {
@@ -240,8 +236,6 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
     if (!settings?.id) return
     
     setVerifyingDns(true)
-    setError(null)
-    setSuccess(null)
     
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
@@ -273,16 +267,13 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
       }
       
       if (data.verified) {
-        setSuccess('DNS records verified successfully!')
         toast.success('DNS records verified successfully!')
         fetchCustomEmailSettings()
       } else {
-        setError('Some DNS records failed verification. Please check the details below.')
         toast.error('Some DNS records failed verification. Please check the details below.')
         fetchCustomEmailSettings()
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to verify DNS records')
       toast.error(err.message || 'Failed to verify DNS records')
     } finally {
       setVerifyingDns(false)
