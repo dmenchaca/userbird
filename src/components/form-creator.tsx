@@ -67,11 +67,11 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
   const createDefaultTags = async (formId: string) => {
     try {
       const defaultTags = [
-        { name: 'Bug', color: '#EF4444', is_favorite: true },       // Red
-        { name: 'Data loss', color: '#7C3AED', is_favorite: true }, // Purple 
-        { name: 'Glitch', color: '#F59E0B', is_favorite: true },    // Amber
-        { name: 'New feature', color: '#10B981', is_favorite: true }, // Emerald
-        { name: 'Love it', color: '#EC4899', is_favorite: true }    // Pink
+        { name: '⚠️ Bug', color: '#EF4444', is_favorite: true },       // Red
+        { name: '☠️ Data loss', color: '#7C3AED', is_favorite: true }, // Purple 
+        { name: '🫤 Glitch', color: '#F59E0B', is_favorite: true },    // Amber
+        { name: '🚀 New feature', color: '#10B981', is_favorite: true }, // Emerald
+        { name: '❤️ Love it', color: '#EC4899', is_favorite: true }    // Pink
       ];
       
       // Insert all default tags with the form_id
