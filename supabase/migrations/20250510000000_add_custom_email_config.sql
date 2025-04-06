@@ -71,4 +71,4 @@ WITH CHECK (
 CREATE INDEX idx_custom_email_settings_form_id ON custom_email_settings(form_id);
 
 -- Add default sender name column to forms table
-ALTER TABLE forms ADD COLUMN default_sender_name text; 
+ALTER TABLE forms ADD COLUMN default_sender_name text;
