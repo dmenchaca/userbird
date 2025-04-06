@@ -170,7 +170,12 @@ export class EmailService {
       let headers = { ...params.headers };
       
       if (params.feedbackId) {
-        messageId = `<feedback-${params.feedbackId}@userbird.co>`;
+        // Use the standard format for dashboard replies to maintain email threading
+        // This format matches what the dashboard was using previously
+        messageId = params.inReplyTo ? 
+          `<feedback-${params.feedbackId}@userbird.co>` : 
+          `<feedback-notification-${params.feedbackId}@userbird.co>`;
+        
         headers['Message-ID'] = messageId;
         
         if (params.inReplyTo) {
