@@ -45,6 +45,11 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
   const [hasSettings, setHasSettings] = useState(false)
   const [savingEmail, setSavingEmail] = useState(false)
   const [emailError, setEmailError] = useState('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [showDomainVerification, setShowDomainVerification] = useState<boolean>(false)
+  const [verifyingDns, setVerifyingDns] = useState<boolean>(false)
 
   const fetchCustomEmailSettings = async () => {
     setIsLoading(true)
@@ -231,6 +236,59 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
     }
   }
 
+  const handleVerifyDns = async () => {
+    if (!settings?.id) return
+    
+    setVerifyingDns(true)
+    setError(null)
+    setSuccess(null)
+    
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) throw sessionError
+      
+      const token = sessionData.session?.access_token
+      
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+      
+      const response = await fetch(
+        `/.netlify/functions/verify-dns-records`, 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ settingsId: settings.id })
+        }
+      )
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to verify DNS records')
+      }
+      
+      if (data.verified) {
+        setSuccess('DNS records verified successfully!')
+        toast.success('DNS records verified successfully!')
+        fetchCustomEmailSettings()
+      } else {
+        setError('Some DNS records failed verification. Please check the details below.')
+        toast.error('Some DNS records failed verification. Please check the details below.')
+        fetchCustomEmailSettings()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify DNS records')
+      toast.error(err.message || 'Failed to verify DNS records')
+    } finally {
+      setVerifyingDns(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -332,6 +390,17 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
                   Now, give Userbird permission to send emails on your behalf by authenticating this domain. Add the following DNS entries in your domain settings.
                 </p>
                 
+                <div className="bg-blue-50 border border-blue-100 p-3 rounded-md mb-4">
+                  <p className="text-sm text-blue-700 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M12 16v-4"/>
+                      <path d="M12 8h.01"/>
+                    </svg>
+                    DNS changes can take up to 24-48 hours to propagate. After adding the records, click "Verify Now" to check if they've been properly configured.
+                  </p>
+                </div>
+                
                 {dnsRecords.map((record) => (
                   <Card key={record.id} className="mb-4">
                     <CardContent className="p-4 space-y-4">
@@ -400,6 +469,16 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
                 <div className="mt-6 flex items-center gap-2">
                   <span className="text-sm font-medium">Domain Verification Status:</span>
                   {getStatusBadge(settings?.verification_status || 'unverified', settings?.verified || false)}
+                  
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={handleVerifyDns} 
+                    disabled={verifyingDns}
+                    className="ml-2"
+                  >
+                    {verifyingDns ? 'Verifying...' : 'Verify Now'}
+                  </Button>
                 </div>
                 
                 {settings?.verification_messages && settings.verification_messages.length > 0 && (
