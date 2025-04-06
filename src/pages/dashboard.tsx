@@ -505,7 +505,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
       // Only trigger shortcuts when a response is selected and not in an input field
       if (!selectedResponse || 
           event.target instanceof HTMLInputElement || 
-          event.target instanceof HTMLTextAreaElement) {
+          event.target instanceof HTMLTextAreaElement ||
+          // Add additional checks for Tiptap editor
+          (event.target instanceof HTMLElement && 
+            (event.target.classList.contains('ProseMirror') || 
+             event.target.closest('.ProseMirror') !== null))) {
         return;
       }
       
