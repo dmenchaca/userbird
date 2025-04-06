@@ -50,6 +50,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
   const tagDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
+  const statusDropdownTriggerRef = useRef<HTMLButtonElement>(null)
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
   
   // Fetch latest form if no form is selected
   useEffect(() => {
@@ -522,6 +524,16 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           setIsTagDropdownOpen(true);
         }
       }
+      
+      // "S" key to open status dropdown
+      if (event.key === 's' || event.key === 'S') {
+        event.preventDefault();
+        // Click the status dropdown trigger
+        if (statusDropdownTriggerRef.current) {
+          statusDropdownTriggerRef.current.click();
+          setIsStatusDropdownOpen(true);
+        }
+      }
     };
     
     document.addEventListener('keydown', handleKeyDown);
@@ -536,6 +548,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     setIsTagDropdownOpen(open);
   };
 
+  // Handle status dropdown state tracking
+  const handleStatusDropdownOpenChange = (open: boolean) => {
+    setIsStatusDropdownOpen(open);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -546,7 +563,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="fixed left-0 w-64 h-screen border-r bg-[#FAFAFA]">
+      <aside className="fixed left-0 w-[240px] h-screen border-r bg-[#FAFAFA]">
         <div className="flex flex-col h-full">
           <FormsDropdown 
             selectedFormId={selectedFormId}
@@ -690,7 +707,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           </div>
         )}
       </aside>
-      <main className="ml-64 flex-1 flex overflow-hidden h-screen">
+      <main className="ml-[240px] flex-1 flex overflow-hidden h-screen">
         {selectedFormId && (
           <>
             <div className="w-[30%] inbox-wrapper flex flex-col min-w-0 max-w-full h-full overflow-hidden">
@@ -734,9 +751,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                       <div className="flex items-center justify-between">
                         <h2 className="text-base truncate">Conversation</h2>
                         <div className="flex gap-2">
-                          <DropdownMenu>
+                          <DropdownMenu open={isStatusDropdownOpen} onOpenChange={handleStatusDropdownOpenChange}>
                             <DropdownMenuTrigger asChild>
                               <Button 
+                                ref={statusDropdownTriggerRef}
                                 variant="outline" 
                                 size="sm"
                                 className={`${
@@ -752,10 +770,27 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                                     <Check className="h-4 w-4 mr-2 text-green-500" />
                                   )}
                                   {selectedResponse.status === 'open' ? 'Open' : 'Closed'}
+                                  <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                                    selectedResponse.status === 'open' 
+                                      ? 'bg-blue-100 text-blue-600' 
+                                      : 'bg-green-100 text-green-600'
+                                  }`}>
+                                    S
+                                  </span>
                                 </div>
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" 
+                              onKeyDown={(e) => {
+                                // Handle enter key to select the focused item
+                                if (e.key === 'Enter') {
+                                  const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
+                                  if (focusedItem) {
+                                    focusedItem.click();
+                                  }
+                                }
+                              }}
+                            >
                               <DropdownMenuItem 
                                 className="flex items-center cursor-pointer"
                                 onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
@@ -798,9 +833,9 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                       
                       {/* Tag section */}
                       <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                        <p className="text-sm font-medium text-muted-foreground flex items-center">
                           <span>Tag</span>
-                          <span className="text-xs bg-muted px-1.5 py-0.5 rounded">Press T</span>
+                          <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-2">T</span>
                         </p>
                         <DropdownMenu open={isTagDropdownOpen} onOpenChange={handleTagDropdownOpenChange}>
                           <DropdownMenuTrigger asChild>

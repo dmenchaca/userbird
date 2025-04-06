@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FoldVertical, UnfoldVertical, Paperclip, Send } from 'lucide-react'
+import { FoldVertical, UnfoldVertical, Paperclip, Send, CornerDownLeft, Command } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -643,6 +643,9 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 disabled={!replyContent.trim() || isSubmitting}
               >
                 <Send className="h-3 w-3 mr-1" /> Send
+                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground flex items-center">
+                  {navigator.platform.includes('Mac') ? <Command className="inline h-3 w-3" /> : 'Ctrl'} <CornerDownLeft className="inline h-3 w-3 ml-0.5" />
+                </span>
               </Button>
             </div>
           </div>

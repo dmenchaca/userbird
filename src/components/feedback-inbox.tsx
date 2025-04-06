@@ -190,7 +190,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   const formatName = (response: FeedbackResponse) => {
     if (response.user_name) return response.user_name
     if (response.user_email) return response.user_email.split('@')[0]
-    return 'Anonymous User'
+    return 'Anonymous'
   }
 
   // Helper to format time ago
@@ -300,7 +300,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         </div>
                       </div>
                     </div>
-                    <div className="line-clamp-2 text-xs text-muted-foreground">
+                    <div className="line-clamp-2 text-xs text-muted-foreground text-left">
                       {response.message}
                     </div>
                     <div className="flex items-center gap-2">
@@ -316,14 +316,9 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           {response.tag.name}
                         </div>
                       ) : null}
-                      {response.status && (
-                        <div className={cn(
-                          "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent",
-                          response.status === 'open' 
-                            ? "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100" 
-                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                        )}>
-                          {response.status === 'open' ? 'Open' : 'Closed'}
+                      {response.status === 'closed' && (
+                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                          Closed
                         </div>
                       )}
                     </div>
