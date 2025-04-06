@@ -56,12 +56,17 @@ export async function verifyTXTRecord(
 ): Promise<{ verified: boolean; error?: string }> {
   try {
     const fqdn = `${recordName}.${domain}`;
+    console.log(`Verifying TXT for ${fqdn}, expecting to contain: ${expectedValueContains}`);
     const txtRecords = await dns.resolveTxt(fqdn);
+    
+    // Normalize expected value
+    const normalizedExpected = expectedValueContains.toLowerCase().replace(/\s+/g, '');
     
     // TXT records are returned as arrays of strings
     const verified = txtRecords.some(txtRecord => {
-      const fullTxtRecord = txtRecord.join(''); // Join chunks if split
-      return fullTxtRecord.includes(expectedValueContains);
+      const fullTxtRecord = txtRecord.join('').toLowerCase().replace(/\s+/g, ''); // Join chunks if split and normalize
+      console.log(`Comparing TXT: DNS returned "${fullTxtRecord.substring(0, 50)}..." vs expected "${normalizedExpected.substring(0, 50)}..."`);
+      return fullTxtRecord.includes(normalizedExpected);
     });
 
     return {
@@ -89,13 +94,18 @@ export async function verifyCNAMERecord(
 ): Promise<{ verified: boolean; error?: string }> {
   try {
     const fqdn = `${recordName}.${domain}`;
+    console.log(`Verifying CNAME for ${fqdn}, expecting ${expectedValue}`);
     const cnameRecords = await dns.resolveCname(fqdn);
-    const targetValue = expectedValue.toLowerCase();
     
-    // Check if any of the CNAME records match
-    const verified = cnameRecords.some(cname => 
-      cname.toLowerCase() === targetValue
-    );
+    // Normalize expected value (remove trailing dot if present)
+    const normalizedExpectedValue = expectedValue.toLowerCase().replace(/\.$/, '');
+    
+    // Check if any of the CNAME records match (normalize by removing trailing dots)
+    const verified = cnameRecords.some(cname => {
+      const normalizedCname = cname.toLowerCase().replace(/\.$/, '');
+      console.log(`Comparing CNAME: DNS returned "${normalizedCname}" vs expected "${normalizedExpectedValue}"`);
+      return normalizedCname === normalizedExpectedValue;
+    });
 
     return {
       verified,
