@@ -10,6 +10,7 @@
 
 [template.environment]
   SENDGRID_API_KEY = "Your SendGrid API key"
+  SITE_URL = "URL of your site (used for email verification links)"
 
 [[redirects]]
   from = "/*"

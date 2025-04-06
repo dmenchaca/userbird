@@ -19,6 +19,19 @@ import { DeleteFormDialog } from './delete-form-dialog'
 import { Switch } from './ui/switch'
 import { Textarea } from './ui/textarea'
 
+// Helper function to get the Supabase token
+const getSupabaseToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || '';
+};
+
+interface CustomEmailSettings {
+  id?: string;
+  custom_email: string;
+  verified: boolean;
+  form_id: string;
+}
+
 interface FormSettingsDialogProps {
   formId: string
   formUrl: string
@@ -36,7 +49,7 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'email'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -94,6 +107,15 @@ export function FormSettingsDialog({
   const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
+
+  // Custom email states
+  const [customEmail, setCustomEmail] = useState('');
+  const [customEmailStatus, setCustomEmailStatus] = useState<'unverified' | 'verified' | 'none'>('none');
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
+  const [customEmailId, setCustomEmailId] = useState<string | null>(null);
+  const [customEmailError, setCustomEmailError] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -494,6 +516,59 @@ export function FormSettingsDialog({
     }
   }, [gifUrlsText, isInitialMount]);
 
+  // Fetch custom email settings
+  useEffect(() => {
+    let mounted = true;
+
+    if (open && formId) {
+      const fetchCustomEmailSettings = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('custom_email_settings')
+            .select('id, custom_email, verified, form_id')
+            .eq('form_id', formId)
+            .single();
+
+          if (!mounted) return;
+
+          if (error && error.code !== 'PGRST116') { // Not found error
+            console.error('Error fetching custom email settings:', error);
+            return;
+          }
+
+          if (data) {
+            setCustomEmail(data.custom_email);
+            setCustomEmailStatus(data.verified ? 'verified' : 'unverified');
+            setCustomEmailId(data.id);
+          } else {
+            setCustomEmail('');
+            setCustomEmailStatus('none');
+            setCustomEmailId(null);
+          }
+
+          // Get sender name
+          const { data: formData, error: formError } = await supabase
+            .from('forms')
+            .select('default_sender_name')
+            .eq('id', formId)
+            .single();
+
+          if (!formError && formData) {
+            setSenderName(formData.default_sender_name || '');
+          }
+        } catch (error) {
+          console.error('Error in custom email settings fetch:', error);
+        }
+      };
+
+      fetchCustomEmailSettings();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, formId]);
+
   const handleAddEmail = async () => {
     setEmailError('');
     
@@ -564,6 +639,10 @@ export function FormSettingsDialog({
     setRemoveBranding(initialRemoveBranding);
     setGifUrls(initialGifUrls);
     setGifUrlsText(initialGifUrls.join('\n'));
+    
+    // Reset custom email states
+    setIsVerificationSent(false);
+    setCustomEmailError('');
   }
 
   useEffect(() => {
@@ -1009,6 +1088,54 @@ export function FormSettingsDialog({
     }
   };
 
+  const handleVerifyCustomEmail = async () => {
+    if (!customEmail.trim()) {
+      setCustomEmailError('Email is required');
+      return;
+    }
+    
+    if (!isValidEmail(customEmail)) {
+      setCustomEmailError('Invalid email address');
+      return;
+    }
+
+    setIsUpdatingEmail(true);
+    setCustomEmailError('');
+
+    try {
+      const supabaseToken = await getSupabaseToken();
+      
+      const response = await fetch('/.netlify/functions/verify-custom-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseToken}`
+        },
+        body: JSON.stringify({
+          formId,
+          customEmail,
+          senderName
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send verification email');
+      }
+
+      setIsVerificationSent(true);
+      setCustomEmailStatus('unverified');
+      toast.success('Verification email sent successfully');
+    } catch (error) {
+      console.error('Error verifying custom email:', error);
+      setCustomEmailError('Failed to send verification email');
+      toast.error('Failed to send verification email');
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1042,6 +1169,18 @@ export function FormSettingsDialog({
                 >
                   <Bell className="w-4 h-4" />
                   Notifications
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('email')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'email' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                  </svg>
+                  Custom Email
                 </button>
                 <button
                   onClick={() => handleTabSwitch('webhooks')}
@@ -1338,6 +1477,110 @@ export function FormSettingsDialog({
                               <Label>{attr.label}</Label>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'email' && (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label>Custom Sender Email</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Set a custom email address to use as the sender when users reply to feedback.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <Label className="text-sm mb-1">Sender Name (Optional)</Label>
+                          <Input
+                            value={senderName}
+                            onChange={(e) => setSenderName(e.target.value)}
+                            placeholder="Your Company Name"
+                            className="mb-3"
+                          />
+                          
+                          <Label className="text-sm mb-1">Email Address</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={customEmail}
+                              onChange={(e) => {
+                                setCustomEmail(e.target.value);
+                                setCustomEmailError('');
+                                setIsVerificationSent(false);
+                              }}
+                              placeholder="support@yourcompany.com"
+                              className={customEmailError ? 'border-destructive' : ''}
+                            />
+                            <Button 
+                              onClick={handleVerifyCustomEmail}
+                              disabled={isUpdatingEmail}
+                            >
+                              {customEmailStatus === 'verified' ? 'Update Email' : 'Verify Email'}
+                            </Button>
+                          </div>
+                          {customEmailError && (
+                            <p className="text-sm text-destructive mt-1">{customEmailError}</p>
+                          )}
+                        </div>
+
+                        {customEmailStatus !== 'none' && (
+                          <div className={cn(
+                            "p-3 rounded-md text-sm",
+                            customEmailStatus === 'verified' 
+                              ? "bg-green-50 text-green-800 border border-green-200" 
+                              : "bg-yellow-50 text-yellow-800 border border-yellow-200"
+                          )}>
+                            {customEmailStatus === 'verified' ? (
+                              <p className="flex items-center">
+                                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <span>
+                                  <strong>{customEmail}</strong> is verified and will be used as the sender email address.
+                                </span>
+                              </p>
+                            ) : isVerificationSent ? (
+                              <p>
+                                Verification email sent to <strong>{customEmail}</strong>. Please check your inbox and click the verification link.
+                              </p>
+                            ) : (
+                              <p>
+                                <strong>{customEmail}</strong> needs verification. Click "Verify Email" to send a verification link.
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {customEmailStatus === 'none' && (
+                          <p className="text-sm text-muted-foreground">
+                            By default, all emails are sent from notifications@userbird.co. Verify a custom email address to send from your own domain.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 mt-6">
+                      <div className="border-t pt-6">
+                        <h3 className="text-sm font-medium">What happens when you set a custom email?</h3>
+                        <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                          <p>
+                            When you verify a custom email address:
+                          </p>
+                          <ul className="list-disc pl-5 space-y-2">
+                            <li>Your verified email becomes the "From" address for all outgoing notifications and replies.</li>
+                            <li>When users reply to feedback emails, replies will go directly to your custom email address.</li>
+                            <li>This creates a seamless experience where users see your brand's email address rather than Userbird's.</li>
+                          </ul>
+                          <p className="mt-4">
+                            <strong>Note:</strong> You may need to set up SPF and DKIM records for your domain to ensure deliverability. 
+                            Contact your email provider or domain registrar for specific instructions.
+                          </p>
                         </div>
                       </div>
                     </div>
