@@ -195,10 +195,8 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
     };
   }
 
-  // Extract domain and local part from custom_email
-  const [localPart, domain] = custom_email.split('@');
-  // Use the standard forwarding format: localpart@userbird-mail.com
-  const forwardingAddress = `${localPart}@userbird-mail.com`;
+  // Use the form ID for the forwarding address, consistent with existing system
+  const forwardingAddress = `${formId}@userbird-mail.com`;
 
   // Create new custom email settings
   const { data: newSettings, error: settingsError } = await supabase
@@ -273,10 +271,8 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
   
   // Only update custom_email if provided
   if (custom_email) {
-    // Extract domain and local part from custom_email
-    const [localPart, domain] = custom_email.split('@');
-    // Use the standard forwarding format: localpart@userbird-mail.com
-    const forwardingAddress = `${localPart}@userbird-mail.com`;
+    // Use the form ID for the forwarding address, consistent with existing system
+    const forwardingAddress = `${formId}@userbird-mail.com`;
     
     updateData.custom_email = custom_email;
     updateData.forwarding_address = forwardingAddress;
