@@ -225,7 +225,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
       { pattern: /<hr[^>]*id="[^"]*yahoo_quoted_[^"]*"[^>]*>/, isContainer: true }
     ];
     
-    for (const { pattern, isContainer } of quoteIdentifiers) {
+    for (const { pattern } of quoteIdentifiers) {
       const match = cleanedHtml.match(pattern);
       if (match && match[0]) {
         const quotedContentStartIndex = cleanedHtml.indexOf(match[0]);
