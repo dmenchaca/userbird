@@ -197,6 +197,11 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
 
   // Use the form ID for the forwarding address, consistent with existing system
   const forwardingAddress = `${formId}@userbird-mail.com`;
+  
+  console.log('Creating custom email setting with:');
+  console.log('- Form ID:', formId);
+  console.log('- Custom email:', custom_email);
+  console.log('- Forwarding address:', forwardingAddress);
 
   // Create new custom email settings
   const { data: newSettings, error: settingsError } = await supabase
@@ -211,7 +216,13 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
     .select()
     .single();
 
-  if (settingsError) throw settingsError;
+  if (settingsError) {
+    console.error('Error creating custom email setting:', settingsError);
+    throw settingsError;
+  }
+  
+  console.log('Created setting with ID:', newSettings.id);
+  console.log('Forwarding address in DB:', newSettings.forwarding_address);
 
   // Generate DNS verification records using the new utility
   const { records } = generateDNSRecords(newSettings);
@@ -254,7 +265,7 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
   // Check if custom email settings exist and belong to this form
   const { data: existingSettings, error: checkError } = await supabase
     .from('custom_email_settings')
-    .select('id')
+    .select('id, forwarding_address')
     .eq('id', id)
     .eq('form_id', formId)
     .single();
@@ -267,12 +278,19 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
     };
   }
 
+  console.log('Existing setting:', existingSettings);
+  console.log('Current forwarding address:', existingSettings.forwarding_address);
+
   const updateData: any = {};
   
   // Only update custom_email if provided
   if (custom_email) {
     // Use the form ID for the forwarding address, consistent with existing system
     const forwardingAddress = `${formId}@userbird-mail.com`;
+    
+    console.log('Updating custom email settings:');
+    console.log('- New custom email:', custom_email);
+    console.log('- New forwarding address:', forwardingAddress);
     
     updateData.custom_email = custom_email;
     updateData.forwarding_address = forwardingAddress;

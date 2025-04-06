@@ -72,6 +72,8 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
       
       const data = await response.json()
       
+      console.log('Custom email settings:', data.settings)
+      
       setSettings(data.settings)
       setDnsRecords(data.dnsRecords || [])
       setHasSettings(!!data.settings)
