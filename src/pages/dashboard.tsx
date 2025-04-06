@@ -548,13 +548,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     <div className="min-h-screen bg-background flex">
       <aside className="fixed left-0 w-64 h-screen border-r bg-[#FAFAFA]">
         <div className="flex flex-col h-full">
-          <div className="border-b">
-            <FormsDropdown 
-              selectedFormId={selectedFormId}
-              onFormSelect={setSelectedFormId}
-              onNewFormClick={() => setShowNewFormDialog(true)}
-            />
-          </div>
+          <FormsDropdown 
+            selectedFormId={selectedFormId}
+            onFormSelect={setSelectedFormId}
+            onNewFormClick={() => setShowNewFormDialog(true)}
+          />
           <div className="flex-1 group py-2">
             {selectedFormId && (
               <nav className="grid gap-0.5 px-2">

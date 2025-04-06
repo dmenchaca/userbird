@@ -62,10 +62,10 @@ export function UserMenu() {
       {/* Feedback Button */}
       <Button 
         id="userbird-trigger-4hNUB7DVhf"
-        variant="outline"
-        className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
+        variant="ghost"
+        className="h-9 w-full justify-between whitespace-nowrap rounded-md px-3 py-2 text-sm bg-transparent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
       >
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2" style={{ pointerEvents: 'none' }}>
           <MessageSquare className="h-4 w-4" />
           <span>Feedback</span>
         </span>
@@ -76,8 +76,8 @@ export function UserMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
-            className="h-9 w-full justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+            variant="ghost"
+            className="h-9 w-full justify-between whitespace-nowrap rounded-md px-3 py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
           >
             <span className="flex items-center gap-2">
               <Avatar className="h-5 w-5 rounded-full">
