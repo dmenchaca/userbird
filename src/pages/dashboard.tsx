@@ -62,6 +62,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const statusDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
   const [showTagManagerDialog, setShowTagManagerDialog] = useState(false)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null)
   
   // Color palette inspired by Notion
   const colorOptions = [
@@ -421,20 +423,38 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   };
 
   const handleResponseDelete = async (id: string) => {
+    setFeedbackToDelete(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!feedbackToDelete) return;
+    
     try {
       const { error } = await supabase
         .from('feedback')
         .delete()
-        .eq('id', id);
+        .eq('id', feedbackToDelete);
 
       if (error) throw error;
       
       // Clear the selected response if it was deleted
-      if (selectedResponse && selectedResponse.id === id) {
+      if (selectedResponse && selectedResponse.id === feedbackToDelete) {
         setSelectedResponse(null);
       }
+      
+      // Refresh the inbox data
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
+      }
+      
+      toast.success("Feedback deleted successfully");
     } catch (error) {
       console.error('Error deleting response:', error);
+      toast.error("Failed to delete feedback");
+    } finally {
+      setShowDeleteConfirmation(false);
+      setFeedbackToDelete(null);
     }
   };
 
@@ -1428,6 +1448,22 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             )}
           </DialogContent>
         </Dialog>
+        {showDeleteConfirmation && (
+          <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-auto">
+              <DialogHeader>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p>Are you sure you want to delete this feedback?</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowDeleteConfirmation(false)}>Cancel</Button>
+                  <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
     </div>
   )
