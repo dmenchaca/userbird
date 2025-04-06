@@ -243,7 +243,11 @@ export function CustomEmailTab({ formId }: CustomEmailTabProps) {
       
       <Separator className="my-4" />
       
-      {!hasSettings ? (
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      ) : !hasSettings ? (
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="customEmail">Email address</Label>
