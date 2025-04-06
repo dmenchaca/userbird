@@ -273,11 +273,64 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
       }
     }
     
-    // If Gmail specific pattern not found, try other patterns
+    // iPhone quote pattern detection
+    // First try the specific pattern with div dir="ltr"
+    const iphoneSpecificMatch = cleanedHtml.match(/<div dir="ltr"><br><blockquote type="cite">/);
+    if (iphoneSpecificMatch) {
+      const quotedContentStartIndex = cleanedHtml.indexOf(iphoneSpecificMatch[0]);
+      if (quotedContentStartIndex > 0) {
+        // Look for attribution line before the blockquote
+        const mainContentBeforeQuote = cleanedHtml.substring(0, quotedContentStartIndex);
+        const attributionMatch = mainContentBeforeQuote.match(/On \d+ [A-Za-z]+ \d+, at \d+:\d+, .+?wrote:/);
+        
+        let mainContentEndIndex = quotedContentStartIndex;
+        let dateLine = null;
+        
+        if (attributionMatch) {
+          const attrIndex = mainContentBeforeQuote.lastIndexOf(attributionMatch[0]);
+          if (attrIndex >= 0) {
+            mainContentEndIndex = attrIndex;
+            dateLine = attributionMatch[0];
+          }
+        }
+        
+        const mainContent = cleanedHtml.substring(0, mainContentEndIndex);
+        const quotedContent = cleanedHtml.substring(mainContentEndIndex);
+        
+        return { mainContent, dateLine, quotedContent };
+      }
+    }
+    
+    // Generic blockquote with type="cite" (more general iPhone/Apple Mail detection)
+    const genericCiteMatch = cleanedHtml.match(/<blockquote type="cite">/);
+    if (genericCiteMatch) {
+      const quotedContentStartIndex = cleanedHtml.indexOf(genericCiteMatch[0]);
+      if (quotedContentStartIndex > 0) {
+        // Look for attribution lines containing "On" and "wrote:"
+        const mainContentBeforeQuote = cleanedHtml.substring(0, quotedContentStartIndex);
+        const attributionMatch = mainContentBeforeQuote.match(/On [^<>]+(wrote:|at [^<>]+wrote:)/i);
+        
+        let mainContentEndIndex = quotedContentStartIndex;
+        let dateLine = null;
+        
+        if (attributionMatch) {
+          const attrIndex = mainContentBeforeQuote.lastIndexOf(attributionMatch[0]);
+          if (attrIndex >= 0) {
+            mainContentEndIndex = attrIndex;
+            dateLine = attributionMatch[0];
+          }
+        }
+        
+        const mainContent = cleanedHtml.substring(0, mainContentEndIndex);
+        const quotedContent = cleanedHtml.substring(mainContentEndIndex);
+        
+        return { mainContent, dateLine, quotedContent };
+      }
+    }
+    
+    // If specific patterns not found, try other patterns
     const quoteIdentifiers = [
-      // Gmail quote container with gmail_quote_container class
-      { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*gmail_quote_container[^"]*"[^>]*>/, isContainer: true },
-      // Gmail quote container 
+      // Gmail quote container
       { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/, isContainer: true },
       // "On [date]... wrote:" pattern (common in many email clients)
       { pattern: /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On [^<>]+wrote:(<\/div>|<\/p>|<\/span>)?/i, isContainer: false },
