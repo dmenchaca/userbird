@@ -201,31 +201,54 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
   } {
     if (!html) return { mainContent: '', dateLine: null, quotedContent: null }
     
-    // Look for common date line patterns
+    // Remove any tracking pixels/images (commonly used by email services)
+    const cleanedHtml = html.replace(/<img[^>]*width=["']?1["']?[^>]*height=["']?1["']?[^>]*>/g, '');
     
-    // First try to match the "On [date]... wrote:" pattern
-    const onWrotePattern = /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On [^<>]+wrote:(<\/div>|<\/p>|<\/span>)?/i;
-    const onWroteMatch = html.match(onWrotePattern);
+    // Check for common quoted content identifiers (client-agnostic approach)
+    const quoteIdentifiers = [
+      // Gmail quote container
+      { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/, isContainer: true },
+      // Gmail quote container with gmail_quote_container class
+      { pattern: /<div[^>]*class="[^"]*gmail_quote_container[^"]*"[^>]*>/, isContainer: true },
+      // "On [date]... wrote:" pattern (common in many email clients)
+      { pattern: /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On [^<>]+wrote:(<\/div>|<\/p>|<\/span>)?/i, isContainer: false },
+      // Generic blockquote
+      { pattern: /<blockquote[^>]*>/, isContainer: true },
+      // Apple Mail/Outlook style quoted messages
+      { pattern: /<div[^>]*class="[^"]*AppleMailSignature[^"]*"[^>]*>/, isContainer: true },
+      { pattern: /<div[^>]*class="[^"]*OutlookMessageHeader[^"]*"[^>]*>/, isContainer: true },
+      // Common "From:" header in forwarded messages
+      { pattern: /(<div[^>]*>|<p[^>]*>|<span[^>]*>)From:.*?<(?:div|p|span)[^>]*>.*?(?:To|Date|Subject):.*?</is, isContainer: false },
+      // Common div with data-marker attribute (used by some clients)
+      { pattern: /<div[^>]*data-marker="__QUOTED_TEXT__"[^>]*>/, isContainer: true },
+      // Yahoo Mail style
+      { pattern: /<hr[^>]*id="[^"]*yahoo_quoted_[^"]*"[^>]*>/, isContainer: true }
+    ];
     
-    if (onWroteMatch && onWroteMatch[0]) {
-      const dateLineIndex = html.indexOf(onWroteMatch[0]);
-      if (dateLineIndex > 0) {
-        // The main content is everything before the date line
-        const mainContent = html.substring(0, dateLineIndex);
-        
-        // The quoted content is everything starting from the date line (including it)
-        const quotedContent = html.substring(dateLineIndex);
-        
-        return {
-          mainContent,
-          dateLine: onWroteMatch[0],
-          quotedContent
-        };
+    for (const { pattern, isContainer } of quoteIdentifiers) {
+      const match = cleanedHtml.match(pattern);
+      if (match && match[0]) {
+        const quotedContentStartIndex = cleanedHtml.indexOf(match[0]);
+        if (quotedContentStartIndex > 0) {
+          // The main content is everything before the quoted content
+          const mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
+          
+          // The quoted content is everything starting from the quoted content marker
+          const quotedContent = cleanedHtml.substring(quotedContentStartIndex);
+          
+          // Use the matched element as the dateLine
+          const dateLine = match[0];
+          
+          return {
+            mainContent,
+            dateLine,
+            quotedContent
+          };
+        }
       }
     }
     
-    // Add more pattern matching logic for email threads...
-    return { mainContent: html, dateLine: null, quotedContent: null };
+    return { mainContent: cleanedHtml, dateLine: null, quotedContent: null };
   }
 
   // Function to handle closing feedback with or without a reply
