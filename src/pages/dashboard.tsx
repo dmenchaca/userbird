@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -14,7 +14,7 @@ import { FeedbackInbox, FeedbackInboxRef } from '@/components/feedback-inbox'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
 import { ConversationThread } from '@/components/conversation-thread'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BatchActionBar } from '@/components/batch-action-bar'
 import { TagManager } from '@/components/tag-manager'
 import { toast } from 'sonner'
@@ -58,8 +58,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [showAddTagPopover, setShowAddTagPopover] = useState(false)
   const [quickTagName, setQuickTagName] = useState('')
   const [quickTagColor, setQuickTagColor] = useState('#3B82F6')
+  const [isQuickTagFavorite, setIsQuickTagFavorite] = useState(false)
   const statusDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
+  const [showTagManagerDialog, setShowTagManagerDialog] = useState(false)
   
   // Color palette inspired by Notion
   const colorOptions = [
@@ -509,11 +511,11 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     const fetchTags = async () => {
       if (!selectedFormId) return;
       
-      // Fetch both global tags (form_id is null) and form-specific tags
+      // Fetch only form-specific tags (no longer include global tags)
       const { data, error } = await supabase
         .from('feedback_tags')
         .select('*')
-        .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
+        .eq('form_id', selectedFormId)
         .order('name');
         
       if (error) {
@@ -588,7 +590,8 @@ export function Dashboard({ initialFormId }: DashboardProps) {
         .insert({
           name: quickTagName.trim(),
           color: quickTagColor,
-          form_id: selectedFormId // Make tag specific to this form
+          form_id: selectedFormId, // Make tag specific to this form
+          is_favorite: isQuickTagFavorite
         })
         .select();
       
@@ -598,7 +601,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
       const { data: updatedTags, error: tagsError } = await supabase
         .from('feedback_tags')
         .select('*')
-        .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
+        .eq('form_id', selectedFormId)
         .order('name');
         
       if (tagsError) {
@@ -610,6 +613,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
       // Reset form
       setQuickTagName('');
       setQuickTagColor('#3B82F6');
+      setIsQuickTagFavorite(false);
       setShowAddTagPopover(false);
       
       toast.success("Tag created", {
@@ -699,7 +703,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             {selectedFormId && availableTags.length > 0 && (
               <div className="mt-5 px-2">
                 <div className="flex justify-between items-center mb-1 px-3">
-                  <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Tags</p>
+                  <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Favorite Tags</p>
                   <Popover open={showAddTagPopover} onOpenChange={setShowAddTagPopover}>
                     <PopoverTrigger asChild>
                       <Button 
@@ -779,10 +783,24 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                           </Popover>
                         </div>
                         
+                        <div className="flex items-center space-x-2 pt-2">
+                          <input
+                            type="checkbox"
+                            id="is-quick-tag-favorite"
+                            checked={isQuickTagFavorite}
+                            onChange={e => setIsQuickTagFavorite(e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <Label htmlFor="is-quick-tag-favorite" className="text-sm font-normal flex items-center">
+                            Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
+                          </Label>
+                        </div>
+                        
                         <div className="flex justify-end gap-2 pt-2">
                           <Button variant="outline" type="button" onClick={() => {
                             setQuickTagName('');
                             setQuickTagColor('#3B82F6');
+                            setIsQuickTagFavorite(false);
                             setShowAddTagPopover(false);
                           }}>
                             Cancel
@@ -799,7 +817,9 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   </Popover>
                 </div>
                 <nav className="grid gap-0.5">
-                  {availableTags.map(tag => (
+                  {availableTags
+                    .filter(tag => tag.is_favorite)
+                    .map(tag => (
                     <a
                       key={tag.id}
                       href="#"
@@ -822,6 +842,15 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     </a>
                   ))}
                 </nav>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 w-full text-xs justify-start text-muted-foreground font-normal"
+                  onClick={() => setShowTagManagerDialog(true)}
+                >
+                  <Settings2 className="h-3 w-3 mr-1" />
+                  Manage Tags
+                </Button>
               </div>
             )}
           </div>
@@ -1247,7 +1276,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   const { data, error } = await supabase
                     .from('feedback_tags')
                     .select('*')
-                    .or(`form_id.is.null,form_id.eq.${selectedFormId}`)
+                    .eq('form_id', selectedFormId)
                     .order('name');
                     
                   if (error) {
@@ -1302,6 +1331,37 @@ export function Dashboard({ initialFormId }: DashboardProps) {
           onTagChange={handleBatchTagChange}
           availableTags={availableTags}
         />
+        {/* Tag Manager Dialog */}
+        <Dialog open={showTagManagerDialog} onOpenChange={setShowTagManagerDialog}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Tag Manager</DialogTitle>
+            </DialogHeader>
+            {selectedFormId && (
+              <TagManager 
+                formId={selectedFormId} 
+                onTagsChange={() => {
+                  // Refresh tags
+                  const fetchTags = async () => {
+                    const { data, error } = await supabase
+                      .from('feedback_tags')
+                      .select('*')
+                      .eq('form_id', selectedFormId)
+                      .order('name');
+                      
+                    if (error) {
+                      console.error('Error fetching tags:', error);
+                    } else {
+                      setAvailableTags(data || []);
+                    }
+                  };
+                  
+                  fetchTags();
+                }} 
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   )

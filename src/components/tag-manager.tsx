@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Plus, Trash2, Edit, Save, X, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, Edit, Save, X, AlertCircle, Star } from 'lucide-react'
 import { FeedbackTag } from '@/lib/types/feedback'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog'
 import { Label } from './ui/label'
@@ -22,7 +22,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
   const [editingTag, setEditingTag] = useState<FeedbackTag | null>(null)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#3B82F6') // Default blue
-  const [isGlobalTag, setIsGlobalTag] = useState(false)
+  const [isFavoriteTag, setIsFavoriteTag] = useState(false)
 
   // Fetch tags
   useEffect(() => {
@@ -31,20 +31,16 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       
       setLoading(true)
       
-      // Fetch both global tags and form-specific tags
+      // Fetch only form-specific tags
       const { data, error } = await supabase
         .from('feedback_tags')
         .select('*')
-        .or(`form_id.is.null,form_id.eq.${formId}`)
+        .eq('form_id', formId)
         .order('name')
       
       if (error) {
         console.error('Error fetching tags:', error)
-        toast({
-          title: 'Error fetching tags',
-          description: error.message,
-          variant: 'destructive'
-        })
+        toast.error(error.message)
       } else {
         setTags(data || [])
       }
@@ -58,10 +54,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
   // Add a new tag
   const addTag = async () => {
     if (!newTagName.trim()) {
-      toast({
-        title: 'Tag name is required',
-        variant: 'destructive'
-      })
+      toast.error('Tag name is required')
       return
     }
     
@@ -71,7 +64,8 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
         .insert({
           name: newTagName.trim(),
           color: newTagColor,
-          form_id: isGlobalTag ? null : formId
+          form_id: formId,
+          is_favorite: isFavoriteTag
         })
         .select()
       
@@ -80,17 +74,14 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       setTags(prevTags => [...prevTags, data[0]])
       setNewTagName('')
       setNewTagColor('#3B82F6')
-      setIsGlobalTag(false)
+      setIsFavoriteTag(false)
       setShowAddTagDialog(false)
       
       if (onTagsChange) {
         onTagsChange()
       }
       
-      toast({
-        title: 'Tag created successfully',
-        description: `The tag "${newTagName}" has been created.`
-      })
+      toast.success(`The tag "${newTagName}" has been created.`)
     } catch (error: any) {
       console.error('Error adding tag:', error)
       
@@ -98,26 +89,17 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       
       // Handle unique constraint error in a user-friendly way
       if (error.code === '23505') {
-        errorMessage = isGlobalTag 
-          ? 'A global tag with this name already exists' 
-          : 'A tag with this name already exists for this form'
+        errorMessage = 'A tag with this name already exists for this form'
       }
       
-      toast({
-        title: 'Failed to create tag',
-        description: errorMessage,
-        variant: 'destructive'
-      })
+      toast.error(errorMessage)
     }
   }
 
   // Update an existing tag
   const updateTag = async () => {
     if (!editingTag || !newTagName.trim()) {
-      toast({
-        title: 'Tag name is required',
-        variant: 'destructive'
-      })
+      toast.error('Tag name is required')
       return
     }
     
@@ -126,7 +108,8 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
         .from('feedback_tags')
         .update({
           name: newTagName.trim(),
-          color: newTagColor
+          color: newTagColor,
+          is_favorite: isFavoriteTag
         })
         .eq('id', editingTag.id)
       
@@ -134,7 +117,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       
       setTags(prevTags => prevTags.map(tag => 
         tag.id === editingTag.id 
-          ? { ...tag, name: newTagName.trim(), color: newTagColor } 
+          ? { ...tag, name: newTagName.trim(), color: newTagColor, is_favorite: isFavoriteTag } 
           : tag
       ))
       setShowEditTagDialog(false)
@@ -143,10 +126,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
         onTagsChange()
       }
       
-      toast({
-        title: 'Tag updated successfully',
-        description: `The tag "${newTagName}" has been updated.`
-      })
+      toast.success(`The tag "${newTagName}" has been updated.`)
     } catch (error: any) {
       console.error('Error updating tag:', error)
       
@@ -154,16 +134,10 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       
       // Handle unique constraint error in a user-friendly way
       if (error.code === '23505') {
-        errorMessage = editingTag.form_id === null
-          ? 'A global tag with this name already exists' 
-          : 'A tag with this name already exists for this form'
+        errorMessage = 'A tag with this name already exists for this form'
       }
       
-      toast({
-        title: 'Failed to update tag',
-        description: errorMessage,
-        variant: 'destructive'
-      })
+      toast.error(errorMessage)
     }
   }
 
@@ -188,17 +162,45 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
         onTagsChange()
       }
       
-      toast({
-        title: 'Tag deleted successfully',
-        description: `The tag "${tag.name}" has been deleted.`
-      })
+      toast.success(`The tag "${tag.name}" has been deleted.`)
     } catch (error: any) {
       console.error('Error deleting tag:', error)
-      toast({
-        title: 'Failed to delete tag',
-        description: error.message,
-        variant: 'destructive'
-      })
+      toast.error(error.message)
+    }
+  }
+
+  // Toggle favorite status
+  const toggleFavorite = async (tag: FeedbackTag) => {
+    try {
+      const newFavoriteStatus = !tag.is_favorite
+      
+      const { error } = await supabase
+        .from('feedback_tags')
+        .update({
+          is_favorite: newFavoriteStatus
+        })
+        .eq('id', tag.id)
+      
+      if (error) throw error
+      
+      setTags(prevTags => prevTags.map(t => 
+        t.id === tag.id 
+          ? { ...t, is_favorite: newFavoriteStatus } 
+          : t
+      ))
+      
+      if (onTagsChange) {
+        onTagsChange()
+      }
+      
+      if (newFavoriteStatus) {
+        toast.success(`"${tag.name}" added to favorites`)
+      } else {
+        toast.success(`"${tag.name}" removed from favorites`)
+      }
+    } catch (error: any) {
+      console.error('Error updating favorite status:', error)
+      toast.error(error.message)
     }
   }
 
@@ -207,6 +209,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
     setEditingTag(tag)
     setNewTagName(tag.name)
     setNewTagColor(tag.color)
+    setIsFavoriteTag(tag.is_favorite)
     setShowEditTagDialog(true)
   }
 
@@ -218,7 +221,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
           onClick={() => {
             setNewTagName('')
             setNewTagColor('#3B82F6')
-            setIsGlobalTag(false)
+            setIsFavoriteTag(false)
             setShowAddTagDialog(true)
           }}
           size="sm"
@@ -266,39 +269,42 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                     </div>
                   </div>
                 </div>
-                {tag.form_id === null && (
-                  <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                    Global
+                {tag.is_favorite && (
+                  <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full flex items-center">
+                    <Star className="h-3 w-3 mr-1 fill-amber-500" />
+                    Favorite
                   </span>
                 )}
               </div>
               
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {tag.form_id !== null && (
-                  <>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => openEditDialog(tag)}
-                      className="h-8 w-8"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => deleteTag(tag)}
-                      className="h-8 w-8 text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {tag.form_id === null && (
-                  <div className="text-xs text-muted-foreground">
-                    System tag (non-editable)
-                  </div>
-                )}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => toggleFavorite(tag)}
+                  className={cn("h-8 w-8", tag.is_favorite ? "text-amber-500" : "")}
+                  aria-label={tag.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                  <Star className={cn("h-4 w-4", tag.is_favorite ? "fill-amber-500" : "")} />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => openEditDialog(tag)}
+                  className="h-8 w-8"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => deleteTag(tag)}
+                  className="h-8 w-8 text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ))}
@@ -344,30 +350,14 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
-                id="is-global-tag"
-                checked={isGlobalTag}
-                onChange={e => setIsGlobalTag(e.target.checked)}
+                id="is-favorite-tag"
+                checked={isFavoriteTag}
+                onChange={e => setIsFavoriteTag(e.target.checked)}
                 className="rounded border-gray-300 text-primary focus:ring-primary"
               />
-              <Label htmlFor="is-global-tag" className="text-sm font-normal">
-                Make this a global tag (available for all forms)
+              <Label htmlFor="is-favorite-tag" className="text-sm font-normal flex items-center">
+                Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
               </Label>
-            </div>
-            
-            <div className="bg-muted/50 p-3 rounded-md text-sm">
-              <p className="font-medium mb-1">Tag visibility:</p>
-              <p className={cn(
-                "text-muted-foreground",
-                isGlobalTag ? "line-through opacity-50" : ""
-              )}>
-                • Form-specific tag: Only visible for this form's feedback
-              </p>
-              <p className={cn(
-                "text-muted-foreground",
-                !isGlobalTag ? "line-through opacity-50" : ""
-              )}>
-                • Global tag: Visible for all forms' feedback
-              </p>
             </div>
           </div>
           
@@ -417,6 +407,19 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                   className="font-mono"
                 />
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="edit-is-favorite"
+                checked={isFavoriteTag}
+                onChange={e => setIsFavoriteTag(e.target.checked)}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <Label htmlFor="edit-is-favorite" className="text-sm font-normal flex items-center">
+                Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
+              </Label>
             </div>
           </div>
           

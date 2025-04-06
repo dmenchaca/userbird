@@ -63,6 +63,37 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
     onFormChange?.(url !== '' || buttonColor !== '#1f2937' || supportText !== '')
   }, [url, buttonColor, supportText, onFormChange])
 
+  // Function to create default tags for a new form
+  const createDefaultTags = async (formId: string) => {
+    try {
+      const defaultTags = [
+        { name: 'Bug', color: '#EF4444', is_favorite: true },       // Red
+        { name: 'Data loss', color: '#7C3AED', is_favorite: true }, // Purple 
+        { name: 'Glitch', color: '#F59E0B', is_favorite: true },    // Amber
+        { name: 'New feature', color: '#10B981', is_favorite: true }, // Emerald
+        { name: 'Love it', color: '#EC4899', is_favorite: true }    // Pink
+      ];
+      
+      // Insert all default tags with the form_id
+      const { error } = await supabase
+        .from('feedback_tags')
+        .insert(defaultTags.map(tag => ({
+          name: tag.name,
+          color: tag.color,
+          form_id: formId,
+          is_favorite: tag.is_favorite
+        })));
+      
+      if (error) {
+        console.error('Error creating default tags:', error);
+      } else {
+        console.log('Successfully created default tags for form:', formId);
+      }
+    } catch (error) {
+      console.error('Error in createDefaultTags:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -137,6 +168,9 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
         console.error('Supabase insert error details:', insertError);
         throw insertError;
       }
+      
+      // Create default form-specific tags
+      await createDefaultTags(newFormId);
       
       // After successful insert, verify what was actually saved
       console.log('Form created with ID:', newFormId);

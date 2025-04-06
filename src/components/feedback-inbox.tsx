@@ -6,6 +6,28 @@ import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
 
+// Utility function to ensure high contrast for tag text
+const getHighContrastColor = (hexColor: string): string => {
+  // Remove the # if it exists
+  const color = hexColor.startsWith('#') ? hexColor.slice(1) : hexColor;
+  
+  // Convert hex to RGB
+  const r = parseInt(color.slice(0, 2), 16);
+  const g = parseInt(color.slice(2, 4), 16);
+  const b = parseInt(color.slice(4, 6), 16);
+  
+  // Calculate brightness and adjust for better contrast
+  // We want a darker, more saturated version of the color for better contrast
+  // against the light background (which is at 0.125 opacity)
+  
+  // Make the color darker for better contrast on light backgrounds
+  const darkR = Math.max(0, Math.floor(r * 0.7));
+  const darkG = Math.max(0, Math.floor(g * 0.7));
+  const darkB = Math.max(0, Math.floor(b * 0.7));
+  
+  return `rgb(${darkR}, ${darkG}, ${darkB})`;
+};
+
 interface FeedbackInboxProps {
   formId: string
   statusFilter?: 'all' | 'open' | 'closed'
@@ -54,10 +76,11 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     try {
       setLoading(true)
       
-      // First, fetch all available tags
+      // First, fetch tags specific to this form only
       const { data: tagsData, error: tagsError } = await supabase
         .from('feedback_tags')
         .select('*')
+        .eq('form_id', formId)
       
       if (tagsError) {
         console.error('Error fetching tags:', tagsError)
@@ -312,10 +335,10 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           }}
                         >
                           <div 
-                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-[3px] px-[6px] text-[12px] leading-[120%]"
+                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-[3px] px-[6px] text-[12px] leading-[120%] font-semibold"
                             style={{ 
                               backgroundColor: `${response.tag.color}20`,
-                              color: `${response.tag.color}E0`
+                              color: getHighContrastColor(response.tag.color)
                             }}
                           >
                             <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">

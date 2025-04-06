@@ -22,6 +22,7 @@ export interface FeedbackTag {
   color: string
   form_id: string | null
   created_at: string
+  is_favorite: boolean
 }
 
 export interface FeedbackReply {
