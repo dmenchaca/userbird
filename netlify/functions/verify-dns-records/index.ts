@@ -218,10 +218,12 @@ async function verifyDNSRecord(record: any, domain: string): Promise<{ verified:
       );
     } 
     else if (record.record_type === 'CNAME') {
+      const normalizedExpectedValue = record.record_value.toLowerCase().replace(/\.$/, '');
+      
       return await verifyCNAMERecord(
         domain,
         record.record_name,
-        record.record_value
+        normalizedExpectedValue
       );
     }
     
