@@ -435,10 +435,8 @@ ${feedback.message}
     let htmlMessage;
     
     if (isAdminDashboardReply) {
-      // For admin dashboard replies, use minimal styling
-      htmlMessage = `
-        <div style="white-space: pre-wrap;">${htmlReplyContent || replyContent}</div>
-      `;
+      // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
+      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
     } else {
       // For automated replies, use full styling
       htmlMessage = `

@@ -124,12 +124,70 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
     setIsSubmitting(true)
     try {
       // Rich text content is already in HTML format
-      const htmlContent = replyContent;
+      let htmlContent = replyContent;
+      
+      // If this is a reply to another message, append the previous message as blockquote
+      if (replies.length > 0) {
+        // Get the most recent message to quote
+        const lastReply = replies[0];
+        const senderEmail = lastReply.sender_type === 'user' ? response.user_email : 'support@userbird.co';
+        
+        // Format date in email client style
+        const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        // Extract only the main content from the previous reply to avoid nested quotes
+        const { mainContent: quotedMainContent } = processHtmlContent(lastReply.html_content || lastReply.content);
+        
+        // Add the attribution line and blockquote formatting
+        htmlContent += `
+          <div class="email_quote_container">
+            <div dir="ltr" class="email_attr">
+              On ${replyDate}, &lt;${senderEmail}&gt; wrote:
+            </div>
+            <blockquote class="email_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+              ${quotedMainContent}
+            </blockquote>
+          </div>
+        `;
+      }
       
       // Extract plain text from HTML for the content field
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = replyContent;
-      const plainTextContent = tempDiv.textContent || tempDiv.innerText || '';
+      let plainTextContent = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // If we added quoted content to the HTML, append a simplified version to plainTextContent too
+      if (replies.length > 0) {
+        const lastReply = replies[0];
+        const senderEmail = lastReply.sender_type === 'user' ? response.user_email : 'support@userbird.co';
+        const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        // Get only the main content from the previous message to avoid nested quotes
+        const { mainContent: quotedMainContent } = processHtmlContent(lastReply.html_content || lastReply.content);
+        
+        // Extract plain text from the quoted content
+        const tempQuoteDiv = document.createElement('div');
+        tempQuoteDiv.innerHTML = quotedMainContent;
+        const quotedPlainText = tempQuoteDiv.textContent || tempQuoteDiv.innerText || '';
+        
+        // Append the plain text quoted content
+        plainTextContent += `\n\nOn ${replyDate}, ${senderEmail} wrote:\n\n${quotedPlainText.split('\n').map(line => `> ${line}`).join('\n')}`;
+      }
       
       const { data, error } = await supabase
         .from('feedback_replies')
@@ -206,6 +264,8 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
     
     // Check for common quoted content identifiers (client-agnostic approach)
     const quoteIdentifiers = [
+      // Our custom email quote container
+      { pattern: /<div[^>]*class="[^"]*email_quote_container[^"]*"[^>]*>/, isContainer: true },
       // Gmail quote container
       { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/, isContainer: true },
       // Gmail quote container with gmail_quote_container class
@@ -305,6 +365,21 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
           }
           .email-content div {
             min-height: 0;
+          }
+          /* Styling for email quotes */
+          .email_quote_container {
+            margin-top: 20px;
+          }
+          .email_attr {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+          }
+          .email_quote {
+            margin: 0 0 0 0.8ex !important;
+            border-left: 1px solid #ccc !important;
+            padding-left: 1ex !important;
+            color: #666;
           }
         `
       }} />
