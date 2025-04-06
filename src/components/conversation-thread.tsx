@@ -231,10 +231,14 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
         const quotedContentStartIndex = cleanedHtml.indexOf(match[0]);
         if (quotedContentStartIndex > 0) {
           // The main content is everything before the quoted content
-          const mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
+          let mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
           
           // The quoted content is everything starting from the quoted content marker
-          const quotedContent = cleanedHtml.substring(quotedContentStartIndex);
+          let quotedContent = cleanedHtml.substring(quotedContentStartIndex);
+          
+          // Clean up trailing whitespace/breaks in the main content
+          mainContent = mainContent.replace(/<br\s*\/?>\s*<br\s*\/?>\s*$/gi, '');
+          mainContent = mainContent.replace(/(<div><br\s*\/?><\/div>\s*)+$/gi, '');
           
           // Use the matched element as the dateLine
           const dateLine = match[0];
@@ -278,6 +282,33 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* CSS to handle multiple consecutive blank lines */}
+      <style dangerouslySetInnerHTML={{ 
+        __html: `
+          .email-content br + br {
+            display: none;
+          }
+          .email-content div:empty {
+            display: none;
+          }
+          .email-content p:empty {
+            display: none;
+          }
+          .email-content div + br, .email-content br + div:empty {
+            display: none;
+          }
+          .email-content {
+            margin-bottom: 0;
+          }
+          .email-content > *:last-child {
+            margin-bottom: 0;
+          }
+          .email-content div {
+            min-height: 0;
+          }
+        `
+      }} />
+      
       {/* Main conversation area - scrollable */}
       <div className="flex-1 overflow-y-auto p-4 overflow-x-hidden min-h-0">
         {/* Conversation thread - all messages */}
@@ -342,14 +373,14 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 {reply.html_content ? (
                   <div className="space-y-2 overflow-hidden">
                     {/* Show the main content */}
-                    <div className="overflow-x-auto break-words" dangerouslySetInnerHTML={{ __html: mainContent }} />
+                    <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
                     
                     {/* Show quoted content if it exists and is expanded */}
                     {quotedContent && (
-                      <div>
+                      <div style={{ marginTop: '16px' }}>
                         <button
                           onClick={() => toggleQuotedContent(reply.id)}
-                          className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
+                          className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {isExpanded ? (
                             <>
@@ -366,7 +397,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                         
                         {isExpanded && (
                           <div 
-                            className="border-l-2 pl-2 text-muted-foreground overflow-x-auto" 
+                            className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
                             dangerouslySetInnerHTML={{ __html: quotedContent }}
                           />
                         )}
