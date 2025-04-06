@@ -4,7 +4,7 @@ const { trackEvent, shutdownPostHog } = require('../lib/posthog');
 import { generateDNSRecords } from '../lib/dns-verification';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 function getCorsHeaders(origin: string | undefined) {
