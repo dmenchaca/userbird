@@ -195,12 +195,17 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
     };
   }
 
+  // Extract domain and local part from custom_email
+  const [localPart, domain] = custom_email.split('@');
+  const forwardingAddress = `${localPart}@${domain}.userbird-mail.com`;
+
   // Create new custom email settings
   const { data: newSettings, error: settingsError } = await supabase
     .from('custom_email_settings')
     .insert([{ 
       form_id: formId, 
       custom_email,
+      forwarding_address: forwardingAddress,
       verification_status: 'unverified',
       last_verification_attempt: new Date().toISOString()
     }])
@@ -267,7 +272,12 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
   
   // Only update custom_email if provided
   if (custom_email) {
+    // Extract domain and local part from custom_email
+    const [localPart, domain] = custom_email.split('@');
+    const forwardingAddress = `${localPart}@${domain}.userbird-mail.com`;
+    
     updateData.custom_email = custom_email;
+    updateData.forwarding_address = forwardingAddress;
     // Reset verification when email changes
     updateData.verified = false;
     updateData.spf_verified = false;
