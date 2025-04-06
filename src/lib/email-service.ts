@@ -167,12 +167,18 @@ ${image_url}
     from: 'notifications@userbird.co',
     subject: `New feedback received for ${formUrl}`,
     text: textMessage,
-    html: htmlMessage
+    html: htmlMessage,
+    headers: formId ? {
+      'Message-ID': `<feedback-notification-${formId}@userbird.co>`
+    } : undefined
   };
 
   try {
     await sgMail.send(msg);
-    return { success: true };
+    return { 
+      success: true,
+      messageId: formId ? `<feedback-notification-${formId}@userbird.co>` : undefined
+    };
   } catch (error) {
     console.error('Error sending feedback notification email:', error);
     throw error;
@@ -269,8 +275,8 @@ ${feedback.message}
       text: plainTextMessage,
       html: htmlMessage,
       headers: {
-        "In-Reply-To": `feedback-${feedbackId}@userbird.co`,
-        "References": `feedback-${feedbackId}@userbird.co`,
+        "In-Reply-To": `<feedback-notification-${feedbackId}@userbird.co>`,
+        "References": `<feedback-notification-${feedbackId}@userbird.co>`,
         "Message-ID": `<reply-${replyId}-${feedbackId}@userbird.co>`
       }
     });

@@ -354,7 +354,7 @@ ${image_url}
       text: textMessage,
       html: htmlMessage,
       headers: feedbackId ? {
-        'Message-ID': `<feedback-${feedbackId}@userbird.co>`
+        'Message-ID': `<feedback-notification-${feedbackId}@userbird.co>`
       } : undefined
     };
 
@@ -365,7 +365,7 @@ ${image_url}
       
       return { 
         success: true,
-        messageId: feedbackId ? `<feedback-${feedbackId}@userbird.co>` : undefined
+        messageId: feedbackId ? `<feedback-notification-${feedbackId}@userbird.co>` : undefined
       };
     } catch (error) {
       console.error('Error sending feedback notification email:', {
@@ -478,7 +478,10 @@ ${feedback.message}
       headers: lastMessageId ? {
         "In-Reply-To": lastMessageId,
         "References": lastMessageId
-      } : undefined
+      } : {
+        "In-Reply-To": `<feedback-notification-${feedbackId}@userbird.co>`,
+        "References": `<feedback-notification-${feedbackId}@userbird.co>`
+      }
     });
   }
 }
