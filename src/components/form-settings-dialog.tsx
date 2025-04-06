@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag, Mail } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -18,6 +18,7 @@ import { cache } from '@/lib/cache'
 import { DeleteFormDialog } from './delete-form-dialog'
 import { Switch } from './ui/switch'
 import { Textarea } from './ui/textarea'
+import { CustomEmailTab } from './custom-email-tab'
 
 interface FormSettingsDialogProps {
   formId: string
@@ -36,7 +37,7 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -1044,6 +1045,16 @@ export function FormSettingsDialog({
                   Notifications
                 </button>
                 <button
+                  onClick={() => handleTabSwitch('emails')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'emails' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Mail className="w-4 h-4" />
+                  Custom Email
+                </button>
+                <button
                   onClick={() => handleTabSwitch('webhooks')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
@@ -1342,6 +1353,10 @@ export function FormSettingsDialog({
                       </div>
                     </div>
                   </div>
+                )}
+
+                {activeTab === 'emails' && (
+                  <CustomEmailTab formId={formId} />
                 )}
 
                 {activeTab === 'webhooks' && (

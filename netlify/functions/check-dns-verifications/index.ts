@@ -1,6 +1,6 @@
 import { Handler, schedule } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import * as dns from 'dns/promises';
+import { verifyTXTRecord, verifyCNAMERecord } from '../lib/dns-verification';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY!; // Use service role key for background tasks
@@ -16,7 +16,9 @@ export const handler: Handler = schedule('0 */6 * * *', async () => {
     const { data: unverifiedSettings, error: settingsError } = await supabase
       .from('custom_email_settings')
       .select('id, domain')
-      .eq('verified', false);
+      .in('verification_status', ['unverified', 'pending', 'failed'])
+      .order('last_verification_attempt', { ascending: true })
+      .limit(50); // Process in batches
     
     if (settingsError) throw settingsError;
     
@@ -47,6 +49,15 @@ export const handler: Handler = schedule('0 */6 * * *', async () => {
 async function checkAndUpdateVerification(settingId: string, domain: string) {
   console.log(`Checking verification for domain: ${domain}`);
   
+  // Update verification attempt time
+  await supabase
+    .from('custom_email_settings')
+    .update({ 
+      verification_status: 'pending',
+      last_verification_attempt: new Date().toISOString()
+    })
+    .eq('id', settingId);
+  
   // Get DNS records for this setting
   const { data: dnsRecords, error: dnsError } = await supabase
     .from('dns_verification_records')
@@ -63,21 +74,28 @@ async function checkAndUpdateVerification(settingId: string, domain: string) {
   // Verify each DNS record
   const verificationResults = await Promise.all(
     dnsRecords.map(async record => {
-      const isVerified = await verifyDNSRecord(record, domain);
+      const result = await verifyDNSRecord(record, domain);
       
       // Update record verification status
-      if (isVerified) {
-        await supabase
-          .from('dns_verification_records')
-          .update({ verified: true })
-          .eq('id', record.id);
-        
+      await supabase
+        .from('dns_verification_records')
+        .update({ 
+          verified: result.verified,
+          last_check_time: new Date().toISOString(),
+          failure_reason: result.error || null
+        })
+        .eq('id', record.id);
+      
+      if (result.verified) {
         console.log(`Record ${record.record_type} ${record.record_name}.${domain} verified!`);
+      } else {
+        console.log(`Record ${record.record_type} ${record.record_name}.${domain} not verified: ${result.error}`);
       }
       
       return {
         ...record,
-        verified: isVerified
+        verified: result.verified,
+        error: result.error
       };
     })
   );
@@ -86,70 +104,72 @@ async function checkAndUpdateVerification(settingId: string, domain: string) {
   const allVerified = verificationResults.every(record => record.verified);
   
   // Update overall verification status
+  const spfVerified = verificationResults.some(
+    record => record.record_type === 'TXT' && record.record_name.includes('_domainkey') && record.verified
+  );
+  
+  const dkimVerified = verificationResults.some(
+    record => record.record_type === 'CNAME' && record.record_name.includes('domainkey') && record.verified
+  );
+  
+  const dmarcVerified = verificationResults.some(
+    record => record.record_type === 'CNAME' && record.record_name === 'mail' && record.verified
+  );
+  
+  // Collect error messages
+  const errorMessages = verificationResults
+    .filter(record => !record.verified && record.error)
+    .map(record => `${record.record_type} ${record.record_name}: ${record.error}`);
+  
+  const verificationStatus = allVerified ? 'verified' : 'failed';
+  
+  await supabase
+    .from('custom_email_settings')
+    .update({ 
+      verified: allVerified,
+      spf_verified: spfVerified,
+      dkim_verified: dkimVerified,
+      dmarc_verified: dmarcVerified,
+      verification_status: verificationStatus,
+      verification_messages: errorMessages.length > 0 ? errorMessages : null
+    })
+    .eq('id', settingId);
+  
   if (allVerified) {
-    const spfVerified = verificationResults.some(
-      record => record.record_type === 'TXT' && record.record_name.includes('_domainkey') && record.verified
-    );
-    
-    const dkimVerified = verificationResults.some(
-      record => record.record_type === 'CNAME' && record.record_name.includes('domainkey') && record.verified
-    );
-    
-    const dmarcVerified = verificationResults.some(
-      record => record.record_type === 'CNAME' && record.record_name === 'mail' && record.verified
-    );
-    
-    await supabase
-      .from('custom_email_settings')
-      .update({ 
-        verified: allVerified,
-        spf_verified: spfVerified,
-        dkim_verified: dkimVerified,
-        dmarc_verified: dmarcVerified 
-      })
-      .eq('id', settingId);
-    
     console.log(`All DNS records verified for domain ${domain}! Setting marked as verified.`);
     
     // TODO: Send notification to the user that their domain is verified
+  } else {
+    console.log(`Some DNS records not verified for domain ${domain}. Status set to failed.`);
   }
 }
 
-async function verifyDNSRecord(record: any, domain: string): Promise<boolean> {
+async function verifyDNSRecord(record: any, domain: string): Promise<{ verified: boolean; error?: string }> {
   try {
-    const fqdn = `${record.record_name}.${domain}`;
-    
     if (record.record_type === 'TXT') {
-      try {
-        const txtRecords = await dns.resolveTxt(fqdn);
-        // TXT records are returned as arrays of strings
-        return txtRecords.some(txtRecord => {
-          const fullTxtRecord = txtRecord.join(''); // Join chunks if split
-          return fullTxtRecord.includes(record.record_value);
-        });
-      } catch (e) {
-        console.error(`TXT resolution error for ${fqdn}:`, e);
-        return false;
-      }
+      return await verifyTXTRecord(
+        domain,
+        record.record_name,
+        record.record_value
+      );
     } 
     else if (record.record_type === 'CNAME') {
-      try {
-        const cnameRecords = await dns.resolveCname(fqdn);
-        const targetValue = record.record_value.toLowerCase();
-        
-        // Check if any of the CNAME records match
-        return cnameRecords.some(cname => 
-          cname.toLowerCase() === targetValue
-        );
-      } catch (e) {
-        console.error(`CNAME resolution error for ${fqdn}:`, e);
-        return false;
-      }
+      return await verifyCNAMERecord(
+        domain,
+        record.record_name,
+        record.record_value
+      );
     }
     
-    return false;
-  } catch (error) {
+    return {
+      verified: false,
+      error: `Unsupported record type: ${record.record_type}`
+    };
+  } catch (error: any) {
     console.error(`Error verifying DNS record for ${record.record_name}.${domain}:`, error);
-    return false;
+    return {
+      verified: false,
+      error: `Verification error: ${error.message}`
+    };
   }
 } 

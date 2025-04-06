@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 const { trackEvent, shutdownPostHog } = require('../lib/posthog');
+import { generateDNSRecords } from '../lib/dns-verification';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -26,6 +27,9 @@ type CustomEmailSettingsResponse = {
   spf_verified: boolean;
   dkim_verified: boolean;
   dmarc_verified: boolean;
+  verification_status: 'unverified' | 'pending' | 'verified' | 'failed';
+  last_verification_attempt?: string;
+  verification_messages?: string[];
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +41,9 @@ type DNSRecordResponse = {
   record_name: string;
   record_value: string;
   verified: boolean;
+  dkim_selector?: string;
+  last_check_time?: string;
+  failure_reason?: string;
 };
 
 export const handler: Handler = async (event) => {
@@ -191,19 +198,24 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
   // Create new custom email settings
   const { data: newSettings, error: settingsError } = await supabase
     .from('custom_email_settings')
-    .insert([{ form_id: formId, custom_email }])
+    .insert([{ 
+      form_id: formId, 
+      custom_email,
+      verification_status: 'unverified',
+      last_verification_attempt: new Date().toISOString()
+    }])
     .select()
     .single();
 
   if (settingsError) throw settingsError;
 
-  // Generate DNS verification records
-  const dnsRecords = generateDNSRecords(newSettings);
+  // Generate DNS verification records using the new utility
+  const { records } = generateDNSRecords(newSettings);
   
   // Insert DNS records
   const { data: insertedRecords, error: dnsError } = await supabase
     .from('dns_verification_records')
-    .insert(dnsRecords)
+    .insert(records)
     .select();
 
   if (dnsError) throw dnsError;
@@ -261,6 +273,9 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
     updateData.spf_verified = false;
     updateData.dkim_verified = false;
     updateData.dmarc_verified = false;
+    updateData.verification_status = 'unverified';
+    updateData.last_verification_attempt = new Date().toISOString();
+    updateData.verification_messages = [];
   }
 
   // Update custom email settings
@@ -281,13 +296,13 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
       .delete()
       .eq('custom_email_setting_id', id);
 
-    // Generate new DNS records
-    const dnsRecords = generateDNSRecords(updatedSettings);
+    // Generate new DNS records using the utility
+    const { records } = generateDNSRecords(updatedSettings);
     
     // Insert new DNS records
     const { data: insertedRecords, error: dnsError } = await supabase
       .from('dns_verification_records')
-      .insert(dnsRecords)
+      .insert(records)
       .select();
 
     if (dnsError) throw dnsError;
@@ -370,31 +385,4 @@ async function deleteCustomEmailSettings(event: any, formId: string, headers: Re
     headers,
     body: JSON.stringify({ success: true })
   };
-}
-
-function generateDNSRecords(settings: CustomEmailSettingsResponse) {
-  const domain = settings.domain;
-  const timestamp = new Date().getTime().toString().slice(0, 10);
-  const dkimSelector = `userbird${timestamp}`;
-  
-  return [
-    {
-      custom_email_setting_id: settings.id,
-      record_type: 'TXT',
-      record_name: `${dkimSelector}._domainkey`,
-      record_value: `k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCr+a7pzHZ+9vxSMbcCSLeoK8T2aL/rWP83vX1nYqDZ4Cx6pRQmJxX5wNWIYZz41J5KbCe8v1ulwZJJX1I5bADqNcOB7wjVmJXbY5/ehvbhl2t7GzGaWzVt5RPmRFD+L6aRBQSkDIwwB42++jnxjP/hYJ3I5PnFUmQHBP/HdQIDAQAB`
-    },
-    {
-      custom_email_setting_id: settings.id,
-      record_type: 'CNAME',
-      record_name: `userbird${timestamp}.domainkey`,
-      record_value: `userbird${timestamp}.domainkey.userbird-mail.com.`
-    },
-    {
-      custom_email_setting_id: settings.id,
-      record_type: 'CNAME',
-      record_name: 'mail',
-      record_value: 'userbird-mail.com.'
-    }
-  ];
 } 
