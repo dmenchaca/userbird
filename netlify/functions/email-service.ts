@@ -419,7 +419,7 @@ ${image_url}
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
-To: notifications@userbird.co
+To: support@userbird.co
 Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
@@ -469,7 +469,7 @@ ${feedback.message}
 
     return this.sendEmail({
       to,
-      from: 'notifications@userbird.co',
+      from: 'support@userbird.co',
       subject: `Re: Feedback submitted by ${feedback.user_email}`,
       text: plainTextMessage,
       html: htmlMessage,
@@ -501,7 +501,7 @@ export const handler: Handler = async (event) => {
       const testFeedbackId = uuidv4();
       const result = await EmailService.sendEmail({
         to: testEmailAddress,
-        from: 'notifications@userbird.co',
+        from: 'support@userbird.co',
         subject: 'Userbird Email Test',
         text: 'This is a test email from Userbird to verify SendGrid integration is working properly.',
         html: '<p>This is a test email from Userbird to verify SendGrid integration is working properly.</p>',

@@ -82,7 +82,7 @@ Please do not modify this line or token as it may impact our ability to properly
                   },
                   body: JSON.stringify({
                     from: 'testuser@example.com',
-                    to: 'notifications@userbird.co',
+                    to: 'support@userbird.co',
                     subject: 'Re: Feedback submitted by testuser@example.com',
                     text: emailContent
                   })
