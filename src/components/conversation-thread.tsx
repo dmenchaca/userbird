@@ -146,16 +146,11 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
         // Extract only the main content from the previous reply to avoid nested quotes
         const { mainContent: quotedMainContent } = processHtmlContent(lastReply.html_content || lastReply.content);
         
-        // Add the attribution line and blockquote formatting
+        // Add the attribution line and blockquote formatting with Gmail's structure
         htmlContent += `
-          <div class="email_quote_container">
-            <div dir="ltr" class="email_attr">
-              On ${replyDate}, &lt;${senderEmail}&gt; wrote:
-            </div>
-            <blockquote class="email_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-              ${quotedMainContent}
-            </blockquote>
-          </div>
+          <br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+            ${quotedMainContent}
+          </blockquote></div>
         `;
       }
       
@@ -262,16 +257,32 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
     // Remove any tracking pixels/images (commonly used by email services)
     const cleanedHtml = html.replace(/<img[^>]*width=["']?1["']?[^>]*height=["']?1["']?[^>]*>/g, '');
     
-    // Check for common quoted content identifiers (client-agnostic approach)
+    // Check specifically for Gmail's quote pattern first
+    const gmailQuoteMatch = cleanedHtml.match(/<br><div class="gmail_quote gmail_quote_container">/);
+    if (gmailQuoteMatch) {
+      const quotedContentStartIndex = cleanedHtml.indexOf(gmailQuoteMatch[0]);
+      if (quotedContentStartIndex > 0) {
+        const mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
+        const quotedContent = cleanedHtml.substring(quotedContentStartIndex);
+        
+        // Extract the attribution line (On <date> <email> wrote:)
+        const attrMatch = quotedContent.match(/<div dir="ltr" class="gmail_attr">([^<]+)<\/div>/);
+        const dateLine = attrMatch ? attrMatch[1] : null;
+        
+        return { mainContent, dateLine, quotedContent };
+      }
+    }
+    
+    // If Gmail specific pattern not found, try other patterns
     const quoteIdentifiers = [
-      // Our custom email quote container
-      { pattern: /<div[^>]*class="[^"]*email_quote_container[^"]*"[^>]*>/, isContainer: true },
-      // Gmail quote container
-      { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/, isContainer: true },
       // Gmail quote container with gmail_quote_container class
-      { pattern: /<div[^>]*class="[^"]*gmail_quote_container[^"]*"[^>]*>/, isContainer: true },
+      { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*gmail_quote_container[^"]*"[^>]*>/, isContainer: true },
+      // Gmail quote container 
+      { pattern: /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/, isContainer: true },
       // "On [date]... wrote:" pattern (common in many email clients)
       { pattern: /(<div[^>]*>|<p[^>]*>|<span[^>]*>)On [^<>]+wrote:(<\/div>|<\/p>|<\/span>)?/i, isContainer: false },
+      // Our custom email quote container
+      { pattern: /<div[^>]*class="[^"]*email_quote_container[^"]*"[^>]*>/, isContainer: true },
       // Generic blockquote
       { pattern: /<blockquote[^>]*>/, isContainer: true },
       // Apple Mail/Outlook style quoted messages
@@ -367,8 +378,23 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
             min-height: 0;
           }
           /* Styling for email quotes */
+          .gmail_quote_container {
+            margin-top: 8px;
+          }
+          .gmail_attr {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+          }
+          .gmail_quote {
+            margin: 0 0 0 0.8ex !important;
+            border-left: 1px solid #ccc !important;
+            padding-left: 1ex !important;
+            color: #666;
+          }
+          /* Keep support for our custom classes too */
           .email_quote_container {
-            margin-top: 20px;
+            margin-top: 8px;
           }
           .email_attr {
             color: #666;
