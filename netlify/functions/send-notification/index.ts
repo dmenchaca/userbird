@@ -108,7 +108,7 @@ export const handler: Handler = async (event) => {
       // Create email parameters object with only selected attributes
       const emailParams: Record<string, any> = {
         formUrl: form.url,
-        formId: typeof form === 'object' && 'id' in form ? form.id : formId,
+        formId: formId,
         url_path: feedback.url_path,
         feedbackId: feedback.id // Add feedbackId for message ID generation
       };
@@ -146,6 +146,9 @@ export const handler: Handler = async (event) => {
       const emailResult = await EmailService.sendFeedbackNotification({
         to: setting.email,
         formUrl: form.url,
+        formId: formId,
+        message: feedback.message,
+        feedbackId: feedback.id,
         ...emailParams
       });
       
@@ -171,7 +174,7 @@ export const handler: Handler = async (event) => {
         success: true,
         emailResults: results.map(r => ({ 
           success: r.success, 
-          hasMessageId: !!r.messageId 
+          hasMessageId: !!r.messageId
         }))
       })
     };

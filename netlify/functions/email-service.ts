@@ -1,6 +1,16 @@
 import sgMail from '@sendgrid/mail';
 import { Handler } from '@netlify/functions';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client for database access
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Default sender email to fall back to
+const DEFAULT_SENDER = 'notifications@userbird.co';
+const DEFAULT_SENDER_NAME = 'Userbird Feedback';
 
 // Create local copies of the utility functions since Netlify functions can't import from src folder
 /**
@@ -144,6 +154,72 @@ function processMarkdownSyntax(content: string): string {
   return content;
 }
 
+/**
+ * Get the appropriate sender email for a form
+ */
+async function getSenderEmail(formId: string) {
+  try {
+    // Try to use database function first (better performance)
+    const { data, error } = await supabase.rpc('get_form_sender_email', { form_id: formId });
+    
+    if (!error && data) {
+      return { email: data };
+    }
+    
+    // First check for a verified custom email setting
+    const { data: customEmail, error: customEmailError } = await supabase
+      .from('custom_email_settings')
+      .select('custom_email, verified')
+      .eq('form_id', formId)
+      .eq('verified', true)
+      .single();
+    
+    if (!customEmailError && customEmail && customEmail.verified) {
+      // Found a verified custom email, use it
+      return {
+        email: customEmail.custom_email
+      };
+    }
+
+    // If no verified custom email, check for a default email
+    const { data: form, error: formError } = await supabase
+      .from('forms')
+      .select('default_email, default_sender_name, url')
+      .eq('id', formId)
+      .single();
+    
+    if (!formError && form && form.default_email) {
+      return {
+        email: form.default_email,
+        name: form.default_sender_name || `${form.url} Feedback`
+      };
+    }
+
+    // Fall back to system default
+    return {
+      email: DEFAULT_SENDER,
+      name: DEFAULT_SENDER_NAME
+    };
+  } catch (error) {
+    console.error('Error getting sender email:', error);
+    // In case of any error, use the default
+    return {
+      email: DEFAULT_SENDER,
+      name: DEFAULT_SENDER_NAME
+    };
+  }
+}
+
+/**
+ * Format sender email with name if available
+ */
+function formatSender(sender: { email: string, name?: string }) {
+  if (sender.name) {
+    return `"${sender.name}" <${sender.email}>`;
+  }
+  return sender.email;
+}
+
 export class EmailService {
   static async sendEmail(params: EmailParams) {
     try {
@@ -199,36 +275,32 @@ export class EmailService {
         subject: params.subject,
         hasText: !!text,
         hasHtml: !!html,
-        hasHeaders: !!params.headers,
+        hasHeaders: !!Object.keys(headers).length,
         messageId,
         inReplyTo: params.inReplyTo
       });
 
-      await sgMail.send(msg);
-      console.log('Email sent successfully via SendGrid');
+      const result = await sgMail.send(msg);
       
-      return { 
+      return {
         success: true,
-        messageId
+        messageId,
+        statusCode: result[0]?.statusCode
       };
     } catch (error) {
-      console.error('Error sending email via SendGrid:', {
+      console.error('Error sending email via SendGrid:', error);
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        type: error instanceof Error ? error.constructor.name : typeof error,
-        stack: error instanceof Error ? error.stack : undefined,
-        to: params.to,
-        from: params.from,
-        subject: params.subject
-      });
-      throw error;
+      };
     }
   }
 
   static async sendFeedbackNotification(params: {
     to: string;
     formUrl: string;
-    message?: string;
-    url_path?: string;
+    formId: string;
+    message: string;
     user_id?: string;
     user_email?: string;
     user_name?: string;
@@ -237,26 +309,21 @@ export class EmailService {
     image_url?: string;
     image_name?: string;
     created_at?: string;
-    feedbackId?: string;
-    formId?: string;
+    url_path?: string;
+    feedbackId: string;
   }) {
-    const {
-      to,
-      formUrl,
-      message,
-      url_path,
-      user_id,
-      user_email,
-      user_name,
-      operating_system,
-      screen_category,
-      image_url,
-      image_name,
-      created_at,
-      feedbackId,
-      formId
-    } = params;
-
+    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId } = params;
+    
+    // Get custom sender email for this form
+    const senderInfo = await getSenderEmail(formId);
+    const from = formatSender(senderInfo);
+    
+    console.log('Using sender email for notification:', {
+      formId,
+      senderEmail: senderInfo.email,
+      from
+    });
+    
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
@@ -351,35 +418,14 @@ ${image_url}
 
 ` : ''}${created_at ? `Received on ${created_at}` : ''}`;
 
-    // Skip the sanitization for this template by sending directly to SendGrid
-    const msg = {
+    return this.sendEmail({
       to,
-      from: 'notifications@userbird.co',
-      subject: `New feedback received for ${formUrl}`,
+      from,
+      subject: `New Feedback for ${formUrl}`,
       text: textMessage,
       html: htmlMessage,
-      headers: feedbackId ? {
-        'Message-ID': `<feedback-notification-${feedbackId}@userbird.co>`
-      } : undefined
-    };
-
-    try {
-      console.log('Sending feedback notification email directly via SendGrid');
-      await sgMail.send(msg);
-      console.log('Feedback notification email sent successfully');
-      
-      return { 
-        success: true,
-        messageId: feedbackId ? `<feedback-notification-${feedbackId}@userbird.co>` : undefined
-      };
-    } catch (error) {
-      console.error('Error sending feedback notification email:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        type: error instanceof Error ? error.constructor.name : typeof error,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      throw error;
-    }
+      feedbackId
+    });
   }
 
   static async sendReplyNotification(params: {
@@ -410,6 +456,24 @@ ${image_url}
       isAdminDashboardReply = false
     } = params;
 
+    // Get the form ID from the feedback
+    const { data: feedbackData } = await supabase
+      .from('feedback')
+      .select('form_id')
+      .eq('id', feedbackId)
+      .single();
+    
+    // Get custom sender email for this form
+    const formId = feedbackData?.form_id;
+    const senderInfo = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
+    const from = formatSender(senderInfo);
+    
+    console.log('Using sender email for reply notification:', {
+      formId,
+      senderEmail: senderInfo.email,
+      from
+    });
+
     // Format date for original message
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
       month: '2-digit',
@@ -424,7 +488,7 @@ ${image_url}
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
-To: support@userbird.co
+To: ${senderInfo.email}
 Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
@@ -472,7 +536,7 @@ ${feedback.message}
 
     return this.sendEmail({
       to,
-      from: 'support@userbird.co',
+      from,
       subject: `Re: Feedback submitted by ${feedback.user_email}`,
       text: plainTextMessage,
       html: htmlMessage,

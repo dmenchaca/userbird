@@ -1,7 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { EmailService } from '../email-service';
-import { getSenderEmail, formatSender } from '../custom-email-support';
 
 // Log environment variables at startup with more details for debugging
 console.log('Reply notification function environment:', {
@@ -86,33 +85,6 @@ export const handler: Handler = async (event) => {
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
     }
     
-    // Get the appropriate sender email based on custom email settings
-    // We'll use a middleware approach since we can't modify the EmailService
-    const formId = feedback.form_id;
-    // Store the sender info in a database or memory cache for access by the email service
-    const senderInfo = await getSenderEmail(formId);
-    
-    // Store the sender info temporarily in the database so email-service.ts can access it
-    const { error: senderError } = await supabase
-      .from('temp_email_sender')
-      .upsert([{
-        feedback_id: feedbackId,
-        sender_email: senderInfo.email,
-        sender_name: senderInfo.name || '',
-        created_at: new Date().toISOString()
-      }]);
-    
-    if (senderError) {
-      console.error('Error saving sender info:', senderError);
-      // Continue with default sender if there's an error
-    } else {
-      console.log('Saved custom sender info for email service:', {
-        feedbackId,
-        senderEmail: senderInfo.email,
-        senderName: senderInfo.name
-      });
-    }
-    
     // If replyId is provided, fetch the html_content from the database
     let processedHtmlContent = htmlContent;
     if (replyId) {
@@ -168,6 +140,7 @@ export const handler: Handler = async (event) => {
     
     console.log('Sending reply notification email to:', userEmail);
 
+    // EmailService now directly supports custom emails
     const emailResult = await EmailService.sendReplyNotification({
       to: userEmail,
       replyContent,
@@ -199,18 +172,11 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Clean up temporary sender info
-    await supabase
-      .from('temp_email_sender')
-      .delete()
-      .eq('feedback_id', feedbackId);
-
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true,
-        messageId: emailResult.messageId,
-        sender: senderInfo.email
+        messageId: emailResult.messageId
       })
     };
 
