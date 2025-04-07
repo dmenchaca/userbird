@@ -45,6 +45,20 @@ async function createFeedbackFromEmail(
       return undefined;
     }
     
+    // Check if we already have a feedback for this email's Message-ID
+    if (parsedEmail.messageId) {
+      const { data: existingFeedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('message_id', parsedEmail.messageId)
+        .single();
+        
+      if (existingFeedback) {
+        console.log(`Found existing feedback with ID ${existingFeedback.id} for Message-ID ${parsedEmail.messageId}`);
+        return existingFeedback.id;
+      }
+    }
+    
     // Extract message content
     const text = parsedEmail.text || '';
     
@@ -58,7 +72,8 @@ async function createFeedbackFromEmail(
         user_name: fromName || undefined,
         status: 'open',
         operating_system: 'Unknown',
-        screen_category: 'Unknown'
+        screen_category: 'Unknown',
+        message_id: parsedEmail.messageId // Store the Message-ID to prevent duplicates
       })
       .select('id')
       .single();
@@ -794,6 +809,20 @@ export const handler: Handler = async (event) => {
     
     // Extract feedback ID from the parsed email
     let feedbackId = await extractFeedbackId(parsedEmail);
+    
+    // Check if we already have a reply for this message ID
+    if (parsedEmail.messageId) {
+      const { data: existingReply } = await supabase
+        .from('feedback_replies')
+        .select('id, feedback_id')
+        .eq('message_id', parsedEmail.messageId)
+        .single();
+        
+      if (existingReply) {
+        console.log(`Found existing reply with ID ${existingReply.id} for Message-ID ${parsedEmail.messageId}`);
+        feedbackId = existingReply.feedback_id;
+      }
+    }
     
     if (!feedbackId) {
       console.log('No feedback ID found, checking if we can create a new feedback');
