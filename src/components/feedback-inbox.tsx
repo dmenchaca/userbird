@@ -216,6 +216,15 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     return 'Anonymous'
   }
 
+  // Helper to strip HTML and convert to single line with proper spacing
+  const stripHtmlAndFormat = (html: string) => {
+    // Create a temporary div to handle HTML content
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    // Get text content (strips HTML) and replace multiple whitespace/newlines with single space
+    return temp.textContent?.replace(/\s+/g, ' ').trim() || '';
+  };
+
   // Helper to format time ago
   const formatTimeAgo = (dateString: string) => {
     try {
@@ -227,6 +236,63 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
 
   return (
     <div className="space-y-4">
+      {/* CSS to handle email content formatting */}
+      <style dangerouslySetInnerHTML={{ 
+        __html: `
+          .email-content br + br {
+            display: none;
+          }
+          .email-content div:empty {
+            display: none;
+          }
+          .email-content p:empty {
+            display: none;
+          }
+          .email-content div + br, .email-content br + div:empty {
+            display: none;
+          }
+          .email-content {
+            margin-bottom: 0;
+          }
+          .email-content > *:last-child {
+            margin-bottom: 0;
+          }
+          .email-content div {
+            min-height: 0;
+          }
+          /* Styling for email quotes */
+          .gmail_quote_container {
+            margin-top: 8px;
+          }
+          .gmail_attr {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+          }
+          .gmail_quote {
+            margin: 0 0 0 0.8ex !important;
+            border-left: 1px solid #ccc !important;
+            padding-left: 1ex !important;
+            color: #666;
+          }
+          /* Keep support for our custom classes too */
+          .email_quote_container {
+            margin-top: 8px;
+          }
+          .email_attr {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+          }
+          .email_quote {
+            margin: 0 0 0 0.8ex !important;
+            border-left: 1px solid #ccc !important;
+            padding-left: 1ex !important;
+            color: #666;
+          }
+        `
+      }} />
+
       {/* Search bar */}
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -323,8 +389,10 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         </div>
                       </div>
                     </div>
-                    <div className="line-clamp-2 text-xs text-muted-foreground text-left">
-                      {response.message}
+                    <div className="text-xs text-muted-foreground text-left">
+                      <div className="line-clamp-2 break-words">
+                        {stripHtmlAndFormat(response.message)}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {response.tag ? (

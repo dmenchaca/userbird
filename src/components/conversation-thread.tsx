@@ -406,7 +406,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* CSS to handle multiple consecutive blank lines */}
+      {/* CSS to handle email content formatting */}
       <style dangerouslySetInnerHTML={{ 
         __html: `
           .email-content br + br {
@@ -430,183 +430,179 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
           .email-content div {
             min-height: 0;
           }
+          .email-content a {
+            color: hsl(var(--primary));
+            text-decoration: none;
+          }
+          .email-content a:hover {
+            text-decoration: underline;
+          }
+          .email-content .gmail_signature {
+            margin-top: 8px;
+            color: hsl(var(--muted-foreground));
+          }
           /* Styling for email quotes */
           .gmail_quote_container {
             margin-top: 8px;
           }
           .gmail_attr {
-            color: #666;
+            color: hsl(var(--muted-foreground));
             margin-bottom: 8px;
             font-size: 0.9em;
           }
           .gmail_quote {
             margin: 0 0 0 0.8ex !important;
-            border-left: 1px solid #ccc !important;
+            border-left: 1px solid hsl(var(--border)) !important;
             padding-left: 1ex !important;
-            color: #666;
-          }
-          /* Keep support for our custom classes too */
-          .email_quote_container {
-            margin-top: 8px;
-          }
-          .email_attr {
-            color: #666;
-            margin-bottom: 8px;
-            font-size: 0.9em;
-          }
-          .email_quote {
-            margin: 0 0 0 0.8ex !important;
-            border-left: 1px solid #ccc !important;
-            padding-left: 1ex !important;
-            color: #666;
+            color: hsl(var(--muted-foreground));
           }
         `
       }} />
       
       {/* Main conversation area - scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 overflow-x-hidden min-h-0">
-        {/* Conversation thread - all messages */}
-        <div className="space-y-3">
-          {/* Original message */}
-          <div className="p-2 rounded-lg text-sm overflow-hidden bg-muted mr-6">
-            <div className="flex justify-between items-center mb-1">
-              <span className="font-medium text-xs">{response.user_name || 'Anonymous'}</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(response.created_at).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}
-              </span>
-            </div>
-            <p className="whitespace-pre-wrap break-words overflow-wrap break-word">{response.message}</p>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Initial message */}
+        <div className="p-2 rounded-lg text-sm overflow-hidden bg-muted mr-6">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-medium text-xs">{response.user_name || 'Anonymous'}</span>
+            <span className="text-xs text-muted-foreground">
+              {new Date(response.created_at).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}
+            </span>
           </div>
+          <div 
+            className="overflow-x-auto break-words whitespace-pre-line email-content" 
+            dangerouslySetInnerHTML={{ __html: response.message }} 
+          />
+        </div>
+        
+        {/* Reply messages */}
+        {replies.map((reply) => {
+          const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
+          const isExpanded = expandedReplies.has(reply.id);
           
-          {/* Reply messages */}
-          {replies.map((reply) => {
-            const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
-            const isExpanded = expandedReplies.has(reply.id);
-            
-            return (
-              <div
-                key={reply.id}
-                className={`p-2 rounded-lg text-sm overflow-hidden ${
-                  reply.sender_type === 'admin' 
-                    ? 'bg-primary/10 ml-6' 
-                    : 'bg-muted mr-6'
-                }`}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-medium text-xs flex items-center">
-                    {reply.sender_type === 'admin' ? (
-                      <span className="flex items-center gap-1.5">
-                        <Avatar className="h-5 w-5 rounded-full">
-                          {adminAvatarUrl ? (
-                            <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
-                          ) : (
-                            <AvatarFallback className="rounded-full text-[10px]">{adminInitials}</AvatarFallback>
-                          )}
-                        </Avatar>
-                        {adminName}
-                      </span>
-                    ) : (response.user_name || 'Anonymous')}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(reply.created_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true
-                    })}
-                  </span>
+          return (
+            <div
+              key={reply.id}
+              className={`p-2 rounded-lg text-sm overflow-hidden ${
+                reply.sender_type === 'admin' 
+                  ? 'bg-primary/10 ml-6' 
+                  : 'bg-muted mr-6'
+              }`}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-medium text-xs flex items-center">
+                  {reply.sender_type === 'admin' ? (
+                    <span className="flex items-center gap-1.5">
+                      <Avatar className="h-5 w-5 rounded-full">
+                        {adminAvatarUrl ? (
+                          <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                        ) : (
+                          <AvatarFallback className="rounded-full text-[10px]">{adminInitials}</AvatarFallback>
+                        )}
+                      </Avatar>
+                      {adminName}
+                    </span>
+                  ) : (response.user_name || 'Anonymous')}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(reply.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </span>
+              </div>
+              
+              {reply.html_content ? (
+                <div className="space-y-2 overflow-hidden">
+                  {/* Show the main content */}
+                  <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
+                  
+                  {/* Show quoted content if it exists and is expanded */}
+                  {quotedContent && (
+                    <div style={{ marginTop: '16px' }}>
+                      <button
+                        onClick={() => toggleQuotedContent(reply.id)}
+                        className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <FoldVertical className="h-3 w-3 mr-1" />
+                            Hide quoted text
+                          </>
+                        ) : (
+                          <>
+                            <UnfoldVertical className="h-3 w-3 mr-1" />
+                            Show quoted text
+                          </>
+                        )}
+                      </button>
+                      
+                      {isExpanded && (
+                        <div 
+                          className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
+                          dangerouslySetInnerHTML={{ __html: quotedContent }}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
-                
-                {reply.html_content ? (
-                  <div className="space-y-2 overflow-hidden">
-                    {/* Show the main content */}
-                    <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
-                    
-                    {/* Show quoted content if it exists and is expanded */}
-                    {quotedContent && (
-                      <div style={{ marginTop: '16px' }}>
-                        <button
-                          onClick={() => toggleQuotedContent(reply.id)}
-                          className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <FoldVertical className="h-3 w-3 mr-1" />
-                              Hide quoted text
-                            </>
-                          ) : (
-                            <>
-                              <UnfoldVertical className="h-3 w-3 mr-1" />
-                              Show quoted text
-                            </>
-                          )}
-                        </button>
-                        
-                        {isExpanded && (
-                          <div 
-                            className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
-                            dangerouslySetInnerHTML={{ __html: quotedContent }}
-                          />
+              ) : (
+                <p className="whitespace-pre-wrap break-words">{reply.content}</p>
+              )}
+              
+              {/* Display attachments */}
+              {reply.attachments && reply.attachments.length > 0 && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                    <Paperclip size={12} />
+                    <span>Attachments</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {reply.attachments.map(attachment => (
+                      <div key={attachment.id} className="relative group">
+                        {attachment.content_type.startsWith('image/') ? (
+                          <a 
+                            href={attachment.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block border rounded overflow-hidden hover:opacity-90 transition-opacity"
+                          >
+                            <img 
+                              src={attachment.url} 
+                              alt={attachment.filename}
+                              className="w-16 h-16 object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 p-2 border rounded hover:bg-muted transition-colors"
+                          >
+                            <Paperclip size={14} />
+                            <span className="text-xs truncate max-w-[120px]">
+                              {attachment.filename}
+                            </span>
+                          </a>
                         )}
                       </div>
-                    )}
+                    ))}
                   </div>
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">{reply.content}</p>
-                )}
-                
-                {/* Display attachments */}
-                {reply.attachments && reply.attachments.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                      <Paperclip size={12} />
-                      <span>Attachments</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {reply.attachments.map(attachment => (
-                        <div key={attachment.id} className="relative group">
-                          {attachment.content_type.startsWith('image/') ? (
-                            <a 
-                              href={attachment.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="block border rounded overflow-hidden hover:opacity-90 transition-opacity"
-                            >
-                              <img 
-                                src={attachment.url} 
-                                alt={attachment.filename}
-                                className="w-16 h-16 object-cover"
-                              />
-                            </a>
-                          ) : (
-                            <a
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 p-2 border rounded hover:bg-muted transition-colors"
-                            >
-                              <Paperclip size={14} />
-                              <span className="text-xs truncate max-w-[120px]">
-                                {attachment.filename}
-                              </span>
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       
       {/* Reply section - sticky at bottom */}
