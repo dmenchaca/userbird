@@ -88,189 +88,149 @@ async function createFeedbackFromEmail(
   }
 }
 
-// Function to extract the feedback ID from an email
-async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | undefined> {
-  console.log('Extracting feedback ID from email');
-  
-  // First check In-Reply-To header
-  let feedbackId: string | undefined;
-  
-  // Try to extract from In-Reply-To or References headers
-  const inReplyTo = parsedEmail.inReplyTo;
-  const references = parsedEmail.references;
-  
-  // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
-  if (inReplyTo) {
-    const feedbackIdMatch = inReplyTo.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
+// Helper function to find feedback ID from message ID
+async function findFeedbackIdFromMessageId(messageId: string): Promise<string | undefined> {
+  try {
+    // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
+    const feedbackIdMatch = messageId.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
     if (feedbackIdMatch) {
-      feedbackId = feedbackIdMatch[1];
-      console.log('Found feedback ID in In-Reply-To:', feedbackId);
+      const feedbackId = feedbackIdMatch[1];
+      console.log('Found feedback ID in message ID:', feedbackId);
       return feedbackId;
     }
+    return undefined;
+  } catch (error) {
+    console.error('Error finding feedback ID from message ID:', error);
+    return undefined;
   }
-  
-  // Try References field if In-Reply-To didn't work
-  if (references && references.length > 0) {
-    for (const reference of references) {
-      const feedbackIdMatch = reference.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
-      if (feedbackIdMatch) {
-        feedbackId = feedbackIdMatch[1];
-        console.log('Found feedback ID in References:', feedbackId);
+}
+
+// Helper function to extract feedback ID from email
+async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | undefined> {
+  try {
+    // Check In-Reply-To header first - most reliable indicator of a reply
+    if (parsedEmail.inReplyTo) {
+      console.log('Found In-Reply-To header:', parsedEmail.inReplyTo);
+      const feedbackId = await findFeedbackIdFromMessageId(parsedEmail.inReplyTo);
+      if (feedbackId) {
+        console.log('Found feedback ID from In-Reply-To:', feedbackId);
         return feedbackId;
       }
     }
-  }
 
-  // Extract form ID from recipient email addresses
-  // Check both To and Cc fields for form-specific emails
-  const toAddresses = parsedEmail.to?.value || [];
-  const ccAddresses = parsedEmail.cc?.value || [];
-  const allRecipients = [...toAddresses, ...ccAddresses];
-  
-  let foundFormId: string | undefined;
-  
-  for (const recipient of allRecipients) {
-    if (!recipient.address) continue;
-    
-    const recipientEmail = recipient.address.toLowerCase();
-    console.log('Checking recipient:', recipientEmail);
-    
-    // Check for direct form email pattern: {formId}@userbird-mail.com
-    const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
-    if (formEmailMatch) {
-      const formId = formEmailMatch[1];
-      console.log('Found potential form ID from recipient:', formId);
-      foundFormId = formId;
-      break;
-    }
-    
-    // Check for domain-specific forwarded emails: {localPart}@{custom-domain}
-    // Look up in custom_email_settings table
-    const { data: customEmailSettings } = await supabase
-      .from('custom_email_settings')
-      .select('form_id, domain, local_part')
-      .eq('custom_email', recipientEmail)
-      .eq('verified', true)
-      .single();
-    
-    if (customEmailSettings) {
-      console.log('Found matching custom email setting:', customEmailSettings);
-      foundFormId = customEmailSettings.form_id;
-      break;
-    }
-    
-    // Check for forwarding address pattern: {localPart}@{domain}.userbird-mail.com
-    const forwardingMatch = recipientEmail.match(/^([^@]+)@([^.]+)\.userbird-mail\.com$/i);
-    if (forwardingMatch) {
-      const localPart = forwardingMatch[1];
-      const domain = forwardingMatch[2];
-      console.log('Found potential forwarding address:', { localPart, domain });
+    // Check References header - second most reliable
+    if (parsedEmail.references) {
+      console.log('Found References header:', parsedEmail.references);
+      const references = Array.isArray(parsedEmail.references) 
+        ? parsedEmail.references 
+        : [parsedEmail.references];
       
-      // Look up in custom_email_settings table
-      const { data: forwardingSettings } = await supabase
+      for (const ref of references) {
+        const feedbackId = await findFeedbackIdFromMessageId(ref);
+        if (feedbackId) {
+          console.log('Found feedback ID from References:', feedbackId);
+          return feedbackId;
+        }
+      }
+    }
+
+    // Check recipient email addresses for form ID
+    const toAddresses = parsedEmail.to?.value || [];
+    const ccAddresses = parsedEmail.cc?.value || [];
+    const allRecipients = [...toAddresses, ...ccAddresses];
+    
+    for (const recipient of allRecipients) {
+      if (!recipient.address) continue;
+      
+      const recipientEmail = recipient.address.toLowerCase();
+      console.log('Checking recipient:', recipientEmail);
+      
+      // Check for direct form email pattern
+      const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+      if (formEmailMatch) {
+        console.log('Found form ID from email pattern:', formEmailMatch[1]);
+        return undefined; // Found a form ID, no need to check further
+      }
+      
+      // Check for custom domain email
+      const { data: customEmailSettings } = await supabase
         .from('custom_email_settings')
         .select('form_id')
-        .eq('local_part', localPart)
-        .eq('domain', domain)
+        .eq('custom_email', recipientEmail)
+        .eq('verified', true)
         .single();
       
-      if (forwardingSettings) {
-        foundFormId = forwardingSettings.form_id;
-        break;
+      if (customEmailSettings) {
+        console.log('Found matching custom email setting:', customEmailSettings);
+        return undefined; // Found a form ID, no need to check further
       }
     }
-  }
-  
-  // Try to extract from email raw content
-  const emailText = parsedEmail.text || '';
-  const emailHtml = parsedEmail.html || '';
-  const subject = parsedEmail.subject || '';
-  
-  // Try custom thread identifier format: thread::UUID::
-  const threadRegex = /thread::([a-f0-9-]+)::/i;
-  
-  // First try to find thread ID in subject
-  let threadMatch = subject.match(threadRegex);
-  if (threadMatch) {
-    feedbackId = threadMatch[1];
-    console.log('Found feedback ID in subject thread identifier:', feedbackId);
-    return feedbackId;
-  }
-  
-  // If not found in subject, try the body
-  threadMatch = emailText.match(threadRegex);
-  if (threadMatch) {
-    feedbackId = threadMatch[1];
-    console.log('Found feedback ID in body thread identifier:', feedbackId);
-    return feedbackId;
-  }
-  
-  // Try to find any UUID-like pattern
-  const uuidMatches = emailText.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g) || 
-                     emailHtml?.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
-  if (uuidMatches) {
-    // Check if any of these UUIDs exist in our feedback table
-    for (const possibleId of uuidMatches) {
-      const { data } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('id', possibleId)
-        .single();
-        
-      if (data) {
-        feedbackId = possibleId;
-        console.log('Found feedback ID by matching UUID pattern:', feedbackId);
-        return feedbackId;
-      }
-    }
-  }
-  
-  // Try to match by subject and sender email
-  if (subject && parsedEmail.from?.value?.length) {
-    // Extract the original feedback submitter's email from the subject
-    const subjectMatch = subject.match(/Re: Feedback submitted by ([^@]+@[^@]+\.[^@]+)/i);
-    if (subjectMatch) {
-      const email = subjectMatch[1];
-      // Query feedback table to find the most recent feedback from this email
-      const { data: feedbackData } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('user_email', email)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (feedbackData) {
-        feedbackId = feedbackData.id;
-        console.log('Found feedback ID by email lookup from subject:', feedbackId);
-        return feedbackId;
-      }
-    }
-  }
-  
-  // Look up by Message-ID in our replies table
-  if (parsedEmail.messageId) {
-    const { data: replyData } = await supabase
-      .from('feedback_replies')
-      .select('feedback_id')
-      .eq('message_id', parsedEmail.messageId)
-      .single();
+
+    // Check email body for thread identifier - less reliable but still useful
+    const text = parsedEmail.text || '';
+    const threadMatch = text.match(/\[Thread: ([a-f0-9-]+)\]/i);
+    if (threadMatch) {
+      const threadId = threadMatch[1];
+      console.log('Found thread ID in email body:', threadId);
       
-    if (replyData) {
-      feedbackId = replyData.feedback_id;
-      console.log('Found feedback ID from message_id lookup:', feedbackId);
-      return feedbackId;
+      // Look up feedback ID from thread ID
+      const { data: feedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('thread_id', threadId)
+        .single();
+        
+      if (feedback) {
+        console.log('Found feedback ID from thread ID:', feedback.id);
+        return feedback.id;
+      }
     }
+
+    // Check email body for UUID pattern - least reliable
+    const uuidMatch = text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+    if (uuidMatch) {
+      const potentialId = uuidMatch[0];
+      console.log('Found potential UUID in email body:', potentialId);
+      
+      // Verify this is a valid feedback ID
+      const { data: feedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('id', potentialId)
+        .single();
+        
+      if (feedback) {
+        console.log('Found valid feedback ID from UUID:', feedback.id);
+        return feedback.id;
+      }
+    }
+
+    // Check email subject for UUID pattern - least reliable
+    const subject = parsedEmail.subject || '';
+    const subjectUuidMatch = subject.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+    if (subjectUuidMatch) {
+      const potentialId = subjectUuidMatch[0];
+      console.log('Found potential UUID in subject:', potentialId);
+      
+      // Verify this is a valid feedback ID
+      const { data: feedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('id', potentialId)
+        .single();
+        
+      if (feedback) {
+        console.log('Found valid feedback ID from subject UUID:', feedback.id);
+        return feedback.id;
+      }
+    }
+
+    console.log('No feedback ID found in email');
+    return undefined;
+  } catch (error) {
+    console.error('Error extracting feedback ID:', error);
+    return undefined;
   }
-  
-  // If we found a form ID but no feedback ID through any other method, create new feedback
-  if (foundFormId) {
-    console.log(`No existing feedback found, creating new feedback for form ${foundFormId}`);
-    return await createFeedbackFromEmail(parsedEmail, foundFormId);
-  }
-  
-  console.log('No feedback ID found after all extraction attempts');
-  return undefined;
 }
 
 // Process and store parsed email attachments
