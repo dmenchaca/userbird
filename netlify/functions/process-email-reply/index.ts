@@ -55,10 +55,12 @@ async function createFeedbackFromEmail(
       .insert({
         form_id: formId,
         message: text,
-        source: 'email',
         user_email: fromAddress,
         user_name: fromName || undefined,
         subject: subject,
+        status: 'open',
+        operating_system: 'Unknown',
+        screen_category: 'Unknown'
       })
       .select('id')
       .single();
