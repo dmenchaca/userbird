@@ -45,54 +45,46 @@ async function createFeedbackFromEmail(
       return undefined;
     }
     
-    // Extract message content - prefer HTML content for new feedback
-    const content = parsedEmail.html || parsedEmail.text || '';
+    // Extract message content - prefer HTML over text
+    const htmlContent = parsedEmail.html || null;
+    const textContent = parsedEmail.text || null;
+    const content = htmlContent || textContent || '';
     
-    // Call the feedback endpoint to create new feedback
-    const response = await fetch(`${process.env.URL}/.netlify/functions/feedback`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        formId,
+    console.log('Content extraction for new feedback:', {
+      hasHtml: !!htmlContent,
+      hasText: !!textContent,
+      contentLength: content.length,
+      usingContentType: htmlContent ? 'html' : 'text'
+    });
+    
+    // Create feedback record
+    const { data: feedback, error } = await supabase
+      .from('feedback')
+      .insert({
+        form_id: formId,
         message: content,
         user_email: fromAddress,
         user_name: fromName || undefined,
+        status: 'open',
         operating_system: 'Unknown',
         screen_category: 'Unknown'
       })
-    });
-
-    if (!response.ok) {
-      console.error('Error creating feedback from email:', await response.text());
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error creating feedback from email:', error);
       return undefined;
     }
-
-    const data = await response.json();
-    console.log('Feedback endpoint response:', data);
-
-    // Get the feedback ID from the response
-    if (data.success) {
-      // Query the most recent feedback for this form to get the ID
-      const { data: feedbackData, error } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('form_id', formId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) {
-        console.error('Error getting feedback ID:', error);
-        return undefined;
-      }
-
-      console.log(`Created new feedback with ID: ${feedbackData.id}`);
-      return feedbackData.id;
-    }
-
-    return undefined;
+    
+    console.log(`Created new feedback with ID: ${feedback.id}`, {
+      formId,
+      userEmail: fromAddress,
+      userName: fromName,
+      contentLength: content.length
+    });
+    
+    return feedback.id;
   } catch (error) {
     console.error('Error in createFeedbackFromEmail:', error);
     return undefined;
@@ -274,27 +266,8 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     }
   }
   
-  // If we found a form ID but no feedback ID through any other method, check for existing feedback
+  // If we found a form ID but no feedback ID through any other method, create new feedback
   if (foundFormId) {
-    // Get sender email
-    const fromAddress = parsedEmail.from?.value?.[0]?.address;
-    if (fromAddress) {
-      // Check for existing feedback from this sender for this form
-      const { data: existingFeedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('form_id', foundFormId)
-        .eq('user_email', fromAddress)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (existingFeedback) {
-        console.log(`Found existing feedback with ID: ${existingFeedback.id}`);
-        return existingFeedback.id;
-      }
-    }
-    
     console.log(`No existing feedback found, creating new feedback for form ${foundFormId}`);
     return await createFeedbackFromEmail(parsedEmail, foundFormId);
   }
@@ -879,14 +852,7 @@ export const handler: Handler = async (event) => {
         
         if (newFeedbackId) {
           console.log(`Created new feedback with ID: ${newFeedbackId}`);
-          // For new feedback, we don't create a reply - just return success
-          return { 
-            statusCode: 200, 
-            body: JSON.stringify({ 
-              success: true,
-              feedbackId: newFeedbackId
-            }) 
-          };
+          feedbackId = newFeedbackId;
         } else {
           console.error('Failed to create new feedback');
           return { 
@@ -903,7 +869,6 @@ export const handler: Handler = async (event) => {
       }
     }
     
-    // If we have a feedback ID, process as a reply
     console.log('Using feedback_id:', feedbackId);
     
     // Verify feedback ID exists in the database
@@ -915,10 +880,6 @@ export const handler: Handler = async (event) => {
     
     if (feedbackError) {
       console.error('Error checking if feedback exists:', feedbackError);
-      return { 
-        statusCode: 500, 
-        body: JSON.stringify({ error: 'Error checking feedback existence' }) 
-      };
     } else if (!feedbackExists) {
       console.error(`No feedback found with ID: ${feedbackId}`);
       return { 
