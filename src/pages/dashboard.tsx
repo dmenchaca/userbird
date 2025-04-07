@@ -831,12 +831,10 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <Inbox className="mr-2 h-4 w-4" />
                   Inbox
                   <span className={cn(
-                    "ml-auto tabular-nums",
+                    "ml-auto tabular-nums text-xs text-muted-foreground",
                     activeFilter === 'open' 
                       ? "text-accent-foreground"
-                      : feedbackCounts.open > 0 
-                        ? "text-primary font-medium" 
-                        : "text-muted-foreground"
+                      : ""
                   )}>
                     {feedbackCounts.open}
                   </span>
@@ -1017,7 +1015,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                         />
                         <span className="truncate">{tag.name}</span>
                       </a>
-                      <Popover>
+                      <Popover open={editingTag?.id === tag.id} onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingTag(null);
+                          setEditTagName('');
+                          setEditTagColor('#3B82F6');
+                          setEditTagIsFavorite(false);
+                        }
+                      }}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="ghost"
