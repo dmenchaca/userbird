@@ -100,6 +100,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
@@ -240,6 +241,44 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   useEffect(() => {
     setSearchQuery('')
   }, [formId, currentStatusFilter, tagFilter])
+
+  // Handle checkbox change with modifier keys
+  const handleCheckboxChange = (responseId: string, index: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    const isSelected = selectedIds.includes(responseId);
+    const newCheckedState = !isSelected;
+    
+    if (event.shiftKey && lastSelectedIndex !== null) {
+      // Shift-click: Select range
+      const start = Math.min(lastSelectedIndex, index);
+      const end = Math.max(lastSelectedIndex, index);
+      const rangeIds = filteredResponses.slice(start, end + 1).map(r => r.id);
+      
+      setSelectedIds(prev => {
+        if (newCheckedState) {
+          // Add range to selection, preserving existing selections
+          return [...new Set([...prev, ...rangeIds])];
+        } else {
+          // Remove range from selection
+          return prev.filter(id => !rangeIds.includes(id));
+        }
+      });
+    } else if (event.ctrlKey || event.metaKey) {
+      // Control/Command-click: Toggle individual selection
+      setSelectedIds(prev => 
+        newCheckedState
+          ? [...prev, responseId]
+          : prev.filter(id => id !== responseId)
+      );
+    } else {
+      // Normal click: Replace selection
+      setSelectedIds(newCheckedState ? [responseId] : []);
+    }
+    
+    // Update last selected index
+    setLastSelectedIndex(index);
+  };
 
   if (loading) {
     return (
@@ -394,7 +433,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             </div>
           )}
           <div className="flex flex-col gap-4">
-            {filteredResponses.map((response) => (
+            {filteredResponses.map((response, index) => (
               <div
                 key={response.id}
                 className={cn(
@@ -406,16 +445,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                   <div className="flex-shrink-0 pt-0.5">
                     <Checkbox 
                       checked={selectedIds.includes(response.id)}
-                      onCheckedChange={(checked: boolean) => {
-                        if (checked) {
-                          setSelectedIds(prev => [...prev, response.id]);
-                        } else {
-                          setSelectedIds(prev => prev.filter(id => id !== response.id));
-                        }
-                      }}
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation(); // Just stop propagation, don't toggle selection
-                      }}
+                      onCheckedChange={() => {}}
+                      onClick={(e) => handleCheckboxChange(response.id, index, e)}
                       aria-label={`Select ${formatName(response)}'s feedback`}
                     />
                   </div>
