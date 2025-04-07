@@ -28,6 +28,54 @@ interface EmailAttachment {
 // Add a global flag for table existence
 let feedbackAttachmentsTableExists = true;
 
+// Helper function to create new feedback from an email
+async function createFeedbackFromEmail(
+  parsedEmail: ParsedMail, 
+  formId: string
+): Promise<string | undefined> {
+  try {
+    console.log(`Creating new feedback from email for form ${formId}`);
+    
+    // Get sender email and name
+    const fromAddress = parsedEmail.from?.value?.[0]?.address || '';
+    const fromName = parsedEmail.from?.value?.[0]?.name || '';
+    
+    if (!fromAddress) {
+      console.error('Cannot create feedback: No sender email address found');
+      return undefined;
+    }
+    
+    // Extract message content
+    const text = parsedEmail.text || '';
+    const subject = parsedEmail.subject || 'Email Feedback';
+    
+    // Create feedback record
+    const { data: feedback, error } = await supabase
+      .from('feedback')
+      .insert({
+        form_id: formId,
+        message: text,
+        source: 'email',
+        user_email: fromAddress,
+        user_name: fromName || undefined,
+        subject: subject,
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error creating feedback from email:', error);
+      return undefined;
+    }
+    
+    console.log(`Created new feedback with ID: ${feedback.id}`);
+    return feedback.id;
+  } catch (error) {
+    console.error('Error in createFeedbackFromEmail:', error);
+    return undefined;
+  }
+}
+
 // Function to extract the feedback ID from an email
 async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | undefined> {
   console.log('Extracting feedback ID from email');
@@ -60,6 +108,114 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       }
     }
   }
+
+  // Extract form ID from recipient email addresses
+  // Check both To and Cc fields for form-specific emails
+  const toAddresses = parsedEmail.to?.value || [];
+  const ccAddresses = parsedEmail.cc?.value || [];
+  const allRecipients = [...toAddresses, ...ccAddresses];
+  
+  let foundFormId: string | undefined;
+  
+  for (const recipient of allRecipients) {
+    if (!recipient.address) continue;
+    
+    const recipientEmail = recipient.address.toLowerCase();
+    console.log('Checking recipient:', recipientEmail);
+    
+    // Check for direct form email pattern: {formId}@userbird-mail.com
+    const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+    if (formEmailMatch) {
+      const formId = formEmailMatch[1];
+      console.log('Found potential form ID from recipient:', formId);
+      foundFormId = formId;
+      
+      // Look up recent feedback from this form
+      const { data: recentFeedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (recentFeedback) {
+        feedbackId = recentFeedback.id;
+        console.log('Found feedback ID from form email recipient:', feedbackId);
+        return feedbackId;
+      }
+    }
+    
+    // Check for domain-specific forwarded emails: {localPart}@{custom-domain}
+    // Look up in custom_email_settings table
+    const { data: customEmailSettings } = await supabase
+      .from('custom_email_settings')
+      .select('form_id, domain, local_part')
+      .eq('custom_email', recipientEmail)
+      .eq('verified', true)
+      .single();
+    
+    if (customEmailSettings) {
+      console.log('Found matching custom email setting:', customEmailSettings);
+      foundFormId = customEmailSettings.form_id;
+      
+      // Look up recent feedback from this form
+      const { data: recentFeedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('form_id', customEmailSettings.form_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (recentFeedback) {
+        feedbackId = recentFeedback.id;
+        console.log('Found feedback ID from custom domain email:', feedbackId);
+        return feedbackId;
+      }
+    }
+    
+    // Check for forwarding address pattern: {localPart}@{domain}.userbird-mail.com
+    const forwardingMatch = recipientEmail.match(/^([^@]+)@([^.]+)\.userbird-mail\.com$/i);
+    if (forwardingMatch) {
+      const localPart = forwardingMatch[1];
+      const domain = forwardingMatch[2];
+      console.log('Found potential forwarding address:', { localPart, domain });
+      
+      // Look up in custom_email_settings table
+      const { data: forwardingSettings } = await supabase
+        .from('custom_email_settings')
+        .select('form_id')
+        .eq('local_part', localPart)
+        .eq('domain', domain)
+        .single();
+      
+      if (forwardingSettings) {
+        foundFormId = forwardingSettings.form_id;
+        
+        // Look up recent feedback from this form
+        const { data: recentFeedback } = await supabase
+          .from('feedback')
+          .select('id')
+          .eq('form_id', forwardingSettings.form_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (recentFeedback) {
+          feedbackId = recentFeedback.id;
+          console.log('Found feedback ID from forwarding address:', feedbackId);
+          return feedbackId;
+        }
+      }
+    }
+  }
+  
+  // If a form ID was found but no existing feedback, create new feedback
+  if (foundFormId) {
+    console.log(`Found form ID ${foundFormId} but no existing feedback, creating new feedback`);
+    return await createFeedbackFromEmail(parsedEmail, foundFormId);
+  }
   
   // Try to extract from email raw content
   const emailText = parsedEmail.text || '';
@@ -87,7 +243,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
   
   // Try to find any UUID-like pattern
   const uuidMatches = emailText.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g) || 
-                      emailHtml?.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
+                     emailHtml?.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g);
   if (uuidMatches) {
     // Check if any of these UUIDs exist in our feedback table
     for (const possibleId of uuidMatches) {
@@ -607,9 +763,25 @@ export const handler: Handler = async (event) => {
       return addressObj.value?.address || '';
     };
 
+    // Helper function to extract all email addresses from an address field
+    const getAllEmailAddresses = (addressObj: any): string[] => {
+      if (!addressObj || !addressObj.value) return [];
+      
+      if (Array.isArray(addressObj.value)) {
+        return addressObj.value.map(addr => addr.address).filter(Boolean);
+      }
+      
+      return addressObj.value.address ? [addressObj.value.address] : [];
+    };
+
+    // Log email details including all recipients
+    const toAddresses = getAllEmailAddresses(parsedEmail.to);
+    const ccAddresses = getAllEmailAddresses(parsedEmail.cc);
+    
     console.log('Email parsed successfully:', {
       from: getEmailAddress(parsedEmail.from),
-      to: getEmailAddress(parsedEmail.to),
+      to: toAddresses,
+      cc: ccAddresses,
       subject: parsedEmail.subject,
       hasText: !!parsedEmail.text,
       hasHtml: !!parsedEmail.html,
@@ -618,6 +790,49 @@ export const handler: Handler = async (event) => {
       inReplyTo: parsedEmail.inReplyTo,
       references: parsedEmail.references
     });
+    
+    // Check for domain not found issues in headers or envelope
+    const spfHeader = parsedEmail.headers.get('authentication-results') || '';
+    const dkimHeader = parsedEmail.headers.get('dkim-signature') || '';
+    const returnPath = parsedEmail.headers.get('return-path') || '';
+    
+    // Check for domain issues - common SendGrid errors include "Domain not found"
+    if (rawEmailData.spam_report && typeof rawEmailData.spam_report === 'string' && 
+        rawEmailData.spam_report.includes('Domain not found')) {
+      console.error('Domain not found error detected in spam report');
+      
+      // Check for custom domains in the recipients
+      for (const recipient of toAddresses.concat(ccAddresses)) {
+        const domain = recipient.split('@')[1];
+        if (domain && !domain.includes('userbird-mail.com') && !domain.includes('userbird.co')) {
+          // Look up custom domain in our settings
+          const { data: domainSettings } = await supabase
+            .from('custom_email_settings')
+            .select('form_id, domain, verified')
+            .eq('domain', domain)
+            .maybeSingle();
+            
+          if (domainSettings) {
+            // Domain is in our system but having DNS issues
+            const verificationStatus = domainSettings.verified ? 'verified' : 'not verified';
+            console.error(`Custom domain ${domain} is ${verificationStatus} but having DNS issues.`);
+            
+            return {
+              statusCode: 400,
+              body: JSON.stringify({
+                error: 'Domain configuration issue',
+                message: `The custom domain ${domain} is configured in our system but appears to have DNS configuration issues. Please verify your DNS settings.`,
+                details: {
+                  domain,
+                  formId: domainSettings.form_id,
+                  verified: domainSettings.verified
+                }
+              })
+            };
+          }
+        }
+      }
+    }
     
     // Extract feedback ID from the parsed email
     const feedbackId = await extractFeedbackId(parsedEmail);
