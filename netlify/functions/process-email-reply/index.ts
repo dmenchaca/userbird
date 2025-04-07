@@ -714,99 +714,26 @@ export const handler: Handler = async (event) => {
       }
     }
     
-    // Use mailparser to parse the email
-    console.log('Parsing email with mailparser');
-    
-    // Create a ParsedMail object from the raw email text
+    // Parse the email with mailparser
     const parsedEmail = await simpleParser(emailText);
-    
-    // Helper function to safely get address from parsedMail address fields
-    const getEmailAddress = (addressObj: any): string => {
-      if (!addressObj) return '';
-      
-      // Handle array of addresses
-      if (Array.isArray(addressObj.value)) {
-        return addressObj.value[0]?.address || '';
-      }
-      
-      // Handle single address
-      return addressObj.value?.address || '';
-    };
-
-    // Helper function to extract all email addresses from an address field
-    const getAllEmailAddresses = (addressObj: any): string[] => {
-      if (!addressObj || !addressObj.value) return [];
-      
-      if (Array.isArray(addressObj.value)) {
-        return addressObj.value.map(addr => addr.address).filter(Boolean);
-      }
-      
-      return addressObj.value.address ? [addressObj.value.address] : [];
-    };
-
-    // Log email details including all recipients
-    const toAddresses = getAllEmailAddresses(parsedEmail.to);
-    const ccAddresses = getAllEmailAddresses(parsedEmail.cc);
-    
     console.log('Email parsed successfully:', {
-      from: getEmailAddress(parsedEmail.from),
-      to: toAddresses,
-      cc: ccAddresses,
+      from: parsedEmail.from?.text,
+      to: parsedEmail.to?.value?.map((v: any) => v.address),
+      cc: parsedEmail.cc?.value?.map((v: any) => v.address),
       subject: parsedEmail.subject,
       hasText: !!parsedEmail.text,
       hasHtml: !!parsedEmail.html,
-      hasAttachments: parsedEmail.attachments?.length > 0,
+      hasAttachments: !!parsedEmail.attachments?.length,
       messageId: parsedEmail.messageId,
       inReplyTo: parsedEmail.inReplyTo,
       references: parsedEmail.references
     });
-    
-    // Check for domain not found issues in headers or envelope
-    const spfHeader = parsedEmail.headers.get('authentication-results') || '';
-    const dkimHeader = parsedEmail.headers.get('dkim-signature') || '';
-    const returnPath = parsedEmail.headers.get('return-path') || '';
-    
-    // Check for domain issues - common SendGrid errors include "Domain not found"
-    if (rawEmailData.spam_report && typeof rawEmailData.spam_report === 'string' && 
-        rawEmailData.spam_report.includes('Domain not found')) {
-      console.error('Domain not found error detected in spam report');
-      
-      // Check for custom domains in the recipients
-      for (const recipient of toAddresses.concat(ccAddresses)) {
-        const domain = recipient.split('@')[1];
-        if (domain && !domain.includes('userbird-mail.com') && !domain.includes('userbird.co')) {
-          // Look up custom domain in our settings
-          const { data: domainSettings } = await supabase
-            .from('custom_email_settings')
-            .select('form_id, domain, verified')
-            .eq('domain', domain)
-            .maybeSingle();
-            
-          if (domainSettings) {
-            // Domain is in our system but having DNS issues
-            const verificationStatus = domainSettings.verified ? 'verified' : 'not verified';
-            console.error(`Custom domain ${domain} is ${verificationStatus} but having DNS issues.`);
-            
-            return {
-              statusCode: 400,
-              body: JSON.stringify({
-                error: 'Domain configuration issue',
-                message: `The custom domain ${domain} is configured in our system but appears to have DNS configuration issues. Please verify your DNS settings.`,
-                details: {
-                  domain,
-                  formId: domainSettings.form_id,
-                  verified: domainSettings.verified
-                }
-              })
-            };
-          }
-        }
-      }
-    }
-    
-    // Extract feedback ID from the parsed email
+
+    // Step 1: Try to extract feedback ID
+    console.log('Extracting feedback ID from email');
     let feedbackId = await extractFeedbackId(parsedEmail);
-    
+
+    // Step 2: If no feedback ID, try to create new feedback
     if (!feedbackId) {
       console.log('No feedback ID found, checking if we can create a new feedback');
       
@@ -873,8 +800,9 @@ export const handler: Handler = async (event) => {
         };
       }
     }
-    
-    console.log('Using feedback_id:', feedbackId);
+
+    // Step 3: Only proceed with reply creation if we have an existing feedback ID
+    console.log(`Using feedback_id: ${feedbackId}`);
     
     // Verify feedback ID exists in the database
     const { data: feedbackExists, error: feedbackError } = await supabase
