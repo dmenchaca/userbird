@@ -48,28 +48,51 @@ async function createFeedbackFromEmail(
     // Extract message content - prefer HTML content for new feedback
     const content = parsedEmail.html || parsedEmail.text || '';
     
-    // Create feedback record
-    const { data: feedback, error } = await supabase
-      .from('feedback')
-      .insert({
-        form_id: formId,
+    // Call the feedback endpoint to create new feedback
+    const response = await fetch(`${process.env.URL}/.netlify/functions/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        formId,
         message: content,
         user_email: fromAddress,
         user_name: fromName || undefined,
-        status: 'open',
         operating_system: 'Unknown',
         screen_category: 'Unknown'
       })
-      .select('id')
-      .single();
-    
-    if (error) {
-      console.error('Error creating feedback from email:', error);
+    });
+
+    if (!response.ok) {
+      console.error('Error creating feedback from email:', await response.text());
       return undefined;
     }
-    
-    console.log(`Created new feedback with ID: ${feedback.id}`);
-    return feedback.id;
+
+    const data = await response.json();
+    console.log('Feedback endpoint response:', data);
+
+    // Get the feedback ID from the response
+    if (data.success) {
+      // Query the most recent feedback for this form to get the ID
+      const { data: feedbackData, error } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error getting feedback ID:', error);
+        return undefined;
+      }
+
+      console.log(`Created new feedback with ID: ${feedbackData.id}`);
+      return feedbackData.id;
+    }
+
+    return undefined;
   } catch (error) {
     console.error('Error in createFeedbackFromEmail:', error);
     return undefined;
