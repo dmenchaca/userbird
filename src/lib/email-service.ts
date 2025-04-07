@@ -70,6 +70,9 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
+    // Always use notifications@userbird.co for new feedback notifications
+    const from = 'notifications@userbird.co';
+
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
 <html>
@@ -165,7 +168,7 @@ ${image_url}
   try {
     const msg = {
       to,
-      from: 'notifications@userbird.co',
+      from,
       subject: `New feedback received for ${formUrl}`,
       text: textMessage,
       html: htmlMessage,
@@ -192,6 +195,7 @@ ${image_url}
       message: string;
       created_at: string;
       user_email: string;
+      form_id?: string;
     };
     isFirstReply: boolean;
     feedbackId: string;
@@ -207,6 +211,25 @@ ${image_url}
       replyId,
       isAdminDashboardReply = false
     } = params;
+    
+    // Get form's default email address if we have form_id
+    let from = 'support@userbird.co';
+    
+    if (feedback.form_id) {
+      try {
+        // Attempt to get the form's default email
+        const response = await fetch(`/api/forms/${feedback.form_id}`);
+        if (response.ok) {
+          const formData = await response.json();
+          if (formData.default_email) {
+            from = formData.default_email;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching form email:', error);
+        // Continue with default email
+      }
+    }
 
     // Format date for original message
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
@@ -222,7 +245,7 @@ ${image_url}
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
-To: support@userbird.co
+To: ${from}
 Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
@@ -270,7 +293,7 @@ ${feedback.message}
 
     return this.sendEmail({
       to,
-      from: 'support@userbird.co',
+      from,
       subject: `Re: Feedback submitted by ${feedback.user_email}`,
       text: plainTextMessage,
       html: htmlMessage,

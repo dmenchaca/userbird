@@ -332,10 +332,9 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Get sender email for this form
-    const sender = await getSenderEmail(formId);
-    const from = formatSender(sender);
-    const isNotificationsEmail = sender.email === 'notifications@userbird.co' || from.includes('notifications@userbird.co');
+    // Always use notifications@userbird.co for new feedback notifications
+    const from = formatSender({ email: 'notifications@userbird.co', name: DEFAULT_SENDER_NAME });
+    const isNotificationsEmail = true;
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
