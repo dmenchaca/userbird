@@ -47,7 +47,6 @@ async function createFeedbackFromEmail(
     
     // Extract message content
     const text = parsedEmail.text || '';
-    const subject = parsedEmail.subject || 'Email Feedback';
     
     // Create feedback record
     const { data: feedback, error } = await supabase
@@ -57,7 +56,6 @@ async function createFeedbackFromEmail(
         message: text,
         user_email: fromAddress,
         user_name: fromName || undefined,
-        subject: subject,
         status: 'open',
         operating_system: 'Unknown',
         screen_category: 'Unknown'
