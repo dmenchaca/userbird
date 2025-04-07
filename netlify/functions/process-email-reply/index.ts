@@ -129,21 +129,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       const formId = formEmailMatch[1];
       console.log('Found potential form ID from recipient:', formId);
       foundFormId = formId;
-      
-      // Look up recent feedback from this form
-      const { data: recentFeedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('form_id', formId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (recentFeedback) {
-        feedbackId = recentFeedback.id;
-        console.log('Found feedback ID from form email recipient:', feedbackId);
-        return feedbackId;
-      }
+      break;
     }
     
     // Check for domain-specific forwarded emails: {localPart}@{custom-domain}
@@ -158,21 +144,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     if (customEmailSettings) {
       console.log('Found matching custom email setting:', customEmailSettings);
       foundFormId = customEmailSettings.form_id;
-      
-      // Look up recent feedback from this form
-      const { data: recentFeedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('form_id', customEmailSettings.form_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (recentFeedback) {
-        feedbackId = recentFeedback.id;
-        console.log('Found feedback ID from custom domain email:', feedbackId);
-        return feedbackId;
-      }
+      break;
     }
     
     // Check for forwarding address pattern: {localPart}@{domain}.userbird-mail.com
@@ -192,29 +164,9 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       
       if (forwardingSettings) {
         foundFormId = forwardingSettings.form_id;
-        
-        // Look up recent feedback from this form
-        const { data: recentFeedback } = await supabase
-          .from('feedback')
-          .select('id')
-          .eq('form_id', forwardingSettings.form_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (recentFeedback) {
-          feedbackId = recentFeedback.id;
-          console.log('Found feedback ID from forwarding address:', feedbackId);
-          return feedbackId;
-        }
+        break;
       }
     }
-  }
-  
-  // If a form ID was found but no existing feedback, create new feedback
-  if (foundFormId) {
-    console.log(`Found form ID ${foundFormId} but no existing feedback, creating new feedback`);
-    return await createFeedbackFromEmail(parsedEmail, foundFormId);
   }
   
   // Try to extract from email raw content
@@ -297,6 +249,12 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       console.log('Found feedback ID from message_id lookup:', feedbackId);
       return feedbackId;
     }
+  }
+  
+  // If we found a form ID but no feedback ID through any other method, create new feedback
+  if (foundFormId) {
+    console.log(`No existing feedback found, creating new feedback for form ${foundFormId}`);
+    return await createFeedbackFromEmail(parsedEmail, foundFormId);
   }
   
   console.log('No feedback ID found after all extraction attempts');
