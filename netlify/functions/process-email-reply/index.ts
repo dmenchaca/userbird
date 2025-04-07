@@ -274,8 +274,27 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     }
   }
   
-  // If we found a form ID but no feedback ID through any other method, create new feedback
+  // If we found a form ID but no feedback ID through any other method, check for existing feedback
   if (foundFormId) {
+    // Get sender email
+    const fromAddress = parsedEmail.from?.value?.[0]?.address;
+    if (fromAddress) {
+      // Check for existing feedback from this sender for this form
+      const { data: existingFeedback } = await supabase
+        .from('feedback')
+        .select('id')
+        .eq('form_id', foundFormId)
+        .eq('user_email', fromAddress)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (existingFeedback) {
+        console.log(`Found existing feedback with ID: ${existingFeedback.id}`);
+        return existingFeedback.id;
+      }
+    }
+    
     console.log(`No existing feedback found, creating new feedback for form ${foundFormId}`);
     return await createFeedbackFromEmail(parsedEmail, foundFormId);
   }
