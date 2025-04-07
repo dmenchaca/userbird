@@ -35,6 +35,12 @@ async function createFeedbackFromEmail(
 ): Promise<string | undefined> {
   try {
     console.log(`Creating new feedback from email for form ${formId}`);
+    console.log('Email content analysis:', {
+      hasHtml: !!parsedEmail.html,
+      hasText: !!parsedEmail.text,
+      htmlLength: parsedEmail.html?.length || 0,
+      textLength: parsedEmail.text?.length || 0
+    });
     
     // Get sender email and name
     const fromAddress = parsedEmail.from?.value?.[0]?.address || '';
@@ -46,16 +52,8 @@ async function createFeedbackFromEmail(
     }
     
     // Extract message content - prefer HTML over text
-    const htmlContent = parsedEmail.html || null;
-    const textContent = parsedEmail.text || null;
-    const content = htmlContent || textContent || '';
-    
-    console.log('Content extraction for new feedback:', {
-      hasHtml: !!htmlContent,
-      hasText: !!textContent,
-      contentLength: content.length,
-      usingContentType: htmlContent ? 'html' : 'text'
-    });
+    const content = parsedEmail.html || parsedEmail.text || '';
+    console.log('Using content type:', parsedEmail.html ? 'HTML' : 'Text');
     
     // Create feedback record
     const { data: feedback, error } = await supabase
@@ -83,7 +81,6 @@ async function createFeedbackFromEmail(
       userName: fromName,
       contentLength: content.length
     });
-    
     return feedback.id;
   } catch (error) {
     console.error('Error in createFeedbackFromEmail:', error);
@@ -852,7 +849,15 @@ export const handler: Handler = async (event) => {
         
         if (newFeedbackId) {
           console.log(`Created new feedback with ID: ${newFeedbackId}`);
-          feedbackId = newFeedbackId;
+          // Return success without creating a reply since this is a new feedback
+          return { 
+            statusCode: 200, 
+            body: JSON.stringify({ 
+              success: true, 
+              feedbackId: newFeedbackId,
+              message: 'New feedback created successfully' 
+            }) 
+          };
         } else {
           console.error('Failed to create new feedback');
           return { 
