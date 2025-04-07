@@ -896,6 +896,10 @@ export const handler: Handler = async (event) => {
     
     if (feedbackError) {
       console.error('Error checking if feedback exists:', feedbackError);
+      return { 
+        statusCode: 500, 
+        body: JSON.stringify({ error: 'Error checking feedback existence' }) 
+      };
     } else if (!feedbackExists) {
       console.error(`No feedback found with ID: ${feedbackId}`);
       return { 
