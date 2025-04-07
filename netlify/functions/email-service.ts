@@ -232,8 +232,11 @@ export class EmailService {
         html = processMarkdownSyntax(params.text);
       }
       
-      // Sanitize HTML content to prevent security issues
-      html = sanitizeHtml(html);
+      // Skip sanitization for notifications@userbird.co emails to preserve styling
+      if (params.from !== 'notifications@userbird.co' && !params.from?.includes('notifications@userbird.co')) {
+        // Sanitize HTML content to prevent security issues
+        html = sanitizeHtml(html);
+      }
       
       // Ensure we have a plain text version (fallback)
       let text = params.text || '';
@@ -277,7 +280,8 @@ export class EmailService {
         hasHtml: !!html,
         hasHeaders: !!Object.keys(headers).length,
         messageId,
-        inReplyTo: params.inReplyTo
+        inReplyTo: params.inReplyTo,
+        skipSanitization: params.from === 'notifications@userbird.co' || params.from?.includes('notifications@userbird.co')
       });
 
       const result = await sgMail.send(msg);
@@ -313,19 +317,25 @@ export class EmailService {
     feedbackId: string;
   }) {
     const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId } = params;
-    
-    // Get custom sender email for this form
-    const senderInfo = await getSenderEmail(formId);
-    const from = formatSender(senderInfo);
-    
-    console.log('Using sender email for notification:', {
-      formId,
-      senderEmail: senderInfo.email,
-      from
+
+    // Get formated date
+    const formatedDate = created_at || new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
-    
+
+    // Check what info is available
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
+
+    // Get sender email for this form
+    const sender = await getSenderEmail(formId);
+    const from = formatSender(sender);
+    const isNotificationsEmail = sender.email === 'notifications@userbird.co' || from.includes('notifications@userbird.co');
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
@@ -378,16 +388,16 @@ export class EmailService {
         </div>
         ` : ''}
 
-        ${created_at ? `
+        ${formatedDate ? `
         <div>
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Date</h4>
-          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">${created_at}</p>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">${formatedDate}</p>
         </div>
         ` : ''}
       </div>
 
       <div style="text-align: center;">
-        <a href="https://app.userbird.co/forms/${formId || feedbackId?.split('-')[0] || ''}" 
+        <a href="https://app.userbird.co/forms/${formId}" 
            style="display: inline-block; background: #1f2937; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
           View All Responses
         </a>
@@ -416,16 +426,42 @@ ${screen_category ? `Screen Category: ${screen_category}` : ''}
 ` : ''}${image_url ? `Screenshot:
 ${image_url}
 
-` : ''}${created_at ? `Received on ${created_at}` : ''}`;
+` : ''}${formatedDate ? `Received on ${formatedDate}` : ''}`;
 
-    return this.sendEmail({
-      to,
-      from,
-      subject: `New Feedback for ${formUrl}`,
-      text: textMessage,
-      html: htmlMessage,
-      feedbackId
-    });
+    // For notifications@userbird.co, send directly to avoid any potential sanitization
+    if (isNotificationsEmail) {
+      const messageId = `<feedback-notification-${feedbackId}@userbird.co>`;
+      try {
+        await sgMail.send({
+          to,
+          from,
+          subject: `New Feedback for ${formUrl}`,
+          text: textMessage,
+          html: htmlMessage,
+          headers: {
+            'Message-ID': messageId
+          }
+        });
+        
+        return {
+          success: true,
+          messageId
+        };
+      } catch (error) {
+        console.error('Error sending notification email directly:', error);
+        throw error;
+      }
+    } else {
+      // For other sender emails, use the standard flow
+      return this.sendEmail({
+        to,
+        from,
+        subject: `New Feedback for ${formUrl}`,
+        text: textMessage,
+        html: htmlMessage,
+        feedbackId
+      });
+    }
   }
 
   static async sendReplyNotification(params: {

@@ -161,19 +161,19 @@ ${image_url}
 
 ` : ''}${created_at ? `Received on ${created_at}` : ''}`;
 
-  // Skip the sanitization for this template by sending directly to SendGrid
-  const msg = {
-    to,
-    from: 'notifications@userbird.co',
-    subject: `New feedback received for ${formUrl}`,
-    text: textMessage,
-    html: htmlMessage,
-    headers: formId ? {
-      'Message-ID': `<feedback-notification-${formId}@userbird.co>`
-    } : undefined
-  };
-
+  // Send email directly without sanitizing the HTML content
   try {
+    const msg = {
+      to,
+      from: 'notifications@userbird.co',
+      subject: `New feedback received for ${formUrl}`,
+      text: textMessage,
+      html: htmlMessage,
+      headers: formId ? {
+        'Message-ID': `<feedback-notification-${formId}@userbird.co>`
+      } : undefined
+    };
+
     await sgMail.send(msg);
     return { 
       success: true,
