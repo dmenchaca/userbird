@@ -6,26 +6,74 @@ import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
 
-// Utility function to ensure high contrast for tag text
-const getHighContrastColor = (hexColor: string): string => {
-  // Remove the # if it exists
-  const color = hexColor.startsWith('#') ? hexColor.slice(1) : hexColor;
-  
-  // Convert hex to RGB
-  const r = parseInt(color.slice(0, 2), 16);
-  const g = parseInt(color.slice(2, 4), 16);
-  const b = parseInt(color.slice(4, 6), 16);
-  
-  // Calculate brightness and adjust for better contrast
-  // We want a darker, more saturated version of the color for better contrast
-  // against the light background (which is at 0.125 opacity)
-  
-  // Make the color darker for better contrast on light backgrounds
-  const darkR = Math.max(0, Math.floor(r * 0.7));
-  const darkG = Math.max(0, Math.floor(g * 0.7));
-  const darkB = Math.max(0, Math.floor(b * 0.7));
-  
-  return `rgb(${darkR}, ${darkG}, ${darkB})`;
+// Get tag colors from the color options
+const getTagColors = (tagColor: string) => {
+  // Import color options from the dashboard
+  const colorOptions = [
+    { 
+      name: 'Gray', 
+      value: '#64748B',
+      background: '#64748B25',
+      text: '#334155'
+    },
+    { 
+      name: 'Brown', 
+      value: '#78716C',
+      background: '#78716C25',
+      text: '#44403C'
+    },
+    { 
+      name: 'Orange', 
+      value: '#F97316',
+      background: '#F9731625',
+      text: '#C2410C'
+    },
+    { 
+      name: 'Yellow', 
+      value: '#EAB308',
+      background: '#EAB30825',
+      text: '#854D0E'
+    },
+    { 
+      name: 'Green', 
+      value: '#10B981',
+      background: '#10B98125',
+      text: '#047857'
+    },
+    { 
+      name: 'Blue', 
+      value: '#3B82F6',
+      background: '#3B82F625',
+      text: '#1D4ED8'
+    },
+    { 
+      name: 'Purple', 
+      value: '#8B5CF6',
+      background: '#8B5CF625',
+      text: '#6D28D9'
+    },
+    { 
+      name: 'Pink', 
+      value: '#EC4899',
+      background: '#EC489925',
+      text: '#BE185D'
+    },
+    { 
+      name: 'Red', 
+      value: '#EF4444',
+      background: '#EF444425',
+      text: '#B91C1C'
+    }
+  ];
+
+  const colorOption = colorOptions.find(option => option.value === tagColor);
+  return colorOption ? {
+    background: colorOption.background,
+    text: colorOption.text
+  } : {
+    background: `${tagColor}25`,
+    text: tagColor
+  };
 };
 
 interface FeedbackInboxProps {
@@ -403,10 +451,10 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           }}
                         >
                           <div 
-                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-[3px] px-[6px] text-[12px] leading-[120%] font-semibold"
+                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-full px-2 text-[12px] leading-[120%] font-medium"
                             style={{ 
-                              backgroundColor: `${response.tag.color}20`,
-                              color: getHighContrastColor(response.tag.color)
+                              backgroundColor: getTagColors(response.tag.color).background,
+                              color: getTagColors(response.tag.color).text
                             }}
                           >
                             <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">

@@ -69,7 +69,7 @@ export function UserMenu() {
           <MessageSquare className="h-4 w-4" />
           <span>Feedback</span>
         </span>
-        <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">L</span>
+        <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">F</span>
       </Button>
       
       {/* User Profile Dropdown */}

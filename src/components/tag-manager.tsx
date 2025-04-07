@@ -2,17 +2,76 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Plus, Trash2, Edit, Save, X, AlertCircle, Star } from 'lucide-react'
+import { Plus, Trash2, Edit, Save, X, AlertCircle, Star, Check, ChevronDown } from 'lucide-react'
 import { FeedbackTag } from '@/lib/types/feedback'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog'
 import { Label } from './ui/label'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
 interface TagManagerProps {
   formId: string
   onTagsChange?: () => void
 }
+
+// Color options array
+const colorOptions = [
+  { 
+    name: 'Gray', 
+    value: '#64748B',
+    background: '#64748B25',
+    text: '#334155'
+  },
+  { 
+    name: 'Brown', 
+    value: '#78716C',
+    background: '#78716C25',
+    text: '#44403C'
+  },
+  { 
+    name: 'Orange', 
+    value: '#F97316',
+    background: '#F9731625',
+    text: '#C2410C'
+  },
+  { 
+    name: 'Yellow', 
+    value: '#EAB308',
+    background: '#EAB30825',
+    text: '#854D0E'
+  },
+  { 
+    name: 'Green', 
+    value: '#10B981',
+    background: '#10B98125',
+    text: '#047857'
+  },
+  { 
+    name: 'Blue', 
+    value: '#3B82F6',
+    background: '#3B82F625',
+    text: '#1D4ED8'
+  },
+  { 
+    name: 'Purple', 
+    value: '#8B5CF6',
+    background: '#8B5CF625',
+    text: '#6D28D9'
+  },
+  { 
+    name: 'Pink', 
+    value: '#EC4899',
+    background: '#EC489925',
+    text: '#BE185D'
+  },
+  { 
+    name: 'Red', 
+    value: '#EF4444',
+    background: '#EF444425',
+    text: '#B91C1C'
+  }
+]
 
 export function TagManager({ formId, onTagsChange }: TagManagerProps) {
   const [tags, setTags] = useState<FeedbackTag[]>([])
@@ -331,20 +390,62 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             
             <div className="space-y-2">
               <Label htmlFor="tag-color">Tag Color</Label>
-              <div className="flex gap-2">
-                <Input 
-                  id="tag-color"
-                  type="color"
-                  value={newTagColor}
-                  onChange={e => setNewTagColor(e.target.value)}
-                  className="w-12 h-9 p-1"
-                />
-                <Input 
-                  value={newTagColor}
-                  onChange={e => setNewTagColor(e.target.value)}
-                  className="font-mono"
-                />
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                  >
+                    <div className="flex items-center">
+                      <div
+                        className="w-4 h-4 rounded border"
+                        style={{ 
+                          backgroundColor: `${newTagColor}30`,
+                          borderColor: `${newTagColor}70`
+                        }}
+                      />
+                      <span className="ml-2 text-sm text-foreground">
+                        {colorOptions.find(c => c.value === newTagColor)?.name || 'Select color'}
+                      </span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-48 p-0" 
+                  align="start"
+                  sideOffset={5}
+                  style={{ zIndex: 9999 }}
+                >
+                  <div className="flex flex-col py-1">
+                    {colorOptions.map(color => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => {
+                          setNewTagColor(color.value)
+                        }}
+                        className={cn(
+                          "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left cursor-pointer",
+                          newTagColor === color.value && "bg-accent"
+                        )}
+                      >
+                        <div 
+                          className="w-5 h-5 rounded border" 
+                          style={{ 
+                            backgroundColor: `${color.value}30`,
+                            borderColor: `${color.value}70`
+                          }}
+                        />
+                        <span className="text-sm text-foreground">{color.name}</span>
+                        {newTagColor === color.value && (
+                          <Check className="h-4 w-4 ml-auto" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -393,20 +494,62 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             
             <div className="space-y-2">
               <Label htmlFor="edit-tag-color">Tag Color</Label>
-              <div className="flex gap-2">
-                <Input 
-                  id="edit-tag-color"
-                  type="color"
-                  value={newTagColor}
-                  onChange={e => setNewTagColor(e.target.value)}
-                  className="w-12 h-9 p-1"
-                />
-                <Input 
-                  value={newTagColor}
-                  onChange={e => setNewTagColor(e.target.value)}
-                  className="font-mono"
-                />
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                  >
+                    <div className="flex items-center">
+                      <div
+                        className="w-4 h-4 rounded border"
+                        style={{ 
+                          backgroundColor: `${newTagColor}30`,
+                          borderColor: `${newTagColor}70`
+                        }}
+                      />
+                      <span className="ml-2 text-sm text-foreground">
+                        {colorOptions.find(c => c.value === newTagColor)?.name || 'Select color'}
+                      </span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-48 p-0" 
+                  align="start"
+                  sideOffset={5}
+                  style={{ zIndex: 9999 }}
+                >
+                  <div className="flex flex-col py-1">
+                    {colorOptions.map(color => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => {
+                          setNewTagColor(color.value)
+                        }}
+                        className={cn(
+                          "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left cursor-pointer",
+                          newTagColor === color.value && "bg-accent"
+                        )}
+                      >
+                        <div 
+                          className="w-5 h-5 rounded border" 
+                          style={{ 
+                            backgroundColor: `${color.value}30`,
+                            borderColor: `${color.value}70`
+                          }}
+                        />
+                        <span className="text-sm text-foreground">{color.name}</span>
+                        {newTagColor === color.value && (
+                          <Check className="h-4 w-4 ml-auto" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="flex items-center space-x-2">

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -64,18 +64,67 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   const [showTagManagerDialog, setShowTagManagerDialog] = useState(false)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null)
+  const [editingTag, setEditingTag] = useState<FeedbackTag | null>(null)
+  const [editTagName, setEditTagName] = useState('')
+  const [editTagColor, setEditTagColor] = useState('#3B82F6')
+  const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
   
-  // Color palette inspired by Notion
+  // Color palette with explicit background and text colors for each tag
   const colorOptions = [
-    { name: 'Gray', value: '#64748B' },    // Slate
-    { name: 'Brown', value: '#78716C' },   // Stone
-    { name: 'Orange', value: '#F97316' },  // Orange
-    { name: 'Yellow', value: '#EAB308' },  // Yellow
-    { name: 'Green', value: '#10B981' },   // Emerald
-    { name: 'Blue', value: '#3B82F6' },    // Blue
-    { name: 'Purple', value: '#8B5CF6' },  // Violet
-    { name: 'Pink', value: '#EC4899' },    // Pink
-    { name: 'Red', value: '#EF4444' },     // Red
+    { 
+      name: 'Gray', 
+      value: '#64748B',      // Slate
+      background: '#64748B25',
+      text: '#334155'        // Darker slate for contrast
+    },
+    { 
+      name: 'Brown', 
+      value: '#78716C',      // Stone
+      background: '#78716C25',
+      text: '#44403C'        // Darker stone for contrast
+    },
+    { 
+      name: 'Orange', 
+      value: '#F97316',      // Orange
+      background: '#F9731625',
+      text: '#C2410C'        // Darker orange for contrast
+    },
+    { 
+      name: 'Yellow', 
+      value: '#EAB308',      // Yellow
+      background: '#EAB30825',
+      text: '#854D0E'        // Darker yellow for contrast
+    },
+    { 
+      name: 'Green', 
+      value: '#10B981',      // Emerald
+      background: '#10B98125',
+      text: '#047857'        // Darker emerald for contrast
+    },
+    { 
+      name: 'Blue', 
+      value: '#3B82F6',      // Blue
+      background: '#3B82F625',
+      text: '#1D4ED8'        // Darker blue for contrast
+    },
+    { 
+      name: 'Purple', 
+      value: '#8B5CF6',      // Violet
+      background: '#8B5CF625',
+      text: '#6D28D9'        // Darker violet for contrast
+    },
+    { 
+      name: 'Pink', 
+      value: '#EC4899',      // Pink
+      background: '#EC489925',
+      text: '#BE185D'        // Darker pink for contrast
+    },
+    { 
+      name: 'Red', 
+      value: '#EF4444',      // Red
+      background: '#EF444425',
+      text: '#B91C1C'        // Darker red for contrast
+    }
   ]
   
   // Fetch latest form if no form is selected
@@ -707,6 +756,45 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   };
 
+  const handleUpdateTag = async (tagId: string) => {
+    if (!selectedFormId || !editingTag) return;
+
+    try {
+      const { error } = await supabase
+        .from('feedback_tags')
+        .update({
+          name: editTagName,
+          color: editTagColor,
+          is_favorite: editTagIsFavorite
+        })
+        .eq('id', tagId);
+
+      if (error) throw error;
+
+      // Refresh tags
+      const { data: updatedTags } = await supabase
+        .from('feedback_tags')
+        .select('*')
+        .eq('form_id', selectedFormId)
+        .order('name');
+
+      if (updatedTags) {
+        setAvailableTags(updatedTags);
+      }
+
+      // Reset edit state
+      setEditingTag(null);
+      setEditTagName('');
+      setEditTagColor('#3B82F6');
+      setEditTagIsFavorite(false);
+
+      toast.success('Tag updated successfully');
+    } catch (error) {
+      console.error('Error updating tag:', error);
+      toast.error('Failed to update tag');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -774,155 +862,278 @@ export function Dashboard({ initialFormId }: DashboardProps) {
             )}
             {selectedFormId && availableTags.length > 0 && (
               <div className="mt-5 px-2">
-                <div className="flex justify-between items-center mb-1 px-3">
+                <div className="flex justify-between items-center mb-1 pl-3 group/header">
                   <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Favorite Tags</p>
-                  <Popover open={showAddTagPopover} onOpenChange={setShowAddTagPopover}>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-5 w-5 p-0" 
-                        onClick={() => setShowAddTagPopover(true)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80" side="right">
-                      <div className="space-y-4">
-                        <div className="font-medium text-sm">Create New Tag</div>
-                        <div className="space-y-2">
-                          <Label htmlFor="quick-tag-name">Tag Name</Label>
-                          <Input 
-                            id="quick-tag-name"
-                            value={quickTagName}
-                            onChange={e => setQuickTagName(e.target.value)}
-                            placeholder="e.g., Feature Request"
-                            className="w-full"
-                            autoFocus
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Tag Color</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between"
-                              >
-                                <div className="flex items-center">
-                                  <div
-                                    className="w-4 h-4 rounded border"
-                                    style={{ 
-                                      backgroundColor: `${quickTagColor}30`,
-                                      borderColor: `${quickTagColor}70`
-                                    }}
-                                  />
-                                  <span className="ml-2 text-sm text-foreground">
-                                    {colorOptions.find(c => c.value === quickTagColor)?.name || 'Select color'}
-                                  </span>
-                                </div>
-                                <ChevronDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-48 p-0" align="start">
-                              <div className="flex flex-col py-1">
-                                {colorOptions.map(color => (
-                                  <button
-                                    key={color.value}
-                                    type="button"
-                                    onClick={() => setQuickTagColor(color.value)}
-                                    className={cn(
-                                      "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left",
-                                      quickTagColor === color.value ? "bg-accent" : ""
-                                    )}
-                                  >
-                                    <div 
-                                      className="w-5 h-5 rounded border" 
+                  <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:bg-accent-foreground/10"
+                      onClick={() => setShowTagManagerDialog(true)}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
+                    <Popover open={showAddTagPopover} onOpenChange={setShowAddTagPopover}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0 text-muted-foreground hover:bg-accent-foreground/10"
+                          onClick={() => setShowAddTagPopover(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" side="right">
+                        <div className="space-y-4">
+                          <div className="font-medium text-sm">Create New Tag</div>
+                          <div className="space-y-2">
+                            <Label htmlFor="quick-tag-name">Tag Name</Label>
+                            <Input 
+                              id="quick-tag-name"
+                              value={quickTagName}
+                              onChange={e => setQuickTagName(e.target.value)}
+                              placeholder="e.g., Feature Request"
+                              className="w-full"
+                              autoFocus
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Tag Color</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between"
+                                >
+                                  <div className="flex items-center">
+                                    <div
+                                      className="w-4 h-4 rounded border"
                                       style={{ 
-                                        backgroundColor: `${color.value}30`,
-                                        borderColor: `${color.value}70`
+                                        backgroundColor: `${quickTagColor}30`,
+                                        borderColor: `${quickTagColor}70`
                                       }}
                                     />
-                                    <span className="text-sm text-foreground">{color.name}</span>
-                                    {quickTagColor === color.value && (
-                                      <Check className="h-4 w-4 ml-auto" />
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                                    <span className="ml-2 text-sm text-foreground">
+                                      {colorOptions.find(c => c.value === quickTagColor)?.name || 'Select color'}
+                                    </span>
+                                  </div>
+                                  <ChevronDown className="h-4 w-4 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-48 p-0" align="start">
+                                <div className="flex flex-col py-1">
+                                  {colorOptions.map(color => (
+                                    <button
+                                      key={color.value}
+                                      type="button"
+                                      onClick={() => setQuickTagColor(color.value)}
+                                      className={cn(
+                                        "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left",
+                                        quickTagColor === color.value ? "bg-accent" : ""
+                                      )}
+                                    >
+                                      <div 
+                                        className="w-5 h-5 rounded border" 
+                                        style={{ 
+                                          backgroundColor: `${color.value}30`,
+                                          borderColor: `${color.value}70`
+                                        }}
+                                      />
+                                      <span className="text-sm text-foreground">{color.name}</span>
+                                      {quickTagColor === color.value && (
+                                        <Check className="h-4 w-4 ml-auto" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 pt-2">
+                            <input
+                              type="checkbox"
+                              id="is-quick-tag-favorite"
+                              checked={isQuickTagFavorite}
+                              onChange={e => setIsQuickTagFavorite(e.target.checked)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="is-quick-tag-favorite" className="text-sm font-normal flex items-center">
+                              Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
+                            </Label>
+                          </div>
+                          
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" type="button" onClick={() => {
+                              setQuickTagName('');
+                              setQuickTagColor('#3B82F6');
+                              setIsQuickTagFavorite(false);
+                              setShowAddTagPopover(false);
+                            }}>
+                              Cancel
+                            </Button>
+                            <Button onClick={() => {
+                              createQuickTag();
+                              setShowAddTagPopover(false);
+                            }} disabled={!quickTagName.trim()}>
+                              Create Tag
+                            </Button>
+                          </div>
                         </div>
-                        
-                        <div className="flex items-center space-x-2 pt-2">
-                          <input
-                            type="checkbox"
-                            id="is-quick-tag-favorite"
-                            checked={isQuickTagFavorite}
-                            onChange={e => setIsQuickTagFavorite(e.target.checked)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <Label htmlFor="is-quick-tag-favorite" className="text-sm font-normal flex items-center">
-                            Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
-                          </Label>
-                        </div>
-                        
-                        <div className="flex justify-end gap-2 pt-2">
-                          <Button variant="outline" type="button" onClick={() => {
-                            setQuickTagName('');
-                            setQuickTagColor('#3B82F6');
-                            setIsQuickTagFavorite(false);
-                            setShowAddTagPopover(false);
-                          }}>
-                            Cancel
-                          </Button>
-                          <Button onClick={() => {
-                            createQuickTag();
-                            setShowAddTagPopover(false);
-                          }} disabled={!quickTagName.trim()}>
-                            Create Tag
-                          </Button>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-                <nav className="grid gap-0.5">
+                <nav className="grid gap-0.5 px-0">
                   {availableTags
                     .filter(tag => tag.is_favorite)
                     .map(tag => (
-                    <a
+                    <div
                       key={tag.id}
-                      href="#"
                       className={cn(
-                        "flex items-center gap-2 whitespace-nowrap text-sm font-medium h-8 rounded-md px-3 transition-colors",
+                        "flex items-center gap-2 whitespace-nowrap text-sm font-medium h-8 rounded-md px-3 transition-colors group/row",
                         typeof activeFilter === 'object' && activeFilter.id === tag.id
                           ? "bg-accent text-accent-foreground hover:bg-accent/90"
                           : "hover:bg-accent hover:text-accent-foreground"
                       )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleFilterChange({ type: 'tag', id: tag.id, name: tag.name });
-                      }}
                     >
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="truncate">{tag.name}</span>
-                    </a>
+                      <a
+                        href="#"
+                        className="flex items-center gap-2 min-w-0 flex-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleFilterChange({ type: 'tag', id: tag.id, name: tag.name });
+                        }}
+                      >
+                        <Tag 
+                          className="h-3 w-3 flex-shrink-0" 
+                          style={{ 
+                            color: tag.color,
+                            fill: `${tag.color}30`,
+                            stroke: tag.color
+                          }} 
+                        />
+                        <span className="truncate">{tag.name}</span>
+                      </a>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover/row:opacity-100 transition-all hover:bg-accent-foreground/10 flex-shrink-0"
+                            onClick={() => {
+                              setEditingTag(tag);
+                              setEditTagName(tag.name);
+                              setEditTagColor(tag.color);
+                              setEditTagIsFavorite(tag.is_favorite);
+                            }}
+                          >
+                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" side="right">
+                          <div className="space-y-4">
+                            <div className="font-medium text-sm">Edit Tag</div>
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-tag-name">Tag Name</Label>
+                              <Input 
+                                id="edit-tag-name"
+                                value={editTagName}
+                                onChange={e => setEditTagName(e.target.value)}
+                                placeholder="e.g., Feature Request"
+                                className="w-full"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label>Tag Color</Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                  >
+                                    <div className="flex items-center">
+                                      <div
+                                        className="w-4 h-4 rounded border"
+                                        style={{ 
+                                          backgroundColor: `${editTagColor}30`,
+                                          borderColor: `${editTagColor}70`
+                                        }}
+                                      />
+                                      <span className="ml-2 text-sm text-foreground">
+                                        {colorOptions.find(c => c.value === editTagColor)?.name || 'Select color'}
+                                      </span>
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 p-0" align="start">
+                                  <div className="flex flex-col py-1">
+                                    {colorOptions.map(color => (
+                                      <button
+                                        key={color.value}
+                                        type="button"
+                                        onClick={() => setEditTagColor(color.value)}
+                                        className={cn(
+                                          "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-accent text-left cursor-pointer",
+                                          editTagColor === color.value && "bg-accent"
+                                        )}
+                                      >
+                                        <div 
+                                          className="w-5 h-5 rounded border" 
+                                          style={{ 
+                                            backgroundColor: `${color.value}30`,
+                                            borderColor: `${color.value}70`
+                                          }}
+                                        />
+                                        <span className="text-sm text-foreground">{color.name}</span>
+                                        {editTagColor === color.value && (
+                                          <Check className="h-4 w-4 ml-auto" />
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="edit-is-favorite-tag"
+                                checked={editTagIsFavorite}
+                                onChange={e => setEditTagIsFavorite(e.target.checked)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <Label htmlFor="edit-is-favorite-tag" className="text-sm font-normal flex items-center">
+                                Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
+                              </Label>
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button variant="outline" type="button" onClick={() => {
+                                setEditingTag(null);
+                                setEditTagName('');
+                                setEditTagColor('#3B82F6');
+                                setEditTagIsFavorite(false);
+                              }}>
+                                Cancel
+                              </Button>
+                              <Button onClick={() => {
+                                handleUpdateTag(tag.id);
+                              }} disabled={!editTagName.trim()}>
+                                Update Tag
+                              </Button>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   ))}
                 </nav>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 w-full text-xs justify-start text-muted-foreground font-normal"
-                  onClick={() => setShowTagManagerDialog(true)}
-                >
-                  <Settings2 className="h-3 w-3 mr-1" />
-                  Manage Tags
-                </Button>
               </div>
             )}
           </div>
