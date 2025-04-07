@@ -45,35 +45,20 @@ async function createFeedbackFromEmail(
       return undefined;
     }
     
-    // Check if we already have a feedback for this email's Message-ID
-    if (parsedEmail.messageId) {
-      const { data: existingFeedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('message_id', parsedEmail.messageId)
-        .single();
-        
-      if (existingFeedback) {
-        console.log(`Found existing feedback with ID ${existingFeedback.id} for Message-ID ${parsedEmail.messageId}`);
-        return existingFeedback.id;
-      }
-    }
-    
-    // Extract message content
-    const text = parsedEmail.text || '';
+    // Extract message content - prefer HTML content for new feedback
+    const content = parsedEmail.html || parsedEmail.text || '';
     
     // Create feedback record
     const { data: feedback, error } = await supabase
       .from('feedback')
       .insert({
         form_id: formId,
-        message: text,
+        message: content,
         user_email: fromAddress,
         user_name: fromName || undefined,
         status: 'open',
         operating_system: 'Unknown',
-        screen_category: 'Unknown',
-        message_id: parsedEmail.messageId // Store the Message-ID to prevent duplicates
+        screen_category: 'Unknown'
       })
       .select('id')
       .single();
@@ -810,20 +795,6 @@ export const handler: Handler = async (event) => {
     // Extract feedback ID from the parsed email
     let feedbackId = await extractFeedbackId(parsedEmail);
     
-    // Check if we already have a reply for this message ID
-    if (parsedEmail.messageId) {
-      const { data: existingReply } = await supabase
-        .from('feedback_replies')
-        .select('id, feedback_id')
-        .eq('message_id', parsedEmail.messageId)
-        .single();
-        
-      if (existingReply) {
-        console.log(`Found existing reply with ID ${existingReply.id} for Message-ID ${parsedEmail.messageId}`);
-        feedbackId = existingReply.feedback_id;
-      }
-    }
-    
     if (!feedbackId) {
       console.log('No feedback ID found, checking if we can create a new feedback');
       
@@ -866,7 +837,14 @@ export const handler: Handler = async (event) => {
         
         if (newFeedbackId) {
           console.log(`Created new feedback with ID: ${newFeedbackId}`);
-          feedbackId = newFeedbackId;
+          // For new feedback, we don't create a reply - just return success
+          return { 
+            statusCode: 200, 
+            body: JSON.stringify({ 
+              success: true,
+              feedbackId: newFeedbackId
+            }) 
+          };
         } else {
           console.error('Failed to create new feedback');
           return { 
@@ -883,6 +861,7 @@ export const handler: Handler = async (event) => {
       }
     }
     
+    // If we have a feedback ID, process as a reply
     console.log('Using feedback_id:', feedbackId);
     
     // Verify feedback ID exists in the database
