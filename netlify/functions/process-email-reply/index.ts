@@ -835,14 +835,68 @@ export const handler: Handler = async (event) => {
     }
     
     // Extract feedback ID from the parsed email
-    const feedbackId = await extractFeedbackId(parsedEmail);
+    let feedbackId = await extractFeedbackId(parsedEmail);
     
     if (!feedbackId) {
-      console.error('Could not extract feedback_id from email');
-      return { statusCode: 400, body: JSON.stringify({ error: 'Could not extract feedback_id from email' }) };
+      console.log('No feedback ID found, checking if we can create a new feedback');
+      
+      // Get form ID from recipient email
+      const toAddresses = parsedEmail.to?.value || [];
+      const ccAddresses = parsedEmail.cc?.value || [];
+      const allRecipients = [...toAddresses, ...ccAddresses];
+      
+      let formId: string | undefined;
+      
+      for (const recipient of allRecipients) {
+        if (!recipient.address) continue;
+        
+        const recipientEmail = recipient.address.toLowerCase();
+        
+        // Check for direct form email pattern
+        const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+        if (formEmailMatch) {
+          formId = formEmailMatch[1];
+          break;
+        }
+        
+        // Check for custom domain email
+        const { data: customEmailSettings } = await supabase
+          .from('custom_email_settings')
+          .select('form_id')
+          .eq('custom_email', recipientEmail)
+          .eq('verified', true)
+          .single();
+        
+        if (customEmailSettings) {
+          formId = customEmailSettings.form_id;
+          break;
+        }
+      }
+      
+      if (formId) {
+        console.log(`Creating new feedback for form ${formId}`);
+        const newFeedbackId = await createFeedbackFromEmail(parsedEmail, formId);
+        
+        if (newFeedbackId) {
+          console.log(`Created new feedback with ID: ${newFeedbackId}`);
+          feedbackId = newFeedbackId;
+        } else {
+          console.error('Failed to create new feedback');
+          return { 
+            statusCode: 400, 
+            body: JSON.stringify({ error: 'Could not create new feedback' }) 
+          };
+        }
+      } else {
+        console.error('Could not determine form ID from email recipients');
+        return { 
+          statusCode: 400, 
+          body: JSON.stringify({ error: 'Could not determine form ID from email recipients' }) 
+        };
+      }
     }
     
-    console.log('Extracted feedback_id:', feedbackId);
+    console.log('Using feedback_id:', feedbackId);
     
     // Verify feedback ID exists in the database
     const { data: feedbackExists, error: feedbackError } = await supabase
