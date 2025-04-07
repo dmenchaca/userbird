@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Default sender email to fall back to
 const DEFAULT_SENDER = 'notifications@userbird.co';
-const DEFAULT_SENDER_NAME = 'Userbird Feedback';
+const DEFAULT_SENDER_NAME = 'Userbird';
 
 // Create local copies of the utility functions since Netlify functions can't import from src folder
 /**
@@ -215,7 +215,7 @@ async function getSenderEmail(formId: string) {
  */
 function formatSender(sender: { email: string, name?: string }) {
   if (sender.name) {
-    return `"${sender.name}" <${sender.email}>`;
+    return `${sender.name} <${sender.email}>`;
   }
   return sender.email;
 }

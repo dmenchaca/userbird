@@ -1,7 +1,11 @@
 import sgMail from '@sendgrid/mail';
 
-// Initialize SendGrid with API key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+// Initialize Sendgrid API key
+sgMail.setApiKey(process.env.VITE_SENDGRID_API_KEY || '');
+
+// Default sender information
+const DEFAULT_SENDER = 'notifications@userbird.co';
+const DEFAULT_SENDER_NAME = 'Userbird';
 
 export interface EmailParams {
   to: string;
@@ -71,7 +75,7 @@ export class EmailService {
     const showSystemInfo = operating_system || screen_category;
 
     // Always use notifications@userbird.co for new feedback notifications
-    const from = 'notifications@userbird.co';
+    const from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
@@ -213,7 +217,7 @@ ${image_url}
     } = params;
     
     // Get form's default email address if we have form_id
-    let from = 'support@userbird.co';
+    let from = `${DEFAULT_SENDER_NAME} <support@userbird.co>`;
     
     if (feedback.form_id) {
       try {
