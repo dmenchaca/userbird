@@ -7,10 +7,11 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Service role client to bypass RLS for administratve operations
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const serviceClient = serviceRoleKey 
-  ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  : null;
+// This is a fallback in case the RLS policy fixes aren't applied
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const serviceClient = createClient(supabaseUrl, serviceRoleKey, { 
+  auth: { persistSession: false } 
+});
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -99,26 +100,37 @@ async function inviteCollaborator(formId: string, inviterUserId: string, email: 
     
     console.log('Attempting to insert collaborator with data:', JSON.stringify(collaboratorData));
     
-    // Try using service role client to bypass RLS if available
-    const client = serviceClient || supabase;
-    console.log('Using service client bypass:', !!serviceClient);
-    
-    const { data, error } = await client
+    // First try with regular client
+    let result = await supabase
       .from('form_collaborators')
       .insert(collaboratorData)
       .select();
+    
+    // If that fails with an RLS error, try with service role client
+    if (result.error && (
+        result.error.message.includes('row-level security') || 
+        result.error.message.includes('new row violates row-level security policy')
+      )) {
+      console.log('RLS error detected, trying with service role client');
       
-    if (error) {
-      console.error("Supabase error adding collaborator:", error);
-      console.error("Error details:", JSON.stringify(error));
-      return { success: false, error: error.message };
+      // Use service client to bypass RLS
+      result = await serviceClient
+        .from('form_collaborators')
+        .insert(collaboratorData)
+        .select();
     }
     
-    console.log('Successfully added collaborator:', data);
+    if (result.error) {
+      console.error("Error adding collaborator:", result.error);
+      console.error("Error details:", JSON.stringify(result.error));
+      return { success: false, error: result.error.message };
+    }
+    
+    console.log('Successfully added collaborator:', result.data);
     
     // TODO: Send email invitation
     
-    return { success: true, data: data[0] };
+    return { success: true, data: result.data[0] };
   } catch (error) {
     console.error("Error in inviteCollaborator:", error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };

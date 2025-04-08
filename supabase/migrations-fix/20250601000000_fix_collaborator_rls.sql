@@ -5,52 +5,87 @@
     - Drop existing restrictive policy that only allows form owners to manage collaborators
     - Create new policy that allows both form owners AND admin collaborators to manage collaborators
     - Ensure consistent permissions across the system
+    - Fix infinite recursion issues
 */
 
--- Drop the existing policy
+-- First, drop any existing policies
 DROP POLICY IF EXISTS "Form owners can manage collaborators" ON form_collaborators;
+DROP POLICY IF EXISTS "Users can view forms they are invited to" ON form_collaborators;
+DROP POLICY IF EXISTS "Users can manage collaborators if owner or admin" ON form_collaborators;
+DROP POLICY IF EXISTS "Users can accept invitations via email" ON form_collaborators;
 
--- Create a more flexible policy that allows both owners and admins to manage collaborators
-CREATE POLICY "Users can manage collaborators if owner or admin"
+-- Create a policy for form owners that doesn't require recursion
+CREATE POLICY "Form owners can manage collaborators"
 ON form_collaborators
 FOR ALL
 TO authenticated
 USING (
-  -- Allow if user is the form owner
   EXISTS (
     SELECT 1 FROM forms
     WHERE forms.id = form_collaborators.form_id
     AND forms.owner_id = auth.uid()
-  )
-  OR 
-  -- Allow if user is an admin collaborator for this form
-  EXISTS (
-    SELECT 1 
-    FROM form_collaborators existing_collab
-    WHERE existing_collab.form_id = form_collaborators.form_id
-    AND existing_collab.user_id = auth.uid()
-    AND existing_collab.role = 'admin'
-  )
-)
-WITH CHECK (
-  -- Same condition for write operations
-  EXISTS (
-    SELECT 1 FROM forms
-    WHERE forms.id = form_collaborators.form_id
-    AND forms.owner_id = auth.uid()
-  )
-  OR 
-  EXISTS (
-    SELECT 1 
-    FROM form_collaborators existing_collab
-    WHERE existing_collab.form_id = form_collaborators.form_id
-    AND existing_collab.user_id = auth.uid()
-    AND existing_collab.role = 'admin'
   )
 );
 
--- Create policy for users to insert themselves as collaborators via email acceptance (if needed)
--- Only needed if you plan to implement email acceptance of invitations
+-- Create separate non-recursive policies for admin collaborators
+CREATE POLICY "Admin collaborators can select existing collaborators"
+ON form_collaborators
+FOR SELECT 
+TO authenticated
+USING (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid() AND role = 'admin'
+  )
+);
+
+CREATE POLICY "Admin collaborators can insert new collaborators"
+ON form_collaborators
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid() AND role = 'admin'
+  )
+);
+
+CREATE POLICY "Admin collaborators can update existing collaborators"
+ON form_collaborators
+FOR UPDATE
+TO authenticated
+USING (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid() AND role = 'admin'
+  )
+)
+WITH CHECK (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid() AND role = 'admin'
+  )
+);
+
+CREATE POLICY "Admin collaborators can delete existing collaborators"
+ON form_collaborators
+FOR DELETE
+TO authenticated
+USING (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid() AND role = 'admin'
+  )
+);
+
+-- Create policy for all collaborators to view their own collaborator record
+CREATE POLICY "Users can view forms they are invited to"
+ON form_collaborators
+FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+
+-- Create policy for users to accept invitations by email (if implementing this feature)
 CREATE POLICY "Users can accept invitations via email"
 ON form_collaborators
 FOR UPDATE
