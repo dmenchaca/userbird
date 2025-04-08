@@ -131,7 +131,7 @@ const handler: Handler = async (event, context) => {
       // Anyone with access to the form can list collaborators
       const { data: collaborators, error } = await supabase
         .from('form_collaborators')
-        .select('*, user:user_id(id, email)')
+        .select('*')  // Just select all fields directly without the join
         .eq('form_id', formId);
         
       if (error) throw error;
