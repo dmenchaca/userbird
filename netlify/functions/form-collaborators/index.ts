@@ -76,15 +76,16 @@ async function inviteCollaborator(formId: string, inviterUserId: string, email: 
       .select();
       
     if (error) {
-      return { success: false, error };
+      console.error("Supabase error adding collaborator:", error);
+      return { success: false, error: error.message };
     }
     
     // TODO: Send email invitation
     
-    return { success: true, data };
+    return { success: true, data: data[0] };
   } catch (error) {
     console.error("Error in inviteCollaborator:", error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 }
 

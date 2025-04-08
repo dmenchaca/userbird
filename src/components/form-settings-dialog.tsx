@@ -555,8 +555,13 @@ export function FormSettingsDialog({
   };
 
   const handleDialogClose = () => {
+    // Prevent focus issues when dialog closes
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    
     // Reset all form values to original values
-    onOpenChange(false)
+    onOpenChange(false);
     setColor(buttonColor);
     setText(supportText || '');
     setUrl(formUrl);
@@ -566,7 +571,7 @@ export function FormSettingsDialog({
     setRemoveBranding(initialRemoveBranding);
     setGifUrls(initialGifUrls);
     setGifUrlsText(initialGifUrls.join('\n'));
-  }
+  };
 
   useEffect(() => {
     setColor(buttonColor);

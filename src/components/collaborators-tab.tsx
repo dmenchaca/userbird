@@ -130,9 +130,16 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
         })
       })
       
+      let errorMessage = 'Failed to invite user'
+      
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to invite user')
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError)
+        }
+        throw new Error(errorMessage)
       }
       
       const newCollaborator = await response.json()
@@ -148,6 +155,11 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
     } catch (error) {
       console.error('Error inviting collaborator:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to invite user')
+      
+      // Ensure any focused element is blurred to prevent aria-hidden issues
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
     } finally {
       setInviting(false)
     }
