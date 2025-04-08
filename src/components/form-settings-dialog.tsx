@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag, Mail } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -19,6 +19,7 @@ import { DeleteFormDialog } from './delete-form-dialog'
 import { Switch } from './ui/switch'
 import { Textarea } from './ui/textarea'
 import { CustomEmailTab } from './custom-email-tab'
+import { CollaboratorsTab } from './collaborators-tab'
 
 interface FormSettingsDialogProps {
   formId: string
@@ -37,7 +38,7 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -1055,6 +1056,16 @@ export function FormSettingsDialog({
                   Custom Email
                 </button>
                 <button
+                  onClick={() => handleTabSwitch('collaborators')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'collaborators' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Users className="w-4 h-4" />
+                  Collaborators
+                </button>
+                <button
                   onClick={() => handleTabSwitch('webhooks')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
@@ -1357,6 +1368,10 @@ export function FormSettingsDialog({
 
                 {activeTab === 'emails' && (
                   <CustomEmailTab formId={formId} />
+                )}
+
+                {activeTab === 'collaborators' && (
+                  <CollaboratorsTab formId={formId} />
                 )}
 
                 {activeTab === 'webhooks' && (
