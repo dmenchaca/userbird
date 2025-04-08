@@ -13,6 +13,11 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/auth/callback" element={<CallbackPage />} />
+        <Route path="/forms/:formId/ticket/:ticketNumber" element={
+          <AuthGuard>
+            <FormView />
+          </AuthGuard>
+        } />
         <Route path="/forms/:formId" element={
           <AuthGuard>
             <FormView />

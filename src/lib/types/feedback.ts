@@ -14,6 +14,7 @@ export interface FeedbackResponse {
   status: 'open' | 'closed'
   tag_id: string | null
   tag?: FeedbackTag | null
+  ticket_number: number | null
 }
 
 export interface FeedbackTag {

@@ -35,14 +35,19 @@ export class FeedbackService {
     }
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('feedback')
-        .insert([{ form_id: formId, message }]);
+        .insert([{ form_id: formId, message }])
+        .select('ticket_number')
+        .single();
 
       if (error) throw error;
 
       this.setState('success');
-      return { success: true };
+      return { 
+        success: true,
+        ticket_number: data?.ticket_number || null
+      };
     } catch (error) {
       this.setState('error');
       throw new Error('Failed to submit feedback');

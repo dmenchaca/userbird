@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Dashboard } from './dashboard'
 
 export function FormView() {
-  const { formId } = useParams()
+  const { formId, ticketNumber } = useParams()
   const navigate = useNavigate()
 
   // Handle old format redirects
@@ -15,5 +15,5 @@ export function FormView() {
     }
   }, [navigate])
 
-  return <Dashboard initialFormId={formId} />
+  return <Dashboard initialFormId={formId} initialTicketNumber={ticketNumber} />
 }

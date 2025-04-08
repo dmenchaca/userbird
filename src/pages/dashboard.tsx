@@ -24,9 +24,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 interface DashboardProps {
   initialFormId?: string
+  initialTicketNumber?: string
 }
 
-export function Dashboard({ initialFormId }: DashboardProps) {
+export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(initialFormId)
@@ -221,11 +222,15 @@ export function Dashboard({ initialFormId }: DashboardProps) {
   // Update URL when form selection changes
   useEffect(() => {
     if (selectedFormId) {
-      navigate(`/forms/${selectedFormId}`, { replace: true })
+      // Only update URL if there's no selected response (with ticket number)
+      // This prevents overwriting the URL with ticket number
+      if (!selectedResponse) {
+        navigate(`/forms/${selectedFormId}`, { replace: true })
+      }
     } else if (!loading) {
       navigate('/', { replace: true })
     }
-  }, [selectedFormId, navigate, loading, hasAnyForms])
+  }, [selectedFormId, navigate, loading, hasAnyForms, selectedResponse])
 
   // Check if form has any responses
   useEffect(() => {
@@ -795,6 +800,65 @@ export function Dashboard({ initialFormId }: DashboardProps) {
     }
   };
 
+  // Handle URL navigation when selecting a response
+  const handleResponseSelect = (response: FeedbackResponse | null) => {
+    setSelectedResponse(response);
+    
+    // Update URL to include ticket number if a response is selected
+    if (response && selectedFormId) {
+      navigate(`/forms/${selectedFormId}/ticket/${response.ticket_number}`, { replace: true });
+    } else if (selectedFormId) {
+      // If no response selected, just show form URL
+      navigate(`/forms/${selectedFormId}`, { replace: true });
+    }
+  };
+
+  // Use initialTicketNumber to load the correct feedback
+  useEffect(() => {
+    // Skip if no form ID or ticket number
+    if (!selectedFormId || !initialTicketNumber) return;
+
+    const fetchTicket = async () => {
+      try {
+        // Find feedback with matching ticket number
+        const { data, error } = await supabase
+          .from('feedback')
+          .select('*')
+          .eq('form_id', selectedFormId)
+          .eq('ticket_number', initialTicketNumber)
+          .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Also fetch the tag if it exists
+          if (data[0].tag_id) {
+            const { data: tagData } = await supabase
+              .from('feedback_tags')
+              .select('*')
+              .eq('id', data[0].tag_id)
+              .limit(1);
+
+            if (tagData && tagData.length > 0) {
+              setSelectedResponse({
+                ...data[0],
+                tag: tagData[0]
+              });
+              return;
+            }
+          }
+          
+          // If no tag or tag not found
+          setSelectedResponse(data[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching ticket:', error);
+      }
+    };
+
+    fetchTicket();
+  }, [selectedFormId, initialTicketNumber]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1233,7 +1297,7 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                     formId={selectedFormId} 
                     statusFilter={typeof activeFilter === 'object' ? 'all' : activeFilter}
                     tagFilter={typeof activeFilter === 'object' ? activeFilter.id : undefined}
-                    onResponseSelect={setSelectedResponse}
+                    onResponseSelect={handleResponseSelect}
                     onSelectionChange={setSelectedBatchIds}
                   />
                 </div>
@@ -1246,7 +1310,9 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   <header className="border-b border-border">
                     <div className="container py-3 px-4">
                       <div className="flex items-center justify-between">
-                        <h2 className="text-base truncate">Conversation</h2>
+                        <h2 className="text-base truncate">
+                          Ticket #{selectedResponse.ticket_number || '-'}
+                        </h2>
                         <div className="flex gap-2">
                           <DropdownMenu open={isStatusDropdownOpen} onOpenChange={handleStatusDropdownOpenChange}>
                             <DropdownMenuTrigger asChild>
@@ -1326,8 +1392,6 @@ export function Dashboard({ initialFormId }: DashboardProps) {
                   </header>
                   <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
                     <div className="space-y-6">
-                      {/* Status section - removed as it's now in the conversation header */}
-                      
                       {/* Tag section */}
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center">

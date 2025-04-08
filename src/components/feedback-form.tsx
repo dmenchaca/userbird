@@ -17,6 +17,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [gifUrls, setGifUrls] = useState<string[]>([])
   const [selectedGifUrl, setSelectedGifUrl] = useState<string | null>(null)
+  const [ticketNumber, setTicketNumber] = useState<number | null>(null)
 
   useEffect(() => {
     // Fetch form settings including GIF URLs when the component mounts
@@ -76,25 +77,30 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const feedbackMessage = message
-    console.log('1. Starting submission, showing success immediately')
+    
+    const feedbackMessage = message.trim()
+    if (!feedbackMessage) {
+      setError(MSG.error.validation)
+      return
+    }
     
     // Select a random GIF if GIFs are enabled
     if (window.UserBird?.showGifOnSuccess) {
       setSelectedGifUrl(selectRandomGif());
     }
     
-    // Immediately show success and clear form
-    setError(null)
     setMessage('')
+    setError(null)
     setShowSuccess(true)
     console.log('2. Success state shown, form cleared')
     
     // Submit in background
     console.log('3. Making API request in background...')
-    const { error: submitError } = await supabase
+    const { data, error: submitError } = await supabase
       .from('feedback')
       .insert([{ form_id: formId, message: feedbackMessage }])
+      .select('ticket_number')
+      .single()
 
     console.log('4. API request completed:', { success: !submitError })
     
@@ -106,6 +112,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
       setError(submitError.message || MSG.error.default)
     } else {
       console.log('5. Submission successful')
+      setTicketNumber(data?.ticket_number || null)
     }
   }
 
@@ -121,6 +128,12 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
               <p className="text-sm text-muted-foreground">
                 {MSG.success.description}
               </p>
+              {ticketNumber && (
+                <div className="mt-2 text-sm">
+                  <span className="font-medium">Your ticket number: </span>
+                  <span className="font-semibold">#{ticketNumber}</span>
+                </div>
+              )}
               {window.UserBird?.showGifOnSuccess && selectedGifUrl && (
                 <img 
                   src={selectedGifUrl} 

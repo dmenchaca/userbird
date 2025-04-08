@@ -463,8 +463,11 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         <div className="flex items-center gap-2">
                           <div className="font-semibold">{formatName(response)}</div>
                         </div>
-                        <div className="ml-auto text-xs text-muted-foreground">
+                        <div className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
                           {formatTimeAgo(response.created_at)}
+                          <span className="inline-flex items-center text-xs text-muted-foreground border border-border rounded px-1.5">
+                            #{response.ticket_number || '-'}
+                          </span>
                         </div>
                       </div>
                     </div>

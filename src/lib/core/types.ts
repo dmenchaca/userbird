@@ -13,4 +13,5 @@ export interface FeedbackError {
 export interface FeedbackResponse {
   success: boolean;
   error?: FeedbackError;
+  ticket_number?: number;
 }
