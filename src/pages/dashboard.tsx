@@ -1208,11 +1208,14 @@ export function Dashboard({ initialFormId }: DashboardProps) {
               <header className="border-b border-border sticky top-0 bg-background z-10">
                 <div className="container py-4 px-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base truncate">
+                    <h2 className="text-base truncate flex items-center gap-2">
                       {typeof activeFilter === 'object' && activeFilter.type === 'tag' 
                         ? `Tag: ${activeFilter.name}`
                         : activeFilter === 'open' 
-                          ? 'Inbox' 
+                          ? <>
+                              <Inbox className="h-4 w-4" />
+                              <span>Inbox</span>
+                            </>
                           : activeFilter === 'closed' 
                             ? 'Closed' 
                             : 'All Feedback'}
