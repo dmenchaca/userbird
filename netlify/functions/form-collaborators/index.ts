@@ -6,6 +6,12 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Service role client to bypass RLS for administratve operations
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const serviceClient = serviceRoleKey 
+  ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+  : null;
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -14,19 +20,27 @@ const headers = {
 
 // Helper to check if user is authorized to manage collaborators
 async function isAuthorized(formId: string, userId: string): Promise<boolean> {
+  console.log(`Checking authorization for form: ${formId}, user: ${userId}`);
+  
   // Check if user is owner
-  const { data: form } = await supabase
+  const { data: form, error: formError } = await supabase
     .from('forms')
     .select('owner_id')
     .eq('id', formId)
     .single();
+
+  if (formError) {
+    console.error('Error checking form ownership:', formError);
+  }
+
+  console.log('Form owner check:', form?.owner_id, 'Current user:', userId, 'Is owner?', form?.owner_id === userId);
 
   if (form?.owner_id === userId) {
     return true;
   }
 
   // Check if user is admin collaborator
-  const { data: collaborator } = await supabase
+  const { data: collaborator, error: collabError } = await supabase
     .from('form_collaborators')
     .select('role')
     .eq('form_id', formId)
@@ -34,25 +48,38 @@ async function isAuthorized(formId: string, userId: string): Promise<boolean> {
     .eq('role', 'admin')
     .single();
 
+  if (collabError) {
+    console.error('Error checking admin collaborator status:', collabError);
+  }
+
+  console.log('Admin check result:', !!collaborator, 'Collaborator data:', collaborator);
+  
   return !!collaborator;
 }
 
 // Function to invite a user to collaborate on a form
 async function inviteCollaborator(formId: string, inviterUserId: string, email: string, role: 'admin' | 'agent') {
   try {
+    console.log(`Inviting user with email ${email} as ${role} to form ${formId} by user ${inviterUserId}`);
+    
     // We can't directly query auth.users, so we'll use a more compatible approach
     // Try to find the user by email in profiles if it exists, or just proceed with email
     let existingUserId = null;
     
     // If you have a profiles table that stores user emails, use this approach
     try {
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, email')
         .eq('email', email)
         .limit(1);
+      
+      if (profileError) {
+        console.error('Error finding user by email:', profileError);
+      }
         
       existingUserId = profiles?.[0]?.id;
+      console.log('Found existing user?', !!existingUserId, 'User ID:', existingUserId);
     } catch (profileErr) {
       console.warn("Error or no profiles table:", profileErr);
       // Continue without user ID - they'll get an email invite
@@ -70,15 +97,24 @@ async function inviteCollaborator(formId: string, inviterUserId: string, email: 
       updated_at: new Date().toISOString()
     };
     
-    const { data, error } = await supabase
+    console.log('Attempting to insert collaborator with data:', JSON.stringify(collaboratorData));
+    
+    // Try using service role client to bypass RLS if available
+    const client = serviceClient || supabase;
+    console.log('Using service client bypass:', !!serviceClient);
+    
+    const { data, error } = await client
       .from('form_collaborators')
       .insert(collaboratorData)
       .select();
       
     if (error) {
       console.error("Supabase error adding collaborator:", error);
+      console.error("Error details:", JSON.stringify(error));
       return { success: false, error: error.message };
     }
+    
+    console.log('Successfully added collaborator:', data);
     
     // TODO: Send email invitation
     
@@ -146,9 +182,14 @@ const handler: Handler = async (event, context) => {
     
     // POST /form-collaborators/{formId} - Invite collaborator
     if (event.httpMethod === 'POST' && formId && !collaboratorId) {
+      console.log(`Processing POST request to invite collaborator to form ${formId}`);
+      
       // Check if user is authorized to invite
       const authorized = await isAuthorized(formId, user.id);
+      console.log(`User ${user.id} authorization result:`, authorized);
+      
       if (!authorized) {
+        console.log(`User ${user.id} not authorized to invite collaborators to form ${formId}`);
         return {
           statusCode: 403,
           headers,
@@ -158,8 +199,10 @@ const handler: Handler = async (event, context) => {
       
       const body = JSON.parse(event.body || '{}');
       const { email, role } = body;
+      console.log(`Parsed request body:`, { email, role });
       
       if (!email || !role || !['admin', 'agent'].includes(role)) {
+        console.log(`Invalid request parameters:`, { email, role });
         return {
           statusCode: 400,
           headers,
@@ -168,6 +211,7 @@ const handler: Handler = async (event, context) => {
       }
       
       const result = await inviteCollaborator(formId, user.id, email, role);
+      console.log(`Invitation result:`, result);
       
       if (!result.success) {
         return {
