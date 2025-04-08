@@ -39,39 +39,53 @@ async function isAuthorized(formId: string, userId: string): Promise<boolean> {
 
 // Function to invite a user to collaborate on a form
 async function inviteCollaborator(formId: string, inviterUserId: string, email: string, role: 'admin' | 'agent') {
-  // Check if user with this email already exists
-  const { data: existingUsers } = await supabase
-    .from('auth.users')
-    .select('id, email')
-    .eq('email', email)
-    .limit(1);
-
-  const existingUser = existingUsers?.[0];
-  
-  // Create collaborator record
-  const collaboratorData = {
-    form_id: formId,
-    user_id: existingUser?.id || null,
-    role,
-    invited_by: inviterUserId,
-    invitation_email: email,
-    invitation_accepted: !!existingUser, // Auto-accepted if user exists
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-  
-  const { data, error } = await supabase
-    .from('form_collaborators')
-    .insert(collaboratorData)
-    .select();
+  try {
+    // We can't directly query auth.users, so we'll use a more compatible approach
+    // Try to find the user by email in profiles if it exists, or just proceed with email
+    let existingUserId = null;
     
-  if (error) {
+    // If you have a profiles table that stores user emails, use this approach
+    try {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+        
+      existingUserId = profiles?.[0]?.id;
+    } catch (profileErr) {
+      console.warn("Error or no profiles table:", profileErr);
+      // Continue without user ID - they'll get an email invite
+    }
+    
+    // Create collaborator record
+    const collaboratorData = {
+      form_id: formId,
+      user_id: existingUserId,
+      role,
+      invited_by: inviterUserId,
+      invitation_email: email,
+      invitation_accepted: !!existingUserId, // Auto-accepted if user exists
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('form_collaborators')
+      .insert(collaboratorData)
+      .select();
+      
+    if (error) {
+      return { success: false, error };
+    }
+    
+    // TODO: Send email invitation
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error in inviteCollaborator:", error);
     return { success: false, error };
   }
-  
-  // TODO: Send email invitation
-  
-  return { success: true, data };
 }
 
 // Main handler function
