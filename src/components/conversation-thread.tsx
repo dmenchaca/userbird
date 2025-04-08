@@ -460,58 +460,32 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
       }} />
       
       {/* Main conversation area - scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Initial message */}
-        <div className="p-2 rounded-lg text-sm overflow-hidden bg-muted mr-6">
-          <div className="flex justify-between items-center mb-1">
-            <span className="font-medium text-xs">{response.user_name || 'Anonymous'}</span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(response.created_at).toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              })}
-            </span>
-          </div>
-          <div 
-            className="overflow-x-auto break-words whitespace-pre-line email-content" 
-            dangerouslySetInnerHTML={{ __html: response.message }} 
-          />
-        </div>
-        
-        {/* Reply messages */}
-        {replies.map((reply) => {
-          const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
-          const isExpanded = expandedReplies.has(reply.id);
-          
-          return (
-            <div
-              key={reply.id}
-              className={`p-2 rounded-lg text-sm overflow-hidden ${
-                reply.sender_type === 'admin' 
-                  ? 'bg-primary/10 ml-6' 
-                  : 'bg-muted mr-6'
-              }`}
-            >
-              <div className="flex justify-between items-center mb-1">
-                <span className="font-medium text-xs flex items-center">
-                  {reply.sender_type === 'admin' ? (
-                    <span className="flex items-center gap-1.5">
-                      <Avatar className="h-5 w-5 rounded-full">
-                        {adminAvatarUrl ? (
-                          <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
-                        ) : (
-                          <AvatarFallback className="rounded-full text-[10px]">{adminInitials}</AvatarFallback>
-                        )}
-                      </Avatar>
-                      {adminName}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
+        <div className="max-w-[40rem] mx-auto w-full space-y-6">
+          {/* Initial message */}
+          <div className="border border-border rounded-md overflow-hidden bg-background">
+            <div className="border-b border-border bg-muted/20 px-4 py-3">
+              <div className="flex justify-between items-start">
+                <div className="flex gap-3">
+                  <Avatar className="h-8 w-8 rounded-full bg-muted">
+                    <AvatarFallback className="rounded-full text-xs">
+                      {(response.user_name?.[0] || 'A').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium flex items-center gap-1">
+                      {response.user_name || 'Anonymous'} 
+                      {response.user_email && (
+                        <span className="text-xs text-muted-foreground">&lt;{response.user_email}&gt;</span>
+                      )}
                     </span>
-                  ) : (response.user_name || 'Anonymous')}
-                </span>
+                    <div className="text-xs text-muted-foreground">
+                      To: support@userbird.co
+                    </div>
+                  </div>
+                </div>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(reply.created_at).toLocaleString('en-US', {
+                  {new Date(response.created_at).toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     hour: 'numeric',
@@ -520,129 +494,217 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                   })}
                 </span>
               </div>
-              
-              {reply.html_content ? (
-                <div className="space-y-2 overflow-hidden">
-                  {/* Show the main content */}
-                  <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
-                  
-                  {/* Show quoted content if it exists and is expanded */}
-                  {quotedContent && (
-                    <div style={{ marginTop: '16px' }}>
-                      <button
-                        onClick={() => toggleQuotedContent(reply.id)}
-                        className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {isExpanded ? (
-                          <>
-                            <FoldVertical className="h-3 w-3 mr-1" />
-                            Hide quoted text
-                          </>
-                        ) : (
-                          <>
-                            <UnfoldVertical className="h-3 w-3 mr-1" />
-                            Show quoted text
-                          </>
-                        )}
-                      </button>
-                      
-                      {isExpanded && (
-                        <div 
-                          className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
-                          dangerouslySetInnerHTML={{ __html: quotedContent }}
-                        />
+            </div>
+            <div className="p-3 text-sm email-content" 
+              dangerouslySetInnerHTML={{ __html: response.message }} 
+            />
+          </div>
+          
+          {/* Reply messages */}
+          {replies.map((reply) => {
+            const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
+            const isExpanded = expandedReplies.has(reply.id);
+            
+            return (
+              <div
+                key={reply.id}
+                className="border border-border rounded-md overflow-hidden bg-background"
+              >
+                <div className={`border-b border-border ${reply.sender_type === 'admin' ? 'bg-primary/5' : 'bg-muted/20'} px-4 py-3`}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex gap-3">
+                      {reply.sender_type === 'admin' ? (
+                        <Avatar className="h-8 w-8 rounded-full">
+                          {adminAvatarUrl ? (
+                            <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                          ) : (
+                            <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
+                          )}
+                        </Avatar>
+                      ) : (
+                        <Avatar className="h-8 w-8 rounded-full bg-muted">
+                          <AvatarFallback className="rounded-full text-xs">
+                            {(response.user_name?.[0] || 'A').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                       )}
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium flex items-center gap-1">
+                          {reply.sender_type === 'admin' ? (
+                            <>
+                              {adminName} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                            </>
+                          ) : (
+                            <>
+                              {response.user_name || 'Anonymous'} 
+                              {response.user_email && (
+                                <span className="text-xs text-muted-foreground">&lt;{response.user_email}&gt;</span>
+                              )}
+                            </>
+                          )}
+                        </span>
+                        <div className="text-xs text-muted-foreground">
+                          {reply.sender_type === 'admin' ? (
+                            <>To: {response.user_name || 'Anonymous'} {response.user_email && `<${response.user_email}>`}</>
+                          ) : (
+                            <>To: support@userbird.co</>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(reply.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="p-3 text-sm">
+                  {reply.html_content ? (
+                    <div className="space-y-2 overflow-hidden">
+                      {/* Show the main content */}
+                      <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
+                      
+                      {/* Show quoted content if it exists and is expanded */}
+                      {quotedContent && (
+                        <div style={{ marginTop: '16px' }}>
+                          <button
+                            onClick={() => toggleQuotedContent(reply.id)}
+                            className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <FoldVertical className="h-3 w-3 mr-1" />
+                                Hide quoted text
+                              </>
+                            ) : (
+                              <>
+                                <UnfoldVertical className="h-3 w-3 mr-1" />
+                                Show quoted text
+                              </>
+                            )}
+                          </button>
+                          
+                          {isExpanded && (
+                            <div 
+                              className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
+                              dangerouslySetInnerHTML={{ __html: quotedContent }}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap break-words">{reply.content}</p>
+                  )}
+                  
+                  {/* Display attachments */}
+                  {reply.attachments && reply.attachments.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-border">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                        <Paperclip size={12} />
+                        <span>Attachments ({reply.attachments.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {reply.attachments.map(attachment => (
+                          <div key={attachment.id} className="relative group">
+                            {attachment.content_type.startsWith('image/') ? (
+                              <a 
+                                href={attachment.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block border rounded overflow-hidden hover:opacity-90 transition-opacity"
+                              >
+                                <img 
+                                  src={attachment.url} 
+                                  alt={attachment.filename}
+                                  className="w-16 h-16 object-cover"
+                                />
+                              </a>
+                            ) : (
+                              <a
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 p-2 border rounded hover:bg-muted transition-colors"
+                              >
+                                <Paperclip size={14} />
+                                <span className="text-xs truncate max-w-[120px]">
+                                  {attachment.filename}
+                                </span>
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-              ) : (
-                <p className="whitespace-pre-wrap break-words">{reply.content}</p>
-              )}
-              
-              {/* Display attachments */}
-              {reply.attachments && reply.attachments.length > 0 && (
-                <div className="mt-2">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                    <Paperclip size={12} />
-                    <span>Attachments</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {reply.attachments.map(attachment => (
-                      <div key={attachment.id} className="relative group">
-                        {attachment.content_type.startsWith('image/') ? (
-                          <a 
-                            href={attachment.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="block border rounded overflow-hidden hover:opacity-90 transition-opacity"
-                          >
-                            <img 
-                              src={attachment.url} 
-                              alt={attachment.filename}
-                              className="w-16 h-16 object-cover"
-                            />
-                          </a>
-                        ) : (
-                          <a
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 p-2 border rounded hover:bg-muted transition-colors"
-                          >
-                            <Paperclip size={14} />
-                            <span className="text-xs truncate max-w-[120px]">
-                              {attachment.filename}
-                            </span>
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
       
       {/* Reply section - sticky at bottom */}
       {response.user_email && (
-        <div className="p-4 border-t sticky bottom-0 bg-background flex-shrink-0">
-          <div className="flex flex-col">
-            <div className="text-xs mb-2 text-muted-foreground">
-              <span>
-                Reply to <strong className="break-all">{response.user_email}</strong>
-              </span>
-            </div>
-            <div className="mb-2">
-              <TiptapEditor
-                value={replyContent}
-                onChange={setReplyContent}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your reply..."
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => replyContent.trim() 
-                  ? handleCloseFeedback(true) 
-                  : handleCloseFeedback(false)}
-                disabled={isSubmitting}
-              >
-                {replyContent.trim() ? 'Close with reply' : 'Close'} 
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSendReply}
-                disabled={!replyContent.trim() || isSubmitting}
-              >
-                <Send className="h-3 w-3 mr-1" /> Send
-                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground flex items-center">
-                  {navigator.platform.includes('Mac') ? <Command className="inline h-3 w-3" /> : 'Ctrl'} <CornerDownLeft className="inline h-3 w-3 ml-0.5" />
-                </span>
-              </Button>
+        <div className="p-4 sticky bottom-0 bg-muted/20 flex-shrink-0">
+          <div className="max-w-[40rem] mx-auto w-full">
+            <div className="rounded-md overflow-hidden">
+              <div className="flex items-center px-0 py-1">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-7 w-7 rounded-full">
+                    {adminAvatarUrl ? (
+                      <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                    ) : (
+                      <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
+                    )}
+                  </Avatar>
+                  <span className="text-sm font-medium">
+                    Reply as {adminName} <span className="text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                  </span>
+                </div>
+              </div>
+              <div className="py-2">
+                <div className="p-[1px]">
+                  <TiptapEditor
+                    value={replyContent}
+                    onChange={setReplyContent}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your reply..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between items-center px-0 py-1">
+                <div></div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => replyContent.trim() 
+                      ? handleCloseFeedback(true) 
+                      : handleCloseFeedback(false)}
+                    disabled={isSubmitting}
+                  >
+                    {replyContent.trim() ? 'Close with reply' : 'Close'} 
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSendReply}
+                    disabled={!replyContent.trim() || isSubmitting}
+                  >
+                    <Send className="h-3 w-3 mr-1" /> Send
+                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground flex items-center">
+                      {navigator.platform.includes('Mac') ? <Command className="inline h-3 w-3" /> : 'Ctrl'} <CornerDownLeft className="inline h-3 w-3 ml-0.5" />
+                    </span>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

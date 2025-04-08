@@ -1268,7 +1268,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       <main className="ml-[240px] flex-1 flex overflow-hidden h-screen">
         {selectedFormId && (
           <>
-            <div className="w-[30%] inbox-wrapper flex flex-col min-w-0 max-w-full h-full overflow-hidden">
+            <div className="w-[30%] inbox-wrapper flex flex-col min-w-0 h-full overflow-hidden" style={{ maxWidth: "400px" }}>
               <header className="border-b border-border sticky top-0 bg-background z-10">
                 <div className="container py-4 px-4">
                   <div className="flex items-center justify-between">
@@ -1306,7 +1306,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             
             {selectedResponse ? (
               <>
-                <div className="w-[43%] conversation-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
+                <div className="flex-1 conversation-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
                   <header className="border-b border-border">
                     <div className="container py-3 px-4">
                       <div className="flex items-center justify-between">
@@ -1382,7 +1382,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   </div>
                 </div>
                 
-                <div className="hidden md:block w-[27%] flex-shrink-0 details-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
+                <div className="hidden md:block w-[27%] flex-shrink-0 details-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col" style={{ maxWidth: "400px" }}>
                   <header className="border-b border-border">
                     <div className="container py-4 px-4">
                       <div className="flex items-center justify-between">
@@ -1524,14 +1524,15 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                           </p>
                         </div>
                         
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => handleResponseDelete(selectedResponse.id)}
-                        >
-                          Delete Feedback
-                        </Button>
+                        <div className="flex justify-start">
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleResponseDelete(selectedResponse.id)}
+                          >
+                            Delete Feedback
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

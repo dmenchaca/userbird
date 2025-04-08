@@ -434,12 +434,17 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           )}
           <div className="flex flex-col gap-4">
             {filteredResponses.map((response, index) => (
-              <div
+              <button
                 key={response.id}
                 className={cn(
                   "flex flex-col rounded-lg border p-3 text-left text-sm transition-all w-full",
                   selectedIds.includes(response.id) ? "bg-primary/5 border-primary/20" : "hover:bg-accent"
                 )}
+                onClick={() => {
+                  if (onResponseSelect) {
+                    onResponseSelect(response);
+                  }
+                }}
               >
                 <div className="flex items-start gap-3 w-full">
                   <div className="flex-shrink-0 pt-0.5">
@@ -450,14 +455,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                       aria-label={`Select ${formatName(response)}'s feedback`}
                     />
                   </div>
-                  <button
-                    className="flex flex-col items-start gap-2 w-full"
-                    onClick={() => {
-                      if (onResponseSelect) {
-                        onResponseSelect(response);
-                      }
-                    }}
-                  >
+                  <div className="flex flex-col items-start gap-2 w-full">
                     <div className="flex w-full flex-col gap-1">
                       <div className="flex items-center">
                         <div className="flex items-center gap-2">
@@ -503,9 +501,9 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         </div>
                       )}
                     </div>
-                  </button>
+                  </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </>
