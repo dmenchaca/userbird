@@ -70,57 +70,52 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         .order('created_at', { ascending: false });
 
       if (ownedError) {
-        throw ownedError;
+        console.error('Error fetching owned forms:', ownedError);
+        // Continue with empty array for owned forms
       }
 
-      // Note: Due to RLS recursion issues, we'll temporarily skip fetching collaborated forms
-      // and only show forms the user owns
-      setForms(ownedForms || []);
-      setLoading(false);
-      return;
-
-      // The code below is commented out temporarily due to the RLS recursion issue
-      /*
-      // Then get all forms where user is a collaborator
-      const { data: collaboratedForms, error: collabError } = await supabase
-        .from('form_collaborators')
-        .select(`
-          form_id
-        `)
-        .eq('user_id', userId)
-        .eq('invitation_accepted', true);
-
-      if (collabError) {
-        throw collabError;
-      }
-
-      // Get details for the forms user is collaborator on
-      let collaboratedFormsData: Form[] = [];
-      if (collaboratedForms && collaboratedForms.length > 0) {
-        const formIds = collaboratedForms.map(collab => collab.form_id);
-        const { data: formDetails, error: formDetailsError } = await supabase
-          .from('forms')
-          .select(`
-            id,
-            url,
-            created_at,
-            feedback:feedback(count)
-          `)
-          .in('id', formIds);
-          
-        if (formDetailsError) {
-          console.error('Error fetching collaborator form details:', formDetailsError);
-        } else {
-          collaboratedFormsData = formDetails || [];
-        }
-      }
-
-      // Create a set of form IDs we already have
-      const formIds = new Set((ownedForms || []).map(form => form.id));
+      // Handle the forms user is a collaborator using a different approach
+      // that avoids the RLS recursion issue
+      let collaboratedForms: Form[] = [];
       
-      // Add forms that aren't duplicates (though there shouldn't be any with this approach)
-      const uniqueCollaboratedForms = collaboratedFormsData.filter(
-        form => !formIds.has(form.id)
+      try {
+        // First get just the form IDs where user is a collaborator
+        const { data: collabData, error: collabError } = await supabase
+          .rpc('get_user_collaboration_forms', { 
+            user_id_param: userId 
+          });
+          
+        if (collabError) {
+          console.error('Error fetching collaborator forms:', collabError);
+        } else if (collabData && collabData.length > 0) {
+          // Now get the details for these forms without using the problematic join
+          const { data: formDetails, error: formDetailsError } = await supabase
+            .from('forms')
+            .select(`
+              id,
+              url,
+              created_at,
+              feedback:feedback(count)
+            `)
+            .in('id', collabData);
+            
+          if (formDetailsError) {
+            console.error('Error fetching collaborator form details:', formDetailsError);
+          } else {
+            collaboratedForms = formDetails || [];
+          }
+        }
+      } catch (collabFetchError) {
+        console.error('Error in collaborator forms fetch process:', collabFetchError);
+        // Continue with empty array for collaborator forms
+      }
+
+      // Create a set of form IDs we already have to avoid duplicates
+      const ownedFormIds = new Set((ownedForms || []).map(form => form.id));
+      
+      // Filter out any collaborator forms that the user also owns
+      const uniqueCollaboratedForms = collaboratedForms.filter(
+        form => !ownedFormIds.has(form.id)
       );
       
       // Combine and sort by created_at
@@ -128,7 +123,6 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
       setForms(allForms);
-      */
     } catch (error) {
       console.error('Error fetching forms:', error);
       // Fallback to empty array if there's an error
