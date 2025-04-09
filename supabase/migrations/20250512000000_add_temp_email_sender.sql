@@ -74,14 +74,14 @@ BEGIN
     WHERE proname = 'cleanup_old_temp_email_sender'
   ) THEN
     CREATE OR REPLACE FUNCTION cleanup_old_temp_email_sender()
-    RETURNS TRIGGER AS $$
+    RETURNS TRIGGER AS $func$
     BEGIN
       -- Delete entries older than one hour
       DELETE FROM temp_email_sender
       WHERE created_at < NOW() - INTERVAL '1 hour';
       RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql;
+    $func$ LANGUAGE plpgsql;
   END IF;
 END $$;
 

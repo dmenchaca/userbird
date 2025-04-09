@@ -518,9 +518,17 @@ BEGIN
     SELECT 1 FROM pg_class
     WHERE relname = 'notification_settings'
     AND relnamespace = 'public'::regnamespace
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'valid_notification_attributes'
+    AND conrelid = 'public.notification_settings'::regclass
   ) THEN
-    EXECUTE $policy$DROP POLICY IF EXISTS "Service role can read notification settings" ON public.notification_settings$policy$;
-    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to notification_settings" ON public.notification_settings$policy$;
+    ALTER TABLE "public"."notification_settings" 
+      ADD CONSTRAINT "valid_notification_attributes" 
+      CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
+    
+    ALTER TABLE "public"."notification_settings" 
+      VALIDATE CONSTRAINT "valid_notification_attributes";
   END IF;
 END $$;
 
@@ -665,26 +673,6 @@ BEGIN
     
     ALTER TABLE "public"."temp_email_sender" 
       VALIDATE CONSTRAINT "temp_email_sender_feedback_id_fkey";
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_class
-    WHERE relname = 'notification_settings'
-    AND relnamespace = 'public'::regnamespace
-  ) AND NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'valid_notification_attributes'
-    AND conrelid = 'public.notification_settings'::regclass
-  ) THEN
-    ALTER TABLE "public"."notification_settings" 
-      ADD CONSTRAINT "valid_notification_attributes" 
-      CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
-    
-    ALTER TABLE "public"."notification_settings" 
-      VALIDATE CONSTRAINT "valid_notification_attributes";
   END IF;
 END $$;
 
@@ -916,22 +904,6 @@ BEGIN
     
     ALTER TABLE "public"."temp_email_sender" 
       VALIDATE CONSTRAINT "temp_email_sender_feedback_id_fkey";
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_class
-    WHERE relname = 'notification_settings'
-    AND relnamespace = 'public'::regnamespace
-  ) THEN
-    ALTER TABLE "public"."notification_settings" 
-      ADD CONSTRAINT "valid_notification_attributes" 
-      CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
-    
-    ALTER TABLE "public"."notification_settings" 
-      VALIDATE CONSTRAINT "valid_notification_attributes";
   END IF;
 END $$;
 
