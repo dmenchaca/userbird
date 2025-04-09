@@ -63,26 +63,23 @@ async function inviteCollaborator(formId: string, inviterUserId: string, email: 
   try {
     console.log(`Inviting user with email ${email} as ${role} to form ${formId} by user ${inviterUserId}`);
     
-    // We can't directly query auth.users, so we'll use a more compatible approach
-    // Try to find the user by email in profiles if it exists, or just proceed with email
-    let existingUserId = null;
+    // Try to find the user by email using our helper function
+    let existingUserId: string | null = null;
     
-    // If you have a profiles table that stores user emails, use this approach
     try {
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .eq('email', email)
-        .limit(1);
+      // Use RPC to find user by email
+      const { data, error } = await supabase.rpc('get_user_id_by_email', {
+        email_param: email
+      });
       
-      if (profileError) {
-        console.error('Error finding user by email:', profileError);
+      if (error) {
+        console.error('Error finding user by email:', error);
+      } else {
+        existingUserId = data;
+        console.log('Found existing user?', !!existingUserId, 'User ID:', existingUserId);
       }
-        
-      existingUserId = profiles?.[0]?.id;
-      console.log('Found existing user?', !!existingUserId, 'User ID:', existingUserId);
-    } catch (profileErr) {
-      console.warn("Error or no profiles table:", profileErr);
+    } catch (userErr) {
+      console.error("Error finding user:", userErr);
       // Continue without user ID - they'll get an email invite
     }
     
@@ -100,25 +97,15 @@ async function inviteCollaborator(formId: string, inviterUserId: string, email: 
     
     console.log('Attempting to insert collaborator with data:', JSON.stringify(collaboratorData));
     
-    // First try with regular client
-    let result = await supabase
+    // Use service client to bypass RLS
+    const useServiceClient = true; // Always use service client for now
+    console.log('Using service client bypass:', useServiceClient);
+    
+    // Use service client directly to insert the collaborator
+    let result = await serviceClient
       .from('form_collaborators')
       .insert(collaboratorData)
       .select();
-    
-    // If that fails with an RLS error, try with service role client
-    if (result.error && (
-        result.error.message.includes('row-level security') || 
-        result.error.message.includes('new row violates row-level security policy')
-      )) {
-      console.log('RLS error detected, trying with service role client');
-      
-      // Use service client to bypass RLS
-      result = await serviceClient
-        .from('form_collaborators')
-        .insert(collaboratorData)
-        .select();
-    }
     
     if (result.error) {
       console.error("Error adding collaborator:", result.error);
