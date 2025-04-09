@@ -55,6 +55,7 @@ export function FormsDropdown({
   useEffect(() => {
     if (!user?.id) return;
     const userId = user.id;
+    console.log('User ID for forms fetch:', userId);
 
     async function fetchForms() {
       try {
@@ -86,9 +87,11 @@ export function FormsDropdown({
               user_id_param: userId 
             });
             
+          console.log('Collaboration forms data returned from RPC:', collabData);
+            
           if (collabError) {
             console.error('Error fetching collaborator forms:', collabError);
-          } else if (collabData && collabData.length > 0) {
+          } else if (collabData && Array.isArray(collabData) && collabData.length > 0) {
             // Now get the details for these forms without using the problematic join
             const { data: formDetails, error: formDetailsError } = await supabase
               .from('forms')
@@ -100,11 +103,15 @@ export function FormsDropdown({
               `)
               .in('id', collabData);
               
+            console.log('Form details for collaborator forms:', formDetails);
+              
             if (formDetailsError) {
               console.error('Error fetching collaborator form details:', formDetailsError);
             } else {
               collaboratedForms = formDetails || [];
             }
+          } else {
+            console.log('No collaborator forms found or invalid data returned:', collabData);
           }
         } catch (collabFetchError) {
           console.error('Error in collaborator forms fetch process:', collabFetchError);
@@ -113,15 +120,19 @@ export function FormsDropdown({
 
         // Create a set of form IDs we already have to avoid duplicates
         const ownedFormIds = new Set((ownedForms || []).map(form => form.id));
+        console.log('Owned form IDs:', Array.from(ownedFormIds));
         
         // Filter out any collaborator forms that the user also owns
         const uniqueCollaboratedForms = collaboratedForms.filter(
           form => !ownedFormIds.has(form.id)
         );
+        console.log('Unique collaborator forms after filtering:', uniqueCollaboratedForms);
         
         // Combine and sort by created_at
         const allForms = [...(ownedForms || []), ...uniqueCollaboratedForms]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        console.log('Final combined forms:', allForms);
         
         setForms(allForms || []);
         

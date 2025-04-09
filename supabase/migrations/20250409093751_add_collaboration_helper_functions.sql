@@ -17,11 +17,14 @@ DECLARE
   form_ids TEXT[];
 BEGIN
   -- Query the form_collaborators table directly, bypassing RLS
-  SELECT ARRAY_AGG(form_id)
+  SELECT COALESCE(ARRAY_AGG(form_id), ARRAY[]::TEXT[])
   INTO form_ids
   FROM form_collaborators
   WHERE user_id = user_id_param
     AND invitation_accepted = true;
+  
+  -- For debugging
+  RAISE LOG 'get_user_collaboration_forms called with user_id: % returning forms: %', user_id_param, form_ids;
   
   RETURN form_ids;
 END;
