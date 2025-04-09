@@ -48,7 +48,13 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
 
   // Function to fetch forms - make it available to the subscription
   const fetchForms = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
+    const userId = user.id;
+    console.log("Fetching forms for user ID:", userId); // Debug
     
     try {
       // First get all forms where user is owner
@@ -60,51 +66,59 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           created_at,
           feedback:feedback(count)
         `)
-        .eq('owner_id', user?.id)
+        .eq('owner_id', userId)
         .order('created_at', { ascending: false });
 
       if (ownedError) {
         throw ownedError;
       }
 
+      // Note: Due to RLS recursion issues, we'll temporarily skip fetching collaborated forms
+      // and only show forms the user owns
+      setForms(ownedForms || []);
+      setLoading(false);
+      return;
+
+      // The code below is commented out temporarily due to the RLS recursion issue
+      /*
       // Then get all forms where user is a collaborator
       const { data: collaboratedForms, error: collabError } = await supabase
         .from('form_collaborators')
         .select(`
-          form:forms(
-            id,
-            url,
-            created_at,
-            feedback:feedback(count)
-          )
+          form_id
         `)
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .eq('invitation_accepted', true);
 
       if (collabError) {
         throw collabError;
       }
 
-      // Combine the results, avoiding duplicates
-      // Extract the actual forms from the nested form object and ensure proper typing
-      const collaboratedFormsData = (collaboratedForms || [])
-        .map(item => {
-          // Handle the nested structure from the join
-          const formData = item.form;
-          // Check if it's a single form object or an array
-          if (Array.isArray(formData)) {
-            // If it's an array, take the first item if it exists
-            return formData.length > 0 ? formData[0] as Form : null;
-          }
-          // Otherwise it's a single object
-          return formData as Form;
-        })
-        .filter((form): form is Form => form !== null && form !== undefined);
-        
+      // Get details for the forms user is collaborator on
+      let collaboratedFormsData: Form[] = [];
+      if (collaboratedForms && collaboratedForms.length > 0) {
+        const formIds = collaboratedForms.map(collab => collab.form_id);
+        const { data: formDetails, error: formDetailsError } = await supabase
+          .from('forms')
+          .select(`
+            id,
+            url,
+            created_at,
+            feedback:feedback(count)
+          `)
+          .in('id', formIds);
+          
+        if (formDetailsError) {
+          console.error('Error fetching collaborator form details:', formDetailsError);
+        } else {
+          collaboratedFormsData = formDetails || [];
+        }
+      }
+
       // Create a set of form IDs we already have
       const formIds = new Set((ownedForms || []).map(form => form.id));
       
-      // Add forms that aren't duplicates
+      // Add forms that aren't duplicates (though there shouldn't be any with this approach)
       const uniqueCollaboratedForms = collaboratedFormsData.filter(
         form => !formIds.has(form.id)
       );
@@ -114,8 +128,11 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
       setForms(allForms);
+      */
     } catch (error) {
       console.error('Error fetching forms:', error);
+      // Fallback to empty array if there's an error
+      setForms([]);
     } finally {
       setLoading(false);
     }
@@ -132,6 +149,11 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   useEffect(() => {
     if (!user?.id) return;
     
+    const userId = user.id;
+    
+    // For stable reference inside closure
+    const handleFormSelect = onFormSelect;
+    
     // Subscribe to owned forms changes
     const ownedFormsChannel = supabase
       .channel(`owned_forms_changes_${Math.random()}`)
@@ -141,7 +163,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           event: '*',
           schema: 'public',
           table: 'forms',
-          filter: `owner_id=eq.${user.id}`
+          filter: `owner_id=eq.${userId}`
         },
         (payload: {
           eventType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -158,10 +180,10 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
               if (selectedFormId === payload.old?.id) {
                 if (updatedForms.length > 0) {
                   // Select the first available form
-                  onFormSelect(updatedForms[0].id);
+                  handleFormSelect(updatedForms[0].id);
                 } else if (updatedForms.length === 0) {
                   // No forms left, clear selection
-                  onFormSelect('');
+                  handleFormSelect('');
                 }
               }
               
@@ -199,7 +221,7 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
           event: '*',
           schema: 'public',
           table: 'form_collaborators',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${userId}`
         },
         () => {
           // When collaborator status changes, refresh the forms list

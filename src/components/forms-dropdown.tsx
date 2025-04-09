@@ -74,17 +74,29 @@ export function FormsDropdown({
           throw ownedError;
         }
 
+        // Note: Due to RLS recursion issues, we'll temporarily skip fetching collaborated forms
+        // and only show forms the user owns
+        const allForms = [...(ownedForms || [])];
+        
+        setForms(allForms || []);
+        
+        // Find the currently selected form
+        if (selectedFormId) {
+          const current = allForms?.find(form => form.id === selectedFormId) || null;
+          setCurrentForm(current);
+        } else if (allForms && allForms.length > 0) {
+          setCurrentForm(allForms[0]);
+        }
+        
+        setLoading(false);
+        return;
+
+        // The code below is commented out temporarily due to the RLS recursion issue
+        /*
         // Then get all forms where user is a collaborator
         const { data: collaboratedForms, error: collabError } = await supabase
           .from('form_collaborators')
-          .select(`
-            form:forms(
-              id,
-              url,
-              created_at,
-              feedback:feedback(count)
-            )
-          `)
+          .select(`form_id`)
           .eq('user_id', userId)
           .eq('invitation_accepted', true);
 
@@ -92,32 +104,29 @@ export function FormsDropdown({
           throw collabError;
         }
 
-        // Combine the results, avoiding duplicates
-        // Extract the actual forms from the nested form object and ensure proper typing
-        const collaboratedFormsData = (collaboratedForms || [])
-          .map(item => {
-            // Handle the nested structure from the join
-            const formData = item.form;
-            // Check if it's a single form object or an array
-            if (Array.isArray(formData)) {
-              // If it's an array, take the first item if it exists
-              return formData.length > 0 ? formData[0] as Form : null;
-            }
-            // Otherwise it's a single object
-            return formData as Form;
-          })
-          .filter((form): form is Form => form !== null && form !== undefined);
-        
-        // Create a set of form IDs we already have
-        const formIds = new Set((ownedForms || []).map(form => form.id));
-        
-        // Add forms that aren't duplicates
-        const uniqueCollaboratedForms = collaboratedFormsData.filter(
-          form => !formIds.has(form.id)
-        );
-        
+        // Get details for the forms user is collaborator on
+        let collaboratedFormsData: Form[] = [];
+        if (collaboratedForms && collaboratedForms.length > 0) {
+          const collaboratorFormIds = collaboratedForms.map(collab => collab.form_id);
+          const { data: formDetails, error: formDetailsError } = await supabase
+            .from('forms')
+            .select(`
+              id,
+              url,
+              created_at,
+              feedback:feedback(count)
+            `)
+            .in('id', collaboratorFormIds);
+            
+          if (formDetailsError) {
+            console.error('Error fetching collaborator form details:', formDetailsError);
+          } else {
+            collaboratedFormsData = formDetails || [];
+          }
+        }
+
         // Combine and sort by created_at
-        const allForms = [...(ownedForms || []), ...uniqueCollaboratedForms]
+        const allForms = [...(ownedForms || []), ...collaboratedFormsData]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         
         setForms(allForms || []);
@@ -129,8 +138,10 @@ export function FormsDropdown({
         } else if (allForms && allForms.length > 0) {
           setCurrentForm(allForms[0]);
         }
+        */
       } catch (error) {
         console.error('Error fetching forms:', error);
+        setForms([]);
       } finally {
         setLoading(false);
       }
