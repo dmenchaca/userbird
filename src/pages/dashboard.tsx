@@ -512,8 +512,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           assignee_id: assigneeId,
           assignee: collaborator ? {
             id: collaborator.user_id,
-            email: collaborator.user?.email || collaborator.invitation_email,
-            user_name: collaborator.user?.email?.split('@')[0] // Use first part of email as a basic username
+            email: collaborator.invitation_email,
+            user_name: collaborator.invitation_email.split('@')[0] // Use first part of email as a basic username
           } : null
         });
       }
@@ -714,34 +714,34 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     
     const fetchCollaborators = async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const session = sessionData.session
+        // Fetch collaborators directly from Supabase instead of the Netlify function
+        const { data, error } = await supabase
+          .from('form_collaborators')
+          .select(`
+            id, 
+            form_id, 
+            user_id, 
+            role, 
+            invited_by, 
+            invitation_email, 
+            invitation_accepted
+          `)
+          .eq('form_id', selectedFormId);
         
-        if (!session) {
-          console.error('No active session')
-          return
+        if (error) {
+          console.error('Error fetching collaborators:', error);
+          return;
         }
         
-        const response = await fetch(`/.netlify/functions/form-collaborators/${selectedFormId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch collaborators')
-        }
-        
-        const collaboratorsData = await response.json()
-        setCollaborators(collaboratorsData || [])
+        console.log('Fetched collaborators:', data); // Debug log
+        setCollaborators(data || []);
       } catch (error) {
-        console.error('Error fetching collaborators:', error)
+        console.error('Error fetching collaborators:', error);
       }
-    }
+    };
     
-    fetchCollaborators()
-  }, [selectedFormId, user?.id])
+    fetchCollaborators();
+  }, [selectedFormId, user?.id]);
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -1487,7 +1487,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 <div className="flex items-center">
                                   <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
                                   {selectedResponse.assignee ? 
-                                    selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0] : 
+                                    (selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0]) : 
                                     'Assign'}
                                   <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">
                                     A
@@ -1516,7 +1516,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                   onClick={() => handleAssigneeChange(selectedResponse.id, collaborator.user_id)}
                                 >
                                   <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
-                                  <span>{collaborator.user?.email || collaborator.invitation_email}</span>
+                                  <span>{collaborator.invitation_email || 'Unknown user'}</span>
                                   {selectedResponse.assignee_id === collaborator.user_id && (
                                     <Check className="h-4 w-4 ml-auto" />
                                   )}

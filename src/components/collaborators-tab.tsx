@@ -57,27 +57,30 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
       try {
         setLoading(true)
         
-        const { data: sessionData } = await supabase.auth.getSession()
-        const session = sessionData.session
+        // Fetch collaborators directly from Supabase
+        const { data, error } = await supabase
+          .from('form_collaborators')
+          .select(`
+            id, 
+            form_id, 
+            user_id, 
+            role, 
+            invited_by, 
+            invitation_email, 
+            invitation_accepted,
+            created_at,
+            updated_at
+          `)
+          .eq('form_id', formId);
         
-        if (!session) {
-          toast.error('You must be logged in to manage collaborators')
+        if (error) {
+          console.error('Error fetching collaborators:', error)
+          toast.error('Failed to load collaborators')
           return
         }
         
-        const response = await fetch(`/.netlify/functions/form-collaborators/${formId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch collaborators')
-        }
-        
-        const collaboratorsData = await response.json()
-        setCollaborators(collaboratorsData || [])
+        console.log('Fetched collaborators:', data)
+        setCollaborators(data || [])
       } catch (error) {
         console.error('Error fetching collaborators:', error)
         toast.error('Failed to load collaborators')
@@ -110,39 +113,33 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
     try {
       setInviting(true)
       
-      const { data: sessionData } = await supabase.auth.getSession()
-      const session = sessionData.session
-      
-      if (!session) {
-        toast.error('You must be logged in to invite collaborators')
-        return
-      }
-      
-      const response = await fetch(`/.netlify/functions/form-collaborators/${formId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: inviteEmail,
-          role: inviteRole
-        })
+      // Find existing user by email using RPC (if they exist)
+      const { data: existingUserId } = await supabase.rpc('get_user_id_by_email', {
+        email_param: inviteEmail
       })
       
-      let errorMessage = 'Failed to invite user'
+      // Create collaborator record
+      const { data, error } = await supabase
+        .from('form_collaborators')
+        .insert({
+          form_id: formId,
+          user_id: existingUserId || null,
+          role: inviteRole,
+          invitation_email: inviteEmail,
+          invitation_accepted: !!existingUserId, // Auto-accepted if user exists
+        })
+        .select()
       
-      if (!response.ok) {
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (parseError) {
-          console.error('Error parsing error response:', parseError)
-        }
-        throw new Error(errorMessage)
+      if (error) {
+        console.error('Error inviting collaborator:', error)
+        throw new Error(error.message || 'Failed to invite user')
       }
       
-      const newCollaborator = await response.json()
+      if (!data || data.length === 0) {
+        throw new Error('Failed to create collaborator record')
+      }
+      
+      const newCollaborator = data[0]
       
       // Add new collaborator to the list
       setCollaborators(prev => [...prev, newCollaborator as Collaborator])
@@ -168,31 +165,27 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
   // Handle role change
   const handleRoleChange = async (collaboratorId: string, newRole: 'admin' | 'agent') => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const session = sessionData.session
-      
-      if (!session) {
-        toast.error('You must be logged in to update roles')
-        return
-      }
-      
-      const response = await fetch(`/.netlify/functions/form-collaborators/${formId}/${collaboratorId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          role: newRole
+      // Update collaborator role directly in Supabase
+      const { data, error } = await supabase
+        .from('form_collaborators')
+        .update({ 
+          role: newRole,
+          updated_at: new Date().toISOString()
         })
-      })
+        .eq('id', collaboratorId)
+        .eq('form_id', formId)
+        .select();
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update role')
+      if (error) {
+        console.error('Error updating role:', error)
+        throw new Error(error.message || 'Failed to update role')
       }
       
-      const updatedCollaborator = await response.json()
+      if (!data || data.length === 0) {
+        throw new Error('Failed to update collaborator role')
+      }
+      
+      const updatedCollaborator = data[0]
       
       // Update the collaborator in the list
       setCollaborators(prev => 
@@ -213,24 +206,16 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
     }
     
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const session = sessionData.session
+      // Delete collaborator directly from Supabase
+      const { error } = await supabase
+        .from('form_collaborators')
+        .delete()
+        .eq('id', collaboratorId)
+        .eq('form_id', formId);
       
-      if (!session) {
-        toast.error('You must be logged in to remove collaborators')
-        return
-      }
-      
-      const response = await fetch(`/.netlify/functions/form-collaborators/${formId}/${collaboratorId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to remove collaborator')
+      if (error) {
+        console.error('Error removing collaborator:', error)
+        throw new Error(error.message || 'Failed to remove collaborator')
       }
       
       // Remove the collaborator from the list
