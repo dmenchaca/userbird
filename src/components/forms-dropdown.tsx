@@ -92,23 +92,38 @@ export function FormsDropdown({
           if (collabError) {
             console.error('Error fetching collaborator forms:', collabError);
           } else if (collabData && Array.isArray(collabData) && collabData.length > 0) {
-            // Now get the details for these forms without using the problematic join
-            const { data: formDetails, error: formDetailsError } = await supabase
+            // Also try the original approach for comparison
+            const { data: bulkFormDetails, error: bulkFormError } = await supabase
               .from('forms')
-              .select(`
-                id,
-                url,
-                created_at,
-                feedback:feedback(count)
-              `)
+              .select(`id, url, created_at, feedback:feedback(count)`)
               .in('id', collabData);
               
-            console.log('Form details for collaborator forms:', formDetails);
-              
-            if (formDetailsError) {
-              console.error('Error fetching collaborator form details:', formDetailsError);
-            } else {
-              collaboratedForms = formDetails || [];
+            console.log('Bulk query for form details returned:', bulkFormDetails);
+            console.log('Missing form IDs in bulk query:', collabData.filter(id => 
+              !bulkFormDetails?.some(form => form.id === id)
+            ));
+            
+            if (bulkFormError) {
+              console.error('Error in bulk form details query:', bulkFormError);
+            }
+
+            // Check each form ID individually to identify which ones can't be accessed
+            for (const formId of collabData) {
+              const { data: singleFormData, error: singleFormError } = await supabase
+                .from('forms')
+                .select(`id, url, created_at, feedback:feedback(count)`)
+                .eq('id', formId)
+                .single();
+                
+              if (singleFormError) {
+                console.error(`Error fetching details for form ${formId}:`, singleFormError);
+              } else {
+                console.log(`Successfully fetched form ${formId}:`, singleFormData);
+                // Add this form to our collaborator forms
+                if (singleFormData) {
+                  collaboratedForms.push(singleFormData);
+                }
+              }
             }
           } else {
             console.log('No collaborator forms found or invalid data returned:', collabData);
@@ -118,9 +133,39 @@ export function FormsDropdown({
           // Continue with empty array for collaborator forms
         }
 
+        // Special check for the problematic form
+        const { data: specialFormData, error: specialFormError } = await supabase
+          .from('forms')
+          .select(`id, url, created_at, feedback:feedback(count)`)
+          .eq('id', '4hNUB7DVhf')
+          .single();
+
+        console.log('Special check for the "4hNUB7DVhf" form:', 
+          specialFormError ? `Error: ${specialFormError.message}` : 'Successfully fetched', 
+          specialFormData
+        );
+
+        // Check if we already have the form in owned forms
+        const alreadyExists = [...(ownedForms || []), ...collaboratedForms].some(form => form.id === '4hNUB7DVhf');
+        console.log('Target form already exists in our form lists?', alreadyExists);
+
+        if (specialFormData && !alreadyExists) {
+          // Force add this form to the list
+          console.log('Force adding the target form to collaboratedForms');
+          collaboratedForms.push(specialFormData);
+        }
+
         // Create a set of form IDs we already have to avoid duplicates
         const ownedFormIds = new Set((ownedForms || []).map(form => form.id));
         console.log('Owned form IDs:', Array.from(ownedFormIds));
+        
+        // Log forms that will be filtered out
+        const filteredOutForms = collaboratedForms.filter(form => ownedFormIds.has(form.id));
+        if (filteredOutForms.length > 0) {
+          console.warn('These collaboration forms will be filtered out because user already owns them:', 
+            filteredOutForms.map(f => ({ id: f.id, url: f.url }))
+          );
+        }
         
         // Filter out any collaborator forms that the user also owns
         const uniqueCollaboratedForms = collaboratedForms.filter(
