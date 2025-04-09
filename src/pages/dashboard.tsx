@@ -82,9 +82,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [collaborators, setCollaborators] = useState<{
     id: string
     user_id: string
-    user?: {
-      id: string
+    user_profile?: {
       email: string
+      username: string
+      avatar_url: string | null
     }
     invitation_email: string
     role: 'admin' | 'agent'
@@ -520,8 +521,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           assignee_id: assigneeId,
           assignee: collaborator ? {
             id: collaborator.user_id,
-            email: collaborator.invitation_email,
-            user_name: collaborator.invitation_email.split('@')[0] // Use first part of email as a basic username
+            email: collaborator.user_profile?.email || collaborator.invitation_email,
+            user_name: collaborator.user_profile?.username || collaborator.invitation_email.split('@')[0],
+            avatar_url: collaborator.user_profile?.avatar_url || undefined
           } : null
         });
       }
@@ -741,8 +743,50 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           return;
         }
         
-        console.log('Fetched collaborators:', data); // Debug log
-        setCollaborators(data || []);
+        // Get user profile data for each collaborator
+        const collaboratorsWithProfiles = await Promise.all(
+          (data || []).map(async (collaborator) => {
+            if (collaborator.user_id) {
+              // Try to get user profile from auth.users
+              try {
+                const { data: profileData, error: profileError } = await supabase
+                  .rpc('get_user_profile_by_id', { user_id_param: collaborator.user_id });
+                
+                if (profileError) {
+                  console.error('Error fetching user profile:', profileError);
+                  return collaborator;
+                }
+                
+                if (profileData && profileData.length > 0) {
+                  const profile = profileData[0];
+                  return {
+                    ...collaborator,
+                    user_profile: {
+                      email: profile.email,
+                      username: profile.username || profile.email?.split('@')[0] || 'Unknown user',
+                      avatar_url: profile.avatar_url
+                    }
+                  };
+                }
+              } catch (err) {
+                console.error('Error processing user profile:', err);
+              }
+            }
+            
+            // If no user_id or profile fetch failed, return with basic info
+            return {
+              ...collaborator,
+              user_profile: {
+                email: collaborator.invitation_email,
+                username: collaborator.invitation_email?.split('@')[0] || 'Unknown user',
+                avatar_url: null
+              }
+            };
+          })
+        );
+        
+        console.log('Fetched collaborators with profiles:', collaboratorsWithProfiles);
+        setCollaborators(collaboratorsWithProfiles || []);
       } catch (error) {
         console.error('Error fetching collaborators:', error);
       }
@@ -1483,10 +1527,26 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 justify-between"
                               >
                                 <div className="flex items-center">
-                                  <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
-                                  {selectedResponse.assignee ? 
-                                    (selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0]) : 
-                                    'Assign'}
+                                  {selectedResponse.assignee ? (
+                                    <>
+                                      {/* If we have an avatar URL from the assignee, display it */}
+                                      {selectedResponse.assignee.avatar_url ? (
+                                        <img 
+                                          src={selectedResponse.assignee.avatar_url} 
+                                          alt={selectedResponse.assignee.user_name || ''} 
+                                          className="h-5 w-5 rounded-full mr-2"
+                                        />
+                                      ) : (
+                                        <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                      )}
+                                      {selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0]}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                      Assign
+                                    </>
+                                  )}
                                 </div>
                                 <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 mr-1">
                                   A
@@ -1519,8 +1579,16 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                             setIsAssigneeDropdownOpen(false);
                                           }}
                                         >
-                                          <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
-                                          <span className="flex-1">{collaborator.invitation_email || 'Unknown user'}</span>
+                                          {collaborator.user_profile?.avatar_url ? (
+                                            <img 
+                                              src={collaborator.user_profile.avatar_url} 
+                                              alt={collaborator.user_profile.username}
+                                              className="h-5 w-5 rounded-full mr-2"
+                                            />
+                                          ) : (
+                                            <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                          )}
+                                          <span className="flex-1">{collaborator.user_profile?.username || collaborator.invitation_email}</span>
                                           {selectedResponse.assignee_id === collaborator.user_id && (
                                             <Check className="h-4 w-4 ml-auto" />
                                           )}

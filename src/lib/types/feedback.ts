@@ -20,6 +20,7 @@ export interface FeedbackResponse {
     id: string
     email: string
     user_name?: string
+    avatar_url?: string
   } | null
 }
 
