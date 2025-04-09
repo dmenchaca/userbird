@@ -2,7 +2,7 @@ import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
-import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
+import { format, isToday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
 
