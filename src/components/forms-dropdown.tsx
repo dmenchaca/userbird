@@ -54,10 +54,12 @@ export function FormsDropdown({
   // Fetch forms data
   useEffect(() => {
     if (!user?.id) return;
+    const userId = user.id;
 
     async function fetchForms() {
       try {
-        const { data, error } = await supabase
+        // First get all forms where user is owner
+        const { data: ownedForms, error: ownedError } = await supabase
           .from('forms')
           .select(`
             id,
@@ -65,90 +67,114 @@ export function FormsDropdown({
             created_at,
             feedback:feedback(count)
           `)
-          .eq('owner_id', user?.id)
-          .order('created_at', { ascending: false })
+          .eq('owner_id', userId)
+          .order('created_at', { ascending: false });
 
-        if (error) {
-          throw error;
+        if (ownedError) {
+          throw ownedError;
         }
-        setForms(data || [])
+
+        // Then get all forms where user is a collaborator
+        const { data: collaboratedForms, error: collabError } = await supabase
+          .from('form_collaborators')
+          .select(`
+            form:forms(
+              id,
+              url,
+              created_at,
+              feedback:feedback(count)
+            )
+          `)
+          .eq('user_id', userId)
+          .eq('invitation_accepted', true);
+
+        if (collabError) {
+          throw collabError;
+        }
+
+        // Combine the results, avoiding duplicates
+        // Extract the actual forms from the nested form object and ensure proper typing
+        const collaboratedFormsData = (collaboratedForms || [])
+          .map(item => {
+            // Handle the nested structure from the join
+            const formData = item.form;
+            // Check if it's a single form object or an array
+            if (Array.isArray(formData)) {
+              // If it's an array, take the first item if it exists
+              return formData.length > 0 ? formData[0] as Form : null;
+            }
+            // Otherwise it's a single object
+            return formData as Form;
+          })
+          .filter((form): form is Form => form !== null && form !== undefined);
+        
+        // Create a set of form IDs we already have
+        const formIds = new Set((ownedForms || []).map(form => form.id));
+        
+        // Add forms that aren't duplicates
+        const uniqueCollaboratedForms = collaboratedFormsData.filter(
+          form => !formIds.has(form.id)
+        );
+        
+        // Combine and sort by created_at
+        const allForms = [...(ownedForms || []), ...uniqueCollaboratedForms]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        setForms(allForms || []);
         
         // Find the currently selected form
         if (selectedFormId) {
-          const current = data?.find(form => form.id === selectedFormId) || null
-          setCurrentForm(current)
-        } else if (data && data.length > 0) {
-          setCurrentForm(data[0])
+          const current = allForms?.find(form => form.id === selectedFormId) || null;
+          setCurrentForm(current);
+        } else if (allForms && allForms.length > 0) {
+          setCurrentForm(allForms[0]);
         }
       } catch (error) {
-        console.error('Error fetching forms:', error)
+        console.error('Error fetching forms:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchForms()
-  }, [user?.id, selectedFormId])
-
-  // Set up real-time subscriptions
-  useEffect(() => {
-    if (!user?.id) return;
+    fetchForms();
     
-    // Subscribe to form changes
-    const formsChannel = supabase
-      .channel(`forms_dropdown_changes_${Math.random()}`)
+    // Set up subscriptions to refresh the list when changes happen
+    
+    // Subscribe to owned forms changes
+    const ownedFormsChannel = supabase
+      .channel(`forms_dropdown_owned_${Math.random()}`)
       .on(
-        'postgres_changes' as 'system',
+        'postgres_changes',
         { 
           event: '*',
           schema: 'public',
           table: 'forms',
-          filter: `owner_id=eq.${user.id}`
+          filter: `owner_id=eq.${userId}`
         },
-        (payload: {
-          eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-          old: Form | null;
-          new: Form | null;
-        }) => {
-          setForms(currentForms => {
-            let updatedForms = [...currentForms];
-            
-            if (payload.eventType === 'DELETE') {
-              if (!payload.old) return currentForms;
-              updatedForms = currentForms.filter(form => form.id !== payload.old?.id);
-            }
-
-            if (payload.eventType === 'INSERT') {
-              if (!payload.new) return currentForms;
-              
-              // Check if form already exists
-              if (!currentForms.some(form => form.id === payload.new!.id)) {
-                updatedForms = [payload.new as Form, ...currentForms];
-              }
-            }
-
-            if (payload.eventType === 'UPDATE') {
-              if (!payload.new) return currentForms;
-              updatedForms = currentForms.map(form => 
-                form.id === payload.new?.id ? (payload.new as Form) : form
-              );
-            }
-            
-            // Update current form if needed
-            if (selectedFormId) {
-              const current = updatedForms.find(form => form.id === selectedFormId) || null;
-              setCurrentForm(current);
-            }
-            
-            return updatedForms;
-          });
-        }
-      ).subscribe()
+        () => fetchForms()
+      )
+      .subscribe();
+    
+    // Subscribe to collaborator changes
+    const collabChannel = supabase
+      .channel(`forms_dropdown_collab_${Math.random()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'form_collaborators',
+          filter: `user_id=eq.${userId}`
+        },
+        () => fetchForms()
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(formsChannel)
-    }
-  }, [user?.id, selectedFormId])
+      supabase.removeChannel(ownedFormsChannel);
+      supabase.removeChannel(collabChannel);
+    };
+  }, [user?.id, selectedFormId]);
 
   if (loading) {
     return (

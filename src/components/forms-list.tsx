@@ -46,44 +46,95 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
   const [loading, setLoading] = useState(true)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
 
-  // Fetch initial forms data
-  useEffect(() => {
+  // Function to fetch forms - make it available to the subscription
+  const fetchForms = async () => {
     if (!user?.id) return;
+    
+    try {
+      // First get all forms where user is owner
+      const { data: ownedForms, error: ownedError } = await supabase
+        .from('forms')
+        .select(`
+          id,
+          url,
+          created_at,
+          feedback:feedback(count)
+        `)
+        .eq('owner_id', user?.id)
+        .order('created_at', { ascending: false });
 
-    async function fetchForms() {
-      try {
-        const { data, error } = await supabase
-          .from('forms')
-          .select(`
+      if (ownedError) {
+        throw ownedError;
+      }
+
+      // Then get all forms where user is a collaborator
+      const { data: collaboratedForms, error: collabError } = await supabase
+        .from('form_collaborators')
+        .select(`
+          form:forms(
             id,
             url,
             created_at,
             feedback:feedback(count)
-          `)
-          .eq('owner_id', user?.id)
-          .order('created_at', { ascending: false })
+          )
+        `)
+        .eq('user_id', user?.id)
+        .eq('invitation_accepted', true);
 
-        if (error) {
-          throw error;
-        }
-        setForms(data || [])
-      } catch (error) {
-        console.error('Error fetching forms:', error)
-      } finally {
-        setLoading(false)
+      if (collabError) {
+        throw collabError;
       }
-    }
 
-    fetchForms()
-  }, [user?.id, selectedFormId])
+      // Combine the results, avoiding duplicates
+      // Extract the actual forms from the nested form object and ensure proper typing
+      const collaboratedFormsData = (collaboratedForms || [])
+        .map(item => {
+          // Handle the nested structure from the join
+          const formData = item.form;
+          // Check if it's a single form object or an array
+          if (Array.isArray(formData)) {
+            // If it's an array, take the first item if it exists
+            return formData.length > 0 ? formData[0] as Form : null;
+          }
+          // Otherwise it's a single object
+          return formData as Form;
+        })
+        .filter((form): form is Form => form !== null && form !== undefined);
+        
+      // Create a set of form IDs we already have
+      const formIds = new Set((ownedForms || []).map(form => form.id));
+      
+      // Add forms that aren't duplicates
+      const uniqueCollaboratedForms = collaboratedFormsData.filter(
+        form => !formIds.has(form.id)
+      );
+      
+      // Combine and sort by created_at
+      const allForms = [...(ownedForms || []), ...uniqueCollaboratedForms]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setForms(allForms);
+    } catch (error) {
+      console.error('Error fetching forms:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Call fetchForms when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      fetchForms();
+    }
+  }, [user?.id, selectedFormId]);
 
   // Set up subscriptions
   useEffect(() => {
     if (!user?.id) return;
     
-    // Subscribe to form changes
-    const formsChannel = supabase
-      .channel(`forms_changes_${Math.random()}`)
+    // Subscribe to owned forms changes
+    const ownedFormsChannel = supabase
+      .channel(`owned_forms_changes_${Math.random()}`)
       .on(
         'postgres_changes' as 'system',
         { 
@@ -137,10 +188,28 @@ export function FormsList({ selectedFormId, onFormSelect }: FormsListProps) {
             return currentForms;
           });
         }
-      ).subscribe()
+      ).subscribe();
+
+    // Subscribe to collaborator changes
+    const collaboratorChannel = supabase
+      .channel(`collaborator_changes_${Math.random()}`)
+      .on(
+        'postgres_changes' as 'system',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'form_collaborators',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          // When collaborator status changes, refresh the forms list
+          fetchForms();
+        }
+      ).subscribe();
 
     return () => {
-      supabase.removeChannel(formsChannel)
+      supabase.removeChannel(ownedFormsChannel);
+      supabase.removeChannel(collaboratorChannel);
     }
   }, [user?.id, selectedFormId, onFormSelect])
 
