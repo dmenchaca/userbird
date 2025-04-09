@@ -2,7 +2,7 @@ import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader } from 'lucide-react'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
 
@@ -315,9 +315,15 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   // Helper to format time ago
   const formatTimeAgo = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+      const date = new Date(dateString);
+      
+      if (isToday(date)) {
+        return format(date, 'h:mm a') // Format as "2:04 PM"
+      } else {
+        return format(date, 'MMM d') // Format as "Mar 5"
+      }
     } catch (error) {
-      return 'some time ago'
+      return 'unknown date'
     }
   }
 
@@ -462,10 +468,10 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           <div className="font-semibold">{formatName(response)}</div>
                         </div>
                         <div className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
-                          {formatTimeAgo(response.created_at)}
                           <span className="inline-flex items-center text-xs text-muted-foreground border border-border rounded px-1.5">
                             #{response.ticket_number || '-'}
                           </span>
+                          {formatTimeAgo(response.created_at)}
                         </div>
                       </div>
                     </div>
