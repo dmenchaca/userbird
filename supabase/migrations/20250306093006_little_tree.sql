@@ -4,7 +4,7 @@
   1. New Tables
     - `webhook_settings`
       - `id` (uuid, primary key)
-      - `form_id` (uuid, references forms)
+      - `form_id` (text, references forms)
       - `enabled` (boolean)
       - `url` (text)
       - `created_at` (timestamp)
@@ -17,7 +17,7 @@
 
 CREATE TABLE IF NOT EXISTS webhook_settings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  form_id uuid REFERENCES forms(id) ON DELETE CASCADE,
+  form_id text REFERENCES forms(id) ON DELETE CASCADE,
   enabled boolean DEFAULT false,
   url text,
   created_at timestamptz DEFAULT now(),

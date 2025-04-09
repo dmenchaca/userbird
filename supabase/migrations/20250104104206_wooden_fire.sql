@@ -27,24 +27,63 @@ END $$;
 DROP POLICY IF EXISTS "Allow public form creation" ON forms;
 DROP POLICY IF EXISTS "Allow public form reading" ON forms;
 
--- Create new ownership-based policies
-CREATE POLICY "Allow authenticated users to create forms"
-ON forms FOR INSERT
-TO authenticated
-WITH CHECK (owner_id = auth.uid());
+-- Create new ownership-based policies conditionally
+DO $$
+BEGIN
+  -- Check if policy already exists
+  IF NOT EXISTS (
+    SELECT FROM pg_policies
+    WHERE schemaname = 'public'
+    AND tablename = 'forms'
+    AND policyname = 'Allow authenticated users to create forms'
+  ) THEN
+    -- Create the policy
+    CREATE POLICY "Allow authenticated users to create forms"
+    ON forms FOR INSERT
+    TO authenticated
+    WITH CHECK (owner_id = auth.uid());
+  END IF;
 
-CREATE POLICY "Allow users to read own forms"
-ON forms FOR SELECT
-TO authenticated
-USING (owner_id = auth.uid());
+  -- Check if policy already exists
+  IF NOT EXISTS (
+    SELECT FROM pg_policies
+    WHERE schemaname = 'public'
+    AND tablename = 'forms'
+    AND policyname = 'Allow users to read own forms'
+  ) THEN
+    -- Create the policy
+    CREATE POLICY "Allow users to read own forms"
+    ON forms FOR SELECT
+    TO authenticated
+    USING (owner_id = auth.uid());
+  END IF;
 
-CREATE POLICY "Allow users to delete own forms"
-ON forms FOR DELETE
-TO authenticated
-USING (owner_id = auth.uid());
+  -- Check if policy already exists
+  IF NOT EXISTS (
+    SELECT FROM pg_policies
+    WHERE schemaname = 'public'
+    AND tablename = 'forms'
+    AND policyname = 'Allow users to delete own forms'
+  ) THEN
+    -- Create the policy
+    CREATE POLICY "Allow users to delete own forms"
+    ON forms FOR DELETE
+    TO authenticated
+    USING (owner_id = auth.uid());
+  END IF;
 
--- Keep public access for feedback-related operations
-CREATE POLICY "Allow public to read form settings"
-ON forms FOR SELECT
-TO public
-USING (true);
+  -- Check if policy already exists
+  IF NOT EXISTS (
+    SELECT FROM pg_policies
+    WHERE schemaname = 'public'
+    AND tablename = 'forms'
+    AND policyname = 'Allow public to read form settings'
+  ) THEN
+    -- Create the policy
+    CREATE POLICY "Allow public to read form settings"
+    ON forms FOR SELECT
+    TO public
+    USING (true);
+  END IF;
+END
+$$;
