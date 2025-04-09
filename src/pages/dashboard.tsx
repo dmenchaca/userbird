@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -21,6 +21,14 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 
 interface DashboardProps {
   initialFormId?: string
@@ -801,16 +809,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   };
 
-  const handleAssigneeDropdownOpenChange = (open: boolean) => {
-    setIsAssigneeDropdownOpen(open);
-    
-    // When dropdown is closed, focus on another element (e.g. the trigger)
-    // to avoid keyboard focus remaining inside a now-hidden dropdown
-    if (!open && assigneeDropdownTriggerRef.current) {
-      assigneeDropdownTriggerRef.current.focus();
-    }
-  };
-
   // Add quick tag creation function
   const createQuickTag = async () => {
     if (!selectedFormId || !quickTagName.trim()) return;
@@ -1476,69 +1474,76 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                             </DropdownMenuContent>
                           </DropdownMenu>
                           
-                          <DropdownMenu open={isAssigneeDropdownOpen} onOpenChange={handleAssigneeDropdownOpenChange}>
-                            <DropdownMenuTrigger asChild>
+                          <Popover open={isAssigneeDropdownOpen} onOpenChange={setIsAssigneeDropdownOpen}>
+                            <PopoverTrigger asChild>
                               <Button 
                                 ref={assigneeDropdownTriggerRef}
                                 variant="outline" 
                                 size="sm"
-                                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100"
+                                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 justify-between"
                               >
                                 <div className="flex items-center">
                                   <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
                                   {selectedResponse.assignee ? 
                                     (selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0]) : 
                                     'Assign'}
-                                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">
-                                    A
-                                  </span>
                                 </div>
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 mr-1">
+                                  A
+                                </span>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" 
-                              onKeyDown={(e) => {
-                                // Handle enter key to select the focused item
-                                if (e.key === 'Enter') {
-                                  const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
-                                  if (focusedItem) {
-                                    focusedItem.click();
-                                  }
-                                }
-                              }}
-                            >
-                              {collaborators.filter(c => c.invitation_accepted).map(collaborator => (
-                                <DropdownMenuItem 
-                                  key={collaborator.user_id}
-                                  className={cn(
-                                    "flex items-center cursor-pointer",
-                                    selectedResponse.assignee_id === collaborator.user_id ? "bg-accent" : ""
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0">
+                              <div className="bg-popover rounded-md overflow-hidden">
+                                <div className="flex items-center border-b px-3">
+                                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                  <input 
+                                    className="flex h-9 w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
+                                    placeholder="Search members..."
+                                  />
+                                </div>
+                                <div className="max-h-[300px] overflow-y-auto p-1">
+                                  {collaborators.filter(c => c.invitation_accepted).length === 0 ? (
+                                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                      No members found.
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      {collaborators.filter(c => c.invitation_accepted).map(collaborator => (
+                                        <div 
+                                          key={collaborator.user_id}
+                                          className="flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                          onClick={() => {
+                                            handleAssigneeChange(selectedResponse.id, collaborator.user_id);
+                                            setIsAssigneeDropdownOpen(false);
+                                          }}
+                                        >
+                                          <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                          <span className="flex-1">{collaborator.invitation_email || 'Unknown user'}</span>
+                                          {selectedResponse.assignee_id === collaborator.user_id && (
+                                            <Check className="h-4 w-4 ml-auto" />
+                                          )}
+                                        </div>
+                                      ))}
+                                      
+                                      {selectedResponse.assignee_id && (
+                                        <div 
+                                          className="flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer border-t mt-1 pt-1"
+                                          onClick={() => {
+                                            handleAssigneeChange(selectedResponse.id, null);
+                                            setIsAssigneeDropdownOpen(false);
+                                          }}
+                                        >
+                                          Unassign
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
-                                  onClick={() => handleAssigneeChange(selectedResponse.id, collaborator.user_id)}
-                                >
-                                  <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
-                                  <span>{collaborator.invitation_email || 'Unknown user'}</span>
-                                  {selectedResponse.assignee_id === collaborator.user_id && (
-                                    <Check className="h-4 w-4 ml-auto" />
-                                  )}
-                                </DropdownMenuItem>
-                              ))}
-                              
-                              {collaborators.some(c => c.invitation_accepted) && selectedResponse.assignee_id && (
-                                <DropdownMenuItem 
-                                  className="flex items-center cursor-pointer border-t mt-1 pt-1"
-                                  onClick={() => handleAssigneeChange(selectedResponse.id, null)}
-                                >
-                                  Unassign
-                                </DropdownMenuItem>
-                              )}
-                              
-                              {collaborators.length === 0 && (
-                                <DropdownMenuItem disabled className="text-muted-foreground">
-                                  No team members available
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     </div>
