@@ -1,180 +1,147 @@
 drop trigger if exists "on_form_created_tracking" on "public"."forms";
 
-drop policy "Users can manage their form custom email settings" on "public"."custom_email_settings";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'custom_email_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage their form custom email settings" ON public.custom_email_settings$policy$;
+  END IF;
+END $$;
 
-drop policy "Users can manage their DNS verification records" on "public"."dns_verification_records";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'dns_verification_records'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage their DNS verification records" ON public.dns_verification_records$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow collaborators to view form feedback" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow collaborators to view form feedback" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow feedback to use appropriate tags" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow owners and admin collaborators to delete feedback" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public feedback status update" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow reading feedback by form ID" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow users to update feedback for forms they own or collaborat" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Authenticated users can read all feedback for forms they own" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Collaborators can update feedback" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Public feedback reading" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Public feedback submission" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to feedback" ON public.feedback$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can update their own feedback status and tag" ON public.feedback$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow feedback to use appropriate tags" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public feedback reply reading" ON public.feedback_replies$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public feedback reply submission" ON public.feedback_replies$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow owners and admin collaborators to delete feedback" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_tags'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public reading of feedback tags" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Authenticated users can read all feedback tags for forms they o" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to feedback_tags" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage form tags" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage tags for forms they own or are admins of" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can view global and form tags" ON public.feedback_tags$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can view tags for forms they own or collaborate on" ON public.feedback_tags$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow public feedback status update" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'form_collaborators'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to form_collaborators" ON public.form_collaborators$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow reading feedback by form ID" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'forms'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow authenticated users to create forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow direct owner_id queries" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public form deletion" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public to read form settings" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow reading forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Authenticated users can read all forms they own" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can view forms they own" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Validate form URL on insert" ON public.forms$policy$;
+  END IF;
+END $$;
 
-drop policy "Allow users to update feedback for forms they own or collaborat" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'notification_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Service role can read notification settings" ON public.notification_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to notification_settings" ON public.notification_settings$policy$;
+  END IF;
+END $$;
 
-drop policy "Authenticated users can read all feedback for forms they own" on "public"."feedback";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'webhook_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Admin collaborators can manage webhook settings" ON public.webhook_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Agent collaborators can view webhook settings" ON public.webhook_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage webhook settings for their forms" ON public.webhook_settings$policy$;
+  END IF;
+END $$;
 
-drop policy "Collaborators can update feedback" on "public"."feedback";
-
-drop policy "Public feedback reading" on "public"."feedback";
-
-drop policy "Public feedback submission" on "public"."feedback";
-
-drop policy "Unrestricted access to feedback" on "public"."feedback";
-
-drop policy "Users can update their own feedback status and tag" on "public"."feedback";
-
-drop policy "Allow public feedback reply reading" on "public"."feedback_replies";
-
-drop policy "Allow public feedback reply submission" on "public"."feedback_replies";
-
-drop policy "Allow public reading of feedback tags" on "public"."feedback_tags";
-
-drop policy "Authenticated users can read all feedback tags for forms they o" on "public"."feedback_tags";
-
-drop policy "Unrestricted access to feedback_tags" on "public"."feedback_tags";
-
-drop policy "Users can manage form tags" on "public"."feedback_tags";
-
-drop policy "Users can manage tags for forms they own or are admins of" on "public"."feedback_tags";
-
-drop policy "Users can view global and form tags" on "public"."feedback_tags";
-
-drop policy "Users can view tags for forms they own or collaborate on" on "public"."feedback_tags";
-
-drop policy "Unrestricted access to form_collaborators" on "public"."form_collaborators";
-
-drop policy "Allow authenticated users to create forms" on "public"."forms";
-
-drop policy "Allow direct owner_id queries" on "public"."forms";
-
-drop policy "Allow public form deletion" on "public"."forms";
-
-drop policy "Allow public to read form settings" on "public"."forms";
-
-drop policy "Allow reading forms" on "public"."forms";
-
-drop policy "Authenticated users can read all forms they own" on "public"."forms";
-
-drop policy "Unrestricted access to forms" on "public"."forms";
-
-drop policy "Users can view forms they own" on "public"."forms";
-
-drop policy "Validate form URL on insert" on "public"."forms";
-
-drop policy "Service role can read notification settings" on "public"."notification_settings";
-
-drop policy "Unrestricted access to notification_settings" on "public"."notification_settings";
-
-drop policy "Admin collaborators can manage webhook settings" on "public"."webhook_settings";
-
-drop policy "Agent collaborators can view webhook settings" on "public"."webhook_settings";
-
-drop policy "Users can manage webhook settings for their forms" on "public"."webhook_settings";
-
-alter table "public"."notification_settings" drop constraint "valid_notification_attributes";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'valid_notification_attributes' 
+    AND conrelid = 'public.notification_settings'::regclass
+  ) THEN
+    ALTER TABLE "public"."notification_settings" DROP CONSTRAINT "valid_notification_attributes";
+  END IF;
+END $$;
 
 drop function if exists "public"."handle_form_created"();
 
 drop function if exists "public"."user_has_form_access"(form_id_param text, user_id_param uuid);
-
-create table "public"."feedback_attachments" (
-    "id" uuid not null,
-    "reply_id" uuid,
-    "filename" text not null,
-    "content_id" text,
-    "content_type" text not null,
-    "url" text not null,
-    "is_inline" boolean default false,
-    "created_at" timestamp with time zone default timezone('utc'::text, now())
-);
-
-
-alter table "public"."feedback_attachments" enable row level security;
-
-create table "public"."temp_email_sender" (
-    "id" uuid not null default gen_random_uuid(),
-    "feedback_id" uuid not null,
-    "sender_email" text not null,
-    "sender_name" text,
-    "created_at" timestamp with time zone default now(),
-    "processed" boolean default false
-);
-
-
-alter table "public"."temp_email_sender" enable row level security;
-
-alter table "public"."feedback_replies" add column "html_content" text;
-
-alter table "public"."feedback_replies" add column "in_reply_to" text;
-
-alter table "public"."feedback_replies" add column "message_id" text;
-
-alter table "public"."feedback_tags" alter column "color" set default '#0EA5E9'::text;
-
-alter table "public"."forms" add column "icon_url" text;
-
-alter table "public"."webhook_settings" add column "last_delivery_at" timestamp with time zone;
-
-alter table "public"."webhook_settings" add column "last_delivery_error" text;
-
-alter table "public"."webhook_settings" add column "last_delivery_status" text;
-
-alter table "public"."webhook_settings" add column "signing_secret" text not null default encode(gen_random_bytes(32), 'hex'::text);
-
-alter table "public"."webhook_settings" alter column "created_at" set not null;
-
-alter table "public"."webhook_settings" alter column "enabled" set not null;
-
-alter table "public"."webhook_settings" alter column "form_id" set not null;
-
-alter table "public"."webhook_settings" alter column "id" set default ('whk_'::text || generate_random_string(16));
-
-alter table "public"."webhook_settings" alter column "id" set data type text using "id"::text;
-
-alter table "public"."webhook_settings" alter column "updated_at" set not null;
-
-alter table "public"."webhook_settings" alter column "url" set not null;
-
-CREATE INDEX feedback_attachments_content_id_idx ON public.feedback_attachments USING btree (content_id);
-
-CREATE UNIQUE INDEX feedback_attachments_pkey ON public.feedback_attachments USING btree (id);
-
-CREATE INDEX feedback_attachments_reply_id_idx ON public.feedback_attachments USING btree (reply_id);
-
-CREATE INDEX idx_feedback_replies_in_reply_to ON public.feedback_replies USING btree (in_reply_to);
-
-CREATE INDEX idx_feedback_replies_message_id ON public.feedback_replies USING btree (message_id);
-
-CREATE INDEX idx_feedback_tag_id ON public.feedback USING btree (tag_id);
-
-CREATE INDEX idx_feedback_tags_form_id ON public.feedback_tags USING btree (form_id);
-
-CREATE INDEX idx_forms_keyboard_shortcut ON public.forms USING btree (keyboard_shortcut) WHERE (keyboard_shortcut IS NOT NULL);
-
-CREATE INDEX idx_temp_email_sender_feedback_id ON public.temp_email_sender USING btree (feedback_id);
-
-CREATE UNIQUE INDEX temp_email_sender_pkey ON public.temp_email_sender USING btree (id);
-
-alter table "public"."feedback_attachments" add constraint "feedback_attachments_pkey" PRIMARY KEY using index "feedback_attachments_pkey";
-
-alter table "public"."temp_email_sender" add constraint "temp_email_sender_pkey" PRIMARY KEY using index "temp_email_sender_pkey";
-
-alter table "public"."feedback_attachments" add constraint "feedback_attachments_reply_id_fkey" FOREIGN KEY (reply_id) REFERENCES feedback_replies(id) not valid;
-
-alter table "public"."feedback_attachments" validate constraint "feedback_attachments_reply_id_fkey";
-
-alter table "public"."temp_email_sender" add constraint "temp_email_sender_feedback_id_fkey" FOREIGN KEY (feedback_id) REFERENCES feedback(id) ON DELETE CASCADE not valid;
-
-alter table "public"."temp_email_sender" validate constraint "temp_email_sender_feedback_id_fkey";
-
-alter table "public"."notification_settings" add constraint "valid_notification_attributes" CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
-
-alter table "public"."notification_settings" validate constraint "valid_notification_attributes";
 
 set check_function_bodies = off;
 
@@ -315,398 +282,657 @@ END;
 $function$
 ;
 
-grant delete on table "public"."feedback_attachments" to "anon";
-
-grant insert on table "public"."feedback_attachments" to "anon";
-
-grant references on table "public"."feedback_attachments" to "anon";
-
-grant select on table "public"."feedback_attachments" to "anon";
-
-grant trigger on table "public"."feedback_attachments" to "anon";
-
-grant truncate on table "public"."feedback_attachments" to "anon";
-
-grant update on table "public"."feedback_attachments" to "anon";
-
-grant delete on table "public"."feedback_attachments" to "authenticated";
-
-grant insert on table "public"."feedback_attachments" to "authenticated";
-
-grant references on table "public"."feedback_attachments" to "authenticated";
-
-grant select on table "public"."feedback_attachments" to "authenticated";
-
-grant trigger on table "public"."feedback_attachments" to "authenticated";
-
-grant truncate on table "public"."feedback_attachments" to "authenticated";
-
-grant update on table "public"."feedback_attachments" to "authenticated";
-
-grant delete on table "public"."feedback_attachments" to "service_role";
-
-grant insert on table "public"."feedback_attachments" to "service_role";
-
-grant references on table "public"."feedback_attachments" to "service_role";
-
-grant select on table "public"."feedback_attachments" to "service_role";
-
-grant trigger on table "public"."feedback_attachments" to "service_role";
-
-grant truncate on table "public"."feedback_attachments" to "service_role";
-
-grant update on table "public"."feedback_attachments" to "service_role";
-
-grant delete on table "public"."temp_email_sender" to "anon";
-
-grant insert on table "public"."temp_email_sender" to "anon";
-
-grant references on table "public"."temp_email_sender" to "anon";
-
-grant select on table "public"."temp_email_sender" to "anon";
-
-grant trigger on table "public"."temp_email_sender" to "anon";
-
-grant truncate on table "public"."temp_email_sender" to "anon";
-
-grant update on table "public"."temp_email_sender" to "anon";
-
-grant delete on table "public"."temp_email_sender" to "authenticated";
-
-grant insert on table "public"."temp_email_sender" to "authenticated";
-
-grant references on table "public"."temp_email_sender" to "authenticated";
-
-grant select on table "public"."temp_email_sender" to "authenticated";
-
-grant trigger on table "public"."temp_email_sender" to "authenticated";
-
-grant truncate on table "public"."temp_email_sender" to "authenticated";
-
-grant update on table "public"."temp_email_sender" to "authenticated";
-
-grant delete on table "public"."temp_email_sender" to "service_role";
-
-grant insert on table "public"."temp_email_sender" to "service_role";
-
-grant references on table "public"."temp_email_sender" to "service_role";
-
-grant select on table "public"."temp_email_sender" to "service_role";
-
-grant trigger on table "public"."temp_email_sender" to "service_role";
-
-grant truncate on table "public"."temp_email_sender" to "service_role";
-
-grant update on table "public"."temp_email_sender" to "service_role";
-
-create policy "Authenticated can view email settings"
-on "public"."custom_email_settings"
-as permissive
-for select
-to authenticated
-using (true);
-
-
-create policy "Form owners can manage email settings"
-on "public"."custom_email_settings"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = custom_email_settings.form_id) AND (forms.owner_id = auth.uid())))))
-with check ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = custom_email_settings.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Public can view email settings"
-on "public"."custom_email_settings"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Authenticated can manage feedback"
-on "public"."feedback"
-as permissive
-for all
-to authenticated
-using (true)
-with check (true);
-
-
-create policy "Public can read feedback"
-on "public"."feedback"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Public can submit feedback"
-on "public"."feedback"
-as permissive
-for insert
-to anon
-with check (true);
-
-
-create policy "Authenticated users can view attachments"
-on "public"."feedback_attachments"
-as permissive
-for select
-to authenticated
-using (true);
-
-
-create policy "Collaborators can view attachments"
-on "public"."feedback_attachments"
-as permissive
-for select
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM ((feedback_replies fr
-     JOIN feedback f ON ((f.id = fr.feedback_id)))
-     JOIN form_collaborators fc ON ((fc.form_id = f.form_id)))
-  WHERE ((fr.id = feedback_attachments.reply_id) AND (fc.user_id = auth.uid())))));
-
-
-create policy "Form owners can manage attachments"
-on "public"."feedback_attachments"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM ((feedback_replies fr
-     JOIN feedback f ON ((f.id = fr.feedback_id)))
-     JOIN forms ON ((forms.id = f.form_id)))
-  WHERE ((fr.id = feedback_attachments.reply_id) AND (forms.owner_id = auth.uid())))))
-with check ((EXISTS ( SELECT 1
-   FROM ((feedback_replies fr
-     JOIN feedback f ON ((f.id = fr.feedback_id)))
-     JOIN forms ON ((forms.id = f.form_id)))
-  WHERE ((fr.id = feedback_attachments.reply_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Public can submit attachments"
-on "public"."feedback_attachments"
-as permissive
-for insert
-to anon
-with check (true);
-
-
-create policy "Authenticated can reply"
-on "public"."feedback_replies"
-as permissive
-for all
-to authenticated
-using (true)
-with check (true);
-
-
-create policy "Public can view replies"
-on "public"."feedback_replies"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Authenticated can manage tags"
-on "public"."feedback_tags"
-as permissive
-for all
-to authenticated
-using (true)
-with check (true);
-
-
-create policy "Form owners can manage tags"
-on "public"."feedback_tags"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = feedback_tags.form_id) AND (forms.owner_id = auth.uid())))))
-with check ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = feedback_tags.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Public can view tags"
-on "public"."feedback_tags"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Admin collaborators can delete existing collaborators"
-on "public"."form_collaborators"
-as permissive
-for delete
-to authenticated
-using ((form_id IN ( SELECT form_collaborators_1.form_id
-   FROM form_collaborators form_collaborators_1
-  WHERE ((form_collaborators_1.user_id = auth.uid()) AND (form_collaborators_1.role = 'admin'::text)))));
-
-
-create policy "Admin collaborators can insert new collaborators"
-on "public"."form_collaborators"
-as permissive
-for insert
-to authenticated
-with check ((form_id IN ( SELECT form_collaborators_1.form_id
-   FROM form_collaborators form_collaborators_1
-  WHERE ((form_collaborators_1.user_id = auth.uid()) AND (form_collaborators_1.role = 'admin'::text)))));
-
-
-create policy "Admin collaborators can select existing collaborators"
-on "public"."form_collaborators"
-as permissive
-for select
-to authenticated
-using ((form_id IN ( SELECT form_collaborators_1.form_id
-   FROM form_collaborators form_collaborators_1
-  WHERE ((form_collaborators_1.user_id = auth.uid()) AND (form_collaborators_1.role = 'admin'::text)))));
-
-
-create policy "Admin collaborators can update existing collaborators"
-on "public"."form_collaborators"
-as permissive
-for update
-to authenticated
-using ((form_id IN ( SELECT form_collaborators_1.form_id
-   FROM form_collaborators form_collaborators_1
-  WHERE ((form_collaborators_1.user_id = auth.uid()) AND (form_collaborators_1.role = 'admin'::text)))))
-with check ((form_id IN ( SELECT form_collaborators_1.form_id
-   FROM form_collaborators form_collaborators_1
-  WHERE ((form_collaborators_1.user_id = auth.uid()) AND (form_collaborators_1.role = 'admin'::text)))));
-
-
-create policy "Form owners can manage collaborators"
-on "public"."form_collaborators"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = form_collaborators.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Form owners can manage existing collaborators"
-on "public"."form_collaborators"
-as permissive
-for all
-to authenticated
-using (((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = form_collaborators.form_id) AND (forms.owner_id = auth.uid())))) OR (EXISTS ( SELECT 1
-   FROM form_collaborators existing_collab
-  WHERE ((existing_collab.form_id = form_collaborators.form_id) AND (existing_collab.user_id = auth.uid()) AND (existing_collab.role = 'admin'::text))))));
-
-
-create policy "Public collaborator access"
-on "public"."form_collaborators"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Self collaborator access"
-on "public"."form_collaborators"
-as permissive
-for select
-to authenticated
-using ((user_id = auth.uid()));
-
-
-create policy "Users can accept invitations via email"
-on "public"."form_collaborators"
-as permissive
-for update
-to authenticated
-using (((invitation_email = (( SELECT users.email
-   FROM auth.users
-  WHERE (users.id = auth.uid())))::text) AND (user_id IS NULL)))
-with check (((user_id = auth.uid()) AND (invitation_accepted = true)));
-
-
-create policy "Users can invite collaborators to forms they own or admin"
-on "public"."form_collaborators"
-as permissive
-for insert
-to authenticated
-with check (((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = form_collaborators.form_id) AND (forms.owner_id = auth.uid())))) OR (EXISTS ( SELECT 1
-   FROM form_collaborators existing_collab
-  WHERE ((existing_collab.form_id = form_collaborators.form_id) AND (existing_collab.user_id = auth.uid()) AND (existing_collab.role = 'admin'::text))))));
-
-
-create policy "Users can view forms they are invited to"
-on "public"."form_collaborators"
-as permissive
-for select
-to authenticated
-using ((user_id = auth.uid()));
-
-
-create policy "Owner forms access"
-on "public"."forms"
-as permissive
-for all
-to authenticated
-using ((owner_id = auth.uid()));
-
-
-create policy "Public forms access"
-on "public"."forms"
-as permissive
-for select
-to anon
-using (true);
-
-
-create policy "Form owners only access notification_settings"
-on "public"."notification_settings"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = notification_settings.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Form owners only notification"
-on "public"."notification_settings"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = notification_settings.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-create policy "Form owners only access webhook_settings"
-on "public"."webhook_settings"
-as permissive
-for all
-to authenticated
-using ((EXISTS ( SELECT 1
-   FROM forms
-  WHERE ((forms.id = webhook_settings.form_id) AND (forms.owner_id = auth.uid())))));
-
-
-CREATE TRIGGER cascade_delete_feedback BEFORE DELETE ON public.forms FOR EACH ROW EXECUTE FUNCTION delete_form_feedback();
-
-CREATE TRIGGER cleanup_temp_email_sender_trigger AFTER INSERT ON public.temp_email_sender FOR EACH STATEMENT EXECUTE FUNCTION cleanup_temp_email_sender();
-
-CREATE TRIGGER update_webhook_settings_updated_at BEFORE UPDATE ON public.webhook_settings FOR EACH ROW EXECUTE FUNCTION update_webhook_settings_updated_at();
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    grant delete on table "public"."feedback_attachments" to "anon";
+    grant insert on table "public"."feedback_attachments" to "anon";
+    grant references on table "public"."feedback_attachments" to "anon";
+    grant select on table "public"."feedback_attachments" to "anon";
+    grant trigger on table "public"."feedback_attachments" to "anon";
+    grant truncate on table "public"."feedback_attachments" to "anon";
+    grant update on table "public"."feedback_attachments" to "anon";
+    grant delete on table "public"."feedback_attachments" to "authenticated";
+    grant insert on table "public"."feedback_attachments" to "authenticated";
+    grant references on table "public"."feedback_attachments" to "authenticated";
+    grant select on table "public"."feedback_attachments" to "authenticated";
+    grant trigger on table "public"."feedback_attachments" to "authenticated";
+    grant truncate on table "public"."feedback_attachments" to "authenticated";
+    grant update on table "public"."feedback_attachments" to "authenticated";
+    grant delete on table "public"."feedback_attachments" to "service_role";
+    grant insert on table "public"."feedback_attachments" to "service_role";
+    grant references on table "public"."feedback_attachments" to "service_role";
+    grant select on table "public"."feedback_attachments" to "service_role";
+    grant trigger on table "public"."feedback_attachments" to "service_role";
+    grant truncate on table "public"."feedback_attachments" to "service_role";
+    grant update on table "public"."feedback_attachments" to "service_role";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'temp_email_sender'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE TABLE "public"."temp_email_sender" (
+      "id" uuid not null default gen_random_uuid(),
+      "feedback_id" uuid not null,
+      "sender_email" text not null,
+      "sender_name" text,
+      "created_at" timestamp with time zone default now(),
+      "processed" boolean default false
+    );
+
+    ALTER TABLE "public"."temp_email_sender" ENABLE ROW LEVEL SECURITY;
+    
+    -- Create trigger after table exists
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'cleanup_temp_email_sender_trigger'
+      AND tgrelid = 'public.temp_email_sender'::regclass
+    ) THEN
+      CREATE TRIGGER cleanup_temp_email_sender_trigger AFTER INSERT ON public.temp_email_sender FOR EACH STATEMENT EXECUTE FUNCTION cleanup_temp_email_sender();
+    END IF;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'custom_email_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    create policy "Authenticated can view email settings"
+    on "public"."custom_email_settings"
+    as permissive
+    for select
+    to authenticated
+    using (true);
+
+    create policy "Form owners can manage email settings"
+    on "public"."custom_email_settings"
+    as permissive
+    for all
+    to authenticated
+    using ((EXISTS ( SELECT 1
+       FROM forms
+      WHERE ((forms.id = custom_email_settings.form_id) AND (forms.owner_id = auth.uid())))));
+
+    create policy "Public can view email settings"
+    on "public"."custom_email_settings"
+    as permissive
+    for select
+    to anon
+    using (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'dns_verification_records'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    create policy "Form owners can manage DNS verification"
+    on "public"."dns_verification_records"
+    as permissive
+    for all
+    to authenticated
+    using ((EXISTS ( SELECT 1
+       FROM forms
+      WHERE ((forms.id = dns_verification_records.form_id) AND (forms.owner_id = auth.uid())))));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    create policy "Authenticated can view attachments"
+    on "public"."feedback_attachments"
+    as permissive
+    for select
+    to authenticated
+    using (true);
+
+    create policy "Public can view attachments"
+    on "public"."feedback_attachments"
+    as permissive
+    for select
+    to anon
+    using (true);
+
+    create policy "Public can submit attachments"
+    on "public"."feedback_attachments"
+    as permissive
+    for insert
+    to anon
+    with check (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    create policy "Authenticated can reply"
+    on "public"."feedback_replies"
+    as permissive
+    for all
+    to authenticated
+    using (true)
+    with check (true);
+
+    create policy "Public can view replies"
+    on "public"."feedback_replies"
+    as permissive
+    for select
+    to anon
+    using (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_tags'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    create policy "Authenticated can manage tags"
+    on "public"."feedback_tags"
+    as permissive
+    for all
+    to authenticated
+    using (true)
+    with check (true);
+
+    create policy "Form owners can manage tags"
+    on "public"."feedback_tags"
+    as permissive
+    for all
+    to authenticated
+    using ((EXISTS ( SELECT 1
+       FROM forms
+      WHERE ((forms.id = feedback_tags.form_id) AND (forms.owner_id = auth.uid())))))
+    with check ((EXISTS ( SELECT 1
+       FROM forms
+      WHERE ((forms.id = feedback_tags.form_id) AND (forms.owner_id = auth.uid())))));
+
+    create policy "Public can view tags"
+    on "public"."feedback_tags"
+    as permissive
+    for select
+    to anon
+    using (true);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'form_collaborators'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to form_collaborators" ON public.form_collaborators$policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'forms'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow authenticated users to create forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow direct owner_id queries" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public form deletion" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow public to read form settings" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Allow reading forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Authenticated users can read all forms they own" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to forms" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can view forms they own" ON public.forms$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Validate form URL on insert" ON public.forms$policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'notification_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Service role can read notification settings" ON public.notification_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Unrestricted access to notification_settings" ON public.notification_settings$policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'webhook_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    EXECUTE $policy$DROP POLICY IF EXISTS "Admin collaborators can manage webhook settings" ON public.webhook_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Agent collaborators can view webhook settings" ON public.webhook_settings$policy$;
+    EXECUTE $policy$DROP POLICY IF EXISTS "Users can manage webhook settings for their forms" ON public.webhook_settings$policy$;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS feedback_attachments_content_id_idx ON public.feedback_attachments USING btree (content_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS feedback_attachments_pkey ON public.feedback_attachments USING btree (id);
+    CREATE INDEX IF NOT EXISTS feedback_attachments_reply_id_idx ON public.feedback_attachments USING btree (reply_id);
+    
+    ALTER TABLE "public"."feedback_attachments" 
+      ADD CONSTRAINT "feedback_attachments_pkey" PRIMARY KEY USING INDEX "feedback_attachments_pkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_replies_in_reply_to ON public.feedback_replies USING btree (in_reply_to);
+    CREATE INDEX IF NOT EXISTS idx_feedback_replies_message_id ON public.feedback_replies USING btree (message_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'public.feedback'::regclass
+    AND attname = 'tag_id'
+    AND NOT attisdropped
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_tag_id ON public.feedback USING btree (tag_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_tags'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_tags_form_id ON public.feedback_tags USING btree (form_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'forms'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_forms_keyboard_shortcut ON public.forms USING btree (keyboard_shortcut) WHERE (keyboard_shortcut IS NOT NULL);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'temp_email_sender'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_temp_email_sender_feedback_id ON public.temp_email_sender USING btree (feedback_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS temp_email_sender_pkey ON public.temp_email_sender USING btree (id);
+    
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'temp_email_sender_pkey'
+      AND conrelid = 'public.temp_email_sender'::regclass
+    ) THEN
+      ALTER TABLE "public"."temp_email_sender" 
+        ADD CONSTRAINT "temp_email_sender_pkey" PRIMARY KEY USING INDEX "temp_email_sender_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."feedback_attachments" 
+      ADD CONSTRAINT "feedback_attachments_reply_id_fkey" 
+      FOREIGN KEY (reply_id) REFERENCES feedback_replies(id) not valid;
+    
+    ALTER TABLE "public"."feedback_attachments" 
+      VALIDATE CONSTRAINT "feedback_attachments_reply_id_fkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'temp_email_sender'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback'
+    AND relnamespace = 'public'::regnamespace
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'temp_email_sender_feedback_id_fkey'
+    AND conrelid = 'public.temp_email_sender'::regclass
+  ) THEN
+    ALTER TABLE "public"."temp_email_sender" 
+      ADD CONSTRAINT "temp_email_sender_feedback_id_fkey" 
+      FOREIGN KEY (feedback_id) REFERENCES feedback(id) ON DELETE CASCADE not valid;
+    
+    ALTER TABLE "public"."temp_email_sender" 
+      VALIDATE CONSTRAINT "temp_email_sender_feedback_id_fkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'notification_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'valid_notification_attributes'
+    AND conrelid = 'public.notification_settings'::regclass
+  ) THEN
+    ALTER TABLE "public"."notification_settings" 
+      ADD CONSTRAINT "valid_notification_attributes" 
+      CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
+    
+    ALTER TABLE "public"."notification_settings" 
+      VALIDATE CONSTRAINT "valid_notification_attributes";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'cascade_delete_feedback'
+    AND tgrelid = 'public.forms'::regclass
+  ) THEN
+    CREATE TRIGGER cascade_delete_feedback BEFORE DELETE ON public.forms FOR EACH ROW EXECUTE FUNCTION delete_form_feedback();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'update_webhook_settings_updated_at'
+    AND tgrelid = 'public.webhook_settings'::regclass
+  ) THEN
+    CREATE TRIGGER update_webhook_settings_updated_at BEFORE UPDATE ON public.webhook_settings FOR EACH ROW EXECUTE FUNCTION update_webhook_settings_updated_at();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE TABLE "public"."feedback_attachments" (
+      "id" uuid not null,
+      "reply_id" uuid,
+      "filename" text not null,
+      "content_id" text,
+      "content_type" text not null,
+      "url" text not null,
+      "is_inline" boolean default false,
+      "created_at" timestamp with time zone default timezone('utc'::text, now())
+    );
+
+    ALTER TABLE "public"."feedback_attachments" ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."feedback_replies" ADD COLUMN IF NOT EXISTS "html_content" text;
+    ALTER TABLE "public"."feedback_replies" ADD COLUMN IF NOT EXISTS "in_reply_to" text;
+    ALTER TABLE "public"."feedback_replies" ADD COLUMN IF NOT EXISTS "message_id" text;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_tags'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."feedback_tags" ALTER COLUMN "color" SET DEFAULT '#0EA5E9'::text;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'forms'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."forms" ADD COLUMN IF NOT EXISTS "icon_url" text;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'webhook_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."webhook_settings" ADD COLUMN IF NOT EXISTS "last_delivery_at" timestamp with time zone;
+    ALTER TABLE "public"."webhook_settings" ADD COLUMN IF NOT EXISTS "last_delivery_error" text;
+    ALTER TABLE "public"."webhook_settings" ADD COLUMN IF NOT EXISTS "last_delivery_status" text;
+    ALTER TABLE "public"."webhook_settings" ADD COLUMN IF NOT EXISTS "signing_secret" text DEFAULT encode(gen_random_bytes(32), 'hex'::text);
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "created_at" SET NOT NULL;
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "enabled" SET NOT NULL;
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "form_id" SET NOT NULL;
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "id" SET DATA TYPE text USING "id"::text;
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "id" SET DEFAULT ('whk_'::text || generate_random_string(16));
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "updated_at" SET NOT NULL;
+    ALTER TABLE "public"."webhook_settings" ALTER COLUMN "url" SET NOT NULL;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS feedback_attachments_content_id_idx ON public.feedback_attachments USING btree (content_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS feedback_attachments_pkey ON public.feedback_attachments USING btree (id);
+    CREATE INDEX IF NOT EXISTS feedback_attachments_reply_id_idx ON public.feedback_attachments USING btree (reply_id);
+    
+    ALTER TABLE "public"."feedback_attachments" 
+      ADD CONSTRAINT "feedback_attachments_pkey" PRIMARY KEY USING INDEX "feedback_attachments_pkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_replies_in_reply_to ON public.feedback_replies USING btree (in_reply_to);
+    CREATE INDEX IF NOT EXISTS idx_feedback_replies_message_id ON public.feedback_replies USING btree (message_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'public.feedback'::regclass
+    AND attname = 'tag_id'
+    AND NOT attisdropped
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_tag_id ON public.feedback USING btree (tag_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_tags'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_feedback_tags_form_id ON public.feedback_tags USING btree (form_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'forms'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_forms_keyboard_shortcut ON public.forms USING btree (keyboard_shortcut) WHERE (keyboard_shortcut IS NOT NULL);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'temp_email_sender'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_temp_email_sender_feedback_id ON public.temp_email_sender USING btree (feedback_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS temp_email_sender_pkey ON public.temp_email_sender USING btree (id);
+    
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'temp_email_sender_pkey'
+      AND conrelid = 'public.temp_email_sender'::regclass
+    ) THEN
+      ALTER TABLE "public"."temp_email_sender" 
+        ADD CONSTRAINT "temp_email_sender_pkey" PRIMARY KEY USING INDEX "temp_email_sender_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_attachments'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback_replies'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."feedback_attachments" 
+      ADD CONSTRAINT "feedback_attachments_reply_id_fkey" 
+      FOREIGN KEY (reply_id) REFERENCES feedback_replies(id) not valid;
+    
+    ALTER TABLE "public"."feedback_attachments" 
+      VALIDATE CONSTRAINT "feedback_attachments_reply_id_fkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'temp_email_sender'
+    AND relnamespace = 'public'::regnamespace
+  ) AND EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'feedback'
+    AND relnamespace = 'public'::regnamespace
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'temp_email_sender_feedback_id_fkey'
+    AND conrelid = 'public.temp_email_sender'::regclass
+  ) THEN
+    ALTER TABLE "public"."temp_email_sender" 
+      ADD CONSTRAINT "temp_email_sender_feedback_id_fkey" 
+      FOREIGN KEY (feedback_id) REFERENCES feedback(id) ON DELETE CASCADE not valid;
+    
+    ALTER TABLE "public"."temp_email_sender" 
+      VALIDATE CONSTRAINT "temp_email_sender_feedback_id_fkey";
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+    WHERE relname = 'notification_settings'
+    AND relnamespace = 'public'::regnamespace
+  ) THEN
+    ALTER TABLE "public"."notification_settings" 
+      ADD CONSTRAINT "valid_notification_attributes" 
+      CHECK (((array_length(notification_attributes, 1) > 0) AND ('message'::text = ANY (notification_attributes)) AND (notification_attributes <@ ARRAY['message'::text, 'url_path'::text, 'user_id'::text, 'user_email'::text, 'user_name'::text, 'operating_system'::text, 'screen_category'::text, 'image_url'::text, 'image_name'::text, 'created_at'::text]))) not valid;
+    
+    ALTER TABLE "public"."notification_settings" 
+      VALIDATE CONSTRAINT "valid_notification_attributes";
+  END IF;
+END $$;
 
 
