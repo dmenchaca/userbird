@@ -21,14 +21,6 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
 
 interface DashboardProps {
   initialFormId?: string
@@ -516,16 +508,26 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           ? collaborators.find(c => c.user_id === assigneeId)
           : null;
           
-        setSelectedResponse({
-          ...selectedResponse,
-          assignee_id: assigneeId,
-          assignee: collaborator ? {
-            id: collaborator.user_id,
-            email: collaborator.user_profile?.email || collaborator.invitation_email,
-            user_name: collaborator.user_profile?.username || collaborator.invitation_email.split('@')[0],
-            avatar_url: collaborator.user_profile?.avatar_url || undefined
-          } : null
-        });
+        console.log('Selected collaborator for assignment:', collaborator);
+          
+        if (collaborator) {
+          setSelectedResponse({
+            ...selectedResponse,
+            assignee_id: assigneeId,
+            assignee: {
+              id: collaborator.user_id,
+              email: collaborator.user_profile?.email || collaborator.invitation_email,
+              user_name: collaborator.user_profile?.username || collaborator.invitation_email.split('@')[0],
+              avatar_url: collaborator.user_profile?.avatar_url || undefined
+            }
+          });
+        } else {
+          setSelectedResponse({
+            ...selectedResponse,
+            assignee_id: null,
+            assignee: null
+          });
+        }
       }
       
       // Clear any batch selections when updating individual items
@@ -743,49 +745,64 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           return;
         }
         
+        console.log('Raw collaborators data:', data);
+        
         // Get user profile data for each collaborator
         const collaboratorsWithProfiles = await Promise.all(
           (data || []).map(async (collaborator) => {
+            console.log('Processing collaborator:', collaborator);
+            
             if (collaborator.user_id) {
               // Try to get user profile from auth.users
               try {
+                console.log('Fetching profile for user ID:', collaborator.user_id);
+                
                 const { data: profileData, error: profileError } = await supabase
                   .rpc('get_user_profile_by_id', { user_id_param: collaborator.user_id });
                 
+                console.log('Profile data response:', profileData, 'Error:', profileError);
+                
                 if (profileError) {
                   console.error('Error fetching user profile:', profileError);
-                  return collaborator;
-                }
-                
-                if (profileData && profileData.length > 0) {
+                  // Continue with basic info from invitation_email
+                } else if (profileData && profileData.length > 0) {
                   const profile = profileData[0];
-                  return {
-                    ...collaborator,
-                    user_profile: {
-                      email: profile.email,
-                      username: profile.username || profile.email?.split('@')[0] || 'Unknown user',
-                      avatar_url: profile.avatar_url
-                    }
-                  };
+                  console.log('Found user profile:', profile);
+                  
+                  // Check if the returned profile has the expected fields
+                  if (profile && profile.profile_user_id) { 
+                    return {
+                      ...collaborator,
+                      user_profile: {
+                        email: profile.email || collaborator.invitation_email,
+                        username: profile.username || collaborator.invitation_email?.split('@')[0] || 'Unknown user',
+                        avatar_url: profile.avatar_url
+                      }
+                    };
+                  } else {
+                    console.warn('Profile data received but missing expected fields:', profile);
+                  }
                 }
               } catch (err) {
                 console.error('Error processing user profile:', err);
+                // Continue with basic info
               }
             }
             
             // If no user_id or profile fetch failed, return with basic info
+            const emailUsername = collaborator.invitation_email?.split('@')[0] || 'Unknown user';
             return {
               ...collaborator,
               user_profile: {
                 email: collaborator.invitation_email,
-                username: collaborator.invitation_email?.split('@')[0] || 'Unknown user',
+                username: emailUsername,
                 avatar_url: null
               }
             };
           })
         );
         
-        console.log('Fetched collaborators with profiles:', collaboratorsWithProfiles);
+        console.log('Final collaborators with profiles:', JSON.stringify(collaboratorsWithProfiles, null, 2));
         setCollaborators(collaboratorsWithProfiles || []);
       } catch (error) {
         console.error('Error fetching collaborators:', error);
