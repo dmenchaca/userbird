@@ -92,3 +92,11 @@ GRANT INSERT ON feedback TO public;
 
 -- Grant permissions to authenticated users (but policies will restrict based on roles)
 GRANT ALL ON feedback TO authenticated; 
+
+/*
+  NOTE: In a subsequent migration, we'll need to add an assignee_id column to the feedback table
+  to enable team member assignment functionality.
+  
+  The assignee_id column will be a UUID referencing auth.users(id) and will be nullable.
+  This will allow feedback to be assigned to specific team members.
+*/ 

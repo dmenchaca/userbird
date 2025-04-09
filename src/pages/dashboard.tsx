@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -69,6 +69,21 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('#3B82F6')
   const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
+  
+  // Team member assignment states
+  const [collaborators, setCollaborators] = useState<{
+    id: string
+    user_id: string
+    user?: {
+      id: string
+      email: string
+    }
+    invitation_email: string
+    role: 'admin' | 'agent'
+    invitation_accepted: boolean
+  }[]>([])
+  const assigneeDropdownTriggerRef = useRef<HTMLButtonElement>(null)
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false)
   
   // Color palette with explicit background and text colors for each tag
   const colorOptions = [
@@ -476,6 +491,45 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   };
 
+  // Handle assigning feedback to a team member
+  const handleAssigneeChange = async (id: string, assigneeId: string | null) => {
+    try {
+      // Update the assignee in Supabase
+      await supabase
+        .from('feedback')
+        .update({ assignee_id: assigneeId })
+        .eq('id', id);
+      
+      // Update selected response if it's the one that changed
+      if (selectedResponse && selectedResponse.id === id) {
+        // Find the collaborator to get their details
+        const collaborator = assigneeId 
+          ? collaborators.find(c => c.user_id === assigneeId)
+          : null;
+          
+        setSelectedResponse({
+          ...selectedResponse,
+          assignee_id: assigneeId,
+          assignee: collaborator ? {
+            id: collaborator.user_id,
+            email: collaborator.user?.email || collaborator.invitation_email,
+            user_name: collaborator.user?.email?.split('@')[0] // Use first part of email as a basic username
+          } : null
+        });
+      }
+      
+      // Clear any batch selections when updating individual items
+      setSelectedBatchIds([]);
+      
+      // Refresh the inbox data directly
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData();
+      }
+    } catch (error) {
+      console.error('Error updating assignee:', error);
+    }
+  };
+
   const handleResponseDelete = async (id: string) => {
     setFeedbackToDelete(id);
     setShowDeleteConfirmation(true);
@@ -653,7 +707,42 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     
     fetchTags();
   }, [selectedFormId]);
-
+  
+  // Fetch collaborators for the form
+  useEffect(() => {
+    if (!selectedFormId || !user?.id) return
+    
+    const fetchCollaborators = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const session = sessionData.session
+        
+        if (!session) {
+          console.error('No active session')
+          return
+        }
+        
+        const response = await fetch(`/.netlify/functions/form-collaborators/${selectedFormId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch collaborators')
+        }
+        
+        const collaboratorsData = await response.json()
+        setCollaborators(collaboratorsData || [])
+      } catch (error) {
+        console.error('Error fetching collaborators:', error)
+      }
+    }
+    
+    fetchCollaborators()
+  }, [selectedFormId, user?.id])
+  
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -704,6 +793,22 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Handle status dropdown state tracking
   const handleStatusDropdownOpenChange = (open: boolean) => {
     setIsStatusDropdownOpen(open);
+    
+    // When dropdown is closed, focus on another element (e.g. the trigger)
+    // to avoid keyboard focus remaining inside a now-hidden dropdown
+    if (!open && statusDropdownTriggerRef.current) {
+      statusDropdownTriggerRef.current.focus();
+    }
+  };
+
+  const handleAssigneeDropdownOpenChange = (open: boolean) => {
+    setIsAssigneeDropdownOpen(open);
+    
+    // When dropdown is closed, focus on another element (e.g. the trigger)
+    // to avoid keyboard focus remaining inside a now-hidden dropdown
+    if (!open && assigneeDropdownTriggerRef.current) {
+      assigneeDropdownTriggerRef.current.focus();
+    }
   };
 
   // Add quick tag creation function
@@ -1368,6 +1473,70 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 <Check className="h-4 w-4 mr-2 text-green-500" />
                                 <span>Closed</span>
                               </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          
+                          <DropdownMenu open={isAssigneeDropdownOpen} onOpenChange={handleAssigneeDropdownOpenChange}>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                ref={assigneeDropdownTriggerRef}
+                                variant="outline" 
+                                size="sm"
+                                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100"
+                              >
+                                <div className="flex items-center">
+                                  <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                  {selectedResponse.assignee ? 
+                                    selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0] : 
+                                    'Assign'}
+                                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">
+                                    A
+                                  </span>
+                                </div>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" 
+                              onKeyDown={(e) => {
+                                // Handle enter key to select the focused item
+                                if (e.key === 'Enter') {
+                                  const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
+                                  if (focusedItem) {
+                                    focusedItem.click();
+                                  }
+                                }
+                              }}
+                            >
+                              {collaborators.filter(c => c.invitation_accepted).map(collaborator => (
+                                <DropdownMenuItem 
+                                  key={collaborator.user_id}
+                                  className={cn(
+                                    "flex items-center cursor-pointer",
+                                    selectedResponse.assignee_id === collaborator.user_id ? "bg-accent" : ""
+                                  )}
+                                  onClick={() => handleAssigneeChange(selectedResponse.id, collaborator.user_id)}
+                                >
+                                  <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                  <span>{collaborator.user?.email || collaborator.invitation_email}</span>
+                                  {selectedResponse.assignee_id === collaborator.user_id && (
+                                    <Check className="h-4 w-4 ml-auto" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                              
+                              {collaborators.some(c => c.invitation_accepted) && selectedResponse.assignee_id && (
+                                <DropdownMenuItem 
+                                  className="flex items-center cursor-pointer border-t mt-1 pt-1"
+                                  onClick={() => handleAssigneeChange(selectedResponse.id, null)}
+                                >
+                                  Unassign
+                                </DropdownMenuItem>
+                              )}
+                              
+                              {collaborators.length === 0 && (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  No team members available
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
