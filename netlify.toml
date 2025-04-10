@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = ".next"
+  publish = "dist"
 
 [[redirects]]
   from = "https://userbird.co/*"
