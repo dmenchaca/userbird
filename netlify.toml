@@ -12,17 +12,17 @@
   SENDGRID_API_KEY = "Your SendGrid API key"
 
 [[redirects]]
+  from = "/functions/v1/feedback-images*"
+  to = "/.netlify/functions/supabase-proxy"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/functions/v1/*"
   to = "https://ruqbgoazhyfxrsxbttfp.supabase.co/functions/v1/:splat"
   status = 200
   force = true
   headers = {Authorization = "Bearer your-token-here"}
-
-[[redirects]]
-  from = "/functions/v1/feedback-images*"
-  to = "/.netlify/functions/supabase-proxy"
-  status = 200
-  force = true
 
 [[headers]]
   for = "/widget.js"
