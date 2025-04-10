@@ -85,7 +85,7 @@ interface FeedbackInboxProps {
 }
 
 export interface FeedbackInboxRef {
-  refreshData: () => Promise<void>;
+  refreshData: (skipLoadingState?: boolean) => Promise<void>;
   clearSelection: () => void;
 }
 
@@ -121,9 +121,11 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   })
 
   // Function to fetch responses
-  const fetchResponses = async () => {
+  const fetchResponses = async (skipLoadingState = false) => {
     try {
-      setLoading(true)
+      if (!skipLoadingState) {
+        setLoading(true)
+      }
       
       // First, fetch tags specific to this form only
       const { data: tagsData, error: tagsError } = await supabase
@@ -181,13 +183,15 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     } catch (error) {
       console.error('Error fetching responses:', error)
     } finally {
-      setLoading(false)
+      if (!skipLoadingState) {
+        setLoading(false)
+      }
     }
   };
 
   // Expose the refresh method and selection clear to parent components
   useImperativeHandle(ref, () => ({
-    refreshData: fetchResponses,
+    refreshData: (skipLoadingState = false) => fetchResponses(skipLoadingState),
     clearSelection: () => setSelectedIds([])
   }));
 

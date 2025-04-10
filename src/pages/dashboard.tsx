@@ -411,13 +411,19 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         });
       }
       
-      // Refresh the inbox data directly using the ref
+      // Skip loading state when refreshing the inbox
       if (inboxRef.current) {
-        await inboxRef.current.refreshData();
+        await inboxRef.current.refreshData(true);
       }
     } catch (error) {
       console.error('Error batch updating status:', error);
     }
+  };
+
+  // Helper function to get a random tag color from the color options
+  const getRandomTagColor = () => {
+    const randomIndex = Math.floor(Math.random() * colorOptions.length);
+    return colorOptions[randomIndex].value;
   };
 
   // Handle batch tag change
@@ -454,9 +460,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         });
       }
       
-      // Refresh the inbox data directly using the ref
+      // Skip loading state when refreshing the inbox
       if (inboxRef.current) {
-        await inboxRef.current.refreshData();
+        await inboxRef.current.refreshData(true);
       }
     } catch (error) {
       console.error('Error batch updating tags:', error);
@@ -483,9 +489,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       // Clear any batch selections when updating individual items
       setSelectedBatchIds([]);
       
-      // Refresh the inbox data directly
+      // Skip loading state when refreshing the inbox
       if (inboxRef.current) {
-        await inboxRef.current.refreshData();
+        await inboxRef.current.refreshData(true);
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -533,9 +539,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       // Clear any batch selections when updating individual items
       setSelectedBatchIds([]);
       
-      // Refresh the inbox data directly
+      // Skip loading state when refreshing the inbox
       if (inboxRef.current) {
-        await inboxRef.current.refreshData();
+        await inboxRef.current.refreshData(true);
       }
     } catch (error) {
       console.error('Error updating assignee:', error);
@@ -563,9 +569,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         setSelectedResponse(null);
       }
       
-      // Refresh the inbox data
+      // Skip loading state when refreshing the inbox
       if (inboxRef.current) {
-        await inboxRef.current.refreshData();
+        await inboxRef.current.refreshData(true);
       }
       
       toast.success("Feedback deleted successfully");
@@ -588,110 +594,64 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     document.body.removeChild(link);
   }, [selectedResponse]);
 
+  // Handle tag change for a single feedback
   const handleTagChange = async (id: string, tagName: string | null) => {
     try {
       let tagId = null;
       
-      // If tagName is provided, find the corresponding tag_id
+      // Find tag id from the name
       if (tagName) {
-        console.log(`Finding tag with name: ${tagName}`);
-        const { data: tagData, error: tagError } = await supabase
-          .from('feedback_tags')
-          .select('*') // Get all tag data, not just the ID
-          .eq('name', tagName)
-          .eq('form_id', selectedFormId) // Make sure we get the right form's tag
-          .single();
-          
-        if (tagError) {
-          console.error('Error fetching tag by name:', tagError);
-          throw tagError;
+        const matchingTag = availableTags.find(tag => tag.name === tagName);
+        if (matchingTag) {
+          tagId = matchingTag.id;
+        } else {
+          // If tag doesn't exist, create it
+          const { data: newTag, error: createError } = await supabase
+            .from('feedback_tags')
+            .insert({
+              name: tagName,
+              color: getRandomTagColor(),
+              form_id: selectedFormId
+            })
+            .select('*')
+            .single();
+            
+          if (createError) throw createError;
+          if (newTag) {
+            tagId = newTag.id;
+            // Add to available tags for immediate use
+            setAvailableTags(prev => [...prev, newTag]);
+          }
         }
-        
-        if (!tagData) {
-          console.error(`No tag found with name: ${tagName}`);
-          toast.error(`Tag "${tagName}" not found`);
-          return;
-        }
-        
-        console.log('Found tag:', tagData);
-        tagId = tagData.id;
-      } else {
-        console.log('Clearing tag (null)');
       }
       
-      console.log(`Updating feedback ${id} with tag_id: ${tagId}`);
-      
-      // Update the feedback with the tag_id
+      // Update feedback with the tag_id
       const { error } = await supabase
         .from('feedback')
         .update({ tag_id: tagId })
         .eq('id', id);
-
-      if (error) {
-        console.error('Error updating feedback with tag:', error);
-        throw error;
-      }
       
-      console.log('Successfully updated feedback with tag');
+      if (error) throw error;
       
-      // Refresh the inbox data
-      if (inboxRef.current) {
-        await inboxRef.current.refreshData();
-      }
-      
-      // If the updated response is currently selected, update it directly in state
+      // Update the selected response if it's the one that changed
       if (selectedResponse && selectedResponse.id === id) {
-        if (tagName && tagId) {
-          // Find the tag in our availableTags
-          const matchingTag = availableTags.find(tag => tag.id === tagId);
+        const updatedTag = tagId 
+          ? availableTags.find(tag => tag.id === tagId) || null
+          : null;
           
-          if (matchingTag) {
-            console.log('Updating selected response with tag:', matchingTag);
-            setSelectedResponse({
-              ...selectedResponse,
-              tag_id: tagId,
-              tag: matchingTag
-            });
-          } else {
-            // If we couldn't find the tag in availableTags, fetch it directly
-            console.log('Fetching updated response data');
-            const { data: updatedResponse, error: fetchError } = await supabase
-              .from('feedback')
-              .select(`
-                *,
-                tag:feedback_tags(*)
-              `)
-              .eq('id', id)
-              .single();
-              
-            if (fetchError) {
-              console.error('Error fetching updated response:', fetchError);
-              throw fetchError;
-            }
-            
-            // Update the selected response with the latest data
-            if (updatedResponse) {
-              console.log('Setting updated response:', updatedResponse);
-              setSelectedResponse({
-                ...updatedResponse,
-                tag: updatedResponse.tag as any
-              });
-            }
-          }
-        } else {
-          // If clearing the tag, just update the selected response directly
-          console.log('Clearing tag from selected response');
-          setSelectedResponse({
-            ...selectedResponse,
-            tag_id: null,
-            tag: null
-          });
-        }
+        setSelectedResponse({
+          ...selectedResponse,
+          tag_id: tagId,
+          tag: updatedTag
+        });
       }
       
-      // Clear any batch selections
-      setSelectedBatchIds([]);
+      // Skip loading state when refreshing the inbox
+      if (inboxRef.current) {
+        await inboxRef.current.refreshData(true);
+      }
       
+      toast.success(tagName ? "Tag applied successfully" : "Tag removed");
     } catch (error) {
       console.error('Error updating tag:', error);
       toast.error("Failed to update tag");
