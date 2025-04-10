@@ -18,6 +18,12 @@
   force = true
   headers = {Authorization = "Bearer your-token-here"}
 
+[[redirects]]
+  from = "/functions/v1/feedback-images*"
+  to = "/.netlify/functions/supabase-proxy/feedback-images:splat"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/widget.js"
   [headers.values]
