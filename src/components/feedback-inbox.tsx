@@ -222,13 +222,76 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     const channel = supabase
       .channel('responses_changes')
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: 'feedback',
         filter: `form_id=eq.${formId}`
-      }, async () => {
-        // Refresh data when changes are detected
-        fetchResponses();
+      }, async (payload) => {
+        // For new records, fetch the specific record and add it to the array
+        try {
+          const newResponse = payload.new as FeedbackResponse;
+          
+          // Fetch the tag if this response has a tag_id
+          if (newResponse.tag_id) {
+            const { data: tagData } = await supabase
+              .from('feedback_tags')
+              .select('*')
+              .eq('id', newResponse.tag_id)
+              .single();
+              
+            if (tagData) {
+              newResponse.tag = tagData;
+            }
+          }
+          
+          // Add the new response to the top of the list
+          setResponses(prev => [newResponse, ...prev]);
+        } catch (error) {
+          console.error('Error processing new feedback:', error);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'feedback',
+        filter: `form_id=eq.${formId}`
+      }, async (payload) => {
+        // For updates, update the specific record in the array
+        try {
+          const updatedResponse = payload.new as FeedbackResponse;
+          
+          // Fetch the tag if this response has a tag_id
+          if (updatedResponse.tag_id) {
+            const { data: tagData } = await supabase
+              .from('feedback_tags')
+              .select('*')
+              .eq('id', updatedResponse.tag_id)
+              .single();
+              
+            if (tagData) {
+              updatedResponse.tag = tagData;
+            }
+          }
+          
+          // Update the response in the array
+          setResponses(prev => 
+            prev.map(response => 
+              response.id === updatedResponse.id ? updatedResponse : response
+            )
+          );
+        } catch (error) {
+          console.error('Error processing updated feedback:', error);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'feedback',
+        filter: `form_id=eq.${formId}`
+      }, (payload) => {
+        // For deletions, remove the record from the array
+        const deletedId = payload.old.id;
+        setResponses(prev => prev.filter(response => response.id !== deletedId));
       })
       .subscribe()
 
