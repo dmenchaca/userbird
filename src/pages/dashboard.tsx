@@ -586,16 +586,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   };
 
-  const handleDownload = useCallback(() => {
-    if (!selectedResponse?.image_url) return;
-    const link = document.createElement('a');
-    link.href = selectedResponse.image_url;
-    link.download = selectedResponse.image_name || 'feedback-image';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [selectedResponse]);
-
   // Handle tag change for a single feedback
   const handleTagChange = async (id: string, tagName: string | null) => {
     try {
