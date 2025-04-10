@@ -5,6 +5,7 @@ import { AuthPage } from './pages/auth/auth';
 import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
 import { FormView } from './pages/form-view';
+import { FixInvitation } from './pages/FixInvitation';
 
 export default function App() {
   return (
@@ -21,6 +22,11 @@ export default function App() {
         <Route path="/forms/:formId" element={
           <AuthGuard>
             <FormView />
+          </AuthGuard>
+        } />
+        <Route path="/fix-invitation" element={
+          <AuthGuard>
+            <FixInvitation />
           </AuthGuard>
         } />
         <Route
