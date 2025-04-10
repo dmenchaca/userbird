@@ -46,7 +46,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
   const [loading, setLoading] = useState(true) // Always start with loading true
   const [formsChecked, setFormsChecked] = useState(false) // Track whether we've checked for forms
-  const [hasAnyForms, setHasAnyForms] = useState(false)
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
@@ -174,7 +173,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         if (error) throw error;
         
         if (data && data.length > 0) {
-          setHasAnyForms(true);
           setSelectedFormId(data[0].id);
         } else {
           // Also check for collaborator forms
@@ -185,11 +183,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           
           if (!collabError && collabData && Array.isArray(collabData) && collabData.length > 0) {
             // User has collaborative forms, set the first one
-            setHasAnyForms(true);
             setSelectedFormId(collabData[0]);
           } else {
             // No forms owned or collaborated on
-            setHasAnyForms(false);
             setSelectedFormId(undefined);
           }
         }
@@ -402,7 +398,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         setSelectedFormId(data[0].id);
       } else {
         setSelectedFormId(undefined);
-        setHasAnyForms(false);
       }
     } catch (error) {
       console.error('Error deleting form:', error)
