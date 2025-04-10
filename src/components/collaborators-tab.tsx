@@ -113,9 +113,12 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
     try {
       setInviting(true)
       
+      // Normalize email address to lowercase for consistency
+      const normalizedEmail = inviteEmail.trim().toLowerCase()
+      
       // Find existing user by email using RPC (if they exist)
       const { data: existingUserId } = await supabase.rpc('get_user_id_by_email', {
-        email_param: inviteEmail
+        email_param: normalizedEmail
       })
       
       // Create collaborator record
@@ -125,7 +128,7 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
           form_id: formId,
           user_id: existingUserId || null,
           role: inviteRole,
-          invitation_email: inviteEmail,
+          invitation_email: normalizedEmail, // Store normalized email
           invitation_accepted: !!existingUserId, // Auto-accepted if user exists
         })
         .select()
