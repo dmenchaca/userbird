@@ -13,6 +13,7 @@ interface ErrorResponse {
   debug?: {
     hasUrl?: boolean;
     hasKey?: boolean;
+    envVars?: string;
   };
 }
 
@@ -57,7 +58,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
     console.log('Full request URL:', fullUrl);
     
     // Create Supabase client with service role key
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseKey) {
@@ -72,7 +73,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
           error: 'Missing Supabase credentials',
           debug: {
             hasUrl: !!supabaseUrl,
-            hasKey: !!supabaseKey
+            hasKey: !!supabaseKey,
+            envVars: Object.keys(process.env).filter(key => key.includes('SUPABASE') || key.includes('VITE')).join(', ')
           }
         } as ErrorResponse)
       };
