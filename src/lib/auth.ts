@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
 import { trackEvent, shutdownPostHog, identifyUser } from './posthog'
+import { linkPendingInvitations } from './utils/invitations'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -67,6 +68,16 @@ export function useAuth() {
           name: session.user.user_metadata?.full_name,
           provider: session.user.app_metadata?.provider
         });
+        
+        // Link any pending invitations to this user
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          try {
+            await linkPendingInvitations();
+          } catch (err) {
+            console.error('Error linking invitations:', err);
+            // Don't break auth flow if invitation linking fails
+          }
+        }
       }
       
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {

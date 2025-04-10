@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getFeedbackImageUrl } from '../lib/utils/feedback-images'
+import { linkPendingInvitations } from '@/lib/utils/invitations'
 
 interface DashboardProps {
   initialFormId?: string
@@ -159,6 +160,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     const fetchLatestForm = async () => {
       setLoading(true);
       try {
+        // Check for any pending invitations and link them
+        await linkPendingInvitations();
+        
         const { data, error } = await supabase
           .from('forms')
           .select('id')
