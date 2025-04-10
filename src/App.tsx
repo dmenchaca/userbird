@@ -24,11 +24,7 @@ export default function App() {
             <FormView />
           </AuthGuard>
         } />
-        <Route path="/fix-invitation" element={
-          <AuthGuard>
-            <FixInvitation />
-          </AuthGuard>
-        } />
+        <Route path="/fix-invitation" element={<FixInvitation />} />
         <Route
           path="/"
           element={
