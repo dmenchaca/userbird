@@ -16,7 +16,7 @@
   to = "https://ruqbgoazhyfxrsxbttfp.supabase.co/functions/v1/:splat"
   status = 200
   force = true
-  headers = {Authorization = "Bearer ${SUPABASE_SERVICE_ROLE_KEY}"}
+  headers = {Authorization = "Bearer your-token-here"}
 
 [[headers]]
   for = "/widget.js"
@@ -25,3 +25,8 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET"
     Content-Type = "application/javascript; charset=utf-8"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
