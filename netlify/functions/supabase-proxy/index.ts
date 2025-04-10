@@ -1,5 +1,5 @@
 import { Handler, HandlerEvent, HandlerContext, HandlerResponse } from '@netlify/functions';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 
 // Types for function responses
@@ -38,6 +38,19 @@ function getContentTypeFromPath(path: string): string {
     case 'webp': return 'image/webp';
     default: return 'application/octet-stream';
   }
+}
+
+// Extract auth token from request headers
+function getAuthToken(event: HandlerEvent): string | null {
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader) return null;
+  
+  // Handle different auth header formats
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.replace('Bearer ', '');
+  }
+  
+  return authHeader;
 }
 
 // Create type-safe headers
@@ -125,10 +138,97 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
       }
     });
     
-    // First generate a signed URL
+    // AUTH CHECK: Get user authentication token
+    const authToken = getAuthToken(event);
+    if (!authToken) {
+      const headers: HeadersType = {
+        'Content-Type': 'application/json'
+      };
+      
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({
+          error: 'Authentication required',
+          status: 'unauthorized'
+        } as ErrorResponse)
+      };
+    }
+    
+    // Verify the auth token and get user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
+    
+    if (authError || !user) {
+      const headers: HeadersType = {
+        'Content-Type': 'application/json'
+      };
+      
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({
+          error: authError?.message || 'Invalid authentication token',
+          details: authError,
+          status: 'unauthorized'
+        } as ErrorResponse)
+      };
+    }
+    
+    // Check permissions in forms_collaborator table
+    // Extract form ID from the image path (first part of the path)
+    const formId = imagePath.split('/')[0];
+    console.log('Form ID extracted from path:', formId);
+    
+    // If formId can't be extracted, reject the request
+    if (!formId) {
+      const headers: HeadersType = {
+        'Content-Type': 'application/json'
+      };
+      
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Invalid image path format, cannot determine form ID',
+          status: 'error'
+        } as ErrorResponse)
+      };
+    }
+    
+    // Query forms_collaborator table to check permissions
+    const { data: collaboration, error: permError } = await supabase
+      .from('forms_collaborator')
+      .select('*')
+      .eq('form_id', formId)
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'agent'])
+      .single();
+    
+    // If no collaboration found, user doesn't have permission
+    if (permError || !collaboration) {
+      const headers: HeadersType = {
+        'Content-Type': 'application/json'
+      };
+      
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          error: 'You do not have permission to access this image',
+          formId: formId,
+          userId: user.id,
+          details: permError,
+          status: 'forbidden'
+        } as ErrorResponse)
+      };
+    }
+    
+    console.log('User authorized to access image:', { userId: user.id, formId, role: collaboration.role });
+    
+    // User is authenticated and authorized - generate a short-lived signed URL
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('feedback-images')
-      .createSignedUrl(imagePath, 3600);
+      .createSignedUrl(imagePath, 60); // 60 seconds expiration
     
     if (signedUrlError) {
       const headers: HeadersType = {
@@ -178,6 +278,11 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
           status: 'success',
           debug: true,
           requestUrl: fullUrl,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: collaboration.role
+          },
           timestamp: new Date().toISOString()
         } as DebugResponse)
       };
@@ -217,7 +322,8 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
       // Return the image with proper headers
       const headers: HeadersType = {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400'
+        'Cache-Control': 'private, max-age=300', // shorter cache time for authenticated content
+        'Vary': 'Authorization' // varies based on auth header to avoid cache leakage
       };
       
       return {
@@ -229,16 +335,18 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
     } catch (fetchError) {
       console.error('Error fetching image:', fetchError);
       
-      // Fallback to redirect
+      // Fallback to redirect is not secure for authenticated content - don't use
       const headers: HeadersType = {
-        'Location': signedUrlData.signedUrl,
-        'Cache-Control': 'no-cache'
+        'Content-Type': 'application/json'
       };
       
       return {
-        statusCode: 302,
+        statusCode: 500,
         headers,
-        body: ''
+        body: JSON.stringify({
+          error: 'Failed to fetch image',
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        } as ErrorResponse)
       };
     }
   } catch (error: any) {

@@ -12,12 +12,14 @@
 [template.environment]
   SENDGRID_API_KEY = "Your SendGrid API key"
 
+# More specific rule FIRST - Route to secure proxy function
 [[redirects]]
   from = "/functions/v1/feedback-images*"
   to = "/.netlify/functions/supabase-proxy"
   status = 200
   force = true
 
+# More general rule SECOND
 [[redirects]]
   from = "/functions/v1/*"
   to = "https://ruqbgoazhyfxrsxbttfp.supabase.co/functions/v1/:splat"
