@@ -44,7 +44,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
-  const [loading, setLoading] = useState(!initialFormId)
+  const [loading, setLoading] = useState(true) // Always start with loading true
+  const [formsChecked, setFormsChecked] = useState(false) // Track whether we've checked for forms
   const [hasAnyForms, setHasAnyForms] = useState(false)
   const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
@@ -150,14 +151,18 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   useEffect(() => {
     if (!user?.id) return;
     
+    // Always set loading to true when this effect starts running
+    setLoading(true);
+    
     // If initialFormId is provided, we don't need to fetch the latest form
     if (initialFormId) {
+      setSelectedFormId(initialFormId);
+      setFormsChecked(true);
       setLoading(false);
       return;
     }
     
     const fetchLatestForm = async () => {
-      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('forms')
@@ -172,11 +177,26 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           setHasAnyForms(true);
           setSelectedFormId(data[0].id);
         } else {
-          setHasAnyForms(false);
+          // Also check for collaborator forms
+          const { data: collabData, error: collabError } = await supabase
+            .rpc('get_user_collaboration_forms', { 
+              user_id_param: user.id 
+            });
+          
+          if (!collabError && collabData && Array.isArray(collabData) && collabData.length > 0) {
+            // User has collaborative forms, set the first one
+            setHasAnyForms(true);
+            setSelectedFormId(collabData[0]);
+          } else {
+            // No forms owned or collaborated on
+            setHasAnyForms(false);
+            setSelectedFormId(undefined);
+          }
         }
       } catch (error) {
         console.error('Error fetching latest form:', error);
       } finally {
+        setFormsChecked(true);
         setLoading(false);
       }
     };
@@ -243,12 +263,12 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       // Only update URL if there's no selected response (with ticket number)
       // This prevents overwriting the URL with ticket number
       if (!selectedResponse) {
-        navigate(`/forms/${selectedFormId}`, { replace: true })
+        navigate(`/forms/${selectedFormId}`, { replace: true });
       }
-    } else if (!loading) {
-      navigate('/', { replace: true })
+    } else if (formsChecked && !loading) {
+      navigate('/', { replace: true });
     }
-  }, [selectedFormId, navigate, loading, hasAnyForms, selectedResponse])
+  }, [selectedFormId, navigate, loading, formsChecked, selectedResponse]);
 
   // Check if form has any responses
   useEffect(() => {
@@ -1425,7 +1445,16 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         )}
       </aside>
       <main className="ml-[240px] flex-1 flex overflow-hidden h-screen">
-        {selectedFormId && (
+        {loading && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader className="h-10 w-10 animate-spin mx-auto text-primary mb-4" />
+              <p className="text-muted-foreground">Loading your dashboard...</p>
+            </div>
+          </div>
+        )}
+        
+        {!loading && selectedFormId && (
           <>
             <div className="w-[30%] inbox-wrapper flex flex-col min-w-0 h-full overflow-hidden" style={{ maxWidth: "400px" }}>
               <header className="border-b border-border sticky top-0 bg-background z-10">
@@ -1801,7 +1830,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             )}
           </>
         )}
-        {!selectedFormId && (
+        
+        {!loading && !selectedFormId && formsChecked && (
           <div className="container py-12 px-8 space-y-8 w-full">
             <div className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex items-center">
               <div className="text-center space-y-2 mb-4">
