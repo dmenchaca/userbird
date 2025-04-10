@@ -48,12 +48,32 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           navigate('/')
         }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         })
 
         if (error) throw error
+        
+        if (data.user) {
+          // User was created successfully, now link any pending invitations
+          try {
+            await fetch('/.netlify/functions/link-user-invitations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: data.user.id,
+                email: data.user.email
+              })
+            });
+            // Note: We don't wait for a response or handle errors from this call
+            // because we don't want to block the signup flow if the invitation linking fails
+          } catch (invitationError) {
+            // Log but don't fail the signup
+            console.error('Error linking invitations:', invitationError);
+          }
+        }
+        
         setSuccess(true)
       }
     } catch (error) {
