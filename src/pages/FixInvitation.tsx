@@ -47,30 +47,76 @@ export function FixInvitation() {
         throw new Error('Not logged in. Please log in first.');
       }
       
-      const { data, error } = await supabase
-        .from('form_collaborators')
-        .update({
-          user_id: user.id,
-          invitation_accepted: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', invitationId)
-        .select();
-        
-      if (error) throw error;
+      // First, try to use the Netlify function with admin privileges
+      const response = await fetch('/.netlify/functions/fix-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          invitationId: invitationId
+        }),
+      });
       
-      // Get the updated record
-      const { data: updatedData } = await supabase
-        .from('form_collaborators')
-        .select('*')
-        .eq('id', invitationId)
-        .single();
-        
-      setInvitation(updatedData);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${data.error || response.statusText}`);
+      }
+      
+      // Update the local state with the response data
       setResult({ success: true, data });
+      
+      if (data.after) {
+        setInvitation(data.after);
+      } else {
+        // Get the updated record as backup
+        const { data: updatedData } = await supabase
+          .from('form_collaborators')
+          .select('*')
+          .eq('id', invitationId)
+          .single();
+          
+        setInvitation(updatedData);
+      }
     } catch (error) {
       console.error('Error:', error);
       setResult({ success: false, error });
+      
+      // Fallback to direct DB update if the function fails
+      try {
+        console.log('Trying direct database update as fallback...');
+        
+        const invitationId = '573f92ad-7a7b-4b8e-83a1-08364d443ef0';
+        
+        const { data, error: updateError } = await supabase
+          .from('form_collaborators')
+          .update({
+            user_id: user.id,
+            invitation_accepted: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', invitationId)
+          .select();
+          
+        if (updateError) {
+          console.error('Fallback update error:', updateError);
+        } else {
+          setResult({ success: true, data, method: 'fallback' });
+          
+          // Refresh invitation data
+          const { data: refreshedData } = await supabase
+            .from('form_collaborators')
+            .select('*')
+            .eq('id', invitationId)
+            .single();
+            
+          setInvitation(refreshedData);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+      }
     } finally {
       setLoading(false);
     }
@@ -99,6 +145,7 @@ export function FixInvitation() {
       ) : (
         <div className="p-4 bg-green-100 text-green-800 rounded-md mb-4">
           <p className="font-bold">Logged in as: {user.email}</p>
+          <p className="mt-1 text-sm">User ID: {user.id}</p>
         </div>
       )}
       
@@ -116,10 +163,17 @@ export function FixInvitation() {
             <div>{invitation.invitation_email}</div>
             
             <div className="font-semibold">User ID:</div>
-            <div>{invitation.user_id || 'Not set'}</div>
+            <div className={invitation.user_id ? 'text-green-600 font-medium' : 'text-gray-500'}>
+              {invitation.user_id || 'Not set'}
+            </div>
             
             <div className="font-semibold">Accepted:</div>
-            <div>{invitation.invitation_accepted ? 'Yes' : 'No'}</div>
+            <div className={invitation.invitation_accepted ? 'text-green-600 font-medium' : 'text-gray-500'}>
+              {invitation.invitation_accepted ? 'Yes' : 'No'}
+            </div>
+            
+            <div className="font-semibold">Last Updated:</div>
+            <div>{new Date(invitation.updated_at).toLocaleString()}</div>
           </div>
         </div>
       )}
@@ -131,6 +185,7 @@ export function FixInvitation() {
           <li>Marking the invitation as accepted</li>
           <li>Updating the timestamp</li>
         </ul>
+        <p className="mt-2 text-sm text-gray-600">This will be done with admin privileges bypassing RLS policies.</p>
       </div>
       
       <Button 
