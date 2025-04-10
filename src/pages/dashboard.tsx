@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { getFeedbackImageUrl } from '../lib/utils/feedback-images'
 
 interface DashboardProps {
   initialFormId?: string
@@ -69,6 +70,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('#3B82F6')
   const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
+  const imageRef = useRef<HTMLImageElement>(null)
   
   // Team member assignment states
   const [collaborators, setCollaborators] = useState<{
@@ -678,6 +680,39 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     };
     
     fetchTags();
+
+    // Subscribe to changes to tags
+    const channel = supabase
+      .channel('tag_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'feedback_tags',
+          filter: `form_id=eq.${selectedFormId}`
+        },
+        async (payload) => {
+          // When tag is created, updated or deleted, refresh the tags
+          await fetchTags();
+          
+          // Also update the selected response if its tag was updated
+          if (payload.eventType === 'UPDATE' && selectedResponse?.tag_id === payload.new.id) {
+            setSelectedResponse(prevResponse => {
+              if (!prevResponse) return null;
+              return {
+                ...prevResponse,
+                tag: payload.new as FeedbackTag
+              };
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, [selectedFormId]);
   
   // Fetch collaborators for the form
@@ -982,6 +1017,16 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
     fetchTicket();
   }, [selectedFormId, initialTicketNumber]);
+
+  const downloadImage = () => {
+    if (!selectedResponse?.image_url) return;
+    const link = document.createElement('a');
+    link.href = getFeedbackImageUrl(selectedResponse.image_url);
+    link.download = selectedResponse.image_name || 'feedback-image.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (loading) {
     return (
@@ -1694,16 +1739,15 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                       {selectedResponse.image_url && (
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-muted-foreground">Image</p>
-                          <button
-                            onClick={() => setShowImagePreview(true)}
-                            className="w-full rounded-lg border overflow-hidden hover:opacity-90 transition-opacity"
-                          >
-                            <img 
-                              src={selectedResponse.image_url} 
-                              alt={selectedResponse.image_name || 'Feedback image'} 
-                              className="w-full"
+                          <div className="feedback-image-container">
+                            <img
+                              ref={imageRef}
+                              className="feedback-image"
+                              alt="Feedback screenshot"
+                              src={getFeedbackImageUrl(selectedResponse.image_url)}
+                              onClick={() => setShowImagePreview(true)}
                             />
-                          </button>
+                          </div>
                           {selectedResponse.image_name && (
                             <p className="text-xs text-muted-foreground">{selectedResponse.image_name}</p>
                           )}
@@ -1882,30 +1926,19 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         )}
         {/* Image preview dialog */}
         {selectedResponse?.image_url && showImagePreview && (
-          <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-            <DialogContent className="max-w-3xl">
-              <div className="flex justify-between mb-4">
-                <h3 className="font-medium">Image Preview</h3>
-                <div className="space-x-2">
-                  <Button size="sm" onClick={handleDownload}>Download</Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => setShowImagePreview(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
+          <div className="image-preview-overlay" onClick={() => setShowImagePreview(false)}>
+            <div className="image-preview-container">
+              <div className="image-preview-actions">
+                <button onClick={downloadImage}>Download</button>
+                <button onClick={() => setShowImagePreview(false)}>Close</button>
               </div>
-              <div className="max-h-[70vh] overflow-auto">
-                <img 
-                  src={selectedResponse.image_url} 
-                  alt={selectedResponse.image_name || 'Feedback image'} 
-                  className="w-full"
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+              <img
+                className="image-preview"
+                alt="Feedback screenshot"
+                src={getFeedbackImageUrl(selectedResponse.image_url)}
+              />
+            </div>
+          </div>
         )}
         {/* Batch action bar */}
         <BatchActionBar 

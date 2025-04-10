@@ -22,6 +22,9 @@ export interface FeedbackResponse {
     user_name?: string
     avatar_url?: string
   } | null
+  _isExiting?: boolean
+  _isNew?: boolean
+  _isUpdated?: boolean
 }
 
 export interface FeedbackTag {

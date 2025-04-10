@@ -336,6 +336,17 @@ export class EmailService {
     const from = formatSender({ email: 'notifications@userbird.co', name: DEFAULT_SENDER_NAME });
     const isNotificationsEmail = true;
 
+    // Generate secure URL for image
+    let secureImageUrl = image_url;
+    if (image_url && image_url.includes('feedback-images')) {
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const parts = image_url.split('feedback-images/');
+      if (parts.length > 1) {
+        const imagePath = parts[1];
+        secureImageUrl = `${supabaseUrl}/functions/v1/feedback-images/${imagePath}`;
+      }
+    }
+
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
 <html>
@@ -381,7 +392,7 @@ export class EmailService {
         <div style="margin-bottom: 16px;">
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Image</h4>
           <div style="margin-top: 8px;">
-            <img src="${image_url}" alt="Feedback image" style="max-width: 100%; border-radius: 4px;" />
+            <img src="${secureImageUrl}" alt="Feedback image" style="max-width: 100%; border-radius: 4px;" />
             ${image_name ? `<p style="color: #6b7280; font-size: 12px; margin: 4px 0 0;">${image_name}</p>` : ''}
           </div>
         </div>
@@ -423,7 +434,7 @@ ${operating_system ? `Operating System: ${operating_system}` : ''}
 ${screen_category ? `Screen Category: ${screen_category}` : ''}
 
 ` : ''}${image_url ? `Screenshot:
-${image_url}
+${secureImageUrl}
 
 ` : ''}${formatedDate ? `Received on ${formatedDate}` : ''}`;
 

@@ -158,16 +158,16 @@ export const handler: Handler = async (event) => {
             formId
           });
 
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('feedback-images')
-            .getPublicUrl(data.path);
+          // Use Edge Function URL instead of public URL
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const imagePath = data.path;
+          const secureUrl = `${supabaseUrl}/functions/v1/feedback-images/${imagePath}`;
 
           resolve({
             statusCode: 200,
             headers,
             body: JSON.stringify({
-              url: publicUrl,
+              url: secureUrl,
               name: fileName,
               size: fileBuffer.length
             })

@@ -89,13 +89,14 @@ export interface FeedbackInboxRef {
   clearSelection: () => void;
 }
 
-export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({ 
-  formId,
-  statusFilter: externalStatusFilter = 'all',
-  tagFilter,
-  onResponseSelect,
-  onSelectionChange
-}, ref) => {
+export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>((props, ref) => {
+  const {
+    formId,
+    statusFilter: externalStatusFilter = 'all',
+    tagFilter,
+    onResponseSelect,
+    onSelectionChange
+  } = props;
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -179,7 +180,6 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         return response
       }) || []
       
-      // When initially loading (not during updates), don't set animation flags
       setResponses(enhancedResponses)
     } catch (error) {
       console.error('Error fetching responses:', error)
@@ -249,22 +249,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             }
           }
           
-          // Mark this as a new response so it can be animated
-          newResponse._isNew = true;
-          
           // Add the new response to the top of the list
           setResponses(prev => [newResponse, ...prev]);
-          
-          // Remove the "new" flag after animation completes
-          setTimeout(() => {
-            setResponses(prev => 
-              prev.map(response => 
-                response.id === newResponse.id 
-                  ? { ...response, _isNew: false } 
-                  : response
-              )
-            );
-          }, 1000); // Duration slightly longer than the CSS animation
         } catch (error) {
           console.error('Error processing new feedback:', error);
         }
@@ -290,12 +276,27 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
               )
             );
             
-            // Remove the item after animation completes
+            // Get reference to container for elastic animation
+            const container = document.querySelector('#feedback-list-container');
+            
+            // Remove the item after exit animation completes
             setTimeout(() => {
               setResponses(prev => 
                 prev.filter(response => response.id !== updatedResponse.id)
               );
-            }, 600); // Duration slightly longer than the CSS animation
+              
+              // Add elastic animation class after a tiny delay
+              setTimeout(() => {
+                if (container) {
+                  container.classList.add('elastic-gap');
+                  
+                  // Remove the class after animation completes
+                  setTimeout(() => {
+                    container.classList.remove('elastic-gap');
+                  }, 700);
+                }
+              }, 50);
+            }, 450); // Duration slightly shorter than CSS animation
             
             return;
           }
@@ -313,26 +314,12 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             }
           }
           
-          // Mark this as an updated response for animation
-          updatedResponse._isUpdated = true;
-          
           // Update the response in the array
           setResponses(prev => 
             prev.map(response => 
               response.id === updatedResponse.id ? updatedResponse : response
             )
           );
-          
-          // Remove the updated flag after animation completes
-          setTimeout(() => {
-            setResponses(prev => 
-              prev.map(response => 
-                response.id === updatedResponse.id 
-                  ? { ...response, _isUpdated: false } 
-                  : response
-              )
-            );
-          }, 1000); // Duration slightly longer than the CSS animation
         } catch (error) {
           console.error('Error processing updated feedback:', error);
         }
@@ -355,21 +342,25 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           )
         );
         
+        // Get reference to container for adding elastic animation
+        const container = document.querySelector('#feedback-list-container');
+        
         // Remove after animation completes
         setTimeout(() => {
           setResponses(prev => prev.filter(response => response.id !== deletedId));
-        }, 600); // Duration slightly longer than the CSS animation
-      })
-      // Subscribe to tag changes
-      .on('postgres_changes', {
-        event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
-        schema: 'public',
-        table: 'feedback_tags',
-        filter: `form_id=eq.${formId}`
-      }, async () => {
-        // When tags change, refresh responses to get updated tag data
-        // Use skipLoadingState=true to avoid showing loading indicator
-        await fetchResponses(true);
+          
+          // Add elastic animation class after a tiny delay
+          setTimeout(() => {
+            if (container) {
+              container.classList.add('elastic-gap');
+              
+              // Remove the class after animation completes
+              setTimeout(() => {
+                container.classList.remove('elastic-gap');
+              }, 700);
+            }
+          }, 50);
+        }, 450);
       })
       .subscribe()
 
@@ -580,12 +571,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             }
           }
           
-          .feedback-new {
+          .feedback-appear {
             animation: feedbackAppear 0.4s ease-out, feedbackGlow 1s ease-out;
-          }
-          
-          .feedback-updated {
-            animation: feedbackGlow 1s ease-out;
           }
           
           /* Feedback exit animation */
@@ -616,6 +603,29 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           .feedback-exit {
             animation: feedbackExit 0.5s ease-out forwards;
             pointer-events: none;
+          }
+          
+          /* Animation for list items to elastically fill the gap */
+          @keyframes elasticMove {
+            0% {
+              transform: translateY(0);
+            }
+            30% {
+              transform: translateY(8px);
+            }
+            60% {
+              transform: translateY(-4px);
+            }
+            80% {
+              transform: translateY(2px);
+            }
+            100% {
+              transform: translateY(0);
+            }
+          }
+          
+          .elastic-gap {
+            animation: elasticMove 0.7s ease-out;
           }
         `
       }} />
@@ -672,15 +682,13 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4" id="feedback-list-container">
             {filteredResponses.map((response, index) => (
               <button
                 key={response.id}
                 className={cn(
                   "flex flex-col rounded-lg border p-3 text-left text-sm transition-all w-full",
-                  response._isExiting ? "feedback-exit" : 
-                  response._isNew ? "feedback-new" : 
-                  response._isUpdated ? "feedback-updated" : "",
+                  response._isExiting ? "feedback-exit" : "feedback-appear",
                   selectedIds.includes(response.id) ? "bg-primary/5 border-primary/20" : "hover:bg-accent"
                 )}
                 onClick={() => {
@@ -695,63 +703,4 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                       checked={selectedIds.includes(response.id)}
                       onCheckedChange={() => {}}
                       onClick={(e) => handleCheckboxChange(response.id, index, e)}
-                      aria-label={`Select ${formatName(response)}'s feedback`}
-                    />
-                  </div>
-                  <div className="flex flex-col items-start gap-2 w-full">
-                    <div className="flex w-full flex-col gap-1">
-                      <div className="flex items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="font-semibold">{formatName(response)}</div>
-                        </div>
-                        <div className="ml-auto text-xs text-muted-foreground flex items-center gap-2">
-                          <span className="inline-flex items-center text-xs text-muted-foreground border border-border rounded px-1.5">
-                            #{response.ticket_number || '-'}
-                          </span>
-                          {formatTimeAgo(response.created_at)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground text-left">
-                      <div className="line-clamp-2 break-words">
-                        {stripHtmlAndFormat(response.message)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {response.tag ? (
-                        <div 
-                          key={`${response.id}-${response.tag.id}`}
-                          className="overflow-hidden max-w-[190px] rounded-md py-[3px] px-[6px] pl-[3px] font-medium cursor-pointer transition-colors tag-appear"
-                          style={{ 
-                            userSelect: "none"
-                          }}
-                        >
-                          <div 
-                            className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-full px-2 text-[12px] leading-[120%] font-medium"
-                            style={{ 
-                              backgroundColor: getTagColors(response.tag.color).background,
-                              color: getTagColors(response.tag.color).text
-                            }}
-                          >
-                            <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">
-                              <span className="whitespace-nowrap overflow-hidden text-ellipsis">{response.tag.name}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                      {response.status === 'closed' && (
-                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                          Closed
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}) 
+                      aria-label={`

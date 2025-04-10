@@ -65,7 +65,8 @@ export const handler: Handler = async (event) => {
       user_id,
       user_email,
       user_name,
-      url_path
+      url_path,
+      keyboard_shortcut
     } = body;
 
     if (!formId || !message?.trim()) {
@@ -88,21 +89,33 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Generate secure URL for image if needed
+    let secureImageUrl = image_url;
+    if (image_url && image_url.includes('feedback-images')) {
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const parts = image_url.split('feedback-images/');
+      if (parts.length > 1) {
+        const imagePath = parts[1];
+        secureImageUrl = `${supabaseUrl}/functions/v1/feedback-images/${imagePath}`;
+      }
+    }
+
     // Store feedback
     const { error: insertError, data: feedbackData } = await supabase
       .from('feedback')
       .insert([{
         form_id: formId, 
         message,
-        operating_system: operating_system || 'Unknown',
-        image_url: image_url || null,
+        keyboard_shortcut,
+        image_url: secureImageUrl || null,
         image_name: image_name || null,
         image_size: image_size || null,
         screen_category: screen_category || 'Unknown',
         user_id: user_id || null,
         user_email: user_email || null,
         user_name: user_name || null,
-        url_path: url_path || null
+        url_path: url_path || null,
+        operating_system: operating_system || 'Unknown'
       }])
       .select();
 
