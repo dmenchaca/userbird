@@ -65,8 +65,7 @@ export const handler: Handler = async (event) => {
       user_id,
       user_email,
       user_name,
-      url_path,
-      keyboard_shortcut
+      url_path
     } = body;
 
     if (!formId || !message?.trim()) {
@@ -106,7 +105,6 @@ export const handler: Handler = async (event) => {
       .insert([{
         form_id: formId, 
         message,
-        keyboard_shortcut,
         image_url: secureImageUrl || null,
         image_name: image_name || null,
         image_size: image_size || null,
