@@ -12,9 +12,11 @@
   SENDGRID_API_KEY = "Your SendGrid API key"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/functions/v1/*"
+  to = "https://ruqbgoazhyfxrsxbttfp.supabase.co/functions/v1/:splat"
   status = 200
+  force = true
+  headers = {Authorization = "Bearer ${SUPABASE_SERVICE_ROLE_KEY}"}
 
 [[headers]]
   for = "/widget.js"
