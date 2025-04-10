@@ -15,6 +15,7 @@ export async function linkPendingInvitations() {
     }
     
     // Update any pending invitations that match this user's email
+    // Use .is() to properly filter for NULL values in SQL
     const { data, error } = await supabase
       .from('form_collaborators')
       .update({ 
@@ -22,10 +23,9 @@ export async function linkPendingInvitations() {
         invitation_accepted: true,
         updated_at: new Date().toISOString()
       })
-      .match({ 
-        invitation_email: user.email,
-        user_id: null 
-      });
+      .eq('invitation_email', user.email)
+      .is('user_id', null)  // Proper way to check for NULL values
+      .select();
       
     if (error) {
       console.error('Error linking invitations:', error);
