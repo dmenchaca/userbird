@@ -174,7 +174,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
       };
     }
     
-    // Check permissions in forms_collaborator table
+    // Check permissions in form_collaborators table
     // Extract form ID from the image path (first part of the path)
     const formId = imagePath.split('/')[0];
     console.log('Form ID extracted from path:', formId);
@@ -195,9 +195,9 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext): P
       };
     }
     
-    // Query forms_collaborator table to check permissions
+    // Query form_collaborators table to check permissions
     const { data: collaboration, error: permError } = await supabase
-      .from('forms_collaborator')
+      .from('form_collaborators')
       .select('*')
       .eq('form_id', formId)
       .eq('user_id', user.id)
