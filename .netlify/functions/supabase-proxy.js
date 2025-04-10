@@ -8,12 +8,9 @@ exports.handler = async (event, context) => {
     console.log('Request query:', event.queryStringParameters);
     console.log('Request method:', event.httpMethod);
     
-    // Extract the path from the request
-    const path = event.path.replace('/.netlify/functions/supabase-proxy', '');
-    const queryString = new URLSearchParams(event.queryStringParameters || {}).toString();
-    const fullPath = `${path}${queryString ? '?' + queryString : ''}`;
-    
-    console.log('Proxying to Supabase path:', fullPath);
+    // Get the full path including query params for debugging
+    const fullUrl = event.rawUrl || `${event.path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
+    console.log('Full request URL:', fullUrl);
     
     // Create Supabase client with service role key
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -34,23 +31,36 @@ exports.handler = async (event, context) => {
     
     // Check for debug mode
     const isDebugMode = event.queryStringParameters?.debug === 'true' || 
-                         event.headers['x-test-mode'] === 'true';
+                       event.headers['x-test-mode'] === 'true';
     
-    // Extract the image path from the request
+    // Extract image path from the URL
+    // Format will be like: /.netlify/functions/supabase-proxy/feedback-images/user-id/file-name.jpg
+    // OR: /.netlify/functions/supabase-proxy (with path in query param)
     let imagePath = event.queryStringParameters?.path;
     
     // If not in query params, extract from path
-    if (!imagePath && path.includes('/feedback-images/')) {
-      const pathParts = path.split('/feedback-images/');
-      if (pathParts.length > 1 && pathParts[1]) {
-        imagePath = decodeURIComponent(pathParts[1]);
+    if (!imagePath) {
+      const pathPattern = /\/functions\/v1\/feedback-images\/(.*)/;
+      const match = event.path.match(pathPattern) || fullUrl.match(pathPattern);
+      
+      if (match && match[1]) {
+        imagePath = decodeURIComponent(match[1]);
       }
     }
+    
+    console.log('Extracted image path:', imagePath);
     
     if (!imagePath) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Image path not provided' })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          error: 'Image path not provided',
+          requestPath: event.path,
+          fullUrl: fullUrl
+        })
       };
     }
     
@@ -70,9 +80,13 @@ exports.handler = async (event, context) => {
     if (signedUrlError) {
       return {
         statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           error: signedUrlError.message,
-          path: imagePath
+          path: imagePath,
+          requestUrl: fullUrl
         })
       };
     }
@@ -80,6 +94,9 @@ exports.handler = async (event, context) => {
     if (!signedUrlData?.signedUrl) {
       return {
         statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           error: 'File not found or URL generation failed',
           path: imagePath
@@ -100,6 +117,7 @@ exports.handler = async (event, context) => {
           path: imagePath,
           status: 'success',
           debug: true,
+          requestUrl: fullUrl,
           timestamp: new Date().toISOString()
         })
       };
@@ -107,11 +125,15 @@ exports.handler = async (event, context) => {
     
     // Otherwise, fetch the image and return it directly
     try {
+      console.log('Fetching image from:', signedUrlData.signedUrl);
       const response = await fetch(signedUrlData.signedUrl);
       
       if (!response.ok) {
         return {
           statusCode: response.status,
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             error: `Error fetching image: ${response.status} ${response.statusText}`,
             path: imagePath
@@ -122,6 +144,8 @@ exports.handler = async (event, context) => {
       const contentType = response.headers.get('Content-Type') || 
                          getContentTypeFromPath(imagePath);
       const imageBuffer = await response.arrayBuffer();
+      
+      console.log('Successfully fetched image, content-type:', contentType);
       
       // Return the image with proper headers
       return {
@@ -150,6 +174,9 @@ exports.handler = async (event, context) => {
     console.error('Function error:', error);
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         error: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
