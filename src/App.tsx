@@ -5,7 +5,6 @@ import { AuthPage } from './pages/auth/auth';
 import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
 import { FormView } from './pages/form-view';
-import { FixInvitation } from './pages/FixInvitation';
 
 export default function App() {
   return (
@@ -24,7 +23,6 @@ export default function App() {
             <FormView />
           </AuthGuard>
         } />
-        <Route path="/fix-invitation" element={<FixInvitation />} />
         <Route
           path="/"
           element={

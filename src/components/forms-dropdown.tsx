@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { ChevronDown, Plus, Loader2, Check } from 'lucide-react'
@@ -50,6 +50,7 @@ export function FormsDropdown({
   const [forms, setForms] = useState<Form[]>([])
   const [currentForm, setCurrentForm] = useState<Form | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialSelectionMade = useRef(false)
 
   // Fetch forms data
   useEffect(() => {
@@ -150,11 +151,33 @@ export function FormsDropdown({
         
         setForms(allForms || []);
         
-        // Find the currently selected form
+        // Auto-select logic
+        // If user has a selected form already, keep it
         if (selectedFormId) {
           const current = allForms?.find(form => form.id === selectedFormId) || null;
           setCurrentForm(current);
-        } else if (allForms && allForms.length > 0) {
+        } 
+        // If no form is selected yet and we haven't made an initial selection
+        else if (!initialSelectionMade.current && allForms && allForms.length > 0) {
+          initialSelectionMade.current = true;
+          
+          // First check if there are any collaborator forms - prioritize these
+          // as they're likely what the user was invited to access
+          if (uniqueCollaboratedForms.length > 0) {
+            const firstCollabForm = uniqueCollaboratedForms[0];
+            setCurrentForm(firstCollabForm);
+            // Call the parent component's form selection handler
+            onFormSelect(firstCollabForm.id);
+          } 
+          // Otherwise select the first form (likely owned by the user)
+          else {
+            setCurrentForm(allForms[0]);
+            // Call the parent component's form selection handler
+            onFormSelect(allForms[0].id);
+          }
+        } 
+        // Default case - we have a current form selection
+        else if (allForms && allForms.length > 0) {
           setCurrentForm(allForms[0]);
         }
       } catch (error) {
