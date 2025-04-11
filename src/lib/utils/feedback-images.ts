@@ -16,28 +16,34 @@ const supabaseUrl = typeof window !== 'undefined'
 export function getFeedbackImageUrl(imagePath: string): string {
   if (!imagePath) return '';
   
-  // If the path is already a full URL, extract just the path portion after the bucket name
-  if (imagePath.includes('feedback-images')) {
-    const parts = imagePath.split('feedback-images/');
+  // Clean up the path to ensure no duplication
+  let cleanPath = imagePath;
+  
+  // If the path already contains the functions prefix, extract just the image path part
+  if (cleanPath.includes('/functions/v1/feedback-images/')) {
+    const parts = cleanPath.split('/functions/v1/feedback-images/');
     if (parts.length > 1) {
-      imagePath = parts[1];
+      cleanPath = parts[parts.length - 1];
+    }
+  }
+  
+  // If the path contains the bucket name, extract just the path portion after it
+  else if (cleanPath.includes('feedback-images/')) {
+    const parts = cleanPath.split('feedback-images/');
+    if (parts.length > 1) {
+      cleanPath = parts[1];
     }
   }
   
   // If the imagePath is already a full URL, return it
-  if (imagePath.startsWith('http')) {
+  if (imagePath.startsWith('http') && !imagePath.includes('/functions/v1/feedback-images/')) {
     return imagePath;
   }
   
   // Extract the base URL if it's already in the path
-  if (imagePath.includes('functions/v1/feedback-images')) {
-    return imagePath;
-  }
-  
-  // Return the Edge Function URL
   const baseUrl = imagePath.includes('supabase.co') 
     ? imagePath.split('/functions/')[0]
     : supabaseUrl;
     
-  return `${baseUrl}/functions/v1/feedback-images/${imagePath}`;
+  return `${baseUrl}/functions/v1/feedback-images/${cleanPath}`;
 } 

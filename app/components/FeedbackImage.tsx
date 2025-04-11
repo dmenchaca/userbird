@@ -40,8 +40,19 @@ export const FeedbackImage: React.FC<FeedbackImageProps> = ({
           return;
         }
 
+        // Clean up the image path to prevent duplication
+        let cleanPath = imagePath;
+        
+        // If the path already contains the functions prefix, extract just the image path part
+        if (cleanPath.includes('/functions/v1/feedback-images/')) {
+          const parts = cleanPath.split('/functions/v1/feedback-images/');
+          if (parts.length > 1) {
+            cleanPath = parts[parts.length - 1];
+          }
+        }
+        
         // Create the authenticated image URL
-        const imageUrl = `/functions/v1/feedback-images/${imagePath}`;
+        const imageUrl = `/functions/v1/feedback-images/${cleanPath}`;
         
         // For debugging: test the URL first
         const response = await fetch(imageUrl, {
