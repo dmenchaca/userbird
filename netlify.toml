@@ -22,7 +22,7 @@
 # More general rule SECOND
 [[redirects]]
   from = "/functions/v1/*"
-  to = "https://ruqbgoazhyfxrsxbttfp.supabase.co/functions/v1/:splat"
+  to = "https://tapssagpmxnjvdwyafsq.supabase.co/functions/v1/:splat"
   status = 200
   force = true
   headers = {Authorization = "Bearer your-token-here"}
