@@ -18,8 +18,35 @@ interface UserData {
  */
 async function linkUserInvitations(userData: UserData) {
   try {
+    // Validate the UUID before proceeding
+    if (!userData.id || userData.id === 'null' || userData.id === 'undefined') {
+      throw new Error('Invalid user ID: cannot be null or undefined');
+    }
+
     // Normalize email to lowercase for case-insensitive matching
     const normalizedEmail = userData.email.toLowerCase();
+    
+    // First, check if there are any invitations that match the email
+    const { data: checkData, error: checkError } = await supabase
+      .from('form_collaborators')
+      .select('id')
+      .filter('invitation_email', 'ilike', normalizedEmail)
+      .is('user_id', null)
+      .limit(1);
+      
+    if (checkError) {
+      console.error('Error checking for invitations:', checkError);
+      throw checkError;
+    }
+    
+    // If no invitations are found, return early
+    if (!checkData || checkData.length === 0) {
+      return {
+        success: true,
+        updatedCount: 0,
+        invitations: []
+      };
+    }
     
     // Update pending invitations for this user
     const { data, error } = await supabase
@@ -29,10 +56,8 @@ async function linkUserInvitations(userData: UserData) {
         invitation_accepted: true,
         updated_at: new Date().toISOString()
       })
-      .match({
-        user_id: null // Only update invitations that haven't been linked yet
-      })
       .filter('invitation_email', 'ilike', normalizedEmail) // Case-insensitive match
+      .is('user_id', null) // Only update invitations that haven't been linked yet
       .select();
       
     if (error) {
@@ -65,6 +90,7 @@ export const handler: Handler = async (event) => {
     let userData: UserData;
     try {
       const body = JSON.parse(event.body || '{}');
+      console.log('Received request body:', JSON.stringify(body));
       
       // Extract user data from payload
       if (body.record) {
@@ -83,8 +109,11 @@ export const handler: Handler = async (event) => {
       
       // Validate required fields
       if (!userData.id || !userData.email) {
+        console.error('Missing required user data:', userData);
         throw new Error('Missing required user data (id and email)');
       }
+      
+      console.log('Processing user data:', { id: userData.id, email: userData.email });
     } catch (error) {
       console.error('Error parsing request body:', error);
       return {
