@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getFeedbackImageUrl } from '../lib/utils/feedback-images'
+import { FeedbackImage } from '../../app/components/FeedbackImage'
 
 interface DashboardProps {
   initialFormId?: string
@@ -70,7 +71,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('#3B82F6')
   const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
-  const imageRef = useRef<HTMLImageElement>(null)
   
   // Team member assignment states
   const [collaborators, setCollaborators] = useState<{
@@ -1753,13 +1753,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                       {selectedResponse.image_url && (
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-muted-foreground">Image</p>
-                          <div className="feedback-image-container">
-                            <img
-                              ref={imageRef}
-                              className="feedback-image"
+                          <div className="feedback-image-container" onClick={() => setShowImagePreview(true)}>
+                            <FeedbackImage
+                              imagePath={selectedResponse.image_url}
                               alt="Feedback screenshot"
-                              src={getFeedbackImageUrl(selectedResponse.image_url)}
-                              onClick={() => setShowImagePreview(true)}
+                              className="feedback-image"
                             />
                           </div>
                           {selectedResponse.image_name && (
@@ -1947,10 +1945,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                 <button onClick={downloadImage}>Download</button>
                 <button onClick={() => setShowImagePreview(false)}>Close</button>
               </div>
-              <img
-                className="image-preview"
+              <FeedbackImage
+                imagePath={selectedResponse.image_url}
                 alt="Feedback screenshot"
-                src={getFeedbackImageUrl(selectedResponse.image_url)}
+                className="image-preview"
               />
             </div>
           </div>

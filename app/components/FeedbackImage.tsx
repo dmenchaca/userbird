@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
+import { useSupabase } from '../hooks/useSupabase';
 
 interface FeedbackImageProps {
   imagePath: string;
