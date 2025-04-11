@@ -1,11 +1,11 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CollaboratorsTab } from './collaborators-tab';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import '@testing-library/jest-dom';
 
-// Create mock functions
+// Create mock functions with any type to avoid TypeScript errors during tests
+// We'll use type assertions in individual tests where needed
 const mockFrom = jest.fn();
 const mockRpc = jest.fn();
 
@@ -33,17 +33,21 @@ describe('CollaboratorsTab component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Setup default mock responses
+    // Setup default mock responses using any type to avoid TypeScript errors
     mockFrom.mockImplementation((table) => {
       if (table === 'form_collaborators') {
         return {
           select: jest.fn().mockReturnThis(),
           insert: jest.fn().mockReturnValue({
-            select: jest.fn().mockResolvedValue({
-              data: [{ id: 'collab-1', invitation_email: 'test@example.com' }],
-              error: null
-            })
+            select: jest.fn().mockResolvedValue(
+              // @ts-ignore - Mock data structure for testing
+              {
+                data: [{ id: 'collab-1', invitation_email: 'test@example.com' }],
+                error: null
+              }
+            )
           }),
+          // @ts-ignore - Mock data structure for testing
           eq: jest.fn().mockResolvedValue({
             data: [],
             error: null
@@ -58,6 +62,7 @@ describe('CollaboratorsTab component', () => {
     });
     
     // Default RPC response (no existing user)
+    // @ts-ignore - Mock data structure for testing
     mockRpc.mockResolvedValue({
       data: null,
       error: null
@@ -86,7 +91,8 @@ describe('CollaboratorsTab component', () => {
       );
       
       // Check that the insert was called with lowercase email
-      const insertMock = mockFrom('form_collaborators').insert as jest.Mock;
+      // @ts-ignore - Access to mock function in test
+      const insertMock = mockFrom('form_collaborators').insert;
       expect(insertMock).toHaveBeenCalledWith(
         expect.objectContaining({
           invitation_email: 'test@example.com'
@@ -120,6 +126,7 @@ describe('CollaboratorsTab component', () => {
   
   test('should auto-accept invitation if user exists', async () => {
     // Mock existing user
+    // @ts-ignore - Mock data structure for testing
     mockRpc.mockResolvedValueOnce({
       data: 'existing-user-id',
       error: null
@@ -140,7 +147,8 @@ describe('CollaboratorsTab component', () => {
     // Wait for the invitation to be processed
     await waitFor(() => {
       // Check that the insert was called with existing user ID and auto-accepted flag
-      const insertMock = mockFrom('form_collaborators').insert as jest.Mock;
+      // @ts-ignore - Access to mock function in test
+      const insertMock = mockFrom('form_collaborators').insert;
       expect(insertMock).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: 'existing-user-id',
@@ -155,11 +163,15 @@ describe('CollaboratorsTab component', () => {
     mockFrom.mockImplementation(() => ({
       select: jest.fn().mockReturnThis(),
       insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Database error' }
-        })
+        select: jest.fn().mockResolvedValue(
+          // @ts-ignore - Mock data structure for testing
+          {
+            data: null,
+            error: { message: 'Database error' }
+          }
+        )
       }),
+      // @ts-ignore - Mock data structure for testing
       eq: jest.fn().mockResolvedValue({
         data: [],
         error: null
