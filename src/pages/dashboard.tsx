@@ -1023,14 +1023,61 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     fetchTicket();
   }, [selectedFormId, initialTicketNumber]);
 
-  const downloadImage = () => {
+  const downloadImage = async () => {
     if (!selectedResponse?.image_url) return;
-    const link = document.createElement('a');
-    link.href = getFeedbackImageUrl(selectedResponse.image_url);
-    link.download = selectedResponse.image_name || 'feedback-image.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Authentication required to download the image');
+        return;
+      }
+      
+      // Clean up the image path to prevent duplication
+      let cleanPath = selectedResponse.image_url;
+      
+      // If the path already contains the functions prefix, extract just the image path part
+      if (cleanPath.includes('/functions/v1/feedback-images/')) {
+        const parts = cleanPath.split('/functions/v1/feedback-images/');
+        if (parts.length > 1) {
+          cleanPath = parts[parts.length - 1];
+        }
+      }
+      
+      // Create the authenticated image URL
+      const imageUrl = `/functions/v1/feedback-images/${cleanPath}`;
+      
+      // Fetch the image with authentication headers
+      const response = await fetch(imageUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status}`);
+      }
+      
+      // Convert the response to a blob
+      const blob = await response.blob();
+      
+      // Create a blob URL and trigger download
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = selectedResponse.image_name || 'feedback-image.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('Error downloading image:', error);
+      toast.error('Failed to download the image');
+    }
   };
 
   if (loading) {
