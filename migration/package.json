@@ -1,0 +1,16 @@
+{
+  "name": "migration",
+  "version": "1.0.0",
+  "main": "migrate-storage.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^1.35.7",
+    "node-fetch": "^2.7.0"
+  }
+}
