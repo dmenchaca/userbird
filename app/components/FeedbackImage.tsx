@@ -54,7 +54,7 @@ export const FeedbackImage: React.FC<FeedbackImageProps> = ({
         // Create the authenticated image URL
         const imageUrl = `/functions/v1/feedback-images/${cleanPath}`;
         
-        // For debugging: test the URL first
+        // Fetch the image with authentication headers
         const response = await fetch(imageUrl, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
@@ -66,9 +66,12 @@ export const FeedbackImage: React.FC<FeedbackImageProps> = ({
           throw new Error(errorData?.error || `Failed to load image: ${response.status}`);
         }
 
-        // Set the image URL with a cache-busting parameter to prevent browser caching
-        // This ensures the auth header is always sent
-        setImageUrl(`${imageUrl}?t=${Date.now()}`);
+        // Convert the response to a blob and create an object URL
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        
+        // Set the object URL as the image source
+        setImageUrl(objectUrl);
         setError(null);
       } catch (err) {
         console.error('Error loading feedback image:', err);
@@ -79,6 +82,13 @@ export const FeedbackImage: React.FC<FeedbackImageProps> = ({
     };
 
     loadImage();
+    
+    // Clean up any created object URLs when the component unmounts or the path changes
+    return () => {
+      if (imageUrl && imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imageUrl);
+      }
+    };
   }, [imagePath, supabase.auth]);
 
   if (loading) {
