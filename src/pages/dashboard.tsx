@@ -21,7 +21,6 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { getFeedbackImageUrl } from '../lib/utils/feedback-images'
 import { FeedbackImage } from '../../app/components/FeedbackImage'
 
 interface DashboardProps {
