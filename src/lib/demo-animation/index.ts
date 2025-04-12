@@ -58,6 +58,13 @@ export function initCursorDemo(options: AnimationOptions = {}) {
 
   console.log('🎭 Demo animation initialized with options:', { delay, formId });
   
+  // Check if the browser is Safari and skip animation if it is
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari) {
+    console.log('🧭 Safari detected, skipping animation to prevent lag');
+    return () => {}; // Return empty cleanup function
+  }
+  
   // Check if we should run the animation
   // The auth component now handles the refresh check, so we just ensure 
   // we respect that decision here without additional checks
@@ -67,6 +74,17 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   
   // Wait for the widget to fully initialize before starting animation
   const actualDelay = Math.max(delay, 1500); // Ensure at least 1.5s for widget to fully load
+  
+  // Add click listener to stop animation if user interacts with the page
+  const handleUserClick = () => {
+    if (isAnimating) {
+      console.log('👆 User clicked - stopping animation');
+      cleanup();
+    }
+  };
+  
+  // Add the click listener to the document
+  document.addEventListener('click', handleUserClick);
   
   // Initialize the animation
   const init = () => {
@@ -571,10 +589,10 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         console.log('🔄 Trying keyboard shortcut as last resort');
         try {
           const keyEvent = new KeyboardEvent('keydown', {
-            key: 'l',
-            code: 'KeyL', 
-            keyCode: 76,
-            which: 76,
+            key: 'f',
+            code: 'KeyF', 
+            keyCode: 70,
+            which: 70,
             bubbles: true,
             cancelable: true
           });
@@ -719,6 +737,9 @@ export function initCursorDemo(options: AnimationOptions = {}) {
   const cleanup = () => {
     isAnimating = false;
     console.log('🧹 Cleaning up animation');
+    
+    // Remove the click event listener
+    document.removeEventListener('click', handleUserClick);
     
     // Reset the animation flag in the widget
     const userBird = safeGetWindowProp('UserBird');

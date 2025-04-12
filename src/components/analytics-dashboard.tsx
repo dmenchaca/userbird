@@ -83,7 +83,7 @@ export function AnalyticsDashboard() {
               className="gap-2 h-9 px-3 relative z-[3] transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
             >
               Feedback
-              <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">L</span>
+              <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
             </Button>
             <Avatar className="h-8 w-8 opacity-50">
               <img
@@ -202,6 +202,7 @@ export function AnalyticsDashboard() {
                     stroke="rgb(16, 185, 129, 0.5)"
                     strokeWidth={2}
                     fill="url(#sessionGradient)"
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -246,6 +247,7 @@ export function AnalyticsDashboard() {
                     stroke="rgb(16, 185, 129, 0.5)"
                     strokeWidth={2}
                     fill="url(#pagesGradient)"
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
