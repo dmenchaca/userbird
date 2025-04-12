@@ -86,6 +86,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   }[]>([])
   const assigneeDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false)
+  const assigneeSearchInputRef = useRef<HTMLInputElement>(null)
+  const [assigneeSearchTerm, setAssigneeSearchTerm] = useState('')
+  const [focusedAssigneeIndex, setFocusedAssigneeIndex] = useState(-1)
   
   // Color palette with explicit background and text colors for each tag
   const colorOptions = [
@@ -844,6 +847,16 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           setIsStatusDropdownOpen(true);
         }
       }
+      
+      // "A" key to open assignee dropdown
+      if (event.key === 'a' || event.key === 'A') {
+        event.preventDefault();
+        // Click the assignee dropdown trigger
+        if (assigneeDropdownTriggerRef.current) {
+          assigneeDropdownTriggerRef.current.click();
+          setIsAssigneeDropdownOpen(true);
+        }
+      }
     };
     
     document.addEventListener('keydown', handleKeyDown);
@@ -866,6 +879,26 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     // to avoid keyboard focus remaining inside a now-hidden dropdown
     if (!open && statusDropdownTriggerRef.current) {
       statusDropdownTriggerRef.current.focus();
+    }
+  };
+
+  // Handle assignee dropdown state tracking
+  const handleAssigneeDropdownOpenChange = (open: boolean) => {
+    setIsAssigneeDropdownOpen(open);
+    
+    if (open && assigneeSearchInputRef.current) {
+      // Focus the search input when the dropdown opens
+      setTimeout(() => {
+        assigneeSearchInputRef.current?.focus();
+      }, 0);
+      // Reset focused index when opening
+      setFocusedAssigneeIndex(-1);
+    } else if (!open && assigneeDropdownTriggerRef.current) {
+      // When dropdown is closed, focus on another element (e.g. the trigger)
+      // to avoid keyboard focus remaining inside a now-hidden dropdown
+      assigneeDropdownTriggerRef.current.focus();
+      // Reset search term when dropdown closes
+      setAssigneeSearchTerm('');
     }
   };
 
@@ -1600,7 +1633,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                             </DropdownMenuContent>
                           </DropdownMenu>
                           
-                          <Popover open={isAssigneeDropdownOpen} onOpenChange={setIsAssigneeDropdownOpen}>
+                          <Popover open={isAssigneeDropdownOpen} onOpenChange={handleAssigneeDropdownOpenChange}>
                             <PopoverTrigger asChild>
                               <Button 
                                 ref={assigneeDropdownTriggerRef}
@@ -1641,8 +1674,58 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 <div className="flex items-center border-b px-3">
                                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                   <input 
+                                    ref={assigneeSearchInputRef}
                                     className="flex h-9 w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
                                     placeholder="Search members..."
+                                    value={assigneeSearchTerm}
+                                    onChange={(e) => setAssigneeSearchTerm(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      const filteredCollaborators = collaborators
+                                        .filter(c => c.invitation_accepted)
+                                        .filter(c => {
+                                          if (!assigneeSearchTerm.trim()) return true;
+                                          const searchLower = assigneeSearchTerm.toLowerCase();
+                                          const username = c.user_profile?.username?.toLowerCase() || '';
+                                          const email = c.invitation_email.toLowerCase();
+                                          return username.includes(searchLower) || email.includes(searchLower);
+                                        });
+
+                                      // Handle arrow key navigation
+                                      if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        const maxIndex = selectedResponse.assignee_id 
+                                          ? filteredCollaborators.length 
+                                          : filteredCollaborators.length - 1;
+                                        setFocusedAssigneeIndex(prev => 
+                                          prev < maxIndex ? prev + 1 : 0
+                                        );
+                                      } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        const maxIndex = selectedResponse.assignee_id 
+                                          ? filteredCollaborators.length 
+                                          : filteredCollaborators.length - 1;
+                                        setFocusedAssigneeIndex(prev => 
+                                          prev > 0 ? prev - 1 : maxIndex
+                                        );
+                                      } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        // Check if the unassign option is selected
+                                        if (selectedResponse.assignee_id && focusedAssigneeIndex === filteredCollaborators.length) {
+                                          handleAssigneeChange(selectedResponse.id, null);
+                                          setIsAssigneeDropdownOpen(false);
+                                        } 
+                                        // Check if a collaborator is selected
+                                        else if (focusedAssigneeIndex >= 0 && focusedAssigneeIndex < filteredCollaborators.length) {
+                                          const selectedCollaborator = filteredCollaborators[focusedAssigneeIndex];
+                                          handleAssigneeChange(selectedResponse.id, selectedCollaborator.user_id);
+                                          setIsAssigneeDropdownOpen(false);
+                                        }
+                                      } else if (e.key === 'Escape') {
+                                        // Close the dropdown
+                                        e.preventDefault();
+                                        setIsAssigneeDropdownOpen(false);
+                                      }
+                                    }}
                                   />
                                 </div>
                                 <div className="max-h-[300px] overflow-y-auto p-1">
@@ -1652,10 +1735,22 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     </div>
                                   ) : (
                                     <div>
-                                      {collaborators.filter(c => c.invitation_accepted).map(collaborator => (
+                                      {collaborators
+                                        .filter(c => c.invitation_accepted)
+                                        .filter(c => {
+                                          if (!assigneeSearchTerm.trim()) return true;
+                                          const searchLower = assigneeSearchTerm.toLowerCase();
+                                          const username = c.user_profile?.username?.toLowerCase() || '';
+                                          const email = c.invitation_email.toLowerCase();
+                                          return username.includes(searchLower) || email.includes(searchLower);
+                                        })
+                                        .map((collaborator, index) => (
                                         <div 
                                           key={collaborator.user_id}
-                                          className="flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                          className={cn(
+                                            "flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                                            focusedAssigneeIndex === index ? "bg-accent text-accent-foreground" : ""
+                                          )}
                                           onClick={() => {
                                             handleAssigneeChange(selectedResponse.id, collaborator.user_id);
                                             setIsAssigneeDropdownOpen(false);
@@ -1679,7 +1774,17 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                       
                                       {selectedResponse.assignee_id && (
                                         <div 
-                                          className="flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer border-t mt-1 pt-1"
+                                          className={cn(
+                                            "flex items-center px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer border-t mt-1 pt-1",
+                                            focusedAssigneeIndex === collaborators.filter(c => c.invitation_accepted)
+                                              .filter(c => {
+                                                if (!assigneeSearchTerm.trim()) return true;
+                                                const searchLower = assigneeSearchTerm.toLowerCase();
+                                                const username = c.user_profile?.username?.toLowerCase() || '';
+                                                const email = c.invitation_email.toLowerCase();
+                                                return username.includes(searchLower) || email.includes(searchLower);
+                                              }).length ? "bg-accent text-accent-foreground" : ""
+                                          )}
                                           onClick={() => {
                                             handleAssigneeChange(selectedResponse.id, null);
                                             setIsAssigneeDropdownOpen(false);
