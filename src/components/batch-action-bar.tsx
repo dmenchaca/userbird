@@ -58,7 +58,7 @@ export function BatchActionBar({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Tag className="h-3 w-3 mr-2" />
-                Apply Tag
+                Apply Label
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="max-h-[300px] overflow-y-auto">
@@ -66,7 +66,7 @@ export function BatchActionBar({
                 className="flex items-center cursor-pointer"
                 onClick={() => onTagChange(selectedIds, null)}
               >
-                <span>Remove Tag</span>
+                <span>Remove Label</span>
               </DropdownMenuItem>
               {availableTags.map(tag => (
                 <DropdownMenuItem 

@@ -657,10 +657,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         await inboxRef.current.refreshData(true);
       }
       
-      toast.success(tagName ? "Tag applied successfully" : "Tag removed");
+      toast.success(tagName ? "Label applied successfully" : "Label removed");
     } catch (error) {
       console.error('Error updating tag:', error);
-      toast.error("Failed to update tag");
+      toast.error("Failed to update label");
     }
   };
 
@@ -825,8 +825,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         return;
       }
       
-      // "T" key to open tag dropdown
-      if (event.key === 't' || event.key === 'T') {
+      // "L" key to open tag dropdown
+      if (event.key === 'l' || event.key === 'L') {
         event.preventDefault();
         // Click the tag dropdown trigger
         if (tagDropdownTriggerRef.current) {
@@ -905,8 +905,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       setIsQuickTagFavorite(false);
       setShowAddTagPopover(false);
       
-      toast.success("Tag created", {
-        description: `"${quickTagName}" tag has been created.`
+      toast.success("Label created", {
+        description: `"${quickTagName}" label has been created.`
       });
     } catch (error: any) {
       console.error('Error creating tag:', error);
@@ -914,11 +914,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       // Handle unique constraint error
       if (error.code === '23505') {
         toast.error("Error", {
-          description: "A tag with this name already exists."
+          description: "A label with this name already exists."
         });
       } else {
         toast.error("Error", {
-          description: "Failed to create tag."
+          description: "Failed to create label."
         });
       }
     }
@@ -956,10 +956,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       setEditTagColor('#3B82F6');
       setEditTagIsFavorite(false);
 
-      toast.success('Tag updated successfully');
+      toast.success('Label updated successfully');
     } catch (error) {
       console.error('Error updating tag:', error);
-      toast.error('Failed to update tag');
+      toast.error('Failed to update label');
     }
   };
 
@@ -1145,7 +1145,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             {selectedFormId && availableTags.length > 0 && (
               <div className="mt-5 px-2">
                 <div className="flex justify-between items-center mb-1 pl-3 group/header">
-                  <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Favorite Tags</p>
+                  <p className="text-xs uppercase text-muted-foreground font-medium tracking-wider">Favorite Labels</p>
                   <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
@@ -1168,9 +1168,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                       </PopoverTrigger>
                       <PopoverContent className="w-80" side="right">
                         <div className="space-y-4">
-                          <div className="font-medium text-sm">Create New Tag</div>
+                          <div className="font-medium text-sm">Create New Label</div>
                           <div className="space-y-2">
-                            <Label htmlFor="quick-tag-name">Tag Name</Label>
+                            <Label htmlFor="quick-tag-name">Label Name</Label>
                             <Input 
                               id="quick-tag-name"
                               value={quickTagName}
@@ -1182,7 +1182,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                           </div>
                           
                           <div className="space-y-2">
-                            <Label>Tag Color</Label>
+                            <Label>Label Color</Label>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button
@@ -1260,7 +1260,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                               createQuickTag();
                               setShowAddTagPopover(false);
                             }} disabled={!quickTagName.trim()}>
-                              Create Tag
+                              Create Label
                             </Button>
                           </div>
                         </div>
@@ -1324,9 +1324,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                         </PopoverTrigger>
                         <PopoverContent className="w-80" side="right">
                           <div className="space-y-4">
-                            <div className="font-medium text-sm">Edit Tag</div>
+                            <div className="font-medium text-sm">Edit Label</div>
                             <div className="space-y-2">
-                              <Label htmlFor="edit-tag-name">Tag Name</Label>
+                              <Label htmlFor="edit-tag-name">Label Name</Label>
                               <Input 
                                 id="edit-tag-name"
                                 value={editTagName}
@@ -1337,7 +1337,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                             </div>
                             
                             <div className="space-y-2">
-                              <Label>Tag Color</Label>
+                              <Label>Label Color</Label>
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button
@@ -1414,7 +1414,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                               <Button onClick={() => {
                                 handleUpdateTag(tag.id);
                               }} disabled={!editTagName.trim()}>
-                                Update Tag
+                                Update Label
                               </Button>
                             </div>
                           </div>
@@ -1716,11 +1716,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   </header>
                   <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
                     <div className="space-y-6">
-                      {/* Tag section */}
+                      {/* Label section */}
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground flex items-center">
-                          <span>Tag</span>
-                          <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-2">T</span>
+                          <span>Label</span>
+                          <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-2">L</span>
                         </p>
                         <DropdownMenu open={isTagDropdownOpen} onOpenChange={handleTagDropdownOpenChange}>
                           <DropdownMenuTrigger asChild>
@@ -1739,7 +1739,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 </div>
                               ) : (
                                 <div className="flex items-center">
-                                  Select a tag
+                                  Select a label
                                 </div>
                               )}
                             </Button>
@@ -1789,7 +1789,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                   setIsTagDropdownOpen(false); // Close the dropdown after selection
                                 }}
                               >
-                                Clear tag
+                                Clear label
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -2016,7 +2016,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         <Dialog open={showTagManagerDialog} onOpenChange={setShowTagManagerDialog}>
           <DialogContent className="max-w-md max-h-[90vh] overflow-auto">
             <DialogHeader>
-              <DialogTitle>Tag Manager</DialogTitle>
+              <DialogTitle>Label Manager</DialogTitle>
             </DialogHeader>
             {selectedFormId && (
               <TagManager 

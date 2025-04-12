@@ -374,12 +374,12 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       <Dialog open={showAddTagDialog} onOpenChange={setShowAddTagDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create a new tag</DialogTitle>
+            <DialogTitle>Create a new label</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="tag-name">Tag Name</Label>
+              <Label htmlFor="tag-name">Label Name</Label>
               <Input 
                 id="tag-name"
                 value={newTagName}
@@ -389,7 +389,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="tag-color">Tag Color</Label>
+              <Label htmlFor="tag-color">Label Color</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -469,7 +469,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             </Button>
             <Button onClick={addTag}>
               <Save className="h-4 w-4 mr-2" />
-              Create Tag
+              Create Label
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -479,12 +479,12 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
       <Dialog open={showEditTagDialog} onOpenChange={setShowEditTagDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit tag</DialogTitle>
+            <DialogTitle>Edit label</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-tag-name">Tag Name</Label>
+              <Label htmlFor="edit-tag-name">Label Name</Label>
               <Input 
                 id="edit-tag-name"
                 value={newTagName}
@@ -493,7 +493,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="edit-tag-color">Tag Color</Label>
+              <Label htmlFor="edit-tag-color">Label Color</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -573,7 +573,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
             </Button>
             <Button onClick={updateTag}>
               <Save className="h-4 w-4 mr-2" />
-              Update Tag
+              Update Label
             </Button>
           </DialogFooter>
         </DialogContent>
