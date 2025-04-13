@@ -24,6 +24,7 @@ import { CollaboratorsTab } from './collaborators-tab'
 interface FormSettingsDialogProps {
   formId: string
   formUrl: string
+  productName: string | null
   buttonColor: string
   supportText: string | null
   keyboardShortcut: string | null
@@ -43,6 +44,7 @@ type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' 
 export function FormSettingsDialog({ 
   formId, 
   formUrl,
+  productName,
   buttonColor,
   supportText,
   keyboardShortcut,
@@ -62,6 +64,7 @@ export function FormSettingsDialog({
       buttonColor: '',
       supportText: '',
       url: '',
+      productName: '',
       keyboardShortcut: '',
       soundEnabled: false,
       showGifOnSuccess: false,
@@ -81,6 +84,7 @@ export function FormSettingsDialog({
   const [color, setColor] = useState(buttonColor)
   const [text, setText] = useState(supportText || '')
   const [url, setUrl] = useState(formUrl)
+  const [product, setProduct] = useState(productName || '')
   const [shortcut, setShortcut] = useState(keyboardShortcut || '')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; email: string }[]>([])
@@ -110,25 +114,38 @@ export function FormSettingsDialog({
     { id: 'created_at', label: 'Submission Date' }
   ]
 
-  // Initialize original values
+  // Set initial values when component mounts
   useEffect(() => {
-    setOriginalValues(current => ({
-      ...current,
-      styling: {
-        ...current.styling,
-        buttonColor,
-        supportText: supportText || '',
-        url: formUrl,
-        keyboardShortcut: keyboardShortcut || '',
-        soundEnabled: initialSoundEnabled,
-        showGifOnSuccess: initialShowGifOnSuccess,
-        removeBranding: initialRemoveBranding,
-        gifUrls: initialGifUrls
-      },
-      webhooks: current.webhooks
-    }))
-    setIsInitialMount(false)
-  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding, initialGifUrls])
+    if (isInitialMount) {
+      setOriginalValues((prev) => ({
+        ...prev,
+        styling: {
+          ...prev.styling,
+          buttonColor,
+          supportText: supportText || '',
+          url: formUrl,
+          productName: productName || '',
+          keyboardShortcut: keyboardShortcut || '',
+          soundEnabled: initialSoundEnabled,
+          showGifOnSuccess: initialShowGifOnSuccess,
+          removeBranding: initialRemoveBranding,
+          gifUrls: initialGifUrls || []
+        }
+      }));
+      setIsInitialMount(false);
+    }
+  }, [
+    isInitialMount, 
+    buttonColor, 
+    supportText, 
+    formUrl,
+    productName,
+    keyboardShortcut,
+    initialSoundEnabled,
+    initialShowGifOnSuccess,
+    initialRemoveBranding,
+    initialGifUrls
+  ]);
 
   // Initialize gifUrls and gifUrlsText
   useEffect(() => {
@@ -1016,6 +1033,38 @@ export function FormSettingsDialog({
     }
   };
 
+  // Handle product name blur to save changes
+  const handleProductNameBlur = async () => {
+    if (product === originalValues.styling.productName) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ product_name: product || null })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          productName: product
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success('Product name updated successfully');
+    } catch (error) {
+      console.error('Error updating product name:', error);
+      setProduct(originalValues.styling.productName);
+      toast.error('Failed to update product name');
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1120,6 +1169,20 @@ export function FormSettingsDialog({
                       </div>
                       <p className="text-xs text-muted-foreground">
                         The domain where your widget is installed
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="productName">Product Name</Label>
+                      <Input
+                        id="productName"
+                        value={product}
+                        onChange={(e) => setProduct(e.target.value)}
+                        onBlur={handleProductNameBlur}
+                        placeholder="My Product"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        A friendly name for your product shown in the forms dropdown
                       </p>
                     </div>
 

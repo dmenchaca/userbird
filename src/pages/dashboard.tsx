@@ -33,6 +33,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const navigate = useNavigate()
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(initialFormId)
   const [formName, setFormName] = useState<string>('')
+  const [productName, setProductName] = useState<string | null>(null)
   const [buttonColor, setButtonColor] = useState('#1f2937')
   const [supportText, setSupportText] = useState<string | null>(null)
   const [keyboardShortcut, setKeyboardShortcut] = useState<string | null>(null)
@@ -234,26 +235,54 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Fetch form name when form is selected
   useEffect(() => {
     if (selectedFormId && user?.id) {
-      supabase
-        .from('forms')
-        .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
-        .eq('id', selectedFormId)
-        .eq('owner_id', user?.id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setFormName(data.url)
-            setButtonColor(data.button_color)
-            setSupportText(data.support_text)
-            setKeyboardShortcut(data.keyboard_shortcut)
-            setSoundEnabled(data.sound_enabled)
-            setShowGifOnSuccess(data.show_gif_on_success)
-            setGifUrls(data.gif_urls || [])
-            setRemoveBranding(data.remove_branding)
+      const fetchFormDetails = async () => {
+        // First try to fetch as owner
+        let { data, error } = await supabase
+          .from('forms')
+          .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+          .eq('id', selectedFormId)
+          .eq('owner_id', user.id)
+          .single();
+
+        // If no data found or error occurred, the user might be a collaborator
+        if (!data || error) {
+          // Check if user has access to this form
+          const { data: hasAccess } = await supabase
+            .rpc('user_has_form_access', {
+              form_id_param: selectedFormId,
+              user_id_param: user.id
+            });
+
+          if (hasAccess) {
+            // User has collaborative access, fetch form details
+            const { data: formData, error: formError } = await supabase
+              .from('forms')
+              .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+              .eq('id', selectedFormId)
+              .single();
+
+            if (!formError && formData) {
+              data = formData;
+            }
           }
-        })
+        }
+
+        if (data) {
+          setFormName(data.url);
+          setProductName(data.product_name);
+          setButtonColor(data.button_color);
+          setSupportText(data.support_text);
+          setKeyboardShortcut(data.keyboard_shortcut);
+          setSoundEnabled(data.sound_enabled);
+          setShowGifOnSuccess(data.show_gif_on_success);
+          setGifUrls(data.gif_urls || []);
+          setRemoveBranding(data.remove_branding);
+        }
+      };
+
+      fetchFormDetails();
     }
-  }, [selectedFormId, user?.id])
+  }, [selectedFormId, user?.id]);
 
   // Update URL when form selection changes
   useEffect(() => {
@@ -2031,6 +2060,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           <FormSettingsDialog
             formId={selectedFormId}
             formUrl={formName}
+            productName={productName}
             buttonColor={buttonColor}
             supportText={supportText}
             keyboardShortcut={keyboardShortcut}
@@ -2041,25 +2071,53 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
             onSettingsSaved={() => {
-              // Refetch form data
-              supabase
-                .from('forms')
-                .select('url, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
-                .eq('id', selectedFormId)
-                .eq('owner_id', user?.id)
-                .single()
-                .then(({ data }) => {
-                  if (data) {
-                    setFormName(data.url);
-                    setButtonColor(data.button_color);
-                    setSupportText(data.support_text);
-                    setKeyboardShortcut(data.keyboard_shortcut);
-                    setSoundEnabled(data.sound_enabled);
-                    setShowGifOnSuccess(data.show_gif_on_success);
-                    setGifUrls(data.gif_urls || []);
-                    setRemoveBranding(data.remove_branding);
+              // Refetch form data using the same approach that handles both owners and collaborators
+              const refetchFormDetails = async () => {
+                // First try to fetch as owner
+                let { data, error } = await supabase
+                  .from('forms')
+                  .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+                  .eq('id', selectedFormId)
+                  .eq('owner_id', user?.id || '')
+                  .single();
+
+                // If no data found or error occurred, the user might be a collaborator
+                if (!data || error) {
+                  // Check if user has access to this form
+                  const { data: hasAccess } = await supabase
+                    .rpc('user_has_form_access', {
+                      form_id_param: selectedFormId,
+                      user_id_param: user?.id || ''
+                    });
+
+                  if (hasAccess) {
+                    // User has collaborative access, fetch form details
+                    const { data: formData, error: formError } = await supabase
+                      .from('forms')
+                      .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+                      .eq('id', selectedFormId)
+                      .single();
+
+                    if (!formError && formData) {
+                      data = formData;
+                    }
                   }
-                });
+                }
+
+                if (data) {
+                  setFormName(data.url);
+                  setProductName(data.product_name);
+                  setButtonColor(data.button_color);
+                  setSupportText(data.support_text);
+                  setKeyboardShortcut(data.keyboard_shortcut);
+                  setSoundEnabled(data.sound_enabled);
+                  setShowGifOnSuccess(data.show_gif_on_success);
+                  setGifUrls(data.gif_urls || []);
+                  setRemoveBranding(data.remove_branding);
+                }
+              };
+
+              refetchFormDetails();
             }}
             onDelete={handleDelete}
           >
@@ -2075,7 +2133,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                     .select('*')
                     .eq('form_id', selectedFormId)
                     .order('name');
-                    
+
                   if (error) {
                     console.error('Error fetching tags:', error);
                   } else {
@@ -2088,66 +2146,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             />
           </FormSettingsDialog>
         )}
-        {/* Image preview dialog */}
-        {selectedResponse?.image_url && showImagePreview && (
-          <div className="image-preview-overlay" onClick={() => setShowImagePreview(false)}>
-            <div className="image-preview-container">
-              <div className="image-preview-actions">
-                <button onClick={downloadImage}>Download</button>
-                <button onClick={() => setShowImagePreview(false)}>Close</button>
-              </div>
-              <FeedbackImage
-                imagePath={selectedResponse.image_url}
-                alt="Feedback screenshot"
-                className="image-preview"
-              />
-            </div>
-          </div>
-        )}
-        {/* Batch action bar */}
-        <BatchActionBar 
-          selectedIds={selectedBatchIds}
-          onClearSelection={() => {
-            setSelectedBatchIds([]);
-            if (inboxRef.current) {
-              inboxRef.current.clearSelection();
-            }
-          }}
-          onStatusChange={handleBatchStatusChange}
-          onTagChange={handleBatchTagChange}
-          availableTags={availableTags}
-        />
-        {/* Tag Manager Dialog */}
-        <Dialog open={showTagManagerDialog} onOpenChange={setShowTagManagerDialog}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-auto">
-            <DialogHeader>
-              <DialogTitle>Label Manager</DialogTitle>
-            </DialogHeader>
-            {selectedFormId && (
-              <TagManager 
-                formId={selectedFormId} 
-                onTagsChange={() => {
-                  // Refresh tags
-                  const fetchTags = async () => {
-                    const { data, error } = await supabase
-                      .from('feedback_tags')
-                      .select('*')
-                      .eq('form_id', selectedFormId)
-                      .order('name');
-                      
-                    if (error) {
-                      console.error('Error fetching tags:', error);
-                    } else {
-                      setAvailableTags(data || []);
-                    }
-                  };
-                  
-                  fetchTags();
-                }} 
-              />
-            )}
-          </DialogContent>
-        </Dialog>
         {showDeleteConfirmation && (
           <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
             <DialogContent className="max-w-md max-h-[90vh] overflow-auto">

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 interface Form {
   id: string
   url: string
+  product_name?: string | null
   created_at: string
   feedback: { count: number }[]
 }
@@ -41,6 +42,23 @@ function truncateUrl(url: string): string {
   return url.length > 30 ? url.substring(0, 30) + '...' : url;
 }
 
+// Helper function to get the display name (product_name or truncated URL)
+function getDisplayName(form: Form): string {
+  if (form.product_name) return form.product_name;
+  return truncateUrl(form.url);
+}
+
+// Helper function to get the first letter for the icon
+function getIconLetter(form: Form): string {
+  if (form.product_name) {
+    return form.product_name.charAt(0).toUpperCase();
+  }
+  
+  // Fallback to first letter of domain
+  const displayName = truncateUrl(form.url);
+  return displayName.charAt(0).toUpperCase();
+}
+
 export function FormsDropdown({ 
   selectedFormId, 
   onFormSelect,
@@ -65,6 +83,7 @@ export function FormsDropdown({
           .select(`
             id,
             url,
+            product_name,
             created_at,
             feedback:feedback(count)
           `)
@@ -95,6 +114,7 @@ export function FormsDropdown({
               .select(`
                 id,
                 url,
+                product_name,
                 created_at,
                 feedback:feedback(count)
               `)
@@ -233,7 +253,7 @@ export function FormsDropdown({
         <Button 
           variant="ghost" 
           disabled 
-          className="h-9 px-3 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
+          className="h-9 px-2 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
         >
           <span className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -251,7 +271,7 @@ export function FormsDropdown({
         <Button
           variant="ghost"
           onClick={onNewFormClick}
-          className="h-9 px-3 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
+          className="h-9 px-2 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
         >
           <span className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
@@ -263,15 +283,22 @@ export function FormsDropdown({
   }
 
   return (
-    <div className="px-4 py-2">
+    <div className="px-2 py-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
-            className="h-9 px-3 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
+            className="h-9 px-2 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0"
           >
             <span style={{ pointerEvents: 'none' }}>
-              {currentForm && <span>{truncateUrl(currentForm.url)}</span>}
+              {currentForm && (
+                <span className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-md flex items-center justify-center bg-primary text-primary-foreground">
+                    {getIconLetter(currentForm)}
+                  </span>
+                  <span>{getDisplayName(currentForm)}</span>
+                </span>
+              )}
               {!currentForm && <span>Select a form</span>}
             </span>
             <ChevronDown className="h-4 w-4 opacity-50" />
@@ -279,6 +306,10 @@ export function FormsDropdown({
         </DropdownMenuTrigger>
         <DropdownMenuContent 
           className="w-[240px]" 
+          style={{
+            outline: "none",
+            pointerEvents: "auto"
+          }}
           align="start"
         >
           <div className="max-h-[300px] overflow-y-auto">
@@ -290,14 +321,8 @@ export function FormsDropdown({
                 style={{
                   backgroundColor: selectedFormId === form.id ? undefined : undefined,
                 }}
-                onMouseEnter={() => {
-                  // No specific behavior needed here anymore
-                }}
-                onMouseLeave={() => {
-                  // No specific behavior needed here anymore
-                }}
               >
-                <span className="truncate max-w-[180px]">{truncateUrl(form.url)}</span>
+                <span className="truncate max-w-[180px]">{getDisplayName(form)}</span>
                 <div className="flex items-center">
                   {selectedFormId === form.id && (
                     <Check className="h-4 w-4 ml-1 shrink-0" />
