@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FoldVertical, UnfoldVertical, Paperclip, Send, CornerDownLeft, Command } from 'lucide-react'
+import { FoldVertical, UnfoldVertical, Paperclip, Send, CornerDownLeft, Command, MoreHorizontal } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -148,7 +148,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
         
         // Add the attribution line and blockquote formatting with Gmail's structure
         htmlContent += `
-          <br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+          <div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
             ${quotedMainContent}
           </blockquote></div>
         `;
@@ -258,9 +258,25 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
     const cleanedHtml = html.replace(/<img[^>]*width=["']?1["']?[^>]*height=["']?1["']?[^>]*>/g, '');
     
     // Check specifically for Gmail's quote pattern first
-    const gmailQuoteMatch = cleanedHtml.match(/<br><div class="gmail_quote gmail_quote_container">/);
+    const gmailQuoteMatch = cleanedHtml.match(/<div class="gmail_quote gmail_quote_container">/);
     if (gmailQuoteMatch) {
       const quotedContentStartIndex = cleanedHtml.indexOf(gmailQuoteMatch[0]);
+      if (quotedContentStartIndex > 0) {
+        const mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
+        const quotedContent = cleanedHtml.substring(quotedContentStartIndex);
+        
+        // Extract the attribution line (On <date> <email> wrote:)
+        const attrMatch = quotedContent.match(/<div dir="ltr" class="gmail_attr">([^<]+)<\/div>/);
+        const dateLine = attrMatch ? attrMatch[1] : null;
+        
+        return { mainContent, dateLine, quotedContent };
+      }
+    }
+    
+    // Also check for the old pattern with <br> for backward compatibility
+    const oldGmailQuoteMatch = cleanedHtml.match(/<br><div class="gmail_quote gmail_quote_container">/);
+    if (oldGmailQuoteMatch) {
+      const quotedContentStartIndex = cleanedHtml.indexOf(oldGmailQuoteMatch[0]);
       if (quotedContentStartIndex > 0) {
         const mainContent = cleanedHtml.substring(0, quotedContentStartIndex);
         const quotedContent = cleanedHtml.substring(quotedContentStartIndex);
@@ -425,6 +441,13 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
           .email-content div {
             min-height: 0;
           }
+          /* Fix whitespace around content */
+          .email-content p:after,
+          .email-content div:after {
+            content: '';
+            display: inline;
+            white-space: normal;
+          }
           .preserve-breaks br {
             display: block !important;
             content: " " !important;
@@ -496,7 +519,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
               </div>
             </div>
             <div className="p-3 text-sm email-content preserve-breaks" 
-              dangerouslySetInnerHTML={{ __html: response.message }} 
+              dangerouslySetInnerHTML={{ __html: response.message.trim() }} 
             />
           </div>
           
@@ -566,26 +589,18 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 
                 <div className="p-3 text-sm">
                   {reply.html_content ? (
-                    <div className="space-y-2 overflow-hidden">
+                    <div className="space-y-1 overflow-hidden">
                       {/* Show the main content with button */}
                       <div>
-                        <div className="overflow-x-auto break-words whitespace-pre-wrap preserve-breaks email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
+                        <div className="overflow-x-auto break-words whitespace-pre-wrap preserve-breaks email-content" dangerouslySetInnerHTML={{ __html: mainContent.trim() }} />
                         {quotedContent && (
                           <button
                             onClick={() => toggleQuotedContent(reply.id)}
-                            className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors -mt-1"
+                            className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mt-2.5"
+                            title={isExpanded ? "Hide quoted text" : "Show quoted text"}
+                            aria-label={isExpanded ? "Hide quoted text" : "Show quoted text"}
                           >
-                            {isExpanded ? (
-                              <>
-                                <FoldVertical className="h-3 w-3 mr-1" />
-                                Hide quoted text
-                              </>
-                            ) : (
-                              <>
-                                <UnfoldVertical className="h-3 w-3 mr-1" />
-                                Show quoted text
-                              </>
-                            )}
+                            <MoreHorizontal className="h-4 w-4" />
                           </button>
                         )}
                       </div>
