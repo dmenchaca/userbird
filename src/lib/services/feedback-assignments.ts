@@ -113,7 +113,56 @@ export const createUnassignmentEvent = async (
 };
 
 /**
- * Updates the assignee of a feedback item and creates an assignment event
+ * Sends an assignment notification email
+ * 
+ * @param feedbackId The ID of the feedback being assigned
+ * @param formId The ID of the form the feedback belongs to
+ * @param assigneeEmail The email of the person being assigned
+ * @param assigneeName The name of the person being assigned
+ * @param senderName The name of the admin making the assignment
+ * @returns Whether the notification was sent successfully
+ */
+export const sendAssignmentNotification = async (
+  feedbackId: string,
+  formId: string,
+  assigneeEmail: string,
+  assigneeName?: string,
+  senderName?: string
+): Promise<boolean> => {
+  try {
+    // Call the Netlify function to send the notification
+    const response = await fetch('/.netlify/functions/send-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'assignment',
+        feedbackId,
+        formId,
+        assigneeEmail,
+        assigneeName,
+        senderName,
+        timestamp: new Date().toISOString()
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Error sending assignment notification:', await response.text());
+      return false;
+    }
+
+    const result = await response.json();
+    console.log('Assignment notification sent:', result);
+    return true;
+  } catch (error) {
+    console.error('Error sending assignment notification:', error);
+    return false;
+  }
+};
+
+/**
+ * Updates the assignee of a feedback item, creates an assignment event, and sends a notification
  * 
  * @param feedbackId The ID of the feedback being assigned
  * @param assigneeId The user ID of the person being assigned (or null to unassign)
@@ -150,6 +199,34 @@ export const assignFeedback = async (
         senderId,
         { ...meta || {}, action: 'assign' }
       );
+
+      // Get the feedback to find the form_id
+      const { data: feedback } = await supabase
+        .from('feedback')
+        .select('form_id')
+        .eq('id', feedbackId)
+        .single();
+
+      if (feedback?.form_id) {
+        // Get the assignee details
+        const { data: assigneeData } = await supabase
+          .rpc('get_user_profile_by_id', { user_id_param: assigneeId });
+        
+        // Get the sender details  
+        const { data: senderData } = await supabase
+          .rpc('get_user_profile_by_id', { user_id_param: senderId });
+        
+        if (assigneeData?.email) {
+          // Send the notification
+          await sendAssignmentNotification(
+            feedbackId,
+            feedback.form_id,
+            assigneeData.email,
+            assigneeData.username || assigneeData.email.split('@')[0],
+            senderData?.username || senderData?.email?.split('@')[0] || 'Administrator'
+          );
+        }
+      }
     } else {
       // This is an unassignment
       result = await createUnassignmentEvent(
