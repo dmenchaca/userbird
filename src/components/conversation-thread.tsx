@@ -561,7 +561,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
 
       // Determine if this is an unassignment event (assigned_to is null)
       const isUnassignment = reply.assigned_to === null;
-      const action = reply.meta?.action === 'unassign' || isUnassignment ? 'unassign' : 'assign';
+      // Remove or comment out the unused action variable
+      // const action = reply.meta?.action === 'unassign' || isUnassignment ? 'unassign' : 'assign';
 
       // Get assignee name if this is an assignment (not an unassignment)
       let assigneeName = 'User';
