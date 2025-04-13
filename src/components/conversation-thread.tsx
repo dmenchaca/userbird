@@ -409,17 +409,8 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
       {/* CSS to handle email content formatting */}
       <style dangerouslySetInnerHTML={{ 
         __html: `
-          .email-content br + br {
-            display: none;
-          }
-          .email-content div:empty {
-            display: none;
-          }
           .email-content p:empty {
-            display: none;
-          }
-          .email-content div + br, .email-content br + div:empty {
-            display: none;
+            display: initial;
           }
           .email-content {
             margin-bottom: 0;
@@ -427,8 +418,17 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
           .email-content > *:last-child {
             margin-bottom: 0;
           }
+          .email-content p {
+            margin-top: 0;
+            margin-bottom: 0;
+          }
           .email-content div {
             min-height: 0;
+          }
+          .preserve-breaks br {
+            display: block !important;
+            content: " " !important;
+            margin: 0.5em 0 !important;
           }
           .email-content a {
             color: hsl(var(--primary));
@@ -495,7 +495,7 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 </span>
               </div>
             </div>
-            <div className="p-3 text-sm email-content" 
+            <div className="p-3 text-sm email-content preserve-breaks" 
               dangerouslySetInnerHTML={{ __html: response.message }} 
             />
           </div>
@@ -567,15 +567,13 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                 <div className="p-3 text-sm">
                   {reply.html_content ? (
                     <div className="space-y-2 overflow-hidden">
-                      {/* Show the main content */}
-                      <div className="overflow-x-auto break-words whitespace-pre-line email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
-                      
-                      {/* Show quoted content if it exists and is expanded */}
-                      {quotedContent && (
-                        <div style={{ marginTop: '16px' }}>
+                      {/* Show the main content with button */}
+                      <div>
+                        <div className="overflow-x-auto break-words whitespace-pre-wrap preserve-breaks email-content" dangerouslySetInnerHTML={{ __html: mainContent }} />
+                        {quotedContent && (
                           <button
                             onClick={() => toggleQuotedContent(reply.id)}
-                            className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            className="flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors -mt-1"
                           >
                             {isExpanded ? (
                               <>
@@ -589,14 +587,15 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
                               </>
                             )}
                           </button>
-                          
-                          {isExpanded && (
-                            <div 
-                              className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-line email-content mt-1" 
-                              dangerouslySetInnerHTML={{ __html: quotedContent }}
-                            />
-                          )}
-                        </div>
+                        )}
+                      </div>
+                      
+                      {/* Quoted content - only shown when expanded */}
+                      {quotedContent && isExpanded && (
+                        <div 
+                          className="border-l-2 pl-2 text-muted-foreground overflow-x-auto whitespace-pre-wrap email-content preserve-breaks mt-1" 
+                          dangerouslySetInnerHTML={{ __html: quotedContent }}
+                        />
                       )}
                     </div>
                   ) : (
