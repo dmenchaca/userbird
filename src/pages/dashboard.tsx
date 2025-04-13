@@ -369,6 +369,13 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     setActiveFilter(filter);
     // Clear selected response when changing filters
     setSelectedResponse(null);
+    
+    // Notify the FeedbackInbox to clear active feedback
+    localStorage.setItem('clearSelectedFeedback', 'true');
+    // Clear it immediately after to avoid polluting localStorage
+    setTimeout(() => {
+      localStorage.removeItem('clearSelectedFeedback');
+    }, 100);
   };
 
   const handleExport = useCallback(async () => {
@@ -616,6 +623,13 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       // Clear the selected response if it was deleted
       if (selectedResponse && selectedResponse.id === feedbackToDelete) {
         setSelectedResponse(null);
+        
+        // Notify the FeedbackInbox to clear active feedback
+        localStorage.setItem('clearSelectedFeedback', 'true');
+        // Clear it immediately after to avoid polluting localStorage
+        setTimeout(() => {
+          localStorage.removeItem('clearSelectedFeedback');
+        }, 100);
       }
       
       // Skip loading state when refreshing the inbox
@@ -1046,6 +1060,13 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     } else if (selectedFormId) {
       // If no response selected, just show form URL
       navigate(`/forms/${selectedFormId}`, { replace: true });
+      
+      // Notify the FeedbackInbox to clear active feedback
+      localStorage.setItem('clearSelectedFeedback', 'true');
+      // Clear it immediately after to avoid polluting localStorage
+      setTimeout(() => {
+        localStorage.removeItem('clearSelectedFeedback');
+      }, 100);
     }
   };
 
@@ -1535,8 +1556,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   </div>
                 </div>
               </header>
-              <div className="container py-4 px-4 overflow-y-auto flex-1 h-[calc(100vh-65px)]">
-                <div className="space-y-4">
+              <div className="overflow-y-auto flex-1 h-[calc(100vh-65px)]">
+                <div>
                   <FeedbackInbox 
                     ref={inboxRef}
                     formId={selectedFormId} 
