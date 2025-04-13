@@ -12,7 +12,7 @@ import { FormsDropdown } from '@/components/forms-dropdown'
 import { cn } from '@/lib/utils'
 import { FeedbackInbox, FeedbackInboxRef } from '@/components/feedback-inbox'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
-import { ConversationThread } from '@/components/conversation-thread'
+import { ConversationThread, ConversationThreadRef } from '@/components/conversation-thread'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BatchActionBar } from '@/components/batch-action-bar'
@@ -55,6 +55,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
   const inboxRef = useRef<FeedbackInboxRef>(null)
+  const conversationThreadRef = useRef<ConversationThreadRef>(null)
   const [availableTags, setAvailableTags] = useState<FeedbackTag[]>([])
   const tagDropdownTriggerRef = useRef<HTMLButtonElement>(null)
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false)
@@ -846,8 +847,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Only trigger shortcuts when a response is selected and not in an input field
+      // Skip handling if in an input field or modal or if cmd/ctrl+R is pressed (browser refresh)
       if (!selectedResponse || 
+          (event.ctrlKey || event.metaKey) && event.key === 'r' ||
           event.target instanceof HTMLInputElement || 
           event.target instanceof HTMLTextAreaElement ||
           // Add additional checks for Tiptap editor
@@ -884,6 +886,15 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         if (assigneeDropdownTriggerRef.current) {
           assigneeDropdownTriggerRef.current.click();
           setIsAssigneeDropdownOpen(true);
+        }
+      }
+      
+      // "R" key to focus reply box
+      if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        // Focus the reply box if available
+        if (conversationThreadRef.current) {
+          conversationThreadRef.current.focusReplyBox();
         }
       }
     };
@@ -1777,6 +1788,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   </header>
                   <div className="container px-0 flex-1 h-[calc(100vh-65px)] overflow-hidden">
                     <ConversationThread 
+                      ref={conversationThreadRef}
                       response={selectedResponse} 
                       onStatusChange={handleResponseStatusChange}
                     />
