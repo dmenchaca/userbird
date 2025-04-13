@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FeedbackImage } from '../../app/components/FeedbackImage'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface DashboardProps {
   initialFormId?: string
@@ -91,6 +92,38 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const assigneeSearchInputRef = useRef<HTMLInputElement>(null)
   const [assigneeSearchTerm, setAssigneeSearchTerm] = useState('')
   const [focusedAssigneeIndex, setFocusedAssigneeIndex] = useState(-1)
+  
+  // Function to navigate to the next/previous response
+  const navigateToResponse = (direction: 'next' | 'prev') => {
+    if (!selectedResponse || !inboxRef.current) return;
+    
+    // Request the current responses from the inbox ref
+    if (inboxRef.current.getResponses) {
+      const responses = inboxRef.current.getResponses();
+      if (!responses.length) return;
+      
+      // Find the index of the current response
+      const currentIndex = responses.findIndex((response: FeedbackResponse) => response.id === selectedResponse.id);
+      if (currentIndex === -1) return;
+      
+      // Calculate the new index without looping
+      let newIndex;
+      if (direction === 'next') {
+        // Stop if we're at the bottom
+        if (currentIndex + 1 >= responses.length) return;
+        newIndex = currentIndex + 1;
+      } else {
+        // Stop if we're at the top
+        if (currentIndex <= 0) return;
+        newIndex = currentIndex - 1;
+      }
+      
+      // Navigate to the new response
+      if (responses[newIndex]) {
+        handleResponseSelect(responses[newIndex]);
+      }
+    }
+  };
   
   // Color palette with explicit background and text colors for each tag
   const colorOptions = [
@@ -873,6 +906,18 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         return;
       }
       
+      // "J" key to go to next ticket
+      if (event.key === 'j' || event.key === 'J') {
+        event.preventDefault();
+        navigateToResponse('next');
+      }
+      
+      // "K" key to go to previous ticket
+      if (event.key === 'k' || event.key === 'K') {
+        event.preventDefault();
+        navigateToResponse('prev');
+      }
+      
       // "L" key to open tag dropdown
       if (event.key === 'l' || event.key === 'L') {
         event.preventDefault();
@@ -1576,8 +1621,45 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   <header className="border-b border-border">
                     <div className="container py-3 px-4">
                       <div className="flex items-center justify-between">
-                        <h2 className="text-base truncate">
+                        <h2 className="text-base truncate flex items-center gap-2">
                           Ticket #{selectedResponse.ticket_number || '-'}
+                          <div className="flex items-center gap-1 ml-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => navigateToResponse('prev')}
+                                  >
+                                    <ArrowUp className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  Prev. ticket <span className="px-1 py-0.5 bg-muted rounded-sm text-[10px] font-medium">K</span>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => navigateToResponse('next')}
+                                  >
+                                    <ArrowDown className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  Next ticket <span className="px-1 py-0.5 bg-muted rounded-sm text-[10px] font-medium">J</span>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </h2>
                         <div className="flex gap-2">
                           <DropdownMenu open={isStatusDropdownOpen} onOpenChange={handleStatusDropdownOpenChange}>

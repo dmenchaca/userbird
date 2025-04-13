@@ -87,6 +87,7 @@ interface FeedbackInboxProps {
 export interface FeedbackInboxRef {
   refreshData: (skipLoadingState?: boolean) => Promise<void>;
   clearSelection: () => void;
+  getResponses: () => FeedbackResponse[];
 }
 
 export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({ 
@@ -197,7 +198,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     clearSelection: () => {
       setSelectedIds([]);
       setActiveResponseId(null);
-    }
+    },
+    getResponses: () => filteredResponses
   }));
 
   // Reset selection when responses change or filters change

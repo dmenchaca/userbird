@@ -26,6 +26,7 @@
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.2.6",
+    "@radix-ui/react-tooltip": "^1.2.0",
     "@sendgrid/mail": "^8.1.4",
     "@supabase/auth-helpers-react": "^0.5.0",
     "@supabase/supabase-js": "^2.39.7",
