@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FeedbackImage } from '../../app/components/FeedbackImage'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { assignFeedback } from '@/lib/services/feedback-assignments'
 
 interface DashboardProps {
   initialFormId?: string
@@ -594,11 +595,28 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Handle assigning feedback to a team member
   const handleAssigneeChange = async (id: string, assigneeId: string | null) => {
     try {
-      // Update the assignee in Supabase
-      await supabase
-        .from('feedback')
-        .update({ assignee_id: assigneeId })
-        .eq('id', id);
+      console.log('Starting assignment process:', { id, assigneeId });
+      
+      const currentUser = user?.id;
+      if (!currentUser) {
+        throw new Error('No user found');
+      }
+      
+      console.log('Current user ID for assignment:', currentUser);
+      
+      // Use the assignFeedback function to update assignee and create assignment event
+      const success = await assignFeedback(
+        id, 
+        assigneeId, 
+        currentUser,  // This is now sender_id (previously assigned_by)
+        { source: 'dashboard' }
+      );
+      
+      console.log('Assignment result:', success);
+      
+      if (!success) {
+        throw new Error('Failed to assign feedback');
+      }
       
       // Update selected response if it's the one that changed
       if (selectedResponse && selectedResponse.id === id) {
@@ -638,6 +656,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       }
     } catch (error) {
       console.error('Error updating assignee:', error);
+      toast.error("Failed to assign feedback");
     }
   };
 
@@ -1898,6 +1917,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                       ref={conversationThreadRef}
                       response={selectedResponse} 
                       onStatusChange={handleResponseStatusChange}
+                      collaborators={collaborators}
                     />
                   </div>
                 </div>

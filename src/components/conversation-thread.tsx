@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -10,6 +10,18 @@ import { Avatar, AvatarFallback } from './ui/avatar'
 interface ConversationThreadProps {
   response: FeedbackResponse | null
   onStatusChange?: (id: string, status: 'open' | 'closed') => void 
+  collaborators?: Array<{
+    id?: string
+    user_id: string
+    user_profile?: {
+      username?: string
+      email?: string
+      avatar_url?: string | null
+    }
+    invitation_email?: string
+    role?: "admin" | "agent"
+    invitation_accepted?: boolean
+  }>
 }
 
 export interface ConversationThreadRef {
@@ -17,7 +29,7 @@ export interface ConversationThreadRef {
 }
 
 export const ConversationThread = forwardRef<ConversationThreadRef, ConversationThreadProps>(
-  ({ response, onStatusChange }, ref) => {
+  ({ response, onStatusChange, collaborators = [] }, ref) => {
     if (!response) return null
 
     const { user } = useAuth()
@@ -69,56 +81,98 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
 
     const fetchReplies = async () => {
       try {
-        // Fetch replies with their attachments
+        // Fetch replies with their attachments - simplified query to avoid foreign key issues
         const { data: repliesData, error: repliesError } = await supabase
           .from('feedback_replies')
           .select('*')
           .eq('feedback_id', response.id)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false }) // Get newest first, then reverse
         
-        if (repliesError) throw repliesError
+        if (repliesError) throw repliesError;
+        
+        // Reverse to get chronological order (oldest first)
+        const chronologicalReplies = repliesData ? [...repliesData].reverse() : [];
+        
+        // Debug: Log replies and check for assignment events
+        console.log('Raw replies data:', chronologicalReplies);
+        if (chronologicalReplies.length > 0) {
+          console.log('Timestamps of all replies:', chronologicalReplies.map(r => ({ 
+            id: r.id,
+            type: r.type || 'reply',
+            created_at: r.created_at, 
+            created_date: new Date(r.created_at).toLocaleString()
+          })));
+          
+          const assignmentEvents = chronologicalReplies.filter(reply => reply.type === 'assignment');
+          console.log('Assignment events:', assignmentEvents);
+        }
+        
+        // Process the replies to extract user information, but without joins
+        const processedReplies = chronologicalReplies.map(reply => {
+          // No need to process assigned_to_user or sender_user since we're not fetching those
+
+          // Return the reply without additional processing
+          return {
+            ...reply,
+            // These will be null since we're not fetching the related data
+            assigned_to_user: null,
+            assigned_by_user: null
+          };
+        });
+        
+        // Debug: Log processed replies
+        console.log('Processed replies:', processedReplies);
         
         // Fetch attachments for all replies
-        if (repliesData && repliesData.length > 0) {
-          const replyIds = repliesData.map(reply => reply.id)
+        if (processedReplies && processedReplies.length > 0) {
+          const replyIds = processedReplies
+            .filter(reply => reply.type !== 'assignment') // Only get attachments for normal replies
+            .map(reply => reply.id);
           
-          const { data: attachmentsData, error: attachmentsError } = await supabase
-            .from('feedback_attachments')
-            .select('*')
-            .in('reply_id', replyIds)
-            .order('created_at', { ascending: true })
-          
-          if (attachmentsError) {
-            console.error('Error fetching attachments:', attachmentsError)
-            // Continue anyway, just without attachments
+          if (replyIds.length > 0) {
+            const { data: attachmentsData, error: attachmentsError } = await supabase
+              .from('feedback_attachments')
+              .select('*')
+              .in('reply_id', replyIds)
+              .order('created_at', { ascending: true });
+            
+            if (attachmentsError) {
+              console.error('Error fetching attachments:', attachmentsError);
+              // Continue anyway, just without attachments
+            }
+            
+            // Group attachments by reply_id
+            const attachmentsByReplyId: Record<string, FeedbackAttachment[]> = {};
+            
+            if (attachmentsData) {
+              attachmentsData.forEach(attachment => {
+                if (!attachmentsByReplyId[attachment.reply_id]) {
+                  attachmentsByReplyId[attachment.reply_id] = [];
+                }
+                attachmentsByReplyId[attachment.reply_id].push(attachment);
+              });
+            }
+            
+            // Add attachments to replies
+            const repliesWithAttachments = processedReplies.map(reply => ({
+              ...reply,
+              attachments: attachmentsByReplyId[reply.id] || []
+            }));
+            
+            setReplies(repliesWithAttachments);
+          } else {
+            setReplies(processedReplies || []);
           }
-          
-          // Group attachments by reply_id
-          const attachmentsByReplyId: Record<string, FeedbackAttachment[]> = {}
-          
-          if (attachmentsData) {
-            attachmentsData.forEach(attachment => {
-              if (!attachmentsByReplyId[attachment.reply_id]) {
-                attachmentsByReplyId[attachment.reply_id] = []
-              }
-              attachmentsByReplyId[attachment.reply_id].push(attachment)
-            })
-          }
-          
-          // Add attachments to replies
-          const repliesWithAttachments = repliesData.map(reply => ({
-            ...reply,
-            attachments: attachmentsByReplyId[reply.id] || []
-          }))
-          
-          setReplies(repliesWithAttachments)
         } else {
-          setReplies(repliesData || [])
+          setReplies(processedReplies || []);
         }
+        
+        // Debug: Log final replies state after processing
+        console.log('Final replies state:', replies);
       } catch (error) {
-        console.error('Error fetching replies:', error)
+        console.error('Error fetching replies:', error);
       }
-    }
+    };
 
     const subscribeToReplies = () => {
       const channelName = `replies_channel_${response.id}`;
@@ -463,6 +517,99 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     }
 
+    // Near the top of the component, add a new helper function to group assignment events
+    const groupConsecutiveAssignmentEvents = (replies: FeedbackReply[]) => {
+      const groupedReplies: (FeedbackReply | FeedbackReply[])[] = [];
+      let currentAssignmentGroup: FeedbackReply[] = [];
+
+      replies.forEach((reply) => {
+        if (reply.type === 'assignment') {
+          // Add to current assignment group
+          currentAssignmentGroup.push(reply);
+        } else {
+          // If we have assignment events in the group, add them first
+          if (currentAssignmentGroup.length > 0) {
+            groupedReplies.push([...currentAssignmentGroup]);
+            currentAssignmentGroup = [];
+          }
+          // Add the regular reply
+          groupedReplies.push(reply);
+        }
+      });
+
+      // Add any remaining assignment events
+      if (currentAssignmentGroup.length > 0) {
+        groupedReplies.push([...currentAssignmentGroup]);
+      }
+
+      return groupedReplies;
+    };
+
+    // Render assignment event
+    const renderAssignmentEvent = (reply: FeedbackReply) => {
+      console.log('Rendering assignment event:', reply);
+      
+      // Format date in a readable format
+      const formattedDate = new Date(reply.created_at).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      // Get assignee name - check different sources in order of preference:
+      // 1. Current response assignee if it matches
+      // 2. Collaborators list if we can find a match
+      // 3. Default to "User" if we can't find anything
+      let assigneeName = 'User';
+      
+      // First check if this is the current assignee
+      if (response.assignee && reply.assigned_to === response.assignee_id) {
+        assigneeName = response.assignee.user_name || response.assignee.email;
+      } 
+      // Then check collaborators list
+      else if (reply.assigned_to && collaborators.length > 0) {
+        const assigneeCollaborator = collaborators.find(c => c.user_id === reply.assigned_to);
+        if (assigneeCollaborator) {
+          assigneeName = 
+            assigneeCollaborator.user_profile?.username || 
+            assigneeCollaborator.invitation_email?.split('@')[0] || 
+            'User';
+        }
+      }
+
+      // Get sender name - same approach as assignee
+      let senderName = 'Administrator';
+      
+      // Current user
+      if (user && reply.sender_id === user.id) {
+        senderName = user.user_metadata?.full_name || user.email || 'Admin';
+      }
+      // Check collaborators for sender too
+      else if (reply.sender_id && collaborators.length > 0) {
+        const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
+        if (senderCollaborator) {
+          senderName = 
+            senderCollaborator.user_profile?.username || 
+            senderCollaborator.invitation_email?.split('@')[0] || 
+            'Administrator';
+        }
+      }
+
+      return (
+        <div className="max-w-[40rem] mx-auto w-full flex items-center gap-2 py-0.5">
+          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+            <UserPlus className="h-3 w-3 text-muted-foreground" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Assigned to <span className="font-medium">{assigneeName}</span> by <span className="font-medium">{senderName}</span> on {formattedDate}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* CSS to handle email content formatting */}
@@ -527,9 +674,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         
         {/* Main conversation area - scrollable */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
-          <div className="max-w-[40rem] mx-auto w-full space-y-6">
+          <div className="max-w-[40rem] mx-auto w-full">
             {/* Initial message */}
-            <div className="border border-border rounded-md overflow-hidden bg-background">
+            <div className="border border-border rounded-md overflow-hidden bg-background mb-4">
               <div className="border-b border-border bg-muted/20 px-4 py-3">
                 <div className="flex justify-between items-start">
                   <div className="flex gap-3">
@@ -567,14 +714,27 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             </div>
             
             {/* Reply messages */}
-            {replies.map((reply) => {
+            {groupConsecutiveAssignmentEvents(replies).map((replyOrGroup, index) => {
+              // Check if this is a group of assignment events
+              if (Array.isArray(replyOrGroup)) {
+                return (
+                  <div key={`assignment-group-${index}`} className="space-y-0 py-1 mb-4">
+                    {replyOrGroup.map((assignmentReply) => renderAssignmentEvent(assignmentReply))}
+                  </div>
+                );
+              }
+              
+              const reply = replyOrGroup;
+              
+              // Normal reply rendering
+              console.log('Rendering regular reply');
               const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
               const isExpanded = expandedReplies.has(reply.id);
               
               return (
                 <div
                   key={reply.id}
-                  className="border border-border rounded-md overflow-hidden bg-background"
+                  className="border border-border rounded-md overflow-hidden bg-background mb-4"
                 >
                   <div className={`border-b border-border ${reply.sender_type === 'admin' ? 'bg-primary/5' : 'bg-muted/20'} px-4 py-3`}>
                     <div className="flex justify-between items-start">

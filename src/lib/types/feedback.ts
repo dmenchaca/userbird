@@ -40,13 +40,28 @@ export interface FeedbackReply {
   id: string
   feedback_id: string
   sender_type: 'admin' | 'user'
-  content: string
+  content?: string
   html_content?: string
   created_at: string
   updated_at: string
   message_id?: string
   in_reply_to?: string
   attachments?: FeedbackAttachment[]
+  type?: 'reply' | 'assignment' | 'note' | 'status_change'
+  assigned_to?: string
+  sender_id?: string
+  meta?: Record<string, any>
+  // User details for assignments
+  assigned_to_user?: {
+    id: string
+    email: string
+    name: string
+  }
+  assigned_by_user?: {
+    id: string
+    email: string
+    name: string
+  }
 }
 
 export interface FeedbackAttachment {
