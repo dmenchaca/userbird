@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FoldVertical, UnfoldVertical, Paperclip, Send, CornerDownLeft, Command, MoreHorizontal } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'

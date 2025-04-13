@@ -1084,63 +1084,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     fetchTicket();
   }, [selectedFormId, initialTicketNumber]);
 
-  const downloadImage = async () => {
-    if (!selectedResponse?.image_url) return;
-    
-    try {
-      // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Authentication required to download the image');
-        return;
-      }
-      
-      // Clean up the image path to prevent duplication
-      let cleanPath = selectedResponse.image_url;
-      
-      // If the path already contains the functions prefix, extract just the image path part
-      if (cleanPath.includes('/functions/v1/feedback-images/')) {
-        const parts = cleanPath.split('/functions/v1/feedback-images/');
-        if (parts.length > 1) {
-          cleanPath = parts[parts.length - 1];
-        }
-      }
-      
-      // Create the authenticated image URL
-      const imageUrl = `/functions/v1/feedback-images/${cleanPath}`;
-      
-      // Fetch the image with authentication headers
-      const response = await fetch(imageUrl, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.status}`);
-      }
-      
-      // Convert the response to a blob
-      const blob = await response.blob();
-      
-      // Create a blob URL and trigger download
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = selectedResponse.image_name || 'feedback-image.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the blob URL
-      URL.revokeObjectURL(blobUrl);
-      
-    } catch (error) {
-      console.error('Error downloading image:', error);
-      toast.error('Failed to download the image');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -2159,6 +2102,55 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        
+        {/* Image preview dialog */}
+        {selectedResponse?.image_url && (
+          <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+            <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
+              <div className="p-6">
+                <FeedbackImage
+                  imagePath={selectedResponse.image_url}
+                  alt="Feedback screenshot"
+                  className="w-full h-auto"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        
+        {/* Tag Manager Dialog */}
+        {selectedFormId && (
+          <Dialog open={showTagManagerDialog} onOpenChange={setShowTagManagerDialog}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Tag Manager</DialogTitle>
+              </DialogHeader>
+              <TagManager 
+                formId={selectedFormId}
+                onTagsChange={() => {
+                  // Refresh tags
+                  const fetchTags = async () => {
+                    if (!selectedFormId) return;
+                    
+                    const { data, error } = await supabase
+                      .from('feedback_tags')
+                      .select('*')
+                      .eq('form_id', selectedFormId)
+                      .order('name');
+                    
+                    if (error) {
+                      console.error('Error fetching tags:', error);
+                    } else {
+                      setAvailableTags(data || []);
+                    }
+                  };
+                  
+                  fetchTags();
+                }}
+              />
             </DialogContent>
           </Dialog>
         )}
