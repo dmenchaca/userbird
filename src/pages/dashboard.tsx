@@ -120,6 +120,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       
       // Navigate to the new response
       if (responses[newIndex]) {
+        // Set the active response in the inbox first to update the UI
+        inboxRef.current.setActiveResponse(responses[newIndex].id);
+        // Then update the selected response in the dashboard
         handleResponseSelect(responses[newIndex]);
       }
     }
