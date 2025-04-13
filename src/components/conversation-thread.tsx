@@ -559,24 +559,26 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         hour12: true
       });
 
-      // Get assignee name - check different sources in order of preference:
-      // 1. Current response assignee if it matches
-      // 2. Collaborators list if we can find a match
-      // 3. Default to "User" if we can't find anything
+      // Determine if this is an unassignment event (assigned_to is null)
+      const isUnassignment = reply.assigned_to === null;
+      const action = reply.meta?.action === 'unassign' || isUnassignment ? 'unassign' : 'assign';
+
+      // Get assignee name if this is an assignment (not an unassignment)
       let assigneeName = 'User';
-      
-      // First check if this is the current assignee
-      if (response.assignee && reply.assigned_to === response.assignee_id) {
-        assigneeName = response.assignee.user_name || response.assignee.email;
-      } 
-      // Then check collaborators list
-      else if (reply.assigned_to && collaborators.length > 0) {
-        const assigneeCollaborator = collaborators.find(c => c.user_id === reply.assigned_to);
-        if (assigneeCollaborator) {
-          assigneeName = 
-            assigneeCollaborator.user_profile?.username || 
-            assigneeCollaborator.invitation_email?.split('@')[0] || 
-            'User';
+      if (!isUnassignment) {
+        // First check if this is the current assignee
+        if (response.assignee && reply.assigned_to === response.assignee_id) {
+          assigneeName = response.assignee.user_name || response.assignee.email;
+        } 
+        // Then check collaborators list
+        else if (reply.assigned_to && collaborators.length > 0) {
+          const assigneeCollaborator = collaborators.find(c => c.user_id === reply.assigned_to);
+          if (assigneeCollaborator) {
+            assigneeName = 
+              assigneeCollaborator.user_profile?.username || 
+              assigneeCollaborator.invitation_email?.split('@')[0] || 
+              'User';
+          }
         }
       }
 
@@ -604,7 +606,15 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             <UserPlus className="h-3 w-3 text-muted-foreground" />
           </div>
           <div className="text-xs text-muted-foreground">
-            Assigned to <span className="font-medium">{assigneeName}</span> by <span className="font-medium">{senderName}</span> on {formattedDate}
+            {isUnassignment ? (
+              <>
+                <span className="font-medium">{senderName}</span> removed ticket assignment on {formattedDate}
+              </>
+            ) : (
+              <>
+                Assigned to <span className="font-medium">{assigneeName}</span> by <span className="font-medium">{senderName}</span> on {formattedDate}
+              </>
+            )}
           </div>
         </div>
       );
