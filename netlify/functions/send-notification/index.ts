@@ -29,11 +29,29 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { formId, message } = JSON.parse(event.body || '{}');
+    const requestBody = JSON.parse(event.body || '{}');
+    const { formId, message, type, feedbackId, assigneeEmail, assigneeName, senderName, senderId } = requestBody;
+    
     console.log('Parsed request:', { 
+      type,
       hasFormId: !!formId, 
-      messageLength: message?.length 
+      messageLength: message?.length,
+      hasFeedbackId: !!feedbackId,
+      hasAssigneeEmail: !!assigneeEmail
     });
+    
+    // Handle assignment notifications
+    if (type === 'assignment' && feedbackId && assigneeEmail) {
+      return await handleAssignmentNotification(requestBody);
+    }
+    
+    // Original feedback notification logic
+    if (!formId) {
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ error: 'Missing required formId field' }) 
+      };
+    }
     
     // Get form details and feedback
     const [formResult, feedbackResult] = await Promise.all([
@@ -199,3 +217,135 @@ export const handler: Handler = async (event) => {
     };
   }
 };
+
+// Helper function to handle assignment notifications
+async function handleAssignmentNotification(params: {
+  feedbackId: string;
+  formId: string;
+  assigneeId: string;
+  assigneeEmail: string;
+  assigneeName?: string;
+  senderId?: string;
+  senderName?: string;
+  senderEmail?: string;
+  timestamp?: string;
+  meta?: Record<string, any>;
+}) {
+  const { 
+    feedbackId, 
+    formId, 
+    assigneeEmail, 
+    assigneeName, 
+    senderName,
+    timestamp 
+  } = params;
+  
+  try {
+    console.log('Processing assignment notification:', {
+      feedbackId,
+      formId,
+      assigneeEmail
+    });
+    
+    // Skip if assignee is the same as sender (self-assignment)
+    if (params.assigneeId === params.senderId) {
+      console.log('Skipping self-assignment notification');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          message: 'Skipped self-assignment notification'
+        })
+      };
+    }
+    
+    // Get form details
+    const { data: form, error: formError } = await supabase
+      .from('forms')
+      .select('url')
+      .eq('id', formId)
+      .single();
+    
+    if (formError) {
+      console.error('Form query error:', formError);
+      throw formError;
+    }
+    
+    if (!form) {
+      console.error('Form not found:', formId);
+      return { 
+        statusCode: 404, 
+        body: JSON.stringify({ error: 'Form not found' }) 
+      };
+    }
+    
+    // Get feedback details
+    const { data: feedback, error: feedbackError } = await supabase
+      .from('feedback')
+      .select('message, ticket_number')
+      .eq('id', feedbackId)
+      .single();
+    
+    if (feedbackError) {
+      console.error('Feedback query error:', feedbackError);
+      throw feedbackError;
+    }
+    
+    // Build email content
+    const formattedDate = timestamp 
+      ? new Date(timestamp).toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      : new Date().toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+    
+    // Prepare ticket number display
+    const ticketReference = feedback?.ticket_number 
+      ? `Ticket #${feedback.ticket_number}` 
+      : 'a ticket';
+      
+    // Prepare message content
+    const message = feedback?.message || '';
+    const messagePreview = message.length > 100 
+      ? `${message.substring(0, 100)}...` 
+      : message;
+    
+    // Prepare assignment message
+    const assignmentMessage = senderName 
+      ? `${senderName} has assigned ${ticketReference} to you.` 
+      : `You have been assigned ${ticketReference}.`;
+    
+    // Send the assignment notification email
+    const emailResult = await EmailService.sendFeedbackNotification({
+      to: assigneeEmail,
+      formUrl: form.url,
+      formId: formId,
+      message: `${assignmentMessage}\n\nTicket message: ${messagePreview}`,
+      feedbackId: feedbackId,
+      created_at: formattedDate,
+      isAssignment: true
+    });
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        messageId: emailResult.messageId
+      })
+    };
+  } catch (error) {
+    console.error('Error processing assignment notification:', error);
+    throw error;
+  }
+}

@@ -315,8 +315,9 @@ export class EmailService {
     created_at?: string;
     url_path?: string;
     feedbackId: string;
+    isAssignment?: boolean;
   }) {
-    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId } = params;
+    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, isAssignment } = params;
 
     // Get formated date
     const formatedDate = created_at || new Date().toLocaleString('en-US', {
@@ -332,7 +333,7 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Always use notifications@userbird.co for new feedback notifications
+    // Always use notifications@userbird.co for new feedback notifications and assignment notifications
     const from = formatSender({ email: 'notifications@userbird.co', name: DEFAULT_SENDER_NAME });
     const isNotificationsEmail = true;
 
@@ -346,6 +347,18 @@ export class EmailService {
         secureImageUrl = `${supabaseUrl}/functions/v1/feedback-images/${imagePath}`;
       }
     }
+    
+    // Determine the primary action URL and label based on notification type
+    let primaryActionUrl = `https://app.userbird.co/forms/${formId}`;
+    let primaryActionLabel = 'View All Responses';
+    let emailSubject = `New Feedback for ${formUrl}`;
+    
+    if (isAssignment) {
+      // For assignment notifications, link directly to the ticket
+      primaryActionUrl = `https://app.userbird.co/forms/${formId}/ticket/${feedbackId}`;
+      primaryActionLabel = 'View Ticket';
+      emailSubject = `You've been assigned a new ticket`;
+    }
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
@@ -354,7 +367,7 @@ export class EmailService {
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
       <div style="margin-bottom: 24px;">
         <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-          New feedback received for <strong>${formUrl}</strong>
+          ${isAssignment ? 'Ticket Assignment' : 'New feedback received'} for <strong>${formUrl}</strong>
         </h3>
       </div>
 
@@ -407,9 +420,9 @@ export class EmailService {
       </div>
 
       <div style="text-align: center;">
-        <a href="https://app.userbird.co/forms/${formId}" 
+        <a href="${primaryActionUrl}" 
            style="display: inline-block; background: #1f2937; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
-          View All Responses
+          ${primaryActionLabel}
         </a>
       </div>
     </div>
@@ -418,7 +431,7 @@ export class EmailService {
 
     // Create plain text version
     const textMessage = `
-New feedback received for ${formUrl}
+${isAssignment ? 'Ticket Assignment' : 'New feedback received'} for ${formUrl}
 
 ${message ? `Message:
 ${message}
@@ -436,7 +449,9 @@ ${screen_category ? `Screen Category: ${screen_category}` : ''}
 ` : ''}${image_url ? `Screenshot:
 ${secureImageUrl}
 
-` : ''}${formatedDate ? `Received on ${formatedDate}` : ''}`;
+` : ''}${formatedDate ? `Received on ${formatedDate}` : ''}
+
+View Online: ${primaryActionUrl}`;
 
     // For notifications@userbird.co, send directly to avoid any potential sanitization
     if (isNotificationsEmail) {
@@ -445,7 +460,7 @@ ${secureImageUrl}
         await sgMail.send({
           to,
           from,
-          subject: `New Feedback for ${formUrl}`,
+          subject: emailSubject,
           text: textMessage,
           html: htmlMessage,
           headers: {
@@ -466,7 +481,7 @@ ${secureImageUrl}
       return this.sendEmail({
         to,
         from,
-        subject: `New Feedback for ${formUrl}`,
+        subject: emailSubject,
         text: textMessage,
         html: htmlMessage,
         feedbackId
