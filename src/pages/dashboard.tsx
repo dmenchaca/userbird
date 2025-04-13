@@ -97,20 +97,21 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const navigateToResponse = (direction: 'next' | 'prev') => {
     if (!selectedResponse || !inboxRef.current) return;
     
-    // Request the current responses from the inbox ref
+    // Request the current responses from the inbox ref - these are already filtered
+    // to match exactly what's visible in the UI
     if (inboxRef.current.getResponses) {
-      const responses = inboxRef.current.getResponses();
-      if (!responses.length) return;
+      const visibleResponses = inboxRef.current.getResponses();
+      if (!visibleResponses.length) return;
       
-      // Find the index of the current response
-      const currentIndex = responses.findIndex((response: FeedbackResponse) => response.id === selectedResponse.id);
+      // Find the index of the current response in the visible responses list
+      const currentIndex = visibleResponses.findIndex((response: FeedbackResponse) => response.id === selectedResponse.id);
       if (currentIndex === -1) return;
       
       // Calculate the new index without looping
       let newIndex;
       if (direction === 'next') {
         // Stop if we're at the bottom
-        if (currentIndex + 1 >= responses.length) return;
+        if (currentIndex + 1 >= visibleResponses.length) return;
         newIndex = currentIndex + 1;
       } else {
         // Stop if we're at the top
@@ -119,11 +120,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       }
       
       // Navigate to the new response
-      if (responses[newIndex]) {
+      if (visibleResponses[newIndex]) {
         // Set the active response in the inbox first to update the UI
-        inboxRef.current.setActiveResponse(responses[newIndex].id);
+        inboxRef.current.setActiveResponse(visibleResponses[newIndex].id);
         // Then update the selected response in the dashboard
-        handleResponseSelect(responses[newIndex]);
+        handleResponseSelect(visibleResponses[newIndex]);
       }
     }
   };
