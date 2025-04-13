@@ -1120,11 +1120,36 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
   // Handle URL navigation when selecting a response
   const handleResponseSelect = (response: FeedbackResponse | null) => {
-    setSelectedResponse(response);
+    let updatedResponse = response;
+    
+    // Only process if response exists and has an assignee ID but no assignee details
+    if (updatedResponse && updatedResponse.assignee_id && !updatedResponse.assignee) {
+      // We have an assignee ID but no assignee details, find them
+      const assigneeCollaborator = collaborators.find(
+        c => c.user_id === updatedResponse?.assignee_id
+      );
+      
+      if (assigneeCollaborator) {
+        // Update the response with assignee details before setting it
+        updatedResponse = {
+          ...updatedResponse,
+          assignee: {
+            id: assigneeCollaborator.user_id,
+            email: assigneeCollaborator.user_profile?.email || assigneeCollaborator.invitation_email,
+            user_name: assigneeCollaborator.user_profile?.username || 
+                      assigneeCollaborator.invitation_email?.split('@')[0] || 
+                      'User',
+            avatar_url: assigneeCollaborator.user_profile?.avatar_url || undefined
+          }
+        };
+      }
+    }
+    
+    setSelectedResponse(updatedResponse);
     
     // Update URL to include ticket number if a response is selected
-    if (response && selectedFormId) {
-      navigate(`/forms/${selectedFormId}/ticket/${response.ticket_number}`, { replace: true });
+    if (updatedResponse && selectedFormId) {
+      navigate(`/forms/${selectedFormId}/ticket/${updatedResponse.ticket_number}`, { replace: true });
     } else if (selectedFormId) {
       // If no response selected, just show form URL
       navigate(`/forms/${selectedFormId}`, { replace: true });
@@ -1156,25 +1181,67 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // Also fetch the tag if it exists
-          if (data[0].tag_id) {
+          let responseData = data[0];
+          
+          // Fetch tag if it exists
+          if (responseData.tag_id) {
             const { data: tagData } = await supabase
               .from('feedback_tags')
               .select('*')
-              .eq('id', data[0].tag_id)
+              .eq('id', responseData.tag_id)
               .limit(1);
 
             if (tagData && tagData.length > 0) {
-              setSelectedResponse({
-                ...data[0],
+              responseData = {
+                ...responseData,
                 tag: tagData[0]
-              });
-              return;
+              };
             }
           }
           
-          // If no tag or tag not found
-          setSelectedResponse(data[0]);
+          // Fetch assignee details if assigned
+          if (responseData.assignee_id) {
+            // Try to find matching collaborator
+            const assigneeCollaborator = collaborators.find(c => c.user_id === responseData.assignee_id);
+            
+            if (assigneeCollaborator) {
+              responseData = {
+                ...responseData,
+                assignee: {
+                  id: assigneeCollaborator.user_id,
+                  email: assigneeCollaborator.user_profile?.email || assigneeCollaborator.invitation_email,
+                  user_name: assigneeCollaborator.user_profile?.username || 
+                            assigneeCollaborator.invitation_email?.split('@')[0] || 
+                            'User',
+                  avatar_url: assigneeCollaborator.user_profile?.avatar_url || undefined
+                }
+              };
+            } else {
+              // Fallback to basic assignee data if collaborator not found
+              try {
+                const { data: userData } = await supabase
+                  .rpc('get_user_profile_by_id', { user_id_param: responseData.assignee_id });
+                
+                if (userData && userData.length > 0) {
+                  const userProfile = userData[0];
+                  responseData = {
+                    ...responseData,
+                    assignee: {
+                      id: responseData.assignee_id,
+                      email: userProfile.email || 'user@example.com',
+                      user_name: userProfile.username || userProfile.email?.split('@')[0] || 'User',
+                      avatar_url: userProfile.avatar_url || undefined
+                    }
+                  };
+                }
+              } catch (err) {
+                console.error('Error fetching assignee details:', err);
+              }
+            }
+          }
+          
+          // Set the response with all the details
+          setSelectedResponse(responseData);
         }
       } catch (error) {
         console.error('Error fetching ticket:', error);
@@ -1182,7 +1249,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     };
 
     fetchTicket();
-  }, [selectedFormId, initialTicketNumber]);
+  }, [selectedFormId, initialTicketNumber, collaborators]);
 
   if (loading) {
     return (
