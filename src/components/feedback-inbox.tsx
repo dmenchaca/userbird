@@ -413,8 +413,12 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           : prev.filter(id => id !== responseId)
       );
     } else {
-      // Normal click: Replace selection
-      setSelectedIds(newCheckedState ? [responseId] : []);
+      // Normal click: Toggle just this selection while preserving others
+      setSelectedIds(prev => 
+        newCheckedState
+          ? [...prev, responseId]
+          : prev.filter(id => id !== responseId)
+      );
     }
     
     // Update last selected index

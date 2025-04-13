@@ -2,9 +2,10 @@ import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon, Quote, List, ListOrdered } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import { Extension } from '@tiptap/core'
 
 interface TiptapEditorProps {
   value: string
@@ -17,6 +18,49 @@ interface TiptapEditorProps {
 export function TiptapEditor({ value, onChange, onKeyDown, placeholder, className }: TiptapEditorProps) {
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const sendButtonRef = useRef<HTMLButtonElement | null>(null)
+  
+  // Create a custom extension to handle Cmd/Ctrl+Enter
+  const KeyboardShortcutExt = Extension.create({
+    name: 'keyboardShortcuts',
+    addKeyboardShortcuts() {
+      return {
+        'Mod-Enter': () => {
+          console.log('Tiptap extension detected Mod-Enter shortcut');
+          
+          // Simply click the send button programmatically if we have one
+          if (sendButtonRef.current) {
+            console.log('Clicking the send button programmatically');
+            sendButtonRef.current.click();
+            return true;
+          }
+          
+          // Fallback to the event handler approach
+          if (onKeyDown) {
+            console.log('Extension falling back to event handler');
+            
+            // Create a synthetic keyboard event
+            const fakeEvent = {
+              preventDefault: () => {
+                console.log('preventDefault called in mock event');
+              },
+              stopPropagation: () => {
+                console.log('stopPropagation called in mock event');
+              },
+              key: 'Enter',
+              ctrlKey: !/Mac|iPod|iPhone|iPad/.test(navigator.platform),
+              metaKey: /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+            } as React.KeyboardEvent;
+            
+            // Call the parent handler
+            onKeyDown(fakeEvent);
+          }
+          
+          return true; // Prevents default behavior completely
+        }
+      }
+    }
+  });
   
   const editor = useEditor({
     extensions: [
@@ -33,6 +77,7 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
         },
       }),
       Underline,
+      KeyboardShortcutExt,
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -48,6 +93,17 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
     },
   })
 
+  // Expose the send button ref to parent components
+  useEffect(() => {
+    // Find the send button in the DOM and store its reference
+    // This is a bit hacky but safer than modifying the parent component structure
+    const sendBtn = document.querySelector('button:has(.lucide-send)') as HTMLButtonElement | null;
+    if (sendBtn && sendButtonRef.current !== sendBtn) {
+      // Using mutable ref pattern instead of direct assignment
+      sendButtonRef.current = sendBtn;
+    }
+  }, []);
+
   // Sync content when value prop changes from outside
   useEffect(() => {
     if (editor && editor.getHTML() !== value) {
@@ -55,10 +111,20 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
     }
   }, [value, editor])
 
-  // Handle key events for Ctrl+Enter
+  // Regular keydown handler for all other keys
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (onKeyDown) {
-      onKeyDown(event)
+    console.log('TiptapEditor handleKeyDown triggered', { 
+      key: event.key, 
+      ctrl: event.ctrlKey, 
+      meta: event.metaKey 
+    });
+    
+    // No need to handle Cmd/Ctrl+Enter here - it's handled by our extension
+    if (onKeyDown && !((event.ctrlKey || event.metaKey) && event.key === 'Enter')) {
+      console.log('Forwarding non-shortcut key event to parent');
+      onKeyDown(event);
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      console.log('Mod+Enter detected in handleKeyDown (should be handled by extension)');
     }
   }
 

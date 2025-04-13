@@ -119,6 +119,8 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
   }
 
   const handleSendReply = async () => {
+    console.log('handleSendReply triggered with content:', replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent);
+    
     if (!replyContent.trim()) return
     
     setIsSubmitting(true)
@@ -226,10 +228,27 @@ export function ConversationThread({ response, onStatusChange }: ConversationThr
 
   // Handle key events for Ctrl+Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Send on Ctrl+Enter or Command+Enter
+    console.log('ConversationThread handleKeyDown triggered', { 
+      key: e.key, 
+      ctrl: e.ctrlKey, 
+      meta: e.metaKey 
+    });
+    
+    // Send on Ctrl+Enter or Command+Enter, but only if there's content
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault()
-      handleSendReply()
+      console.log('ConversationThread detected Cmd/Ctrl+Enter, checking content');
+      
+      // Prevent default behavior immediately to avoid adding a new line
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Only send if there's content
+      if (replyContent.trim()) {
+        console.log('Content found, sending reply...');
+        handleSendReply();
+      } else {
+        console.log('No content to send');
+      }
     }
   }
 

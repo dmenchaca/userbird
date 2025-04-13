@@ -2162,6 +2162,17 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Batch action bar for multiple selections */}
+        {selectedBatchIds.length > 0 && (
+          <BatchActionBar
+            selectedIds={selectedBatchIds}
+            onClearSelection={() => setSelectedBatchIds([])}
+            onStatusChange={handleBatchStatusChange}
+            onTagChange={handleBatchTagChange}
+            availableTags={availableTags}
+          />
+        )}
       </main>
     </div>
   )
