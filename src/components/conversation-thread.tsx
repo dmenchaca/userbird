@@ -179,6 +179,32 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Rich text content is already in HTML format
         let htmlContent = replyContent;
         
+        // Process the main content to convert <p> tags to <div> tags with <br> for linebreaks
+        // This only affects the main content, not quoted content
+        const processMainContent = (html: string) => {
+          // Check if there's any quoted content already in the reply
+          const quoteMatch = html.match(/<div class="gmail_quote gmail_quote_container">/);
+          
+          if (quoteMatch) {
+            // If there's quoted content, only process the content before it
+            const quoteIndex = html.indexOf(quoteMatch[0]);
+            const mainContent = html.substring(0, quoteIndex);
+            const quotedContent = html.substring(quoteIndex);
+            
+            // Replace <p> tags with <div> tags in main content only
+            const processedMain = mainContent
+              .replace(/<p>(.*?)<\/p>/gs, '<div>$1</div>');
+            
+            return processedMain + quotedContent;
+          } else {
+            // If there's no quoted content, process the entire HTML
+            return html.replace(/<p>(.*?)<\/p>/gs, '<div>$1</div>');
+          }
+        };
+        
+        // Process the main content to use <div> tags instead of <p> tags
+        htmlContent = processMainContent(htmlContent);
+        
         // If this is a reply to another message, append the previous message as blockquote
         if (replies.length > 0) {
           // Get the most recent message to quote

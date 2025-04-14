@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon, Quote, List, ListOrdered } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Extension } from '@tiptap/core'
+import { DivParagraph } from './custom-paragraph'
 
 interface TiptapEditorProps {
   value: string
@@ -68,7 +69,9 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
         heading: false,
         codeBlock: false,
         horizontalRule: false,
+        paragraph: false,
       }),
+      DivParagraph,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
