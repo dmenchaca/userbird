@@ -333,6 +333,7 @@ async function handleAssignmentNotification(params: {
       formId: formId,
       message: `${assignmentMessage}\n\nTicket message: ${messagePreview}`,
       feedbackId: feedbackId,
+      ticket_number: feedback?.ticket_number,
       created_at: formattedDate,
       isAssignment: true
     });

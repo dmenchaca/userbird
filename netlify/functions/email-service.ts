@@ -315,9 +315,10 @@ export class EmailService {
     created_at?: string;
     url_path?: string;
     feedbackId: string;
+    ticket_number?: number;
     isAssignment?: boolean;
   }) {
-    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, isAssignment } = params;
+    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment } = params;
 
     // Get formated date
     const formatedDate = created_at || new Date().toLocaleString('en-US', {
@@ -354,24 +355,27 @@ export class EmailService {
     let emailSubject = `New Feedback for ${formUrl}`;
     
     if (isAssignment) {
-      // For assignment notifications, link directly to the ticket
-      primaryActionUrl = `https://app.userbird.co/forms/${formId}/ticket/${feedbackId}`;
-      primaryActionLabel = 'View Ticket';
-      
       // Extract ticket number from the message
       // Message format is: "AssignerName has assigned Ticket #123 to you." or "You have been assigned Ticket #123."
       const ticketNumberMatch = message.match(/Ticket #(\d+)/i);
-      const ticketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
+      const extractedTicketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
       
       console.log('Extracted ticket number for email subject:', {
         message: message.substring(0, 50),
         ticketNumberMatch,
-        ticketNumber
+        extractedTicketNumber,
+        ticket_number
       });
       
+      // For assignment notifications, link directly to the ticket
+      // Use the ticket_number from the database if available, otherwise use extracted value from message
+      primaryActionUrl = `https://app.userbird.co/forms/${formId}/ticket/${ticket_number || extractedTicketNumber}`;
+      primaryActionLabel = 'View Ticket';
+      
       // Use ticket number in subject if available, otherwise use generic subject
-      emailSubject = ticketNumber 
-        ? `Action needed: Ticket #${ticketNumber} is now yours` 
+      const displayTicketNumber = ticket_number || extractedTicketNumber;
+      emailSubject = displayTicketNumber 
+        ? `Action needed: Ticket #${displayTicketNumber} is now yours` 
         : `Action needed: You've been assigned a ticket`;
     }
 
