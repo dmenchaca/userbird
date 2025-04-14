@@ -325,16 +325,36 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
   // Update URL when form selection changes
   useEffect(() => {
+    console.log('URL update effect running:', { 
+      selectedFormId, 
+      hasSelectedResponse: !!selectedResponse, 
+      responseDetails: selectedResponse ? {
+        id: selectedResponse.id,
+        ticketNumber: selectedResponse.ticket_number
+      } : null,
+      initialTicketNumber
+    });
+    
+    // Don't update URL if we're still potentially loading a ticket from initialTicketNumber
+    // This prevents the redirect race condition
+    if (initialTicketNumber && !selectedResponse) {
+      console.log('Initial ticket number present but no selected response yet - waiting for ticket fetch to complete');
+      return;
+    }
+    
     if (selectedFormId) {
       // Only update URL if there's no selected response (with ticket number)
       // This prevents overwriting the URL with ticket number
       if (!selectedResponse) {
+        console.log('No selected response, redirecting to form URL');
         navigate(`/forms/${selectedFormId}`, { replace: true });
+      } else {
+        console.log('Response selected, URL should remain at ticket URL');
       }
     } else if (formsChecked && !loading) {
       navigate('/', { replace: true });
     }
-  }, [selectedFormId, navigate, loading, formsChecked, selectedResponse]);
+  }, [selectedFormId, navigate, loading, formsChecked, selectedResponse, initialTicketNumber]);
 
   // Check if form has any responses
   useEffect(() => {
@@ -1120,6 +1140,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
   // Handle URL navigation when selecting a response
   const handleResponseSelect = (response: FeedbackResponse | null) => {
+    console.log('handleResponseSelect called with:', response ? { 
+      id: response.id, 
+      ticketNumber: response.ticket_number 
+    } : 'null response');
+    
     let updatedResponse = response;
     
     // Only process if response exists and has an assignee ID but no assignee details
@@ -1145,13 +1170,20 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       }
     }
     
+    console.log('Setting selectedResponse to:', updatedResponse ? {
+      id: updatedResponse.id,
+      ticketNumber: updatedResponse.ticket_number
+    } : 'null');
+    
     setSelectedResponse(updatedResponse);
     
     // Update URL to include ticket number if a response is selected
     if (updatedResponse && selectedFormId) {
+      console.log('Navigating to ticket URL:', `/forms/${selectedFormId}/ticket/${updatedResponse.ticket_number}`);
       navigate(`/forms/${selectedFormId}/ticket/${updatedResponse.ticket_number}`, { replace: true });
     } else if (selectedFormId) {
       // If no response selected, just show form URL
+      console.log('No response selected, navigating to form URL:', `/forms/${selectedFormId}`);
       navigate(`/forms/${selectedFormId}`, { replace: true });
       
       // Notify the FeedbackInbox to clear active feedback
@@ -1167,16 +1199,22 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   useEffect(() => {
     // Skip if no form ID or ticket number
     if (!selectedFormId || !initialTicketNumber) return;
+    
+    console.log('Fetching ticket:', { selectedFormId, initialTicketNumber, ticketType: typeof initialTicketNumber });
 
     const fetchTicket = async () => {
       try {
         // Find feedback with matching ticket number
+        console.log('Making Supabase query for ticket:', { formId: selectedFormId, ticketNumber: initialTicketNumber });
+        
         const { data, error } = await supabase
           .from('feedback')
           .select('*')
           .eq('form_id', selectedFormId)
           .eq('ticket_number', initialTicketNumber)
           .limit(1);
+          
+        console.log('Ticket query response:', { data, error, found: data && data.length > 0 });
 
         if (error) throw error;
 
@@ -1241,7 +1279,22 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           }
           
           // Set the response with all the details
+          console.log('Setting selected response:', responseData);
           setSelectedResponse(responseData);
+          
+          // After the data is loaded, we need to make sure the inbox also has this ticket
+          // First refresh the inbox to ensure it has the most current data
+          if (inboxRef.current) {
+            // Wait for the inbox to refresh and load the tickets
+            await inboxRef.current.refreshData(true);
+            
+            // Then set the active response in the inbox to highlight it
+            // This is crucial for showing the selected ticket in the UI
+            console.log('Setting active response in inbox:', responseData.id);
+            inboxRef.current.setActiveResponse(responseData.id);
+          }
+        } else {
+          console.log('No ticket found with number:', initialTicketNumber);
         }
       } catch (error) {
         console.error('Error fetching ticket:', error);
