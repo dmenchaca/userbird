@@ -38,6 +38,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
     const editorRef = useRef<HTMLDivElement>(null)
+    const [productName, setProductName] = useState<string>('Userbird')
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -56,6 +57,21 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const adminName = user?.user_metadata?.full_name || user?.email || 'Admin'
     const adminInitials = adminName?.[0]?.toUpperCase() || 'A'
     const adminAvatarUrl = user?.user_metadata?.avatar_url
+    
+    // Get the admin's first name for the sender display
+    const getFirstName = (displayName: string): string => {
+      if (!displayName) return '';
+      
+      // If the name contains an @ symbol, it's likely an email address
+      if (displayName.includes('@')) {
+        return displayName.split('@')[0]; // Return part before @
+      }
+      
+      // Otherwise, take the first word as the first name
+      return displayName.split(' ')[0];
+    }
+    
+    const adminFirstName = getFirstName(adminName)
 
     useEffect(() => {
       if (response) {
@@ -66,6 +82,11 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         const refreshInterval = setInterval(() => {
           fetchReplies()
         }, 5000) // Check every 5 seconds
+        
+        // Fetch the product name for the form if form_id exists
+        if (response.form_id) {
+          fetchFormData(response.form_id)
+        }
         
         return () => {
           supabase.removeChannel(channel)
@@ -329,7 +350,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               replyContent: plainTextContent.trim(),
               replyId: data?.[0]?.id,
               htmlContent: htmlContent,
-              isAdminDashboardReply: true
+              isAdminDashboardReply: true,
+              productName: productName
             }),
           })
 
@@ -650,6 +672,31 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       );
     };
 
+    // Add a function to fetch form data
+    const fetchFormData = async (formId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('product_name, url')
+          .eq('id', formId)
+          .single()
+          
+        if (error) {
+          console.error('Error fetching form data:', error)
+          return
+        }
+        
+        if (data && data.product_name) {
+          setProductName(data.product_name)
+        } else if (data && data.url) {
+          // Use the URL if no product name is set
+          setProductName(data.url)
+        }
+      } catch (error) {
+        console.error('Error fetching form data:', error)
+      }
+    }
+
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* CSS to handle email content formatting */}
@@ -826,16 +873,21 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                                   (() => {
                                     // First check if we have a sender_profile
                                     if (reply.sender_profile?.username) {
-                                      return reply.sender_profile.username;
+                                      // Get first name of the collaborator
+                                      const collabName = reply.sender_profile.username;
+                                      const collabFirstName = getFirstName(collabName);
+                                      return `${collabFirstName} at ${productName}`;
                                     }
                                     
                                     // Fall back to collaborator data if available
                                     const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
-                                    return senderCollaborator?.user_profile?.username || 
-                                           senderCollaborator?.invitation_email?.split('@')[0] || 
-                                           adminName;
+                                    const collabName = senderCollaborator?.user_profile?.username || 
+                                          senderCollaborator?.invitation_email?.split('@')[0] || 
+                                          adminName;
+                                    const collabFirstName = getFirstName(collabName);
+                                    return `${collabFirstName} at ${productName}`;
                                   })()
-                                ) : adminName} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                                ) : `${adminFirstName} at ${productName}`} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
                               </>
                             ) : (
                               <>
@@ -960,7 +1012,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                       )}
                     </Avatar>
                     <span className="text-sm font-medium">
-                      Reply as {adminName} <span className="text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                      Reply as {adminFirstName} at {productName} <span className="text-muted-foreground">&lt;support@userbird.co&gt;</span>
                     </span>
                   </div>
                   <div className="ml-auto">

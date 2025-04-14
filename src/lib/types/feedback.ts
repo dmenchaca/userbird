@@ -16,6 +16,7 @@ export interface FeedbackResponse {
   tag?: FeedbackTag | null
   ticket_number: number | null
   assignee_id: string | null
+  form_id?: string | null
   assignee?: {
     id: string
     email: string

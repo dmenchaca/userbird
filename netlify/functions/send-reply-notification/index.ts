@@ -52,13 +52,14 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { feedbackId, replyContent, replyId, htmlContent, isAdminDashboardReply } = JSON.parse(event.body || '{}');
+    const { feedbackId, replyContent, replyId, htmlContent, isAdminDashboardReply, productName } = JSON.parse(event.body || '{}');
     console.log('Parsed request:', { 
       hasFeedbackId: !!feedbackId, 
       replyContentLength: replyContent?.length,
       hasReplyId: !!replyId,
       hasHtmlContent: !!htmlContent,
-      isAdminDashboardReply: !!isAdminDashboardReply
+      isAdminDashboardReply: !!isAdminDashboardReply,
+      productName
     });
     
     if (!feedbackId || !replyContent) {
@@ -155,7 +156,8 @@ export const handler: Handler = async (event) => {
       feedbackId,
       replyId,
       lastMessageId,
-      isAdminDashboardReply
+      isAdminDashboardReply,
+      productName
     });
 
     // Store the message ID in the database

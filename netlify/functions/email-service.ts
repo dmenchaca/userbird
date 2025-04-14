@@ -156,8 +156,14 @@ function processMarkdownSyntax(content: string): string {
 
 /**
  * Get the appropriate sender email for a form
+ * @returns Object with email, name, and optionally product_name, user_first_name
  */
-async function getSenderEmail(formId: string) {
+async function getSenderEmail(formId: string): Promise<{ 
+  email: string; 
+  name?: string;
+  product_name?: string;
+  user_first_name?: string;
+}> {
   try {
     // Try to use database function first (better performance)
     const { data, error } = await supabase.rpc('get_form_sender_email', { form_id: formId });
@@ -184,14 +190,15 @@ async function getSenderEmail(formId: string) {
     // If no verified custom email, check for a default email
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('default_email, default_sender_name, url')
+      .select('default_email, default_sender_name, url, product_name')
       .eq('id', formId)
       .single();
     
     if (!formError && form && form.default_email) {
       return {
         email: form.default_email,
-        name: form.default_sender_name || `${form.url} Feedback`
+        name: form.default_sender_name || `${form.url} Feedback`,
+        product_name: form.product_name
       };
     }
 
@@ -211,12 +218,41 @@ async function getSenderEmail(formId: string) {
 }
 
 /**
+ * Extract first name from a display name
+ * @param displayName Full display name (could be "John Doe" or an email address)
+ * @returns The first name or first part of the email address before @ symbol
+ */
+function getFirstName(displayName: string): string {
+  if (!displayName) return '';
+  
+  // If the name contains an @ symbol, it's likely an email address
+  if (displayName.includes('@')) {
+    return displayName.split('@')[0]; // Return part before @
+  }
+  
+  // Otherwise, take the first word as the first name
+  return displayName.split(' ')[0];
+}
+
+/**
  * Format sender email with name if available
  */
-function formatSender(sender: { email: string, name?: string }) {
+function formatSender(sender: { email: string, name?: string, product_name?: string, user_first_name?: string }) {
+  // If we have a user's first name and a product name, use the "{First name} at {product_name}" format
+  if (sender.user_first_name && sender.product_name) {
+    return `${sender.user_first_name} at ${sender.product_name} <${sender.email}>`;
+  }
+  
+  // If only product name is available
+  if (sender.product_name) {
+    return `${sender.product_name} <${sender.email}>`;
+  }
+  
+  // Fall back to the original format
   if (sender.name) {
     return `${sender.name} <${sender.email}>`;
   }
+  
   return sender.email;
 }
 
@@ -523,6 +559,7 @@ View Online: ${primaryActionUrl}`;
     replyId: string;
     lastMessageId?: string;
     isAdminDashboardReply?: boolean;
+    productName?: string;
   }) {
     const {
       to,
@@ -533,7 +570,8 @@ View Online: ${primaryActionUrl}`;
       feedbackId,
       replyId,
       lastMessageId,
-      isAdminDashboardReply = false
+      isAdminDashboardReply = false,
+      productName
     } = params;
 
     // Get the form ID from the feedback
@@ -546,11 +584,48 @@ View Online: ${primaryActionUrl}`;
     // Get custom sender email for this form
     const formId = feedbackData?.form_id;
     const senderInfo = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
-    const from = formatSender(senderInfo);
+    
+    // If this is an admin dashboard reply, get the form's product name and current user's name
+    let senderWithUserInfo = { ...senderInfo };
+    
+    if (isAdminDashboardReply) {
+      try {
+        // Add the product name if provided
+        if (productName) {
+          senderWithUserInfo.product_name = productName;
+        }
+        
+        // Get the sender's reply from feedback_replies to find the sender_id
+        const { data: replyData } = await supabase
+          .from('feedback_replies')
+          .select('sender_id')
+          .eq('id', replyId)
+          .single();
+          
+        if (replyData?.sender_id) {
+          // Get the user's profile from auth.users
+          const { data: userData } = await supabase
+            .rpc('get_user_profile_by_id', { user_id_param: replyData.sender_id });
+            
+          if (userData && userData.length > 0) {
+            // Extract the display name and get the first name
+            const displayName = userData[0].username;
+            senderWithUserInfo.user_first_name = getFirstName(displayName);
+          }
+        }
+      } catch (error) {
+        console.error('Error getting user or form details:', error);
+        // Continue with default sender info if there's an error
+      }
+    }
+    
+    const from = formatSender(senderWithUserInfo);
     
     console.log('Using sender email for reply notification:', {
       formId,
       senderEmail: senderInfo.email,
+      product_name: senderWithUserInfo.product_name,
+      user_first_name: senderWithUserInfo.user_first_name,
       from
     });
 
