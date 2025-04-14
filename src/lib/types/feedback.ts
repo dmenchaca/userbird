@@ -62,6 +62,13 @@ export interface FeedbackReply {
     email: string
     name: string
   }
+  // Sender profile details
+  sender_profile?: {
+    user_id: string
+    username?: string
+    avatar_url?: string
+    [key: string]: any
+  } | null
 }
 
 export interface FeedbackAttachment {

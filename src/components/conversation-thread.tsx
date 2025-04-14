@@ -93,13 +93,55 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Reverse to get chronological order (oldest first)
         const chronologicalReplies = repliesData ? [...repliesData].reverse() : [];
         
-        // Process the replies to extract user information, but without joins
+        // Get unique sender_ids for fetching profiles
+        const senderIds = chronologicalReplies
+          .filter(reply => reply.sender_id)
+          .map(reply => reply.sender_id)
+          .filter((id, index, self) => id && self.indexOf(id) === index) as string[];
+        
+        // Fetch user profiles for senders if we have any sender_ids
+        let profilesByUserId: Record<string, any> = {};
+        
+        if (senderIds.length > 0) {
+          // Use RPC to call the get_user_profile_by_id function for each sender ID
+          const profiles = await Promise.all(
+            senderIds.map(async (senderId) => {
+              const { data, error } = await supabase
+                .rpc('get_user_profile_by_id', { user_id_param: senderId });
+                
+              if (error) {
+                console.error(`Error fetching profile for user ${senderId}:`, error);
+                return null;
+              }
+              
+              return data && data.length > 0 ? data[0] : null;
+            })
+          );
+          
+          // Create a map of user_id to profile, filtering out nulls
+          profilesByUserId = profiles
+            .filter(Boolean)
+            .reduce((acc, profile) => {
+              // Use profile_user_id as the key (that's how the function returns it)
+              acc[profile.profile_user_id] = {
+                user_id: profile.profile_user_id,
+                username: profile.username,
+                avatar_url: profile.avatar_url,
+                email: profile.email
+              };
+              return acc;
+            }, {} as Record<string, any>);
+        }
+        
+        // Process the replies to include user information when available
         const processedReplies = chronologicalReplies.map(reply => {
-          // No need to process assigned_to_user or sender_user since we're not fetching those
-
-          // Return the reply without additional processing
+          // Add sender profile information if available
+          const senderProfile = reply.sender_id ? profilesByUserId[reply.sender_id] : null;
+          
           return {
             ...reply,
+            // Include profile data if we have it
+            sender_profile: senderProfile || null,
             // These will be null since we're not fetching the related data
             assigned_to_user: null,
             assigned_by_user: null
@@ -269,7 +311,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             feedback_id: response.id,
             sender_type: 'admin',
             content: plainTextContent.trim(),
-            html_content: htmlContent
+            html_content: htmlContent,
+            sender_id: user?.id
           }])
           .select()
         
@@ -737,10 +780,34 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                       <div className="flex gap-3">
                         {reply.sender_type === 'admin' ? (
                           <Avatar className="h-8 w-8 rounded-full">
-                            {adminAvatarUrl ? (
-                              <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                            {/* Check if the reply has a sender_id that matches a collaborator */}
+                            {reply.sender_id && reply.sender_id !== user?.id ? (
+                              // Render collaborator avatar if available
+                              (() => {
+                                // First check if we have a sender_profile
+                                if (reply.sender_profile?.avatar_url) {
+                                  return <img src={reply.sender_profile.avatar_url} alt={reply.sender_profile.username || "Collaborator"} className="h-full w-full object-cover rounded-full" />;
+                                }
+                                
+                                // Fall back to collaborator data if available
+                                const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
+                                if (senderCollaborator?.user_profile?.avatar_url) {
+                                  return <img src={senderCollaborator.user_profile.avatar_url} alt={senderCollaborator.user_profile?.username || "Collaborator"} className="h-full w-full object-cover rounded-full" />;
+                                } else {
+                                  return <AvatarFallback className="rounded-full text-xs">
+                                    {reply.sender_profile?.username?.[0]?.toUpperCase() ||
+                                     senderCollaborator?.user_profile?.username?.[0]?.toUpperCase() || 
+                                     senderCollaborator?.invitation_email?.[0]?.toUpperCase() || 'A'}
+                                  </AvatarFallback>;
+                                }
+                              })()
                             ) : (
-                              <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
+                              // Render current user avatar (fallback or when sender_id matches current user)
+                              adminAvatarUrl ? (
+                                <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                              ) : (
+                                <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
+                              )
                             )}
                           </Avatar>
                         ) : (
@@ -754,7 +821,21 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                           <span className="text-sm font-medium flex items-center gap-1">
                             {reply.sender_type === 'admin' ? (
                               <>
-                                {adminName} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                                {/* Show collaborator name if this is a reply from a collaborator */}
+                                {reply.sender_id && reply.sender_id !== user?.id ? (
+                                  (() => {
+                                    // First check if we have a sender_profile
+                                    if (reply.sender_profile?.username) {
+                                      return reply.sender_profile.username;
+                                    }
+                                    
+                                    // Fall back to collaborator data if available
+                                    const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
+                                    return senderCollaborator?.user_profile?.username || 
+                                           senderCollaborator?.invitation_email?.split('@')[0] || 
+                                           adminName;
+                                  })()
+                                ) : adminName} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
                               </>
                             ) : (
                               <>
