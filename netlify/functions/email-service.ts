@@ -357,7 +357,22 @@ export class EmailService {
       // For assignment notifications, link directly to the ticket
       primaryActionUrl = `https://app.userbird.co/forms/${formId}/ticket/${feedbackId}`;
       primaryActionLabel = 'View Ticket';
-      emailSubject = `You've been assigned a new ticket`;
+      
+      // Extract ticket number from the message
+      // Message format is: "AssignerName has assigned Ticket #123 to you." or "You have been assigned Ticket #123."
+      const ticketNumberMatch = message.match(/Ticket #(\d+)/i);
+      const ticketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
+      
+      console.log('Extracted ticket number for email subject:', {
+        message: message.substring(0, 50),
+        ticketNumberMatch,
+        ticketNumber
+      });
+      
+      // Use ticket number in subject if available, otherwise use generic subject
+      emailSubject = ticketNumber 
+        ? `Action needed: Ticket #${ticketNumber} is now yours` 
+        : `Action needed: You've been assigned a ticket`;
     }
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
