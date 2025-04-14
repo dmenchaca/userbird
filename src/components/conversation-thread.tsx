@@ -93,20 +93,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Reverse to get chronological order (oldest first)
         const chronologicalReplies = repliesData ? [...repliesData].reverse() : [];
         
-        // Debug: Log replies and check for assignment events
-        console.log('Raw replies data:', chronologicalReplies);
-        if (chronologicalReplies.length > 0) {
-          console.log('Timestamps of all replies:', chronologicalReplies.map(r => ({ 
-            id: r.id,
-            type: r.type || 'reply',
-            created_at: r.created_at, 
-            created_date: new Date(r.created_at).toLocaleString()
-          })));
-          
-          const assignmentEvents = chronologicalReplies.filter(reply => reply.type === 'assignment');
-          console.log('Assignment events:', assignmentEvents);
-        }
-        
         // Process the replies to extract user information, but without joins
         const processedReplies = chronologicalReplies.map(reply => {
           // No need to process assigned_to_user or sender_user since we're not fetching those
@@ -119,9 +105,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             assigned_by_user: null
           };
         });
-        
-        // Debug: Log processed replies
-        console.log('Processed replies:', processedReplies);
         
         // Fetch attachments for all replies
         if (processedReplies && processedReplies.length > 0) {
@@ -166,9 +149,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         } else {
           setReplies(processedReplies || []);
         }
-        
-        // Debug: Log final replies state after processing
-        console.log('Final replies state:', replies);
       } catch (error) {
         console.error('Error fetching replies:', error);
       }
@@ -192,8 +172,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     }
 
     const handleSendReply = async () => {
-      console.log('handleSendReply triggered with content:', replyContent.length > 100 ? replyContent.substring(0, 100) + '...' : replyContent);
-      
       if (!replyContent.trim()) return
       
       setIsSubmitting(true)
@@ -301,12 +279,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
 
     // Handle key events for Ctrl+Enter
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      console.log('ConversationThread handleKeyDown triggered', { 
-        key: e.key, 
-        ctrl: e.ctrlKey, 
-        meta: e.metaKey 
-      });
-      
       // Don't capture cmd/ctrl+R (browser refresh)
       if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
         return; // Let the browser handle the refresh
@@ -314,18 +286,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       
       // Send on Ctrl+Enter or Command+Enter, but only if there's content
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        console.log('ConversationThread detected Cmd/Ctrl+Enter, checking content');
-        
         // Prevent default behavior immediately to avoid adding a new line
         e.preventDefault();
         e.stopPropagation();
         
         // Only send if there's content
         if (replyContent.trim()) {
-          console.log('Content found, sending reply...');
           handleSendReply();
-        } else {
-          console.log('No content to send');
         }
       }
     }
@@ -547,8 +514,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
 
     // Render assignment event
     const renderAssignmentEvent = (reply: FeedbackReply) => {
-      console.log('Rendering assignment event:', reply);
-      
       // Format date in a readable format
       const formattedDate = new Date(reply.created_at).toLocaleString('en-US', {
         month: 'short',
@@ -558,28 +523,23 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         minute: '2-digit',
         hour12: true
       });
-
-      // Determine if this is an unassignment event (assigned_to is null)
-      const isUnassignment = reply.assigned_to === null;
-      // Remove or comment out the unused action variable
-      // const action = reply.meta?.action === 'unassign' || isUnassignment ? 'unassign' : 'assign';
-
-      // Get assignee name if this is an assignment (not an unassignment)
-      let assigneeName = 'User';
-      if (!isUnassignment) {
-        // First check if this is the current assignee
-        if (response.assignee && reply.assigned_to === response.assignee_id) {
-          assigneeName = response.assignee.user_name || response.assignee.email;
-        } 
-        // Then check collaborators list
-        else if (reply.assigned_to && collaborators.length > 0) {
-          const assigneeCollaborator = collaborators.find(c => c.user_id === reply.assigned_to);
-          if (assigneeCollaborator) {
-            assigneeName = 
-              assigneeCollaborator.user_profile?.username || 
-              assigneeCollaborator.invitation_email?.split('@')[0] || 
-              'User';
-          }
+      
+      // Extract assignment info
+      const isUnassignment = !reply.assigned_to;
+      
+      // Get assignee name - check user info if it's current user
+      let assigneeName = 'Unknown';
+      
+      if (user && reply.assigned_to === user.id) {
+        assigneeName = user.user_metadata?.full_name || user.email || 'Admin';
+      }
+      else if (reply.assigned_to && collaborators.length > 0) {
+        const assigneeCollaborator = collaborators.find(c => c.user_id === reply.assigned_to);
+        if (assigneeCollaborator) {
+          assigneeName = 
+            assigneeCollaborator.user_profile?.username || 
+            assigneeCollaborator.invitation_email?.split('@')[0] || 
+            'User';
         }
       }
 
@@ -602,7 +562,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
 
       return (
-        <div className="max-w-[40rem] mx-auto w-full flex items-center gap-2 py-0.5">
+        <div key={reply.id} className="max-w-[40rem] mx-auto w-full flex items-center gap-2 py-0.5">
           <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
             <UserPlus className="h-3 w-3 text-muted-foreground" />
           </div>
@@ -738,7 +698,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               const reply = replyOrGroup;
               
               // Normal reply rendering
-              console.log('Rendering regular reply');
               const { mainContent, quotedContent } = processHtmlContent(reply.html_content);
               const isExpanded = expandedReplies.has(reply.id);
               

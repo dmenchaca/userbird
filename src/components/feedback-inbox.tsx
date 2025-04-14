@@ -82,7 +82,6 @@ interface FeedbackInboxProps {
   tagFilter?: string
   onResponseSelect?: (response: FeedbackResponse) => void
   onSelectionChange?: (selectedIds: string[]) => void
-  initialActiveResponseId?: string
 }
 
 export interface FeedbackInboxRef {
@@ -97,15 +96,14 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   statusFilter: externalStatusFilter = 'all',
   tagFilter,
   onResponseSelect,
-  onSelectionChange,
-  initialActiveResponseId
+  onSelectionChange
 }, ref) => {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
-  const [activeResponseId, setActiveResponseId] = useState<string | null>(initialActiveResponseId || null)
+  const [activeResponseId, setActiveResponseId] = useState<string | null>(null)
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
@@ -208,29 +206,14 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     }
   }));
 
-  // Find and activate the initial response if set
-  useEffect(() => {
-    if (initialActiveResponseId && responses.length > 0) {
-      const initialResponse = responses.find(r => r.id === initialActiveResponseId);
-      if (initialResponse && onResponseSelect) {
-        setActiveResponseId(initialActiveResponseId);
-        onResponseSelect(initialResponse);
-      }
-    }
-  }, [initialActiveResponseId, responses, onResponseSelect]);
-
   // Reset selection when responses change or filters change
   useEffect(() => {
     setSelectedIds([]);
-    // Only reset the active response ID if there's no initialActiveResponseId provided
-    // This prevents losing the ticket selection when the page is refreshed
-    if (!initialActiveResponseId) {
-      setActiveResponseId(null);
-    }
+    setActiveResponseId(null);
     if (onSelectionChange) {
       onSelectionChange([]);
     }
-  }, [formId, currentStatusFilter, tagFilter, onSelectionChange, initialActiveResponseId]);
+  }, [formId, currentStatusFilter, tagFilter, onSelectionChange]);
 
   // Notify parent of selection changes
   useEffect(() => {
@@ -734,10 +717,10 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       ) : (
         <div className="flex flex-col divide-y pb-4">
           {filteredResponses.map((response, index) => (
-            <button
+            <div
               key={response.id}
               className={cn(
-                "flex flex-col px-4 py-3 text-left text-sm transition-all w-full",
+                "flex flex-col px-4 py-3 text-left text-sm transition-all w-full cursor-pointer",
                 response._isExiting ? "feedback-exit" : 
                 response._isNew ? "feedback-new" : 
                 response._isUpdated ? "feedback-updated" : "",
@@ -809,7 +792,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                   </div>
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

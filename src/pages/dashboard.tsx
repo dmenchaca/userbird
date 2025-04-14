@@ -54,7 +54,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed' | { type: 'tag', id: string, name: string }>('open')
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
-  const [initialResponseId, setInitialResponseId] = useState<string | null>(null)
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
   const inboxRef = useRef<FeedbackInboxRef>(null)
@@ -1184,9 +1183,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         if (data && data.length > 0) {
           let responseData = data[0];
           
-          // Store the initial response ID for the FeedbackInbox component
-          setInitialResponseId(responseData.id);
-          
           // Fetch tag if it exists
           if (responseData.tag_id) {
             const { data: tagData } = await supabase
@@ -1246,15 +1242,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           
           // Set the response with all the details
           setSelectedResponse(responseData);
-          
-          // Also ensure the FeedbackInbox component knows about the active response
-          // This is the key fix - ensuring the inbox component has the active response set
-          if (inboxRef.current && inboxRef.current.setActiveResponse) {
-            // We need to wait until the inbox has loaded its data
-            setTimeout(() => {
-              inboxRef.current?.setActiveResponse(responseData.id);
-            }, 500); // Give the inbox component time to load
-          }
         }
       } catch (error) {
         console.error('Error fetching ticket:', error);
@@ -1713,7 +1700,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                     tagFilter={typeof activeFilter === 'object' ? activeFilter.id : undefined}
                     onResponseSelect={handleResponseSelect}
                     onSelectionChange={setSelectedBatchIds}
-                    initialActiveResponseId={initialResponseId || selectedResponse?.id}
                   />
                 </div>
               </div>
