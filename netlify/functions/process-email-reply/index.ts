@@ -148,7 +148,10 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       // Check for direct form email pattern
       const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
       if (formEmailMatch) {
-        console.log('Found form ID from email pattern:', formEmailMatch[1]);
+        // Extract form ID from original email to preserve case
+        const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+        const formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
+        console.log('Found form ID from email pattern:', formId);
         // Don't return here, continue looking for a feedback ID
       }
       
@@ -712,7 +715,10 @@ export const handler: Handler = async (event) => {
         // Check for direct form email pattern
         const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
         if (formEmailMatch) {
-          formId = formEmailMatch[1];
+          // Extract form ID from original email to preserve case
+          const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+          formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
+          console.log('Found case-sensitive form ID from email pattern:', formId);
           break;
         }
         
