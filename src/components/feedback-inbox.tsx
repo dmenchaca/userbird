@@ -82,6 +82,7 @@ interface FeedbackInboxProps {
   tagFilter?: string
   onResponseSelect?: (response: FeedbackResponse) => void
   onSelectionChange?: (selectedIds: string[]) => void
+  initialActiveResponseId?: string
 }
 
 export interface FeedbackInboxRef {
@@ -96,14 +97,15 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   statusFilter: externalStatusFilter = 'all',
   tagFilter,
   onResponseSelect,
-  onSelectionChange
+  onSelectionChange,
+  initialActiveResponseId
 }, ref) => {
   const [responses, setResponses] = useState<FeedbackResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
-  const [activeResponseId, setActiveResponseId] = useState<string | null>(null)
+  const [activeResponseId, setActiveResponseId] = useState<string | null>(initialActiveResponseId || null)
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
@@ -206,14 +208,29 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     }
   }));
 
+  // Find and activate the initial response if set
+  useEffect(() => {
+    if (initialActiveResponseId && responses.length > 0) {
+      const initialResponse = responses.find(r => r.id === initialActiveResponseId);
+      if (initialResponse && onResponseSelect) {
+        setActiveResponseId(initialActiveResponseId);
+        onResponseSelect(initialResponse);
+      }
+    }
+  }, [initialActiveResponseId, responses, onResponseSelect]);
+
   // Reset selection when responses change or filters change
   useEffect(() => {
     setSelectedIds([]);
-    setActiveResponseId(null);
+    // Only reset the active response ID if there's no initialActiveResponseId provided
+    // This prevents losing the ticket selection when the page is refreshed
+    if (!initialActiveResponseId) {
+      setActiveResponseId(null);
+    }
     if (onSelectionChange) {
       onSelectionChange([]);
     }
-  }, [formId, currentStatusFilter, tagFilter, onSelectionChange]);
+  }, [formId, currentStatusFilter, tagFilter, onSelectionChange, initialActiveResponseId]);
 
   // Notify parent of selection changes
   useEffect(() => {
