@@ -149,7 +149,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
       if (formEmailMatch) {
         console.log('Found form ID from email pattern:', formEmailMatch[1]);
-        return undefined; // Found a form ID, no need to check further
+        // Don't return here, continue looking for a feedback ID
       }
       
       // Check for custom domain email
@@ -162,7 +162,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       
       if (customEmailSettings) {
         console.log('Found matching custom email setting:', customEmailSettings);
-        return undefined; // Found a form ID, no need to check further
+        // Don't return here, continue looking for a feedback ID
       }
     }
 
