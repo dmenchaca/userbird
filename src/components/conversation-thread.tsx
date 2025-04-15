@@ -38,7 +38,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
     const editorRef = useRef<HTMLDivElement>(null)
-    const [productName, setProductName] = useState<string>('Userbird')
+    const [productName, setProductName] = useState('Userbird')
+    const [supportEmail, setSupportEmail] = useState('support@userbird.co')
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -272,7 +273,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         if (replies.length > 0) {
           // Get the most recent message to quote
           const lastReply = replies[0];
-          const senderEmail = lastReply.sender_type === 'user' ? response.user_email : 'support@userbird.co';
+          const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
           
           // Format date in email client style
           const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
@@ -304,7 +305,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // If we added quoted content to the HTML, append a simplified version to plainTextContent too
         if (replies.length > 0) {
           const lastReply = replies[0];
-          const senderEmail = lastReply.sender_type === 'user' ? response.user_email : 'support@userbird.co';
+          const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
           const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -675,9 +676,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     // Add a function to fetch form data
     const fetchFormData = async (formId: string) => {
       try {
+        // First try to get the form data
         const { data, error } = await supabase
           .from('forms')
-          .select('product_name, url')
+          .select('product_name, url, default_email')
           .eq('id', formId)
           .single()
           
@@ -692,6 +694,23 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           // Use the URL if no product name is set
           setProductName(data.url)
         }
+
+        // Now try to get custom email from custom_email_settings if available
+        const { data: customEmailData, error: customEmailError } = await supabase
+          .from('custom_email_settings')
+          .select('custom_email')
+          .eq('form_id', formId)
+          .eq('verified', true)
+          .single()
+
+        if (!customEmailError && customEmailData?.custom_email) {
+          // Use verified custom email if available
+          setSupportEmail(customEmailData.custom_email)
+        } else if (data?.default_email) {
+          // Fallback to default email from form
+          setSupportEmail(data.default_email)
+        }
+        // If neither is available, we keep the default 'support@userbird.co'
       } catch (error) {
         console.error('Error fetching form data:', error)
       }
@@ -780,7 +799,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                         )}
                       </span>
                       <div className="text-xs text-muted-foreground">
-                        To: support@userbird.co
+                        To: {supportEmail}
                       </div>
                     </div>
                   </div>
@@ -887,7 +906,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                                     const collabFirstName = getFirstName(collabName);
                                     return `${collabFirstName} at ${productName}`;
                                   })()
-                                ) : `${adminFirstName} at ${productName}`} <span className="text-xs text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                                ) : `${adminFirstName} at ${productName}`} <span className="text-xs text-muted-foreground">&lt;{supportEmail}&gt;</span>
                               </>
                             ) : (
                               <>
@@ -902,7 +921,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             {reply.sender_type === 'admin' ? (
                               <>To: {response.user_name || 'Anonymous'} {response.user_email && `<${response.user_email}>`}</>
                             ) : (
-                              <>To: support@userbird.co</>
+                              <>To: {supportEmail}</>
                             )}
                           </div>
                         </div>
@@ -1012,7 +1031,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                       )}
                     </Avatar>
                     <span className="text-sm font-medium">
-                      Reply as {adminFirstName} at {productName} <span className="text-muted-foreground">&lt;support@userbird.co&gt;</span>
+                      Reply as {adminFirstName} at {productName} <span className="text-muted-foreground">&lt;{supportEmail}&gt;</span>
                     </span>
                   </div>
                   <div className="ml-auto">
