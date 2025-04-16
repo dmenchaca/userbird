@@ -1218,7 +1218,7 @@ export function FormSettingsDialog({
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Remove "We run on Userbird" branding from the widget
+                          Remove "We run on Userbird" branding from the widget and outbound emails
                         </p>
                       </div>
                     </div>

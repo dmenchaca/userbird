@@ -76,34 +76,6 @@ export class EmailService {
 
     // Always use notifications@userbird.co for new feedback notifications
     const from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
-    
-    // Check if remove_branding is enabled for this form
-    let removeBranding = false;
-    let productName = 'Userbird';
-    
-    if (formId) {
-      try {
-        const response = await fetch(`/api/forms/${formId}`);
-        if (response.ok) {
-          const formData = await response.json();
-          removeBranding = formData.remove_branding || false;
-          if (formData.product_name) {
-            productName = formData.product_name;
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching form data:', error);
-      }
-    }
-    
-    // Branding footer to add when branding is not turned off
-    const brandingHtml = !removeBranding ? `
-      <div style="text-align: center; margin-top: 16px; color: #9ca3af; font-size: 12px;">
-        This email is a service from ${productName}. Delivered by <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(new URL(to.includes('@') ? 'https://example.com' : to).hostname)}" style="color: #9ca3af; text-decoration: none;" target="_blank" rel="noopener noreferrer">Userbird</a>
-      </div>
-    ` : '';
-
-    const brandingText = !removeBranding ? `\nThis email is a service from ${productName}. Delivered by Userbird\n` : '';
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
@@ -169,7 +141,6 @@ export class EmailService {
            style="display: inline-block; background: #1f2937; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
           View All Responses
         </a>
-        ${brandingHtml}
       </div>
     </div>
   </body>
@@ -195,7 +166,7 @@ ${screen_category ? `Screen Category: ${screen_category}` : ''}
 ` : ''}${image_url ? `Screenshot:
 ${image_url}
 
-` : ''}${created_at ? `Received on ${created_at}` : ''}${brandingText}`;
+` : ''}${created_at ? `Received on ${created_at}` : ''}`;
 
   // Send email directly without sanitizing the HTML content
   try {
@@ -247,22 +218,16 @@ ${image_url}
     
     // Get form's default email address if we have form_id
     let from = `${DEFAULT_SENDER_NAME} <support@userbird.co>`;
-    let productName = 'Userbird';
-    let removeBranding = false;
     
     if (feedback.form_id) {
       try {
-        // Attempt to get the form's default email and remove_branding setting
+        // Attempt to get the form's default email
         const response = await fetch(`/api/forms/${feedback.form_id}`);
         if (response.ok) {
           const formData = await response.json();
           if (formData.default_email) {
             from = formData.default_email;
           }
-          if (formData.product_name) {
-            productName = formData.product_name;
-          }
-          removeBranding = formData.remove_branding || false;
         }
       } catch (error) {
         console.error('Error fetching form email:', error);
@@ -280,15 +245,6 @@ ${image_url}
       hour12: true
     });
 
-    // Branding footer to add when branding is not turned off
-    const brandingHtml = !removeBranding ? `
-      <div style="text-align: center; margin-top: 16px; color: #9ca3af; font-size: 12px;">
-        This email is a service from ${productName}. Delivered by <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(new URL(to.includes('@') ? 'https://example.com' : to).hostname)}" style="color: #9ca3af; text-decoration: none;" target="_blank" rel="noopener noreferrer">Userbird</a>
-      </div>
-    ` : '';
-
-    const brandingText = !removeBranding ? `\nThis email is a service from ${productName}. Delivered by Userbird\n` : '';
-
     // Create plain text version
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
@@ -298,7 +254,7 @@ Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
 
-` : ''}${brandingText}`;
+` : ''}`;
 
     // Use minimal template for admin dashboard replies
     let htmlMessage;
@@ -333,7 +289,6 @@ ${feedback.message}
 
             <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
               <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
-              ${brandingHtml}
             </div>
           </div>
         </div>
