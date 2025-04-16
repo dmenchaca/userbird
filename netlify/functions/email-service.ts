@@ -309,6 +309,7 @@ export class EmailService {
                 // Create the branded footer in the same style as the widget
                 const brandingFooter = `
                   <div style="font-family: 'system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','Oxygen-Sans','Ubuntu','Cantarell','Helvetica Neue','Arial','sans-serif'; font-size: 12px; line-height: 1.5; color: #49545c; margin: 10px 0 14px 0;">
+                    <br>
                     We run on <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(productName)}" style="color:black;" target="_blank" rel="noopener noreferrer">Userbird</a>
                   </div>
                 `;
