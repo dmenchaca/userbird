@@ -308,8 +308,8 @@ export class EmailService {
               if (html) {
                 // Create the branded footer in the same style as the widget
                 const brandingFooter = `
-                  <div style="font-family: 'system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','Oxygen-Sans','Ubuntu','Cantarell','Helvetica Neue','Arial','sans-serif'; font-size: 12px; line-height: 1.5; color: #49545c; margin: 10px 0 14px 0; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-                    This email is a service from ${productName}. Delivered by <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(productName)}" style="color:black;" target="_blank" rel="noopener noreferrer">Userbird</a>
+                  <div style="font-family: 'system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','Oxygen-Sans','Ubuntu','Cantarell','Helvetica Neue','Arial','sans-serif'; font-size: 12px; line-height: 1.5; color: #49545c; margin: 10px 0 14px 0;">
+                    We run on <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(productName)}" style="color:black;" target="_blank" rel="noopener noreferrer">Userbird</a>
                   </div>
                 `;
                 
@@ -332,7 +332,7 @@ export class EmailService {
               if (text) {
                 const plainTextFooter = `
 
-This email is a service from ${productName}. Delivered by Userbird (https://app.userbird.co)
+We run on Userbird (https://app.userbird.co)
 `;
                 // Append the plain text footer
                 // For admin dashboard replies, look for the line break that separates reply from thread
