@@ -188,6 +188,19 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   ]
   
+  // Save the selected form ID to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedFormId && user?.id) {
+      localStorage.setItem(`userbird-last-form-${user.id}`, selectedFormId);
+    }
+  }, [selectedFormId, user?.id]);
+
+  // Handle form selection
+  const handleFormSelect = (formId: string) => {
+    setSelectedFormId(formId);
+    navigate(`/forms/${formId}`);
+  };
+  
   // Fetch latest form if no form is selected
   useEffect(() => {
     if (!user?.id) return;
@@ -205,6 +218,28 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     
     const fetchLatestForm = async () => {
       try {
+        // First check if we have a saved form ID in localStorage
+        const savedFormId = localStorage.getItem(`userbird-last-form-${user.id}`);
+        
+        if (savedFormId) {
+          // Verify user still has access to this form
+          const { data: hasAccess } = await supabase
+            .rpc('user_has_form_access', {
+              form_id_param: savedFormId,
+              user_id_param: user.id
+            });
+            
+          if (hasAccess) {
+            setSelectedFormId(savedFormId);
+            setFormsChecked(true);
+            setLoading(false);
+            return;
+          }
+          // If user no longer has access, remove from localStorage and continue with default behavior
+          localStorage.removeItem(`userbird-last-form-${user.id}`);
+        }
+        
+        // Default behavior - get most recent form
         const { data, error } = await supabase
           .from('forms')
           .select('id')
@@ -240,8 +275,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     };
     
     fetchLatestForm();
-  }, [user?.id, initialFormId]);
-
+  }, [user?.id, initialFormId, navigate]);
+  
   // Check if we should show instructions for this form
   useEffect(() => {
     if (selectedFormId) {
@@ -1318,7 +1353,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         <div className="flex flex-col h-full">
           <FormsDropdown 
             selectedFormId={selectedFormId}
-            onFormSelect={setSelectedFormId}
+            onFormSelect={handleFormSelect}
             onNewFormClick={() => setShowNewFormDialog(true)}
           />
           <div className="flex-1 group py-2">
@@ -2246,7 +2281,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         <NewFormDialog
           open={showNewFormDialog}
           onOpenChange={setShowNewFormDialog}
-          onFormSelect={setSelectedFormId}
+          onFormSelect={handleFormSelect}
         />
         {selectedFormId && (
           <InstallInstructionsModal
