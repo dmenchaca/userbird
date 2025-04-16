@@ -272,7 +272,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // If this is a reply to another message, append the previous message as blockquote
         if (replies.length > 0) {
           // Get the most recent message to quote
-          const lastReply = replies[0];
+          const lastReply = replies[replies.length - 1]; // Use the last reply for quoting
           const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
           
           // Format date in email client style

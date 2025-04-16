@@ -316,21 +316,10 @@ export class EmailService {
                 // Append the branded footer to the HTML content
                 // For admin dashboard replies, insert the footer right after the reply content
                 if (params.isAdminDashboardReply) {
-                  // Look for first closing div tag - this should be right after the reply content
-                  // but before any quoted message blockquote
-                  const firstDivCloseIndex = html.indexOf('</div>');
-                  
-                  console.log('Footer placement for admin reply:', {
-                    htmlLength: html.length,
-                    foundFirstDivClose: firstDivCloseIndex !== -1,
-                    firstDivClosePosition: firstDivCloseIndex,
-                    hasBlockquote: html.includes('<blockquote>'),
-                    blockquotePosition: html.indexOf('<blockquote>')
-                  });
-                  
-                  if (firstDivCloseIndex !== -1) {
-                    // Insert after the first div (reply content) but before any quoted content
-                    html = html.substring(0, firstDivCloseIndex + 6) + brandingFooter + html.substring(firstDivCloseIndex + 6);
+                  // Look for </div> closing tag after the reply content
+                  const messageEndIndex = html.indexOf('</div>');
+                  if (messageEndIndex !== -1) {
+                    html = html.substring(0, messageEndIndex + 6) + brandingFooter + html.substring(messageEndIndex + 6);
                   } else {
                     html += brandingFooter;
                   }
@@ -736,19 +725,7 @@ ${feedback.message}
     
     if (isAdminDashboardReply) {
       // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      // Add the original message in a blockquote if this is a reply
-      const originalMessageHtml = isFirstReply ? 
-        `<div><div>On ${compactDate}, &lt;${feedback.user_email}&gt; wrote:<br></div><blockquote>${feedback.message}</blockquote></div>` : '';
-      
-      htmlMessage = (htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`) + originalMessageHtml;
-      
-      console.log('Admin dashboard reply HTML structure:', {
-        isFirstReply,
-        hasOriginalMessageHtml: !!originalMessageHtml,
-        messageLength: htmlMessage.length,
-        hasBlockquote: htmlMessage.includes('<blockquote>'),
-        replyContentPreview: replyContent.substring(0, 50) + (replyContent.length > 50 ? '...' : '')
-      });
+      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
     } else {
       // For automated replies, use full styling
       htmlMessage = `
