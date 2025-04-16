@@ -126,7 +126,6 @@ export interface EmailParams {
   headers?: Record<string, string>;
   feedbackId?: string;
   inReplyTo?: string;
-  isAdminDashboardReply?: boolean;
 }
 
 /**
@@ -282,92 +281,15 @@ export class EmailService {
         text = stripHtml(html);
       }
       
-      // Add branded footer to outbound emails if branding is not disabled
-      // Only add to admin/agent replies from the dashboard (not for system notifications)
-      if (params.feedbackId && params.from && !params.from.includes('notifications@userbird.co')) {
-        // Extract form_id from the feedbackId
-        const { data: feedbackData } = await supabase
-          .from('feedback')
-          .select('form_id')
-          .eq('id', params.feedbackId)
-          .single();
-          
-        if (feedbackData?.form_id) {
-          // Check if branding is enabled for this form
-          const { data: formData } = await supabase
-            .from('forms')
-            .select('remove_branding, product_name')
-            .eq('id', feedbackData.form_id)
-            .single();
-            
-            // If branding is not disabled and we have HTML content
-            if (formData && !formData.remove_branding) {
-              const productName = formData.product_name || 'this service';
-              
-              // Add branded footer to HTML content
-              if (html) {
-                // Create the branded footer in the same style as the widget
-                const brandingFooter = `
-                  <div style="font-family: 'system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','Oxygen-Sans','Ubuntu','Cantarell','Helvetica Neue','Arial','sans-serif'; font-size: 12px; line-height: 1.5; color: #49545c; margin: 10px 0 14px 0; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-                    This email is a service from ${productName}. Delivered by <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(productName)}" style="color:black;" target="_blank" rel="noopener noreferrer">Userbird</a>
-                  </div>
-                `;
-                
-                // Append the branded footer to the HTML content
-                // For admin dashboard replies, insert the footer right after the reply content
-                if (params.isAdminDashboardReply) {
-                  // Look for </div> closing tag after the reply content
-                  const messageEndIndex = html.indexOf('</div>');
-                  if (messageEndIndex !== -1) {
-                    html = html.substring(0, messageEndIndex + 6) + brandingFooter + html.substring(messageEndIndex + 6);
-                  } else {
-                    html += brandingFooter;
-                  }
-                } else {
-                  html += brandingFooter;
-                }
-              }
-              
-              // Also add a text version footer for plain text emails
-              if (text) {
-                const plainTextFooter = `
-
-This email is a service from ${productName}. Delivered by Userbird (https://app.userbird.co)
-`;
-                // Append the plain text footer
-                // For admin dashboard replies, look for the line break that separates reply from thread
-                if (params.isAdminDashboardReply) {
-                  const threadStartIndex = text.indexOf('\n\n\n');
-                  if (threadStartIndex !== -1) {
-                    text = text.substring(0, threadStartIndex) + plainTextFooter + text.substring(threadStartIndex);
-                  } else {
-                    text += plainTextFooter;
-                  }
-                } else {
-                  text += plainTextFooter;
-                }
-              }
-            }
-        }
-      }
+      // Add branded footer IF it's an admin dashboard reply
+      // We need a way to know if it IS an admin reply here.
+      // Let's assume replies NOT from notifications@userbird.co might need branding
+      // and rely on the calling function (sendReplyNotification) to format the content correctly before calling sendEmail.
+      // The footer logic needs to be applied *before* calling sendEmail if we remove isAdminDashboardReply.
+      // Let's move the footer logic to sendReplyNotification instead.
       
-      let messageId: string | undefined;
-      let headers = { ...params.headers };
-      
-      if (params.feedbackId) {
-        // Use the standard format for dashboard replies to maintain email threading
-        // This format matches what the dashboard was using previously
-        messageId = params.inReplyTo ? 
-          `<feedback-${params.feedbackId}@userbird.co>` : 
-          `<feedback-notification-${params.feedbackId}@userbird.co>`;
-        
-        headers['Message-ID'] = messageId;
-        
-        if (params.inReplyTo) {
-          headers['In-Reply-To'] = params.inReplyTo;
-          headers['References'] = params.inReplyTo;
-        }
-      }
+      // USE HEADERS DIRECTLY FROM PARAMS
+      const headers = params.headers || {};
       
       const msg = {
         to: params.to,
@@ -375,7 +297,7 @@ This email is a service from ${productName}. Delivered by Userbird (https://app.
         subject: params.subject,
         text,
         html,
-        headers
+        headers // Use headers passed directly
       };
 
       console.log('Sending email via SendGrid:', {
@@ -384,21 +306,28 @@ This email is a service from ${productName}. Delivered by Userbird (https://app.
         subject: params.subject,
         hasText: !!text,
         hasHtml: !!html,
-        hasHeaders: !!Object.keys(headers).length,
-        messageId,
-        inReplyTo: params.inReplyTo,
-        skipSanitization: params.from === 'notifications@userbird.co' || params.from?.includes('notifications@userbird.co')
+        headers: headers,
+        messageId: headers['Message-ID'], // Log the message ID being used
+        inReplyTo: headers['In-Reply-To'], // Log the in-reply-to being used
+        references: headers['References'] // Log the references being used
       });
 
       const result = await sgMail.send(msg);
       
+      // Extract the actual Message-ID returned by SendGrid if possible
+      const sentMessageId = result[0]?.headers?.['message-id'];
+      
       return {
         success: true,
-        messageId,
+        messageId: sentMessageId || headers['Message-ID'], // Return the actual or intended ID
         statusCode: result[0]?.statusCode
       };
     } catch (error) {
       console.error('Error sending email via SendGrid:', error);
+      // If error has response body, log it
+      if (error.response) {
+        console.error(error.response.body)
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -628,6 +557,7 @@ View Online: ${primaryActionUrl}`;
     feedbackId: string;
     replyId: string;
     lastMessageId?: string;
+    lastMessageHtmlContent?: string;
     isAdminDashboardReply?: boolean;
     productName?: string;
   }) {
@@ -640,6 +570,7 @@ View Online: ${primaryActionUrl}`;
       feedbackId,
       replyId,
       lastMessageId,
+      lastMessageHtmlContent,
       isAdminDashboardReply = false,
       productName
     } = params;
@@ -651,83 +582,117 @@ View Online: ${primaryActionUrl}`;
       .eq('id', feedbackId)
       .single();
     
-    // Get custom sender email for this form
     const formId = feedbackData?.form_id;
+
+    // Determine sender info (fetches default/custom email, product name etc.)
     const senderInfo = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
-    
-    // If this is an admin dashboard reply, get the form's product name and current user's name
     let senderWithUserInfo = { ...senderInfo };
-    
+
     if (isAdminDashboardReply) {
+      // Add product name from form data or passed param
+      senderWithUserInfo.product_name = senderInfo.product_name || productName;
+      // Get sender's first name for display
       try {
-        // Add the product name if provided
-        if (productName) {
-          senderWithUserInfo.product_name = productName;
-        }
-        
-        // Get the sender's reply from feedback_replies to find the sender_id
-        const { data: replyData } = await supabase
-          .from('feedback_replies')
-          .select('sender_id')
-          .eq('id', replyId)
-          .single();
-          
+        const { data: replyData } = await supabase.from('feedback_replies').select('sender_id').eq('id', replyId).single();
         if (replyData?.sender_id) {
-          // Get the user's profile from auth.users
-          const { data: userData } = await supabase
-            .rpc('get_user_profile_by_id', { user_id_param: replyData.sender_id });
-            
+          const { data: userData } = await supabase.rpc('get_user_profile_by_id', { user_id_param: replyData.sender_id });
           if (userData && userData.length > 0) {
-            // Extract the display name and get the first name
-            const displayName = userData[0].username;
-            senderWithUserInfo.user_first_name = getFirstName(displayName);
+            senderWithUserInfo.user_first_name = getFirstName(userData[0].username);
           }
         }
-      } catch (error) {
-        console.error('Error getting user or form details:', error);
-        // Continue with default sender info if there's an error
-      }
+      } catch (error) { console.error('Error getting user details for sender:', error); }
     }
     
     const from = formatSender(senderWithUserInfo);
     
-    console.log('Using sender email for reply notification:', {
-      formId,
-      senderEmail: senderInfo.email,
-      product_name: senderWithUserInfo.product_name,
-      user_first_name: senderWithUserInfo.user_first_name,
-      from
-    });
-
-    // Format date for original message
+    // Format date for quoting
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
     });
+    const previousMessageDate = new Date().toLocaleString('en-US', { // Placeholder date for last reply
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+    }); 
 
-    // Create plain text version
-    const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
-From: [${feedback.user_email}]
+    // 1. Prepare the main content (new reply)
+    let plainTextMessage = replyContent; // Start with the new reply text
+    let htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`; // Start with new reply HTML
+
+    // 2. Add Branded Footer (if applicable)
+    let brandingFooterHtml = '';
+    let brandingFooterText = '';
+    if (isAdminDashboardReply && formId) {
+      const { data: formData } = await supabase.from('forms').select('remove_branding, product_name').eq('id', formId).single();
+      const finalProductName = formData?.product_name || senderWithUserInfo.product_name || 'this service';
+      if (formData && !formData.remove_branding) {
+        brandingFooterHtml = `
+          <div style="font-family: 'system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','Oxygen-Sans','Ubuntu','Cantarell','Helvetica Neue','Arial','sans-serif'; font-size: 12px; line-height: 1.5; color: #49545c; margin: 10px 0 14px 0; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+            This email is a service from ${finalProductName}. Delivered by <a href="https://app.userbird.co/?ref=email&domain=${encodeURIComponent(finalProductName)}" style="color:black;" target="_blank" rel="noopener noreferrer">Userbird</a>
+          </div>
+        `;
+        brandingFooterText = `
+
+This email is a service from ${finalProductName}. Delivered by Userbird (https://app.userbird.co)
+`;
+        
+        // Append footer directly to the new reply content
+        htmlMessage += brandingFooterHtml;
+        plainTextMessage += brandingFooterText;
+      }
+    }
+
+    // 3. Add Quoted Content
+    const originalMessageSender = feedback.user_email; // Email of the person who sent the original feedback
+    const previousReplySender = lastMessageId ? (lastMessageId.includes('reply') ? from : originalMessageSender) : from; // Guess sender of previous msg
+    
+    // Construct Plain Text Quote
+    let plainTextQuotedContent = '';
+    if (isFirstReply) {
+      plainTextQuotedContent = `
+
+
+--------------- Original Message ---------------
+From: [${originalMessageSender}]
 Sent: ${compactDate}
 To: ${senderInfo.email}
-Subject: Feedback submitted by ${feedback.user_email}
+Subject: Feedback submitted by ${originalMessageSender}
 
 ${feedback.message}
 
-` : ''}`;
+`;
+    } else if (lastMessageId) {
+        // Simple text quote attempt
+        const previousReplyText = stripHtml(lastMessageHtmlContent || ''); // Convert previous HTML to text
+        plainTextQuotedContent = `
 
-    // Use minimal template for admin dashboard replies
-    let htmlMessage;
-    
+
+On ${previousMessageDate}, ${previousReplySender} wrote:
+
+${previousReplyText.split('\n').map(line => `> ${line}`).join('\n')}
+
+`;
+    }
+    plainTextMessage += plainTextQuotedContent; // Append quote to the full plain text message
+
+    // Construct HTML Quote
     if (isAdminDashboardReply) {
-      // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      // For admin replies, add the Gmail-style quote block
+      if (isFirstReply) {
+        // Quote the original feedback message
+        htmlMessage += `
+          <br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${compactDate}, &lt;${originalMessageSender}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+            <div style="white-space: pre-wrap;">${feedback.message}</div>
+          </blockquote></div>
+        `;
+      } else if (lastMessageId && lastMessageHtmlContent) {
+        // Quote the previous reply using its HTML content
+         htmlMessage += `
+          <br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${previousMessageDate}, &lt;${previousReplySender}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+            ${lastMessageHtmlContent} 
+          </blockquote></div>
+        `;
+      }
     } else {
-      // For automated replies, use full styling
+      // For automated replies, use the full template (restoring previous logic)
       htmlMessage = `
         <div style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
           <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
@@ -736,7 +701,6 @@ ${feedback.message}
                 You received a reply to your feedback
               </h3>
             </div>
-
             <div style="margin-bottom: 24px;">
               ${isFirstReply ? `
               <div style="margin-bottom: 16px;">
@@ -744,37 +708,49 @@ ${feedback.message}
                 <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #f3f4f6; padding: 12px; border-radius: 6px; margin-top: 8px;">${feedback.message}</p>
               </div>
               ` : ''}
-
               <div style="margin-top: 24px; margin-bottom: 16px;">
                 <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
                 <div style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${htmlReplyContent || replyContent}</div>
               </div>
             </div>
-
             <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
               <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
             </div>
           </div>
         </div>
       `;
+      // NOTE: Branding footer is NOT added to automated replies currently.
     }
 
+    // 4. Construct Headers
+    const messageId = `<reply-${replyId}@userbird.co>`;
+    const originalNotificationId = `<feedback-notification-${feedbackId}@userbird.co>`;
+    let inReplyToId = originalNotificationId;
+    let referencesId = originalNotificationId;
+
+    if (lastMessageId) {
+      inReplyToId = lastMessageId;
+      referencesId = `${originalNotificationId} ${lastMessageId}`; // Simple reference chain
+      // TODO: A more robust approach would involve fetching the previous email's References header.
+    } else if (isFirstReply) {
+      inReplyToId = originalNotificationId;
+      referencesId = originalNotificationId;
+    }
+
+    const headers = {
+      "Message-ID": messageId,
+      "In-Reply-To": inReplyToId,
+      "References": referencesId
+    };
+
+    // 5. Send Email
     return this.sendEmail({
       to,
       from,
       subject: `Re: Feedback submitted by ${feedback.user_email}`,
-      text: plainTextMessage,
-      html: htmlMessage,
-      feedbackId,
-      inReplyTo: lastMessageId,
-      isAdminDashboardReply,
-      headers: lastMessageId ? {
-        "In-Reply-To": lastMessageId,
-        "References": lastMessageId
-      } : {
-        "In-Reply-To": `<feedback-notification-${feedbackId}@userbird.co>`,
-        "References": `<feedback-notification-${feedbackId}@userbird.co>`
-      }
+      text: plainTextMessage, // Full text: reply + footer + quote
+      html: htmlMessage, // Full HTML: reply + footer + quote
+      headers
     });
   }
 }

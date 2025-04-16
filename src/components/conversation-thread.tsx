@@ -341,6 +341,20 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         if (error) throw error
 
         if (response.user_email) {
+          // Get the Message-ID and HTML content of the last message in the thread
+          let previousMessageId: string | undefined = undefined;
+          let previousMessageHtml: string | undefined = undefined;
+          
+          if (replies.length > 0) {
+            const lastReply = replies[replies.length - 1];
+            previousMessageId = `<reply-${lastReply.id}@userbird.co>`; 
+            previousMessageHtml = lastReply.html_content || lastReply.content; // Fallback to plain text if HTML is missing
+          } else {
+            previousMessageId = `<feedback-notification-${response.id}@userbird.co>`;
+            // Use the original feedback message (plain text) as HTML is not available on FeedbackResponse
+            previousMessageHtml = response.message;
+          }
+
           const res = await fetch('/.netlify/functions/send-reply-notification', {
             method: 'POST',
             headers: {
@@ -350,9 +364,11 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               feedbackId: response.id,
               replyContent: plainTextContent.trim(),
               replyId: data?.[0]?.id,
-              htmlContent: htmlContent,
+              htmlContent: htmlContent, // HTML of the new reply being sent
               isAdminDashboardReply: true,
-              productName: productName
+              productName: productName,
+              lastMessageId: previousMessageId, // ID of the message being replied to
+              lastMessageHtmlContent: previousMessageHtml // HTML content of the message being replied to
             }),
           })
 
