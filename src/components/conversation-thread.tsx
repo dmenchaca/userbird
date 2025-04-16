@@ -269,10 +269,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Process the main content to use <div> tags instead of <p> tags
         htmlContent = processMainContent(htmlContent);
         
+        // Get the message ID to respond to (for email threading)
+        let lastReplyMessageId: string | null = null;
+        
         // If this is a reply to another message, append the previous message as blockquote
         if (replies.length > 0) {
           // Get the most recent message to quote
           const lastReply = replies[replies.length - 1]; // Use the last reply for quoting
+          // Store the message ID of the last reply (for email threading)
+          lastReplyMessageId = lastReply.message_id || null;
+          
           const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
           
           // Format date in email client style
@@ -304,7 +310,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         
         // If we added quoted content to the HTML, append a simplified version to plainTextContent too
         if (replies.length > 0) {
-          const lastReply = replies[0];
+          const lastReply = replies[replies.length - 1];
           const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
           const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
             month: 'short',
@@ -327,34 +333,28 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           plainTextContent += `\n\nOn ${replyDate}, ${senderEmail} wrote:\n\n${quotedPlainText.split('\n').map(line => `> ${line}`).join('\n')}`;
         }
         
+        // Create the reply data object with proper in_reply_to field for email threading
+        const replyData: any = {
+          feedback_id: response.id,
+          sender_type: 'admin',
+          content: plainTextContent.trim(),
+          html_content: htmlContent,
+          sender_id: user?.id
+        };
+        
+        // Add in_reply_to if we have a last reply message ID
+        if (lastReplyMessageId) {
+          replyData.in_reply_to = lastReplyMessageId;
+        }
+        
         const { data, error } = await supabase
           .from('feedback_replies')
-          .insert([{
-            feedback_id: response.id,
-            sender_type: 'admin',
-            content: plainTextContent.trim(),
-            html_content: htmlContent,
-            sender_id: user?.id
-          }])
+          .insert([replyData])
           .select()
         
         if (error) throw error
 
         if (response.user_email) {
-          // Get the Message-ID and HTML content of the last message in the thread
-          let previousMessageId: string | undefined = undefined;
-          let previousMessageHtml: string | undefined = undefined;
-          
-          if (replies.length > 0) {
-            const lastReply = replies[replies.length - 1];
-            previousMessageId = `<reply-${lastReply.id}@userbird.co>`; 
-            previousMessageHtml = lastReply.html_content || lastReply.content; // Fallback to plain text if HTML is missing
-          } else {
-            previousMessageId = `<feedback-notification-${response.id}@userbird.co>`;
-            // Use the original feedback message (plain text) as HTML is not available on FeedbackResponse
-            previousMessageHtml = response.message;
-          }
-
           const res = await fetch('/.netlify/functions/send-reply-notification', {
             method: 'POST',
             headers: {
@@ -364,11 +364,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               feedbackId: response.id,
               replyContent: plainTextContent.trim(),
               replyId: data?.[0]?.id,
-              htmlContent: htmlContent, // HTML of the new reply being sent
+              htmlContent: htmlContent,
               isAdminDashboardReply: true,
-              productName: productName,
-              lastMessageId: previousMessageId, // ID of the message being replied to
-              lastMessageHtmlContent: previousMessageHtml // HTML content of the message being replied to
+              productName: productName
             }),
           })
 

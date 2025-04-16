@@ -91,13 +91,30 @@ async function createFeedbackFromEmail(
 // Helper function to find feedback ID from message ID
 async function findFeedbackIdFromMessageId(messageId: string): Promise<string | undefined> {
   try {
-    // Extract feedback ID from our email format: <feedback-UUID@userbird.co>
-    const feedbackIdMatch = messageId.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
-    if (feedbackIdMatch) {
-      const feedbackId = feedbackIdMatch[1];
-      console.log('Found feedback ID in message ID:', feedbackId);
+    // Extract feedback ID from our notification format: <feedback-notification-UUID@userbird.co>
+    const feedbackNotificationMatch = messageId.match(/<feedback-notification-([a-f0-9-]+)@userbird\.co>/i);
+    if (feedbackNotificationMatch) {
+      const feedbackId = feedbackNotificationMatch[1];
+      console.log('Found feedback ID in notification message ID:', feedbackId);
       return feedbackId;
     }
+    
+    // Extract feedback ID from our reply format: <reply-replyId-feedbackId@userbird.co>
+    const replyMatch = messageId.match(/<reply-[a-f0-9-]+-([a-f0-9-]+)@userbird\.co>/i);
+    if (replyMatch) {
+      const feedbackId = replyMatch[1];
+      console.log('Found feedback ID in reply message ID:', feedbackId);
+      return feedbackId;
+    }
+    
+    // Also check direct feedback reference format: <feedback-UUID@userbird.co>
+    const feedbackDirectMatch = messageId.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
+    if (feedbackDirectMatch) {
+      const feedbackId = feedbackDirectMatch[1];
+      console.log('Found feedback ID in direct feedback message ID:', feedbackId);
+      return feedbackId;
+    }
+    
     return undefined;
   } catch (error) {
     console.error('Error finding feedback ID from message ID:', error);
@@ -480,7 +497,25 @@ async function storeReply(
     // Generate a UUID for the reply
     const replyId = crypto.randomUUID();
     const messageId = parsedEmail.messageId || `reply-${crypto.randomUUID()}`;
-    const inReplyTo = parsedEmail.inReplyTo || null;
+    
+    // Process in-reply-to header to ensure proper threading
+    let inReplyTo = null;
+    if (parsedEmail.inReplyTo) {
+      // Store the original in-reply-to value
+      inReplyTo = parsedEmail.inReplyTo;
+      console.log('Using in-reply-to header for threading:', inReplyTo);
+    } else if (parsedEmail.references && parsedEmail.references.length > 0) {
+      // If no in-reply-to but we have references, use the last reference as in-reply-to
+      // This helps maintain thread continuity
+      const refs = Array.isArray(parsedEmail.references) 
+        ? parsedEmail.references 
+        : [parsedEmail.references];
+      
+      if (refs.length > 0) {
+        inReplyTo = refs[refs.length - 1]; // Use the last reference
+        console.log('Using last reference as in-reply-to for threading:', inReplyTo);
+      }
+    }
     
     // Use HTML content when available, and text content only as a fallback
     const finalContent = htmlContent ? '' : (textContent || '');

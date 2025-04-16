@@ -110,20 +110,30 @@ export const handler: Handler = async (event) => {
     // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
       .from('feedback_replies')
-      .select('id, message_id')
+      .select('id, message_id, in_reply_to')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false });
 
     const isFirstReply = !existingReplies?.length;
     
-    // Find the latest message ID from a user reply to use for threading
+    // Find the latest message ID from any reply to use for threading
     const lastMessageId = existingReplies?.find(reply => reply.message_id)?.message_id;
     
+    // Determine the in_reply_to value - if this is the first reply, use the feedback notification
+    // Otherwise use the most recent message ID
+    let inReplyTo: string | null = null;
+    if (isFirstReply) {
+      inReplyTo = `<feedback-notification-${feedbackId}@userbird.co>`;
+    } else if (lastMessageId) {
+      inReplyTo = lastMessageId;
+    }
+
     console.log('Reply context:', {
       isFirstReply,
       replyCount: existingReplies?.length || 0,
       hasLastMessageId: !!lastMessageId,
-      lastMessageId
+      lastMessageId,
+      inReplyTo
     });
 
     if (!feedback.user_email) {
@@ -155,22 +165,31 @@ export const handler: Handler = async (event) => {
       isFirstReply,
       feedbackId,
       replyId,
-      lastMessageId,
+      lastMessageId: inReplyTo || undefined, // Convert null to undefined if needed
       isAdminDashboardReply,
       productName
     });
 
-    // Store the message ID in the database
+    // Store the message ID in the database and update in_reply_to field
     if (emailResult.messageId && replyId) {
       console.log('Updating reply with message ID:', emailResult.messageId);
       
+      const updateData: any = { message_id: emailResult.messageId };
+      
+      // Also store the in_reply_to reference for proper threading
+      if (inReplyTo) {
+        updateData.in_reply_to = inReplyTo;
+      }
+      
       const { error: updateError } = await supabase
         .from('feedback_replies')
-        .update({ message_id: emailResult.messageId })
+        .update(updateData)
         .eq('id', replyId);
       
       if (updateError) {
         console.error('Error updating reply with message ID:', updateError);
+      } else {
+        console.log('Successfully updated reply with message ID and in_reply_to reference');
       }
     }
 
