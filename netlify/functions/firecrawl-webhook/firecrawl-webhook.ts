@@ -110,8 +110,9 @@ async function storeDocumentChunk(
   }
 }
 
+// Updated to match Firecrawl webhook payload structure
 interface FirecrawlWebhookBody {
-  type: string;
+  event: string; // Changed from type to event
   data: {
     markdown: string;
     metadata: {
@@ -135,8 +136,8 @@ const handler: Handler = async (event) => {
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
-    // Validate that this is a crawl.page event
-    if (body.type !== 'crawl.page') {
+    // Validate that this is a page event (previously checked for 'crawl.page')
+    if (body.event !== 'page') {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Unsupported event type' }),
