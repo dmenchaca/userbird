@@ -144,6 +144,11 @@ interface FirecrawlWebhookBody {
   event?: string;       // In case the payload uses "event" instead of "type"
   success?: boolean;
   id?: string;
+  form_id?: string;     // Added to check if form_id might be at the root level
+  metadata?: {          // Added to check if metadata might be at the root level
+    form_id?: string;
+    [key: string]: any;
+  };
   data: {
     markdown: string;
     metadata: {
@@ -168,16 +173,28 @@ const handler: Handler = async (event) => {
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
-    // Log the entire webhook payload for better debugging
-    console.log('Received webhook payload:', JSON.stringify(body).substring(0, 500) + '...');
+    // Log the COMPLETE webhook payload for debugging
+    console.log('========== FIRECRAWL WEBHOOK - COMPLETE PAYLOAD ==========');
+    console.log(JSON.stringify(body, null, 2));
+    console.log('==========================================================');
+    
+    // Log the headers too, might contain relevant information
+    console.log('========== FIRECRAWL WEBHOOK - REQUEST HEADERS ==========');
+    console.log(JSON.stringify(event.headers, null, 2));
+    console.log('=========================================================');
+    
+    // Check if there's any form_id in the root payload
+    console.log('Checking for form_id in root level payload:', body.form_id || 'Not found');
     
     // Extract and log important data
     console.log('Webhook event type:', body.type || body.event);
     console.log('Webhook data count:', body.data?.length || 0);
+    console.log('Webhook job ID:', body.id || 'Not found');
     
     // Check for metadata in the webhook
     if (body.data && body.data.length > 0) {
-      console.log('First page metadata:', JSON.stringify(body.data[0].metadata));
+      console.log('First page metadata keys:', Object.keys(body.data[0].metadata));
+      console.log('First page metadata (detailed):', JSON.stringify(body.data[0].metadata));
     }
     
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
@@ -212,6 +229,21 @@ const handler: Handler = async (event) => {
       
       // Get form_id from metadata, possibly passed from the webhook
       let form_id = metadata.form_id;
+      
+      // Check for form_id in various places including the webhook or job ID
+      if (!form_id) {
+        // Check various places where form_id might be
+        if (body.form_id) {
+          console.log('Found form_id in root payload');
+          form_id = body.form_id;
+        } else if (body.metadata?.form_id) {
+          console.log('Found form_id in body.metadata');
+          form_id = body.metadata.form_id;
+        } else if (event.queryStringParameters?.form_id) {
+          console.log('Found form_id in query parameters');
+          form_id = event.queryStringParameters.form_id;
+        }
+      }
       
       console.log(`Processing page: "${title}" from ${sourceURL} with form_id: ${form_id || 'MISSING'}`);
       
