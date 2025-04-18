@@ -62,8 +62,13 @@ const handler: Handler = async (event) => {
     
     console.log(`Starting crawl for URL: ${url} with form_id: ${form_id}`);
 
-    // Prepare the webhook URL
-    const webhookUrl = new URL('/.netlify/functions/firecrawl-webhook', process.env.URL || 'https://your-site.netlify.app').toString();
+    // Prepare the webhook URL with form_id as a query parameter
+    const baseWebhookUrl = new URL('/.netlify/functions/firecrawl-webhook', process.env.URL || 'https://your-site.netlify.app');
+    // Add form_id as a query parameter to ensure it's included in the webhook calls
+    baseWebhookUrl.searchParams.append('form_id', form_id);
+    const webhookUrl = baseWebhookUrl.toString();
+
+    console.log('Using webhook URL with form_id parameter:', webhookUrl);
 
     // Prepare request to Firecrawl with updated format
     const firecrawlRequest: FirecrawlRequest = {
@@ -71,7 +76,7 @@ const handler: Handler = async (event) => {
       limit: 100,
       webhook: {
         url: webhookUrl,
-        metadata: { form_id },
+        metadata: { form_id }, // Still include form_id in metadata as a fallback
         events: ["page"]
       },
       scrapeOptions: {

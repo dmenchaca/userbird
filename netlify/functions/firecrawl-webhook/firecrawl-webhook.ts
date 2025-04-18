@@ -165,6 +165,15 @@ const handler: Handler = async (event) => {
   }
 
   try {
+    // Get form_id from query parameters (passed via the webhook URL)
+    let formIdFromQuery: string | null = null;
+    if (event.queryStringParameters && event.queryStringParameters.form_id) {
+      formIdFromQuery = event.queryStringParameters.form_id;
+    }
+    
+    console.log('Received query parameters:', event.queryStringParameters);
+    console.log('Form ID from query parameter:', formIdFromQuery);
+    
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
@@ -210,8 +219,11 @@ const handler: Handler = async (event) => {
       // Extract metadata and verify form_id
       const { title = 'Untitled', sourceURL = '' } = metadata;
       
-      // Get form_id from metadata, possibly passed from the webhook
-      let form_id = metadata.form_id;
+      // Get form_id - try all possible sources with fallbacks
+      // 1. Query parameter (most reliable)
+      // 2. Metadata from the request (might be passed by Firecrawl)
+      // 3. Metadata in the page data (least likely)
+      let form_id = formIdFromQuery || metadata.form_id;
       
       console.log(`Processing page: "${title}" from ${sourceURL} with form_id: ${form_id || 'MISSING'}`);
       
