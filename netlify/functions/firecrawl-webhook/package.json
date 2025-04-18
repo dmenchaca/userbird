@@ -1,0 +1,11 @@
+{
+  "name": "firecrawl-webhook",
+  "version": "1.0.0",
+  "description": "Netlify function to process Firecrawl webhook events",
+  "main": "firecrawl-webhook.js",
+  "dependencies": {
+    "@netlify/functions": "^3.0.0",
+    "@supabase/supabase-js": "^2.39.7",
+    "openai": "^3.3.0"
+  }
+} 

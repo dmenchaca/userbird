@@ -1,0 +1,10 @@
+{
+  "name": "start-crawl",
+  "version": "1.0.0",
+  "description": "Netlify function to trigger Firecrawl",
+  "main": "start-crawl.js",
+  "dependencies": {
+    "@netlify/functions": "^3.0.0",
+    "node-fetch": "^2.7.0"
+  }
+} 

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firecrawl Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #3e8e41;
+    }
+    #response {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firecrawl Test</h1>
+  <div class="form-group">
+    <label for="url">URL to Crawl:</label>
+    <input type="text" id="url" value="https://docs.github.com">
+  </div>
+  <div class="form-group">
+    <label for="form_id">Form ID (optional):</label>
+    <input type="text" id="form_id" value="test123">
+  </div>
+  <button id="start-crawl">Start Crawl</button>
+  
+  <div id="response"></div>
+
+  <script>
+    document.getElementById('start-crawl').addEventListener('click', async () => {
+      const url = document.getElementById('url').value;
+      const form_id = document.getElementById('form_id').value;
+      const responseEl = document.getElementById('response');
+      
+      responseEl.textContent = 'Sending request...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/start-crawl', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            form_id: form_id || undefined
+          }),
+        });
+        
+        const data = await response.json();
+        responseEl.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        responseEl.textContent = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html> 
