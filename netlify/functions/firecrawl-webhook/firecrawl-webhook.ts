@@ -91,24 +91,37 @@ async function storeDocumentChunk(
 ) {
   try {
     console.log(`Storing document chunk to Supabase: "${content.substring(0, 50)}..." with form_id: ${formId || 'none'}`);
+    console.log(`Source URL: ${sourceUrl}`);
+    
+    // Store URL and other metadata in the metadata field
+    const metadata = {
+      sourceURL: sourceUrl,
+      title: title,
+      page: sourceUrl,
+      source: 'firecrawl',
+      blobType: 'text/markdown'
+    };
+    
+    // Create insert object with metadata
+    const insertData = {
+      content,
+      embedding,
+      form_id: formId,
+      metadata, // Store URL in metadata
+      title,
+      crawl_timestamp: new Date().toISOString(),
+    };
     
     const { data, error } = await client
       .from('documents')
-      .insert({
-        content,
-        embedding,
-        form_id: formId,
-        source_url: sourceUrl,
-        title,
-        crawl_timestamp: new Date().toISOString(),
-      });
+      .insert(insertData);
     
     if (error) {
       console.error('Error storing document chunk:', error);
       throw error;
     }
     
-    console.log('Successfully stored document chunk in Supabase. Source URL:', sourceUrl);
+    console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL');
     return data;
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
