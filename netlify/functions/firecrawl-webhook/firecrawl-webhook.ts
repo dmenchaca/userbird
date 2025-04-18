@@ -102,13 +102,12 @@ async function storeDocumentChunk(
       blobType: 'text/markdown'
     };
     
-    // Create insert object with metadata
+    // Create insert object with metadata, but without title field
     const insertData = {
       content,
       embedding,
       form_id: formId,
-      metadata, // Store URL in metadata
-      title,
+      metadata, // Store URL and title in metadata
       crawl_timestamp: new Date().toISOString(),
     };
     
@@ -121,7 +120,7 @@ async function storeDocumentChunk(
       throw error;
     }
     
-    console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL');
+    console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL and title');
     return data;
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
