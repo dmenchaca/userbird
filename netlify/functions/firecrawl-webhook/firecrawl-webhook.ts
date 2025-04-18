@@ -65,11 +65,14 @@ function splitIntoChunks(text: string, maxTokens = 500): string[] {
 // Generate embeddings from OpenAI
 async function generateEmbedding(text: string) {
   try {
+    console.log('Generating embedding for text:', text.substring(0, 50) + '...');
+    
     const response = await openai.createEmbedding({
       model: 'text-embedding-ada-002',
       input: text,
     });
     
+    console.log('Successfully generated embedding with dimensions:', response.data.data[0].embedding.length);
     return response.data.data[0].embedding;
   } catch (error) {
     console.error('Error generating embedding:', error);
@@ -87,6 +90,8 @@ async function storeDocumentChunk(
   title: string
 ) {
   try {
+    console.log(`Storing document chunk to Supabase: "${content.substring(0, 50)}..." with form_id: ${formId || 'none'}`);
+    
     const { data, error } = await client
       .from('documents')
       .insert({
@@ -103,6 +108,7 @@ async function storeDocumentChunk(
       throw error;
     }
     
+    console.log('Successfully stored document chunk in Supabase. Source URL:', sourceUrl);
     return data;
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
@@ -136,8 +142,12 @@ const handler: Handler = async (event) => {
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
+    console.log('Received webhook event:', body.event);
+    console.log('Webhook data count:', body.data?.length || 0);
+    
     // Validate that this is a page event (previously checked for 'crawl.page')
     if (body.event !== 'page') {
+      console.warn(`Unsupported event type: ${body.event}`);
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Unsupported event type' }),
@@ -146,11 +156,14 @@ const handler: Handler = async (event) => {
     
     // Get Supabase client
     const supabaseClient = getSupabaseClient();
+    console.log('Supabase client initialized');
     
     // Process each page in the payload
     for (const page of body.data) {
       const { markdown, metadata } = page;
       const { title = 'Untitled', sourceURL = '', form_id } = metadata;
+      
+      console.log(`Processing page: "${title}" from ${sourceURL}`);
       
       // Skip if no content
       if (!markdown) {
@@ -160,6 +173,7 @@ const handler: Handler = async (event) => {
       
       // Split content into chunks
       const chunks = splitIntoChunks(markdown);
+      console.log(`Split content into ${chunks.length} chunks`);
       
       // Process each chunk
       for (const chunk of chunks) {
@@ -178,9 +192,13 @@ const handler: Handler = async (event) => {
       }
     }
     
+    console.log('Successfully processed all pages and stored chunks in Supabase');
     return {
       statusCode: 200,
-      body: JSON.stringify({ status: 'success' }),
+      body: JSON.stringify({ 
+        status: 'success',
+        message: 'Successfully processed webhook and stored documents in Supabase'
+      }),
     };
   } catch (error) {
     console.error('Error in firecrawl-webhook function:', error);
