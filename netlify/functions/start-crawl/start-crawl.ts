@@ -10,7 +10,7 @@ const FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1/crawl';
 
 interface StartCrawlBody {
   url: string;
-  form_id?: string;
+  form_id: string;
 }
 
 // Define type for Firecrawl request to match their API
@@ -50,6 +50,17 @@ const handler: Handler = async (event) => {
         body: JSON.stringify({ error: 'URL is required' }),
       };
     }
+    
+    // Require form_id
+    if (!form_id) {
+      console.error('Missing required parameter: form_id');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'form_id is required' }),
+      };
+    }
+    
+    console.log(`Starting crawl for URL: ${url} with form_id: ${form_id}`);
 
     // Prepare the webhook URL
     const webhookUrl = new URL('/.netlify/functions/firecrawl-webhook', process.env.URL || 'https://your-site.netlify.app').toString();
@@ -60,7 +71,7 @@ const handler: Handler = async (event) => {
       limit: 100,
       webhook: {
         url: webhookUrl,
-        metadata: form_id ? { form_id } : {},
+        metadata: { form_id },
         events: ["page"]
       },
       scrapeOptions: {
@@ -68,6 +79,8 @@ const handler: Handler = async (event) => {
         onlyMainContent: true
       }
     };
+    
+    console.log('Sending request to Firecrawl with metadata:', JSON.stringify(firecrawlRequest.webhook.metadata));
 
     // Call Firecrawl API
     const response = await fetch(FIRECRAWL_API_URL, {
@@ -81,6 +94,8 @@ const handler: Handler = async (event) => {
 
     // Get the response data
     const data = await response.json();
+    
+    console.log('Firecrawl response:', JSON.stringify(data));
 
     // Return Firecrawl response
     return {

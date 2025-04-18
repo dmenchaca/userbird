@@ -90,8 +90,15 @@ async function storeDocumentChunk(
   title: string
 ) {
   try {
-    console.log(`Storing document chunk to Supabase: "${content.substring(0, 50)}..." with form_id: ${formId || 'none'}`);
+    // Log detailed information about the document being stored
+    console.log(`Storing document chunk to Supabase: "${content.substring(0, 50)}..."`);
+    console.log(`Form ID: ${formId || 'MISSING - THIS SHOULD NOT HAPPEN'}`);
     console.log(`Source URL: ${sourceUrl}`);
+    console.log(`Title: ${title}`);
+    
+    if (!formId) {
+      console.warn('WARNING: form_id is missing. This should not happen as it is now required!');
+    }
     
     // Store URL and other metadata in the metadata field
     const metadata = {
@@ -111,6 +118,8 @@ async function storeDocumentChunk(
       crawl_timestamp: new Date().toISOString(),
     };
     
+    console.log('Inserting data into Supabase with form_id:', formId);
+    
     const { data, error } = await client
       .from('documents')
       .insert(insertData);
@@ -121,6 +130,7 @@ async function storeDocumentChunk(
     }
     
     console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL and title');
+    console.log('Form ID confirmed in database record:', formId);
     return data;
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
@@ -139,6 +149,7 @@ interface FirecrawlWebhookBody {
     metadata: {
       title: string;
       sourceURL: string;
+      form_id?: string;
       [key: string]: any;
     };
   }[];
@@ -157,10 +168,17 @@ const handler: Handler = async (event) => {
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
-    // Log the entire webhook body for debugging
+    // Log the entire webhook payload for better debugging
     console.log('Received webhook payload:', JSON.stringify(body).substring(0, 500) + '...');
-    console.log('Webhook event type or type:', body.type || body.event);
+    
+    // Extract and log important data
+    console.log('Webhook event type:', body.type || body.event);
     console.log('Webhook data count:', body.data?.length || 0);
+    
+    // Check for metadata in the webhook
+    if (body.data && body.data.length > 0) {
+      console.log('First page metadata:', JSON.stringify(body.data[0].metadata));
+    }
     
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
     const eventType = body.type || body.event;
@@ -188,9 +206,14 @@ const handler: Handler = async (event) => {
     // Process each page in the payload
     for (const page of body.data) {
       const { markdown, metadata } = page;
-      const { title = 'Untitled', sourceURL = '', form_id } = metadata;
       
-      console.log(`Processing page: "${title}" from ${sourceURL}`);
+      // Extract metadata and verify form_id
+      const { title = 'Untitled', sourceURL = '' } = metadata;
+      
+      // Get form_id from metadata, possibly passed from the webhook
+      let form_id = metadata.form_id;
+      
+      console.log(`Processing page: "${title}" from ${sourceURL} with form_id: ${form_id || 'MISSING'}`);
       
       // Skip if no content
       if (!markdown) {
