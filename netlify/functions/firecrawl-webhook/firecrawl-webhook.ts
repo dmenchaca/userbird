@@ -118,9 +118,10 @@ async function storeDocumentChunk(
 
 // Updated to match Firecrawl webhook payload structure
 interface FirecrawlWebhookBody {
-  type: string; // Changed from 'event' to 'type' based on documentation
-  success: boolean;
-  id: string;
+  type?: string;        // Might be "crawl.page" or "page" in the response
+  event?: string;       // In case the payload uses "event" instead of "type"
+  success?: boolean;
+  id?: string;
   data: {
     markdown: string;
     metadata: {
@@ -145,16 +146,26 @@ const handler: Handler = async (event) => {
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
     // Log the entire webhook body for debugging
-    console.log('Received webhook payload:', JSON.stringify(body).substring(0, 300) + '...');
-    console.log('Webhook event type:', body.type);
+    console.log('Received webhook payload:', JSON.stringify(body).substring(0, 500) + '...');
+    console.log('Webhook event type or type:', body.type || body.event);
     console.log('Webhook data count:', body.data?.length || 0);
     
-    // Validate that this is a crawl.page event
-    if (body.type !== 'crawl.page') {
-      console.warn(`Unsupported event type: ${body.type}`);
+    // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
+    const eventType = body.type || body.event;
+    if (eventType && eventType !== 'crawl.page' && eventType !== 'page') {
+      console.warn(`Unsupported event type: ${eventType}`);
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Unsupported event type' }),
+      };
+    }
+    
+    // Make sure there's data to process
+    if (!body.data || body.data.length === 0) {
+      console.warn('No data in webhook payload');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'No data in webhook payload' }),
       };
     }
     
