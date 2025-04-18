@@ -61,7 +61,7 @@ const handler: Handler = async (event) => {
       webhook: {
         url: webhookUrl,
         metadata: form_id ? { form_id } : {},
-        events: ["page"]
+        events: ["crawl.page"]
       },
       scrapeOptions: {
         formats: ["markdown"],
