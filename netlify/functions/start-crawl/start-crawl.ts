@@ -13,6 +13,23 @@ interface StartCrawlBody {
   form_id?: string;
 }
 
+// Define type for Firecrawl request to match their API
+interface FirecrawlRequest {
+  url: string;
+  limit: number;
+  webhook: {
+    url: string;
+    metadata: Record<string, any>;
+    events: string[];
+  };
+  scrapeOptions: {
+    formats: string[];
+    onlyMainContent: boolean;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 const handler: Handler = async (event) => {
   // Only accept POST requests
   if (event.httpMethod !== 'POST') {
@@ -37,13 +54,19 @@ const handler: Handler = async (event) => {
     // Prepare the webhook URL
     const webhookUrl = new URL('/.netlify/functions/firecrawl-webhook', process.env.URL || 'https://your-site.netlify.app').toString();
 
-    // Prepare request to Firecrawl
-    const firecrawlRequest = {
+    // Prepare request to Firecrawl with updated format
+    const firecrawlRequest: FirecrawlRequest = {
       url,
       limit: 100,
-      outputFormat: 'markdown',
-      webhook: webhookUrl,
-      metadata: form_id ? { form_id } : undefined,
+      webhook: {
+        url: webhookUrl,
+        metadata: form_id ? { form_id } : {},
+        events: ["crawl.page"]
+      },
+      scrapeOptions: {
+        formats: ["markdown"],
+        onlyMainContent: true
+      }
     };
 
     // Call Firecrawl API
