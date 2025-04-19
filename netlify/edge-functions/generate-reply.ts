@@ -14,6 +14,8 @@ help documentation to generate a professional, accurate, and actionable reply.
 Keep responses concise, free of filler, and to the point. Only reference relevant information 
 from the docs. If unsure, it's okay to say so.
 
+Aim to keep the response under 150 words unless more detail is necessary.
+
 VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
 
 Hi {first name},
@@ -61,21 +63,7 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
     // Add user name information explicitly
-    { role: 'system', content: `The customer's full name is: ${feedback.user_name || 'Not provided'}. 
-      Their first name is: ${customerFirstName}.
-      
-      Your response MUST follow this EXACT format with proper line breaks:
-      
-      Hi ${customerFirstName},
-      
-      Thank you for reaching out.
-      
-      [your helpful response here]
-      
-      Best,
-      [your first name]
-      
-      The line breaks are REQUIRED, especially after the greeting and "Thank you" line.` }
+    { role: 'system', content: `The customer's first name is: ${customerFirstName}.` }
   ];
 
   // Add initial feedback as user message
@@ -93,12 +81,12 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
 
   // Add document context if available
   if (topDocs && topDocs.length > 0) {
-    let docContext = 'Here are some relevant documents that might help with your response:\n\n';
+    let docContext = 'Use the following help documentation only if it seems directly related to the issue:\n\n';
     topDocs.forEach((doc, index) => {
       const title = doc.metadata?.title || 'Untitled Document';
       const url = doc.metadata?.page || doc.metadata?.sourceURL || 'No URL';
       
-      docContext += `Document ${index + 1}: ${title}\nURL: ${url}\nContent:\n${doc.content}\n\n`;
+      docContext += `### Document Title: ${title}\n- URL: ${url}\n- Summary:\n${doc.content}\n\n`;
     });
 
     messages.push({
