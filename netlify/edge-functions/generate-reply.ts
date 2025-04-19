@@ -13,17 +13,20 @@ help documentation to generate a professional, accurate, and actionable reply.
 Keep responses concise, free of filler, and to the point. Only reference relevant information 
 from the docs. If unsure, it's okay to say so.
 
-VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
+VERY IMPORTANT: Your reply MUST follow this exact format with DOUBLE NEW LINES between paragraphs:
 
 Hi {first name},
 
-{Rest of the reply}
+
+{Rest of the reply with paragraphs separated by double newlines}
+
 
 Best,
 {Agent's first name}
 
-ALWAYS include a blank line after "Hi {first name}," and before "Best,"
-NEVER remove these line breaks - they are REQUIRED for proper formatting.
+ALWAYS use DOUBLE NEWLINES (\n\n) after "Hi {first name}," and before "Best,"
+NEVER use single newlines for paragraph breaks - always double newlines
+This is REQUIRED for proper formatting in the email client.
 
 To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
 For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
@@ -57,16 +60,18 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
     { role: 'system', content: `The customer's full name is: ${feedback.user_name || 'Not provided'}. 
       Their first name is: ${customerFirstName}.
       
-      Your response MUST follow this EXACT format with proper line breaks:
+      Your response MUST follow this EXACT format with DOUBLE NEWLINES between paragraphs:
       
       Hi ${customerFirstName},
       
-      [your helpful response here]
+      
+      [your helpful response here with paragraphs separated by double newlines]
+      
       
       Best,
       [your first name]
       
-      The line breaks before and after the main content are REQUIRED.` }
+      The DOUBLE NEWLINES before and after the main content are REQUIRED.` }
   ];
 
   // Add initial feedback as user message

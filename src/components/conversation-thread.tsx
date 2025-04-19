@@ -789,9 +789,15 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 continue;
               }
               
-              // Append this content to the editor
+              // Append this content to the accumulated text
               accumulatedContent += data;
-              setReplyContent(accumulatedContent);
+              
+              // Convert plain text with newlines to HTML with proper <div> tags for TipTap
+              // This ensures line breaks are preserved
+              const htmlContent = convertPlainTextToHtml(accumulatedContent);
+              
+              // Set the HTML content for the editor
+              setReplyContent(htmlContent);
             } else if (line.startsWith('event: error')) {
               // Handle error events
               console.error('Error in AI generation:', line);
@@ -814,6 +820,26 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     };
     
+    // Helper function to convert plain text to HTML with proper line breaks
+    const convertPlainTextToHtml = (text: string): string => {
+      // Replace double newlines with paragraph breaks
+      let html = text
+        // First, normalize line breaks
+        .replace(/\r\n/g, '\n')
+        // Handle double line breaks (paragraphs)
+        .replace(/\n\n+/g, '</div><div><br></div><div>')
+        // Handle single line breaks
+        .replace(/\n/g, '<br>');
+      
+      // Wrap in div tags for TipTap's expected format
+      html = `<div>${html}</div>`;
+      
+      // Clean up any empty divs
+      html = html.replace(/<div><\/div>/g, '<div><br></div>');
+      
+      return html;
+    };
+
     // Cancel ongoing AI reply generation
     const cancelAIReplyGeneration = () => {
       if (aiReplyGenController) {
