@@ -8,6 +8,10 @@
   path = "/api/generate-reply"
   function = "generate-reply"
 
+[[edge_functions]]
+  path = "/api/test-ai-response"
+  function = "test-ai-response"
+
 [[redirects]]
   from = "https://userbird.co/*"
   to = "https://app.userbird.co/:splat"
