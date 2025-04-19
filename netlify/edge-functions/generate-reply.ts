@@ -17,14 +17,13 @@ from the docs. If unsure, it's okay to say so.
 VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
 
 Hi {first name},
-
 {Rest of the reply}
 
 Best,
 {Agent's first name}
 
-ALWAYS include a blank line after "Hi {first name}," and before "Best,"
-NEVER remove these line breaks - they are REQUIRED for proper formatting.
+NOTE: Use only SINGLE line breaks between the greeting, body, and sign-off.
+Do not add extra blank lines - a single line break is all that's needed.
 
 To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
 For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
@@ -58,16 +57,15 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
     { role: 'system', content: `The customer's full name is: ${feedback.user_name || 'Not provided'}. 
       Their first name is: ${customerFirstName}.
       
-      Your response MUST follow this EXACT format with proper line breaks:
+      Your response MUST follow this EXACT format with single line breaks:
       
       Hi ${customerFirstName},
-      
       [your helpful response here]
       
       Best,
       [your first name]
       
-      The line breaks before and after the main content are REQUIRED.` }
+      Use only single line breaks between sections.` }
   ];
 
   // Add initial feedback as user message
@@ -305,10 +303,9 @@ export default async (request: Request, context: any) => {
                   completeResponse += content;
                   console.log(`Content chunk: "${content.replace(/\n/g, "\\n")}"`, content.length);
                   
-                  // Preserve line breaks in SSE by explicitly converting to HTML line breaks
-                  // This ensures line breaks survive all the way to the client
+                  // Preserve line breaks in SSE with single line breaks 
+                  // We're now using single line break markers since we changed the system prompt
                   const contentWithPreservedBreaks = content
-                    .replace(/\n\n/g, "[[DOUBLE_NEWLINE]]")
                     .replace(/\n/g, "[[NEWLINE]]");
                     
                   writer.write(encoder.encode(formatSSE(contentWithPreservedBreaks)));
