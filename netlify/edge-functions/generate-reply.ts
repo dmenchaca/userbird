@@ -60,8 +60,30 @@ function formatSSE(data: string, event?: string) {
   return event ? `event: ${event}\ndata: ${data}\n\n` : `data: ${data}\n\n`;
 }
 
+/**
+ * Extracts the agent's first name to be used in the response signature.
+ * 
+ * @param requestBody - The request body object that may contain an agent_name field
+ * @returns The agent's first name to use in the response signature
+ * 
+ * If requestBody.agent_name is provided, it extracts the first name.
+ * Otherwise, defaults to "Diego" as the agent name.
+ */
+// Helper to get the agent name for signing responses
+function getAgentName(requestBody: any): string {
+  // Default to "Diego" if no agent info is provided
+  let agentName = "Diego";
+  
+  // If the request contains agent information, extract the first name
+  if (requestBody && requestBody.agent_name) {
+    agentName = requestBody.agent_name.split(' ')[0];
+  }
+  
+  return agentName;
+}
+
 // Helper to create OpenAI chat messages
-function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
+function createChatMessages(feedback: any, replies: any[], topDocs: any[], agentName: string) {
   // Get user's first name
   let customerFirstName = "";
   if (feedback.user_name) {
@@ -74,7 +96,9 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
     // Add user name information explicitly
-    { role: 'system', content: `The customer's first name is: ${customerFirstName}.` }
+    { role: 'system', content: `The customer's first name is: ${customerFirstName}.` },
+    // Add agent name information for signature
+    { role: 'system', content: `Sign your response with: ${agentName}` }
   ];
 
   // Add initial feedback as user message
@@ -123,7 +147,7 @@ export default async (request: Request, context: any) => {
   try {
     // Parse request body
     const requestBody = await request.json();
-    const { feedback_id } = requestBody;
+    const { feedback_id, agent_name } = requestBody;
     
     if (!feedback_id) {
       return new Response(JSON.stringify({ error: 'feedback_id is required' }), {
@@ -133,6 +157,10 @@ export default async (request: Request, context: any) => {
     }
 
     console.log(`Generating reply for feedback_id: ${feedback_id}`);
+    
+    // Get the agent name for signing the response
+    const agentName = getAgentName(requestBody);
+    console.log(`Agent name for signing responses: ${agentName}`);
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -327,7 +355,7 @@ export default async (request: Request, context: any) => {
     }
 
     // Prepare chat messages with context
-    const messages = createChatMessages(feedback, replies || [], finalDocs || []);
+    const messages = createChatMessages(feedback, replies || [], finalDocs || [], agentName);
     console.log("=== DEBUG: OpenAI Request Messages ===");
     console.log(JSON.stringify(messages, null, 2));
     
