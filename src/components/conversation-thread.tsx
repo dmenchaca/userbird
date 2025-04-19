@@ -243,7 +243,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       setIsSubmitting(true)
       try {
         // Convert rich text content to HTML format with proper line breaks
-        // This ensures AI-generated content with newlines is properly converted to HTML
+        // This ensures AI-generated content with newlines is properly preserved
         let htmlContent = replyContent;
         
         // Check if the content is already HTML (starts with a div or contains HTML tags)
@@ -251,45 +251,27 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         
         // If it's not already HTML, convert plain text with newlines to HTML
         if (!isHtml) {
-          // Convert double newlines to proper div structure
+          // Escape any HTML content that might be in the text
           htmlContent = htmlContent
-            // First, escape any HTML content that might be in the text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            // Then handle line breaks
-            .replace(/\n\n/g, '</div><div>')
-            .replace(/\n/g, '<br>');
-          
-          // Wrap in a div to ensure proper structure
-          htmlContent = `<div>${htmlContent}</div>`;
-        }
-        
-        // Process the main content to convert <p> tags to <div> tags with <br> for linebreaks
-        // This only affects the main content, not quoted content
-        const processMainContent = (html: string) => {
-          // Check if there's any quoted content already in the reply
-          const quoteMatch = html.match(/<div class="gmail_quote gmail_quote_container">/);
-          
-          if (quoteMatch) {
-            // If there's quoted content, only process the content before it
-            const quoteIndex = html.indexOf(quoteMatch[0]);
-            const mainContent = html.substring(0, quoteIndex);
-            const quotedContent = html.substring(quoteIndex);
+            .replace(/>/g, '&gt;');
             
-            // Replace <p> tags with <div> tags in main content only
-            const processedMain = mainContent
-              .replace(/<p>(.*?)<\/p>/gs, '<div>$1</div>');
+          // Use a single div with <br> tags for newlines instead of multiple divs
+          // This preserves the line breaks in a visually consistent way
+          htmlContent = `<div>${htmlContent.replace(/\n/g, '<br>')}</div>`;
+        } else {
+          // For HTML content, ensure we're using <br> tags for line breaks rather than separate divs
+          // This ensures consistent rendering in email clients
+          htmlContent = htmlContent
+            .replace(/<\/div>\s*<div>/g, '<br>') // Replace adjacent divs with <br>
+            .replace(/<div><\/div>/g, '<br>'); // Replace empty divs with <br>
             
-            return processedMain + quotedContent;
-          } else {
-            // If there's no quoted content, process the entire HTML
-            return html.replace(/<p>(.*?)<\/p>/gs, '<div>$1</div>');
+          // Ensure we have a wrapping div
+          if (!htmlContent.startsWith('<div>')) {
+            htmlContent = `<div>${htmlContent}</div>`;
           }
-        };
-        
-        // Process the main content to use <div> tags instead of <p> tags
-        htmlContent = processMainContent(htmlContent);
+        }
         
         // Get the message ID to respond to (for email threading)
         let lastReplyMessageId: string | null = null;
