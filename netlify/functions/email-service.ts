@@ -317,7 +317,7 @@ export class EmailService {
                 // Use a more structural approach to organize the email content
                 if (params.isAdminDashboardReply) {
                   // For admin dashboard replies, identify quoted content (if any)
-                  const quotePatterns = ['<blockquote', '<div class="gmail_quote', '<div class="outlook_quote'];
+                  const quotePatterns = ['<blockquote', '<div class="gmail_quote', '<div class="outlook_quote', '<div class="email-quoted-content"'];
                   let quotedContentIndex = -1;
                   
                   // Find the first occurrence of any quote pattern
@@ -335,11 +335,28 @@ export class EmailService {
                   if (quotedContentIndex > -1) {
                     mainContent = html.substring(0, quotedContentIndex);
                     quotedContent = html.substring(quotedContentIndex);
+                    
+                    // Check if there are any remaining reply blocks within quoted content that are not actual quotes
+                    // This is a common issue with email threads where replies can be interspersed
+                    const quotedBlocks = quotedContent.split(/<blockquote|<div class="gmail_quote"|<div class="outlook_quote"|<div class="email-quoted-content"/);
+                    if (quotedBlocks.length > 1) {
+                      // The first block before any split should be empty, so we skip it
+                      // Put the pattern back that was removed during the split
+                      for (let i = 1; i < quotedBlocks.length; i++) {
+                        const pattern = quotedContent.substring(
+                          quotedContent.indexOf(quotedBlocks[i]) - 30, 
+                          quotedContent.indexOf(quotedBlocks[i])
+                        ).match(/<blockquote|<div class="gmail_quote"|<div class="outlook_quote"|<div class="email-quoted-content"/)?.[0] || '';
+                        
+                        quotedBlocks[i] = pattern + quotedBlocks[i];
+                      }
+                      quotedContent = quotedBlocks.slice(1).join('');
+                    }
                   } else {
                     mainContent = html;
                   }
                   
-                  // Reconstruct the HTML with proper structure
+                  // Reconstruct the HTML with proper structure, ensuring footer is after main content but before quoted content
                   html = `
                     <div class="email-main-content">
                       ${mainContent}
