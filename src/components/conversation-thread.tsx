@@ -804,8 +804,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               
               // Restore line breaks from special markers
               let processedData = data;
-              if (data.includes("[[NEWLINE]]")) {
-                processedData = data.replace(/\[\[NEWLINE\]\]/g, "\n");
+              if (data.includes("[[DOUBLE_NEWLINE]]") || data.includes("[[NEWLINE]]")) {
+                processedData = data
+                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
+                  .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
               }
               
