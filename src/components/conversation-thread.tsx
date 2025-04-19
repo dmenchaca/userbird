@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader2 } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -37,7 +37,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [replies, setReplies] = useState<FeedbackReply[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isGeneratingAIReply, setIsGeneratingAIReply] = useState(false)
-    const [isWaitingForStream, setIsWaitingForStream] = useState(false)
     const [aiReplyGenController, setAiReplyGenController] = useState<AbortController | null>(null)
     const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
     const editorRef = useRef<HTMLDivElement>(null)
@@ -772,7 +771,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       // Clear any existing content in the editor
       setReplyContent('');
       setIsGeneratingAIReply(true);
-      setIsWaitingForStream(true);
       
       console.log("=== CLIENT: Starting AI reply generation ===");
       
@@ -805,7 +803,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         let accumulatedContent = '';
         
         console.log("=== CLIENT: Stream connection established ===");
-        setIsWaitingForStream(false);
         
         while (true) {
           const { done, value } = await reader.read();
@@ -887,7 +884,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         }
       } finally {
         setIsGeneratingAIReply(false);
-        setIsWaitingForStream(false);
         setAiReplyGenController(null);
       }
     };
@@ -898,7 +894,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         aiReplyGenController.abort();
         setAiReplyGenController(null);
         setIsGeneratingAIReply(false);
-        setIsWaitingForStream(false);
       }
     };
 
@@ -1237,12 +1232,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   </div>
                 </div>
                 <div className="py-2">
-                  <div className="p-[1px] relative" ref={editorRef}>
-                    {isWaitingForStream && (
-                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    )}
+                  <div className="p-[1px]" ref={editorRef}>
                     <TiptapEditor
                       value={replyContent}
                       onChange={setReplyContent}
