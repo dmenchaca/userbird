@@ -740,6 +740,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       setReplyContent('');
       setIsGeneratingAIReply(true);
       
+      console.log("=== CLIENT: Starting AI reply generation ===");
+      
       try {
         // Create abort controller for cancellation
         const controller = new AbortController();
@@ -768,16 +770,26 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         const decoder = new TextDecoder('utf-8');
         let accumulatedContent = '';
         
+        console.log("=== CLIENT: Stream connection established ===");
+        
         while (true) {
           const { done, value } = await reader.read();
           
           if (done) {
             // We're done with the stream
+            console.log("=== CLIENT: Stream complete ===");
+            console.log("=== CLIENT: Final content from stream ===");
+            // Log with visible line breaks
+            console.log(accumulatedContent.replace(/\n/g, "\\n"));
+            console.log("Line breaks count:", (accumulatedContent.match(/\n/g) || []).length);
             break;
           }
           
           // Decode the chunk and process it
           const chunk = decoder.decode(value, { stream: true });
+          console.log(`=== CLIENT: Received chunk (${chunk.length} chars) ===`);
+          console.log(chunk.replace(/\n/g, "\\n"));
+          
           const lines = chunk.split('\n\n');
           
           for (const line of lines) {
@@ -786,18 +798,19 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               
               // Check for done event
               if (data === '[DONE]') {
+                console.log("=== CLIENT: Received [DONE] marker ===");
                 continue;
               }
               
-              // Append this content to the accumulated text
+              // Append this content to the editor
               accumulatedContent += data;
+              console.log(`=== CLIENT: Content chunk: "${data.replace(/\n/g, "\\n")}" ===`);
               
-              // Convert plain text with newlines to HTML with proper <div> tags for TipTap
-              // This ensures line breaks are preserved
-              const htmlContent = convertPlainTextToHtml(accumulatedContent);
+              // Log current state of accumulated content with visible line breaks
+              console.log(`=== CLIENT: Current accumulated (${accumulatedContent.length} chars) ===`);
+              console.log(accumulatedContent.replace(/\n/g, "\\n"));
               
-              // Set the HTML content for the editor
-              setReplyContent(htmlContent);
+              setReplyContent(accumulatedContent);
             } else if (line.startsWith('event: error')) {
               // Handle error events
               console.error('Error in AI generation:', line);
@@ -808,6 +821,17 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             }
           }
         }
+        
+        // Check if the TipTap editor is preserving line breaks
+        console.log("=== CLIENT: Checking TipTap content after setting ===");
+        setTimeout(() => {
+          const editorElement = editorRef.current?.querySelector('.ProseMirror');
+          if (editorElement) {
+            console.log("TipTap HTML content:");
+            console.log(editorElement.innerHTML);
+          }
+        }, 500);
+        
       } catch (error) {
         // Only show errors if not due to user cancellation
         if (error instanceof Error && error.name !== 'AbortError') {
@@ -820,26 +844,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     };
     
-    // Helper function to convert plain text to HTML with proper line breaks
-    const convertPlainTextToHtml = (text: string): string => {
-      // Replace double newlines with paragraph breaks
-      let html = text
-        // First, normalize line breaks
-        .replace(/\r\n/g, '\n')
-        // Handle double line breaks (paragraphs)
-        .replace(/\n\n+/g, '</div><div><br></div><div>')
-        // Handle single line breaks
-        .replace(/\n/g, '<br>');
-      
-      // Wrap in div tags for TipTap's expected format
-      html = `<div>${html}</div>`;
-      
-      // Clean up any empty divs
-      html = html.replace(/<div><\/div>/g, '<div><br></div>');
-      
-      return html;
-    };
-
     // Cancel ongoing AI reply generation
     const cancelAIReplyGeneration = () => {
       if (aiReplyGenController) {

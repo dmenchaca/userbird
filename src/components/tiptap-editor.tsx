@@ -21,6 +21,16 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
   const [linkUrl, setLinkUrl] = useState('')
   const sendButtonRef = useRef<HTMLButtonElement | null>(null)
   
+  // Debug line breaks when value changes
+  useEffect(() => {
+    if (value) {
+      console.log("=== TIPTAP: Received new content ===");
+      console.log(`Raw value (${value.length} chars):`);
+      console.log(value.replace(/\n/g, "\\n"));
+      console.log(`Line breaks count: ${(value.match(/\n/g) || []).length}`);
+    }
+  }, [value]);
+  
   // Create a custom extension to handle Cmd/Ctrl+Enter
   const KeyboardShortcutExt = Extension.create({
     name: 'keyboardShortcuts',
@@ -84,7 +94,13 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      const htmlContent = editor.getHTML();
+      console.log("=== TIPTAP: Content updated ===");
+      console.log(`HTML output: ${htmlContent.replace(/\n/g, "\\n")}`);
+      console.log(`HTML line breaks: ${(htmlContent.match(/\n/g) || []).length}`);
+      console.log(`<br> tags count: ${(htmlContent.match(/<br\s*\/?>/g) || []).length}`);
+      console.log(`<div> tags count: ${(htmlContent.match(/<div/g) || []).length}`);
+      onChange(htmlContent);
     },
     editorProps: {
       attributes: {
@@ -110,7 +126,19 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
   // Sync content when value prop changes from outside
   useEffect(() => {
     if (editor && editor.getHTML() !== value) {
-      editor.commands.setContent(value)
+      console.log("=== TIPTAP: Setting content from prop ===");
+      console.log(`Setting value (${value.length} chars):`);
+      console.log(value.replace(/\n/g, "\\n"));
+      
+      // Force line breaks to be preserved
+      const contentWithPreservedLineBreaks = value
+        .replace(/\n\n/g, '<div><br></div>')
+        .replace(/\n/g, '<br>');
+      
+      console.log("Content after line break preservation:");
+      console.log(contentWithPreservedLineBreaks);
+      
+      editor.commands.setContent(contentWithPreservedLineBreaks);
     }
   }, [value, editor])
 

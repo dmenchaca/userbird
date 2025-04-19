@@ -1,9 +1,10 @@
 // No import needed for Context in Netlify Edge Functions
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = Netlify.env.get("VITE_SUPABASE_URL")!;
-const supabaseServiceKey = Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Initialize Supabase client with environment variables
+// Fix Netlify reference error by using process.env instead
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // System prompt for AI replies
 const SYSTEM_PROMPT = `
@@ -13,20 +14,17 @@ help documentation to generate a professional, accurate, and actionable reply.
 Keep responses concise, free of filler, and to the point. Only reference relevant information 
 from the docs. If unsure, it's okay to say so.
 
-VERY IMPORTANT: Your reply MUST follow this exact format with DOUBLE NEW LINES between paragraphs:
+VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
 
 Hi {first name},
 
-
-{Rest of the reply with paragraphs separated by double newlines}
-
+{Rest of the reply}
 
 Best,
 {Agent's first name}
 
-ALWAYS use DOUBLE NEWLINES (\n\n) after "Hi {first name}," and before "Best,"
-NEVER use single newlines for paragraph breaks - always double newlines
-This is REQUIRED for proper formatting in the email client.
+ALWAYS include a blank line after "Hi {first name}," and before "Best,"
+NEVER remove these line breaks - they are REQUIRED for proper formatting.
 
 To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
 For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
@@ -60,18 +58,16 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
     { role: 'system', content: `The customer's full name is: ${feedback.user_name || 'Not provided'}. 
       Their first name is: ${customerFirstName}.
       
-      Your response MUST follow this EXACT format with DOUBLE NEWLINES between paragraphs:
+      Your response MUST follow this EXACT format with proper line breaks:
       
       Hi ${customerFirstName},
       
-      
-      [your helpful response here with paragraphs separated by double newlines]
-      
+      [your helpful response here]
       
       Best,
       [your first name]
       
-      The DOUBLE NEWLINES before and after the main content are REQUIRED.` }
+      The line breaks before and after the main content are REQUIRED.` }
   ];
 
   // Add initial feedback as user message
@@ -107,6 +103,8 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
 }
 
 export default async (request: Request, context: any) => {
+  console.log("=== DEBUG: Generate Reply Function Starting ===");
+  
   // Only accept POST requests
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -147,6 +145,11 @@ export default async (request: Request, context: any) => {
       });
     }
 
+    console.log("=== DEBUG: Customer Details ===");
+    console.log(`User name: ${feedback.user_name}`);
+    console.log(`User email: ${feedback.user_email}`);
+    console.log(`First name extracted: ${feedback.user_name ? feedback.user_name.split(' ')[0] : 'N/A'}`);
+
     const form_id = feedback.form_id;
     console.log(`Retrieved form_id: ${form_id} for feedback`);
 
@@ -173,7 +176,7 @@ export default async (request: Request, context: any) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Netlify.env.get("OPENAI_API_KEY")}`,
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'text-embedding-ada-002',
@@ -210,15 +213,19 @@ export default async (request: Request, context: any) => {
       // Continue without documents if needed
     }
 
+    console.log(`Retrieved ${topDocs?.length || 0} relevant documents`);
+
     // Prepare chat messages with context
     const messages = createChatMessages(feedback, replies || [], topDocs || []);
+    console.log("=== DEBUG: OpenAI Request Messages ===");
+    console.log(JSON.stringify(messages, null, 2));
     
     // 5. Call OpenAI with streaming
     const streamResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Netlify.env.get("OPENAI_API_KEY")}`,
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4',
@@ -254,6 +261,9 @@ export default async (request: Request, context: any) => {
         const reader = streamResponse.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
+        let completeResponse = '';
+        
+        console.log("=== DEBUG: Starting to process OpenAI stream ===");
         
         // SSE parsing based on OpenAI's streaming format
         while (true) {
@@ -261,6 +271,13 @@ export default async (request: Request, context: any) => {
           
           if (done) {
             // Send a done event and close the stream
+            console.log("=== DEBUG: OpenAI stream complete ===");
+            console.log("=== DEBUG: Complete response from OpenAI ===");
+            console.log(completeResponse);
+            console.log("=== DEBUG: Checking for line breaks ===");
+            console.log("Line breaks count:", (completeResponse.match(/\n/g) || []).length);
+            console.log("First few lines:", completeResponse.split('\n').slice(0, 5));
+            
             writer.write(encoder.encode(formatSSE('[DONE]', 'done')));
             writer.close();
             break;
@@ -284,6 +301,9 @@ export default async (request: Request, context: any) => {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices[0]?.delta?.content || '';
                 if (content) {
+                  // Debug raw content chunks
+                  completeResponse += content;
+                  console.log(`Content chunk: "${content.replace(/\n/g, "\\n")}"`, content.length);
                   writer.write(encoder.encode(formatSSE(content)));
                 }
               } catch (e) {
