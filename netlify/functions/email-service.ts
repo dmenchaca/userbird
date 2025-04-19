@@ -314,17 +314,43 @@ export class EmailService {
                   </div>
                 `;
                 
-                // Append the branded footer to the HTML content
-                // For admin dashboard replies, insert the footer right after the reply content
+                // Use a more structural approach to organize the email content
                 if (params.isAdminDashboardReply) {
-                  // Look for </div> closing tag after the reply content
-                  const messageEndIndex = html.indexOf('</div>');
-                  if (messageEndIndex !== -1) {
-                    html = html.substring(0, messageEndIndex + 6) + brandingFooter + html.substring(messageEndIndex + 6);
-                  } else {
-                    html += brandingFooter;
+                  // For admin dashboard replies, identify quoted content (if any)
+                  const quotePatterns = ['<blockquote', '<div class="gmail_quote', '<div class="outlook_quote'];
+                  let quotedContentIndex = -1;
+                  
+                  // Find the first occurrence of any quote pattern
+                  for (const pattern of quotePatterns) {
+                    const index = html.indexOf(pattern);
+                    if (index !== -1 && (quotedContentIndex === -1 || index < quotedContentIndex)) {
+                      quotedContentIndex = index;
+                    }
                   }
+                  
+                  // Split the content into main content and quoted content (if any)
+                  let mainContent = '';
+                  let quotedContent = '';
+                  
+                  if (quotedContentIndex > -1) {
+                    mainContent = html.substring(0, quotedContentIndex);
+                    quotedContent = html.substring(quotedContentIndex);
+                  } else {
+                    mainContent = html;
+                  }
+                  
+                  // Reconstruct the HTML with proper structure
+                  html = `
+                    <div class="email-main-content">
+                      ${mainContent}
+                    </div>
+                    <div class="email-branding-footer">
+                      ${brandingFooter}
+                    </div>
+                    ${quotedContent ? `<div class="email-quoted-content">${quotedContent}</div>` : ''}
+                  `;
                 } else {
+                  // For system-generated emails, simply append the footer at the end
                   html += brandingFooter;
                 }
               }
