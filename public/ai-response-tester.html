@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Response Tester</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .card {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #111827;
+    }
+    .card-description {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+    .card-content {
+      padding: 1.5rem;
+    }
+    .card-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      transition: all 150ms ease-in-out;
+    }
+    .btn-primary {
+      background-color: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+    .btn-outline {
+      border: 1px solid #d1d5db;
+      background-color: transparent;
+      color: #374151;
+    }
+    .btn-outline:hover {
+      background-color: #f3f4f6;
+    }
+    .btn-danger {
+      background-color: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+    .input, .textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+    }
+    .textarea {
+      min-height: 300px;
+      font-family: monospace;
+    }
+    .label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #111827;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+    .error {
+      border: 1px solid #ef4444;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      color: #ef4444;
+      margin-bottom: 1rem;
+    }
+    .border-primary {
+      border-color: #2563eb;
+    }
+    .response-container {
+      min-height: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto py-8 max-w-5xl px-4">
+    <h1 class="text-2xl font-bold mb-6">AI Response Tester</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Input Panel -->
+      <div class="space-y-6">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Feedback ID</h2>
+            <p class="card-description">Enter the ID of the feedback to generate a response for</p>
+          </div>
+          <div class="card-content">
+            <label for="feedback-id" class="label">Feedback ID</label>
+            <input 
+              id="feedback-id"
+              type="text"
+              class="input"
+              placeholder="00000000-0000-0000-0000-000000000000" 
+            />
+            <button 
+              id="preview-btn"
+              class="btn btn-primary w-full mt-4"
+            >
+              Preview Feedback
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">System Prompt</h2>
+            <p class="card-description">Customize the system prompt used for generation</p>
+          </div>
+          <div class="card-content">
+            <textarea 
+              id="system-prompt"
+              class="textarea text-sm"
+              placeholder="Enter system prompt here" 
+            ></textarea>
+          </div>
+          <div class="card-footer">
+            <button 
+              id="clear-btn"
+              class="btn btn-outline"
+            >
+              Clear
+            </button>
+            <div>
+              <button 
+                id="generate-btn"
+                class="btn btn-primary ml-2"
+              >
+                Generate Response
+              </button>
+              <button 
+                id="cancel-btn"
+                class="btn btn-danger ml-2 hidden"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Panel -->
+      <div class="space-y-6">
+        <div id="feedback-details" class="card hidden">
+          <div class="card-header">
+            <h2 class="card-title">Feedback Details</h2>
+          </div>
+          <div class="card-content space-y-4">
+            <div>
+              <p class="text-sm font-medium">From:</p>
+              <p id="feedback-from"></p>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Message:</p>
+              <div id="feedback-message" class="p-3 border rounded-md bg-gray-50"></div>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Form:</p>
+              <p id="feedback-form"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Generated Response</h2>
+            <p class="card-description">AI-generated reply based on your inputs</p>
+          </div>
+          <div class="card-content">
+            <div id="error-container" class="error hidden"></div>
+            <div id="response-container" class="response-container">
+              <p id="response-placeholder" class="text-gray-500">
+                Response will appear here
+              </p>
+              <pre id="response-content" class="whitespace-pre-wrap font-sans text-sm hidden"></pre>
+            </div>
+          </div>
+          <div class="card-footer justify-end">
+            <button 
+              id="copy-btn"
+              class="btn btn-outline hidden"
+            >
+              Copy to Clipboard
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Get DOM elements
+    const feedbackIdInput = document.getElementById('feedback-id');
+    const systemPromptTextarea = document.getElementById('system-prompt');
+    const previewBtn = document.getElementById('preview-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const generateBtn = document.getElementById('generate-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    
+    const feedbackDetailsCard = document.getElementById('feedback-details');
+    const feedbackFrom = document.getElementById('feedback-from');
+    const feedbackMessage = document.getElementById('feedback-message');
+    const feedbackForm = document.getElementById('feedback-form');
+    
+    const errorContainer = document.getElementById('error-container');
+    const responsePlaceholder = document.getElementById('response-placeholder');
+    const responseContent = document.getElementById('response-content');
+    const responseContainer = document.getElementById('response-container');
+
+    // State variables
+    let abortController = null;
+    let isGenerating = false;
+
+    // Default system prompt
+    const defaultSystemPrompt = `You are a helpful, empathetic product support assistant replying to a customer's feedback message. 
+Always acknowledge the user's concerns with care. Use the conversation history and the company's 
+help documentation to generate a professional, accurate, and actionable reply.
+Keep responses concise, free of filler, and to the point. Only reference relevant information 
+from the docs. If unsure, it's okay to say so.
+
+VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
+
+Hi {first name},
+{Rest of the reply}
+
+Best,
+{Agent's first name}
+
+NOTE: Use only SINGLE line breaks between the greeting, body, and sign-off.
+Do not add extra blank lines - a single line break is all that's needed.
+
+To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
+For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
+If user_name is not available, fall back to the first part of their email address before the @ symbol.
+
+If the user's issue is not clear enough to provide a specific solution, politely ask them to share a Loom video recording of the issue to help you understand the problem better.`;
+
+    // Initialize with default prompt
+    systemPromptTextarea.value = defaultSystemPrompt;
+
+    // Event listeners
+    previewBtn.addEventListener('click', fetchFeedbackDetails);
+    clearBtn.addEventListener('click', clearSystemPrompt);
+    generateBtn.addEventListener('click', generateResponse);
+    cancelBtn.addEventListener('click', cancelGeneration);
+    copyBtn.addEventListener('click', copyToClipboard);
+
+    // Check if user is authenticated via cookie
+    function checkAuthentication() {
+      // You may need to customize this based on how your auth works
+      return document.cookie.includes('sb-') || document.cookie.includes('supabase');
+    }
+
+    // Fetch feedback details
+    async function fetchFeedbackDetails() {
+      const feedbackId = feedbackIdInput.value.trim();
+      if (!feedbackId) {
+        showError('Please enter a feedback ID');
+        return;
+      }
+
+      if (!checkAuthentication()) {
+        showError('You must be signed in to use this tool. Please log into the dashboard first.');
+        return;
+      }
+
+      try {
+        // Try to fetch from preview endpoint
+        try {
+          const response = await fetch('/api/test-ai-response/preview', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ feedback_id: feedbackId }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch feedback: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          
+          // Show feedback details
+          feedbackFrom.textContent = `${data.user_name || 'Anonymous'} ${data.user_email ? `<${data.user_email}>` : ''}`;
+          feedbackMessage.textContent = data.message || '';
+          feedbackForm.textContent = data.form?.product_name || data.form_id || 'N/A';
+          
+          feedbackDetailsCard.classList.remove('hidden');
+          hideError();
+          return;
+        } catch (previewError) {
+          console.error('Preview endpoint error:', previewError);
+          // Fall back to direct generation without preview
+          showError('Preview endpoint not available. You can still generate responses using the Feedback ID.');
+        }
+      } catch (error) {
+        showError(error.message || 'Failed to fetch feedback details');
+        feedbackDetailsCard.classList.add('hidden');
+      }
+    }
+
+    // Clear system prompt
+    function clearSystemPrompt() {
+      systemPromptTextarea.value = '';
+    }
+
+    // Generate AI response
+    async function generateResponse() {
+      const feedbackId = feedbackIdInput.value.trim();
+      const systemPrompt = systemPromptTextarea.value.trim();
+      
+      if (!feedbackId) {
+        showError('Please enter a feedback ID');
+        return;
+      }
+
+      if (!systemPrompt) {
+        showError('Please enter a system prompt');
+        return;
+      }
+
+      if (!checkAuthentication()) {
+        showError('You must be signed in to use this tool. Please log into the dashboard first.');
+        return;
+      }
+
+      // Set UI to generating state
+      setGeneratingState(true);
+      responsePlaceholder.textContent = 'Generating response...';
+      responsePlaceholder.classList.remove('hidden');
+      responseContent.classList.add('hidden');
+      responseContent.textContent = '';
+      hideError();
+
+      try {
+        // Create abort controller for cancellation
+        abortController = new AbortController();
+
+        // Call the API
+        const streamResponse = await fetch('/api/test-ai-response', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            feedback_id: feedbackId,
+            system_prompt: systemPrompt
+          }),
+          signal: abortController.signal
+        });
+
+        if (!streamResponse.ok) {
+          throw new Error(`Failed to generate reply: ${streamResponse.statusText}`);
+        }
+
+        // Process the stream
+        const reader = streamResponse.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let accumulatedContent = '';
+
+        // Hide placeholder once we start receiving content
+        responsePlaceholder.classList.add('hidden');
+        responseContent.classList.remove('hidden');
+
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            console.log("Stream complete");
+            break;
+          }
+
+          // Decode the chunk and process it
+          const chunk = decoder.decode(value, { stream: true });
+          
+          const lines = chunk.split('\n\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.substring(6); // Remove "data: " prefix
+
+              // Check for done event
+              if (data === '[DONE]') {
+                console.log("Received [DONE] marker");
+                continue;
+              }
+
+              // Restore line breaks from special markers
+              let processedData = data;
+              if (data.includes("[[NEWLINE]]")) {
+                processedData = data.replace(/\[\[NEWLINE\]\]/g, "\n");
+              }
+
+              // Append this content
+              accumulatedContent += processedData;
+              
+              // Update UI with current content, preserving line breaks
+              responseContent.textContent = accumulatedContent;
+              
+              // Auto-scroll to the bottom
+              responseContainer.scrollTop = responseContainer.scrollHeight;
+            } else if (line.startsWith('event: error')) {
+              throw new Error('Error generating AI reply');
+            }
+          }
+        }
+
+        // Show copy button when done
+        copyBtn.classList.remove('hidden');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          showError(error.message || 'Failed to generate response');
+          responsePlaceholder.textContent = 'Response will appear here';
+        } else {
+          responsePlaceholder.textContent = 'Generation cancelled';
+        }
+        responseContent.classList.add('hidden');
+        responsePlaceholder.classList.remove('hidden');
+      } finally {
+        setGeneratingState(false);
+        abortController = null;
+      }
+    }
+
+    // Cancel generation
+    function cancelGeneration() {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+        setGeneratingState(false);
+      }
+    }
+
+    // Copy response to clipboard
+    function copyToClipboard() {
+      const textToCopy = responseContent.textContent;
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy: ', err);
+        });
+    }
+
+    // Helper functions
+    function showError(message) {
+      errorContainer.textContent = message;
+      errorContainer.classList.remove('hidden');
+    }
+
+    function hideError() {
+      errorContainer.classList.add('hidden');
+    }
+
+    function setGeneratingState(generating) {
+      isGenerating = generating;
+      
+      if (generating) {
+        generateBtn.classList.add('hidden');
+        cancelBtn.classList.remove('hidden');
+        previewBtn.disabled = true;
+        clearBtn.disabled = true;
+        copyBtn.classList.add('hidden');
+      } else {
+        generateBtn.classList.remove('hidden');
+        cancelBtn.classList.add('hidden');
+        previewBtn.disabled = false;
+        clearBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html> 
