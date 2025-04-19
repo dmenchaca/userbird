@@ -568,9 +568,21 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             // The quoted content is everything starting from the quoted content marker
             let quotedContent = cleanedHtml.substring(quotedContentStartIndex);
             
-            // Clean up trailing whitespace/breaks in the main content
-            mainContent = mainContent.replace(/<br\s*\/?>\s*<br\s*\/?>\s*$/gi, '');
-            mainContent = mainContent.replace(/(<div><br\s*\/?><\/div>\s*)+$/gi, '');
+            // Clean up trailing whitespace/breaks in the main content, but preserve intentional breaks
+            // First check if this is an email-like message with greeting/signature
+            const hasGreeting = /Hi\s+\w+,/i.test(mainContent);
+            const hasSignature = /Best,|Regards,|Thanks,|Cheers,/i.test(mainContent);
+            
+            if (hasGreeting || hasSignature) {
+              // Only clean up trailing whitespace at the very end
+              // This preserves intentional line breaks after greeting and before signature
+              mainContent = mainContent.replace(/\s*<br\s*\/?>\s*<br\s*\/?>\s*$/gi, '');
+              mainContent = mainContent.replace(/\s*(<div><br\s*\/?><\/div>\s*)+$/gi, '');
+            } else {
+              // For non-email content, apply the original cleaning logic
+              mainContent = mainContent.replace(/<br\s*\/?>\s*<br\s*\/?>\s*$/gi, '');
+              mainContent = mainContent.replace(/(<div><br\s*\/?><\/div>\s*)+$/gi, '');
+            }
             
             // Use the matched element as the dateLine
             const dateLine = match[0];
@@ -926,7 +938,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             .preserve-breaks br {
               display: block !important;
               content: " " !important;
-              margin: 0.25em 0 !important; /* Reduced from 0.5em */
+              margin: 0.5em 0 !important; /* Increased from 0.25em to 0.5em for more spacing */
             }
             .email-content a {
               color: hsl(var(--primary));
