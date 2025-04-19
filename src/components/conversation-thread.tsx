@@ -242,8 +242,28 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       
       setIsSubmitting(true)
       try {
-        // Rich text content is already in HTML format
+        // Convert rich text content to HTML format with proper line breaks
+        // This ensures AI-generated content with newlines is properly converted to HTML
         let htmlContent = replyContent;
+        
+        // Check if the content is already HTML (starts with a div or contains HTML tags)
+        const isHtml = /^<div|<br|<p/.test(htmlContent) || /<\/?[a-z][\s\S]*>/i.test(htmlContent);
+        
+        // If it's not already HTML, convert plain text with newlines to HTML
+        if (!isHtml) {
+          // Convert double newlines to proper div structure
+          htmlContent = htmlContent
+            // First, escape any HTML content that might be in the text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            // Then handle line breaks
+            .replace(/\n\n/g, '</div><div>')
+            .replace(/\n/g, '<br>');
+          
+          // Wrap in a div to ensure proper structure
+          htmlContent = `<div>${htmlContent}</div>`;
+        }
         
         // Process the main content to convert <p> tags to <div> tags with <br> for linebreaks
         // This only affects the main content, not quoted content
