@@ -806,11 +806,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               let processedData = data;
               if (data.includes("[[DOUBLE_NEWLINE]]") || data.includes("[[NEWLINE]]")) {
                 // When processing AI-generated content from the edge function,
-                // use a more consistent approach that works better with our updated TipTap handler
-                // Instead of using \n\n which creates excess whitespace, use a single normalized approach
+                // preserve the distinction between single and double line breaks
                 processedData = data
-                  // Map double newlines to two consecutive newlines to preserve proper spacing
-                  // This ensures proper spacing after greeting and before signature
+                  // Convert double newlines to two consecutive <br> tags to preserve the spacing
                   .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
                   .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
