@@ -13,14 +13,21 @@ help documentation to generate a professional, accurate, and actionable reply.
 Keep responses concise, free of filler, and to the point. Only reference relevant information 
 from the docs. If unsure, it's okay to say so.
 
-Your replies must always follow this specific format:
+VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT LINE BREAKS:
 
-"Hi {first name},
+Hi {first name},
 
 {Rest of the reply}
 
 Best,
-{Agent's first name}"
+{Agent's first name}
+
+ALWAYS include a blank line after "Hi {first name}," and before "Best,"
+NEVER remove these line breaks - they are REQUIRED for proper formatting.
+
+To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
+For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
+If user_name is not available, fall back to the first part of their email address before the @ symbol.
 
 If the user's issue is not clear enough to provide a specific solution, politely ask them to share a Loom video recording of the issue to help you understand the problem better.
 `;
@@ -35,9 +42,31 @@ function formatSSE(data: string, event?: string) {
 
 // Helper to create OpenAI chat messages
 function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
+  // Get user's first name
+  let customerFirstName = "";
+  if (feedback.user_name) {
+    customerFirstName = feedback.user_name.split(' ')[0];
+  } else if (feedback.user_email) {
+    customerFirstName = feedback.user_email.split('@')[0];
+  }
+  
   // Start with system prompt
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
+    // Add user name information explicitly
+    { role: 'system', content: `The customer's full name is: ${feedback.user_name || 'Not provided'}. 
+      Their first name is: ${customerFirstName}.
+      
+      Your response MUST follow this EXACT format with proper line breaks:
+      
+      Hi ${customerFirstName},
+      
+      [your helpful response here]
+      
+      Best,
+      [your first name]
+      
+      The line breaks before and after the main content are REQUIRED.` }
   ];
 
   // Add initial feedback as user message
@@ -68,14 +97,6 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
       content: docContext,
     });
   }
-
-  // Add guidance for using customer and agent names
-  messages.push({
-    role: 'system',
-    content: `For the reply, extract the customer's first name from their email or full name.
-    If not available, use a generic greeting without a name.
-    Sign the message with the agent's first name as shown in the system prompt format.`
-  });
 
   return messages;
 }
