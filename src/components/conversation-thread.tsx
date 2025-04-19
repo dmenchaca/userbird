@@ -1257,18 +1257,18 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                       </Button>
                     ) : (
                       <div className="flex items-center gap-2">
-                        {!replyContent && (
-                          <Loader className="w-4 h-4 animate-spin text-muted-foreground" />
-                        )}
                         <Button
                           onClick={cancelAIReplyGeneration}
-                          variant="link"
+                          variant="ghost"
                           size="sm"
                           className="flex items-center gap-1 text-xs"
                         >
                           <StopCircle className="h-3.5 w-3.5" />
                           Stop
                         </Button>
+                        {!replyContent && (
+                          <Loader className="w-4 h-4 animate-spin text-muted-foreground" />
+                        )}
                       </div>
                     )}
                   </div>
