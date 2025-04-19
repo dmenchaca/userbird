@@ -16,7 +16,7 @@ from the docs. If unsure, it's okay to say so.
 
 Aim to keep the response under 150 words unless more detail is necessary.
 
-Aim to get to the helpful part of the message quickly. Don’t stack multiple phrases of empathy — one clear sentence is enough.
+Aim to get to the helpful part of the message quickly. Don't stack multiple phrases of empathy — one clear sentence is enough.
 
 VERY IMPORTANT: Your replies must follow this exact format WITH THE EXACT LINE BREAKS:
 
@@ -35,11 +35,11 @@ In the body of the reply, break long responses into short, meaningful paragraphs
 
 Use line breaks between distinct ideas, such as:
 
-- Empathy: Acknowledge what the user is experiencing (e.g., “That definitely sounds unexpected.”)
-- Instruction: Suggest a next step (e.g., “Could you record a short screen recording video showing the xyz issue?”)
-- Rationale: Explain why you're asking (e.g., “That would help us understand exactly what’s going wrong and how we can help.”)
+- Empathy: Acknowledge what the user is experiencing (e.g., "That definitely sounds unexpected.")
+- Instruction: Suggest a next step (e.g., "Could you record a short screen recording video showing the xyz issue?")
+- Rationale: Explain why you're asking (e.g., "That would help us understand exactly what's going wrong and how we can help.")
 
-Always say “screen recording video” instead of “screenshot” — it gives better context. Only suggest screenshots if the user explicitly says they can’t record video.
+Always say "screen recording video" instead of "screenshot" — it gives better context. Only suggest screenshots if the user explicitly says they can't record video.
 
 
 When referring to a help document, always use HTML hyperlinks like this:
@@ -53,7 +53,7 @@ If user_name is not available, fall back to the first part of their email addres
 `;
 
 // Number of top documents to retrieve
-const TOP_K_DOCUMENTS = 5;
+const TOP_K_DOCUMENTS = 10;
 
 // Helper to format SSE message
 function formatSSE(data: string, event?: string) {
@@ -176,7 +176,29 @@ export default async (request: Request, context: any) => {
     }
 
     // 3. Generate embedding for the feedback message to find relevant documents
-    const query = feedback.message || "";
+    const originalQuery = feedback.message || "";
+    
+    // Clean and enhance the query to focus on key terms
+    let query = originalQuery;
+    
+    // Extract the core question if it exists (often comes after greetings, before signatures)
+    const questionMatch = originalQuery.match(/how\s+do\s+i\s+(.+?)\??(\s|$)/i);
+    if (questionMatch) {
+      // If there's a direct question like "How do I..."
+      query = questionMatch[0];
+    }
+    
+    // Look for specific keywords that should be emphasized
+    const keyTerms = ['calendly', 'integration', 'integrate', 'connect'];
+    const foundTerms = keyTerms.filter(term => originalQuery.toLowerCase().includes(term));
+    
+    if (foundTerms.length > 0) {
+      // If specific terms are found, use them as the query to increase relevance
+      query = foundTerms.join(' ');
+    }
+    
+    console.log(`Original query: "${originalQuery}"`);
+    console.log(`Enhanced query: "${query}"`);
     
     // Get embedding for the query using OpenAI API directly
     const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
@@ -204,13 +226,17 @@ export default async (request: Request, context: any) => {
     const queryEmbedding = embeddingData.data[0].embedding;
     console.log(`Generated embedding for query with dimensions: ${queryEmbedding.length}`);
 
-    // 4. Retrieve relevant documents from vector store
+    // Before vector search
+    console.log(`Searching for documents matching: "${query}"`);
+    console.log(`Using form_id_filter: ${form_id}`);
+
+    // 4. Retrieve relevant documents from vector store with latest crawl first
     const { data: topDocs, error: vecSearchError } = await supabase.rpc(
       'match_documents',
       {
         query_embedding: queryEmbedding,
         match_count: TOP_K_DOCUMENTS,
-        form_id_filter: form_id, // Filter by the current form_id
+        form_id_filter: form_id,
         use_latest_crawl: true,  // Use latest crawl data
       }
     );
@@ -220,10 +246,88 @@ export default async (request: Request, context: any) => {
       // Continue without documents if needed
     }
 
-    console.log(`Retrieved ${topDocs?.length || 0} relevant documents`);
+    console.log(`Retrieved ${topDocs?.length || 0} relevant documents from latest crawl`);
+
+    // Fallback: If no docs found or not enough, try again without the latest crawl restriction
+    let finalDocs = topDocs || [];
+    if (!finalDocs || finalDocs.length < 2) {
+      console.log("Few or no documents found with latest crawl, trying with all crawls...");
+      
+      const { data: allCrawlDocs, error: allCrawlError } = await supabase.rpc(
+        'match_documents',
+        {
+          query_embedding: queryEmbedding,
+          match_count: TOP_K_DOCUMENTS,
+          form_id_filter: form_id,
+          use_latest_crawl: false,  // Use all crawls
+        }
+      );
+      
+      if (allCrawlError) {
+        console.error('Error searching all crawls:', allCrawlError);
+      } else {
+        finalDocs = allCrawlDocs || [];
+        console.log(`Retrieved ${finalDocs.length || 0} relevant documents from all crawls`);
+      }
+    }
+
+    // Last resort: If we're looking for specific terms like 'calendly' but didn't find them,
+    // try a direct SQL lookup for documents with those terms in the title
+    if (foundTerms.length > 0 && 
+        (!finalDocs || 
+         finalDocs.length === 0 || 
+         !finalDocs.some(doc => 
+           doc.metadata?.title?.toLowerCase().includes(foundTerms[0].toLowerCase())))) {
+      
+      console.log(`No documents found with '${foundTerms[0]}' in title, attempting direct lookup...`);
+      
+      try {
+        // Direct query for documents with the term in the title
+        const { data: directDocs, error: directError } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('form_id', form_id)
+          .ilike('metadata->>title', `%${foundTerms[0]}%`)
+          .limit(5);
+        
+        if (directError) {
+          console.error('Error in direct document lookup:', directError);
+        } else if (directDocs && directDocs.length > 0) {
+          console.log(`Found ${directDocs.length} documents with '${foundTerms[0]}' in title via direct lookup`);
+          
+          // Format these docs to match the structure expected by the rest of the code
+          const formattedDirectDocs = directDocs.map(doc => ({
+            id: doc.id,
+            content: doc.content,
+            metadata: doc.metadata,
+            similarity: 0.8, // Assign a reasonable similarity score
+            form_id: doc.form_id,
+            crawl_timestamp: doc.crawl_timestamp
+          }));
+          
+          // Add these to our final docs, potentially replacing less relevant ones
+          finalDocs = [...formattedDirectDocs, ...finalDocs].slice(0, TOP_K_DOCUMENTS);
+        }
+      } catch (directQueryError) {
+        console.error('Exception in direct document lookup:', directQueryError);
+      }
+    }
+
+    // After vector search
+    if (finalDocs && finalDocs.length > 0) {
+      console.log("=== Vector Search Results Details ===");
+      finalDocs.forEach((doc, i) => {
+        console.log(`Result ${i+1}:`);
+        console.log(`- Title: ${doc.metadata?.title || 'No title'}`);
+        console.log(`- URL: ${doc.metadata?.page || 'No URL'}`);
+        console.log(`- Similarity: ${doc.similarity.toFixed(4)}`);
+        console.log(`- Crawl timestamp: ${doc.crawl_timestamp}`);
+        console.log(`- Content preview: ${doc.content.substring(0, 100)}...`);
+      });
+    }
 
     // Prepare chat messages with context
-    const messages = createChatMessages(feedback, replies || [], topDocs || []);
+    const messages = createChatMessages(feedback, replies || [], finalDocs || []);
     console.log("=== DEBUG: OpenAI Request Messages ===");
     console.log(JSON.stringify(messages, null, 2));
     
