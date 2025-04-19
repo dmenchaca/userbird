@@ -808,7 +808,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 // When processing AI-generated content from the edge function,
                 // preserve the distinction between single and double line breaks
                 processedData = data
-                  // Convert double newlines to two consecutive <br> tags to preserve the spacing
+                  // Map double newlines to two consecutive newlines to ensure proper spacing
                   .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
                   .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
