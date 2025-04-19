@@ -809,9 +809,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 // use a more consistent approach that works better with our updated TipTap handler
                 // Instead of using \n\n which creates excess whitespace, use a single normalized approach
                 processedData = data
-                  // Map double newlines to single newlines to avoid excessive spacing
-                  // TipTap will handle the proper paragraph structure now
-                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n")
+                  // Map double newlines to two consecutive newlines to preserve proper spacing
+                  // This ensures proper spacing after greeting and before signature
+                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
                   .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
               }
