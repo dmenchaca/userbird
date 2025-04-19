@@ -92,12 +92,29 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           fetchFormData(response.form_id)
         }
         
+        // Set up global keyboard shortcut for AI reply generation
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+          // Generate AI reply with Ctrl+J or Command+J (even when editor is not focused)
+          if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+            // Only if we're not already generating and there is a response to work with
+            if (!isGeneratingAIReply && !isSubmitting && response) {
+              e.preventDefault();
+              generateAIReply();
+            }
+          }
+        };
+        
+        // Add the global event listener
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        
         return () => {
           supabase.removeChannel(channel)
           clearInterval(refreshInterval)
+          window.removeEventListener('keydown', handleGlobalKeyDown);
         }
       }
-    }, [response.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [response?.id, isGeneratingAIReply, isSubmitting])
 
     useEffect(() => {
       // When response changes, reset the reply content
@@ -407,13 +424,14 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         }
       }
       
-      // Generate AI reply with Ctrl+J or Command+J
+      // Generate AI reply with Ctrl+J or Command+J - only needed for when editor is focused
+      // The global event listener handles this for when it's not focused
       if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
         e.preventDefault();
         e.stopPropagation();
         
         // Only generate if not already generating
-        if (!isGeneratingAIReply) {
+        if (!isGeneratingAIReply && !isSubmitting) {
           generateAIReply();
         }
       }
@@ -779,7 +797,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ feedback_id: response.id }),
+          body: JSON.stringify({ 
+            feedback_id: response.id,
+            admin_first_name: adminFirstName 
+          }),
           signal: controller.signal
         });
         
