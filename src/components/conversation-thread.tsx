@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -36,6 +36,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [replyContent, setReplyContent] = useState('')
     const [replies, setReplies] = useState<FeedbackReply[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isGeneratingAIReply, setIsGeneratingAIReply] = useState(false)
+    const [aiReplyGenController, setAiReplyGenController] = useState<AbortController | null>(null)
     const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
     const editorRef = useRef<HTMLDivElement>(null)
     const [productName, setProductName] = useState('Userbird')
@@ -730,6 +732,97 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     }
 
+    // Add AI reply generation function
+    const generateAIReply = async () => {
+      if (isGeneratingAIReply || isSubmitting) return;
+      
+      // Clear any existing content in the editor
+      setReplyContent('');
+      setIsGeneratingAIReply(true);
+      
+      try {
+        // Create abort controller for cancellation
+        const controller = new AbortController();
+        setAiReplyGenController(controller);
+        
+        // Call the generate-reply edge function
+        const streamResponse = await fetch('/api/generate-reply', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ feedback_id: response.id }),
+          signal: controller.signal
+        });
+        
+        if (!streamResponse.ok) {
+          throw new Error(`Failed to generate reply: ${streamResponse.statusText}`);
+        }
+        
+        if (!streamResponse.body) {
+          throw new Error('No response body from AI generation');
+        }
+        
+        // Process the streaming response
+        const reader = streamResponse.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let accumulatedContent = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            // We're done with the stream
+            break;
+          }
+          
+          // Decode the chunk and process it
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.substring(6); // Remove "data: " prefix
+              
+              // Check for done event
+              if (data === '[DONE]') {
+                continue;
+              }
+              
+              // Append this content to the editor
+              accumulatedContent += data;
+              setReplyContent(accumulatedContent);
+            } else if (line.startsWith('event: error')) {
+              // Handle error events
+              console.error('Error in AI generation:', line);
+              throw new Error('Error generating AI reply');
+            } else if (line.startsWith('event: done')) {
+              // Handle completion
+              console.log('AI generation complete');
+            }
+          }
+        }
+      } catch (error) {
+        // Only show errors if not due to user cancellation
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Error generating AI reply:', error);
+          // Optionally show error to user
+        }
+      } finally {
+        setIsGeneratingAIReply(false);
+        setAiReplyGenController(null);
+      }
+    };
+    
+    // Cancel ongoing AI reply generation
+    const cancelAIReplyGeneration = () => {
+      if (aiReplyGenController) {
+        aiReplyGenController.abort();
+        setAiReplyGenController(null);
+        setIsGeneratingAIReply(false);
+      }
+    };
+
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* CSS to handle email content formatting */}
@@ -1065,7 +1158,30 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   </div>
                 </div>
                 <div className="flex justify-between items-center px-0 py-1">
-                  <div></div>
+                  <div className="flex items-center space-x-2">
+                    {/* AI Generation Button */}
+                    {!isGeneratingAIReply ? (
+                      <Button
+                        onClick={generateAIReply}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 text-xs"
+                        disabled={isSubmitting}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Generate
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={cancelAIReplyGeneration}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 text-xs text-destructive"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"

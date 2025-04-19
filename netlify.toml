@@ -3,6 +3,11 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Edge functions configuration
+[[edge_functions]]
+  path = "/api/generate-reply"
+  function = "generate-reply"
+
 [[redirects]]
   from = "https://userbird.co/*"
   to = "https://app.userbird.co/:splat"
