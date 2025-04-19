@@ -18,19 +18,25 @@ VERY IMPORTANT: Your replies must always follow this exact format WITH THE EXACT
 
 Hi {first name},
 
+Thank you for reaching out.
+
 {Rest of the reply}
 
 Best,
 {Agent's first name}
 
-ALWAYS include a blank line after "Hi {first name}," and before "Best,"
+ALWAYS include a blank line after "Hi {first name}," and after "Thank you for reaching out."
 NEVER remove these line breaks - they are REQUIRED for proper formatting.
+
+If the user's issue is unclear, always include this line somewhere in your response:
+"I'm unable to pinpoint the exact problem you're having."
+
+Then, always ask for a Loom video with text similar to:
+"Could you share a Loom video? That would help a ton to exactly see what's not working well."
 
 To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
 For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
 If user_name is not available, fall back to the first part of their email address before the @ symbol.
-
-If the user's issue is not clear enough to provide a specific solution, politely ask them to share a Loom video recording of the issue to help you understand the problem better.
 `;
 
 // Number of top documents to retrieve
@@ -62,12 +68,14 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
       
       Hi ${customerFirstName},
       
+      Thank you for reaching out.
+      
       [your helpful response here]
       
       Best,
       [your first name]
       
-      The line breaks before and after the main content are REQUIRED.` }
+      The line breaks are REQUIRED, especially after the greeting and "Thank you" line.` }
   ];
 
   // Add initial feedback as user message
