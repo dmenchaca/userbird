@@ -12,6 +12,17 @@ Always acknowledge the user's concerns with care. Use the conversation history a
 help documentation to generate a professional, accurate, and actionable reply.
 Keep responses concise, free of filler, and to the point. Only reference relevant information 
 from the docs. If unsure, it's okay to say so.
+
+Your replies must always follow this specific format:
+
+"Hi {first name},
+
+{Rest of the reply}
+
+Best,
+{Agent's first name}"
+
+If the user's issue is not clear enough to provide a specific solution, politely ask them to share a Loom video recording of the issue to help you understand the problem better.
 `;
 
 // Number of top documents to retrieve
@@ -57,6 +68,14 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[]) {
       content: docContext,
     });
   }
+
+  // Add guidance for using customer and agent names
+  messages.push({
+    role: 'system',
+    content: `For the reply, extract the customer's first name from their email or full name.
+    If not available, use a generic greeting without a name.
+    Sign the message with the agent's first name as shown in the system prompt format.`
+  });
 
   return messages;
 }
