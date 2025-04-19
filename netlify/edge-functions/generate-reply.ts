@@ -304,7 +304,14 @@ export default async (request: Request, context: any) => {
                   // Debug raw content chunks
                   completeResponse += content;
                   console.log(`Content chunk: "${content.replace(/\n/g, "\\n")}"`, content.length);
-                  writer.write(encoder.encode(formatSSE(content)));
+                  
+                  // Preserve line breaks in SSE by explicitly converting to HTML line breaks
+                  // This ensures line breaks survive all the way to the client
+                  const contentWithPreservedBreaks = content
+                    .replace(/\n\n/g, "[[DOUBLE_NEWLINE]]")
+                    .replace(/\n/g, "[[NEWLINE]]");
+                    
+                  writer.write(encoder.encode(formatSSE(contentWithPreservedBreaks)));
                 }
               } catch (e) {
                 console.error('Error parsing JSON:', e, 'Line:', line);

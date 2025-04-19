@@ -802,9 +802,18 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 continue;
               }
               
+              // Restore line breaks from special markers
+              let processedData = data;
+              if (data.includes("[[DOUBLE_NEWLINE]]") || data.includes("[[NEWLINE]]")) {
+                processedData = data
+                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
+                  .replace(/\[\[NEWLINE\]\]/g, "\n");
+                console.log(`=== CLIENT: Restored line breaks in chunk ===`);
+              }
+              
               // Append this content to the editor
-              accumulatedContent += data;
-              console.log(`=== CLIENT: Content chunk: "${data.replace(/\n/g, "\\n")}" ===`);
+              accumulatedContent += processedData;
+              console.log(`=== CLIENT: Content chunk: "${processedData.replace(/\n/g, "\\n")}" ===`);
               
               // Log current state of accumulated content with visible line breaks
               console.log(`=== CLIENT: Current accumulated (${accumulatedContent.length} chars) ===`);
