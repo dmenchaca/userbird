@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { TiptapEditor } from './tiptap-editor'
 import { useAuth } from '@/lib/auth'
 import { Avatar, AvatarFallback } from './ui/avatar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -403,6 +404,17 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Only send if there's content
         if (replyContent.trim()) {
           handleSendReply();
+        }
+      }
+      
+      // Generate AI reply with Ctrl+J or Command+J
+      if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Only generate if not already generating
+        if (!isGeneratingAIReply) {
+          generateAIReply();
         }
       }
     }
@@ -1227,16 +1239,32 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   <div className="flex items-center space-x-2">
                     {/* AI Generation Button */}
                     {!isGeneratingAIReply ? (
-                      <Button
-                        onClick={generateAIReply}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs"
-                        disabled={isSubmitting}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Generate
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              onClick={generateAIReply}
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-1 text-xs"
+                              disabled={isSubmitting}
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              Generate
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="center" className="px-2 py-1">
+                            <p className="text-sm font-medium text-muted-foreground flex items-center">
+                              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded flex items-center">
+                                {navigator.platform.includes('Mac') ? 
+                                  <Command className="inline h-3 w-3" /> : 
+                                  'Ctrl'} 
+                                <span className="ml-0.5">J</span>
+                              </span>
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     ) : (
                       <div className="flex items-center gap-2">
                         <Button
