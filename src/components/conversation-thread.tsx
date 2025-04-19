@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -1256,14 +1256,20 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                         Generate
                       </Button>
                     ) : (
-                      <Button
-                        onClick={cancelAIReplyGeneration}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs text-destructive"
-                      >
-                        Cancel
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {!replyContent && (
+                          <Loader className="w-4 h-4 animate-spin text-muted-foreground" />
+                        )}
+                        <Button
+                          onClick={cancelAIReplyGeneration}
+                          variant="link"
+                          size="sm"
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <StopCircle className="h-3.5 w-3.5" />
+                          Stop
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-2">
