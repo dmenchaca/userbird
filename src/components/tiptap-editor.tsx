@@ -130,10 +130,21 @@ export function TiptapEditor({ value, onChange, onKeyDown, placeholder, classNam
       console.log(`Setting value (${value.length} chars):`);
       console.log(value.replace(/\n/g, "\\n"));
       
-      // Force line breaks to be preserved
-      const contentWithPreservedLineBreaks = value
-        .replace(/\n\n/g, '<div><br></div>')
+      // Improved line break handling
+      // The key is to use a consistent paragraph structure that TipTap will render correctly
+      let contentWithPreservedLineBreaks = value;
+      
+      // Replace double newlines with appropriate structure for paragraph breaks
+      // This creates a clean paragraph break without excess spacing
+      contentWithPreservedLineBreaks = contentWithPreservedLineBreaks
+        .replace(/\n\n/g, '</div><div>');
+      
+      // Handle any remaining single newlines as line breaks within paragraphs
+      contentWithPreservedLineBreaks = contentWithPreservedLineBreaks
         .replace(/\n/g, '<br>');
+      
+      // Wrap in a div to ensure proper structure
+      contentWithPreservedLineBreaks = `<div>${contentWithPreservedLineBreaks}</div>`;
       
       console.log("Content after line break preservation:");
       console.log(contentWithPreservedLineBreaks);

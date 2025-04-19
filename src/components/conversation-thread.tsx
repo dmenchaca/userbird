@@ -805,8 +805,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               // Restore line breaks from special markers
               let processedData = data;
               if (data.includes("[[DOUBLE_NEWLINE]]") || data.includes("[[NEWLINE]]")) {
+                // When processing AI-generated content from the edge function,
+                // use a more consistent approach that works better with our updated TipTap handler
+                // Instead of using \n\n which creates excess whitespace, use a single normalized approach
                 processedData = data
-                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
+                  // Map double newlines to single newlines to avoid excessive spacing
+                  // TipTap will handle the proper paragraph structure now
+                  .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n")
                   .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
               }
@@ -882,6 +887,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             }
             .email-content div {
               min-height: 0;
+              margin-top: 0.5em;
+              margin-bottom: 0.5em;
+            }
+            /* Adjust first div for proper spacing */
+            .email-content > div:first-child {
+              margin-top: 0;
+            }
+            /* Adjust last div for proper spacing */
+            .email-content > div:last-child {
+              margin-bottom: 0;
             }
             /* Fix whitespace around content */
             .email-content p:after,
@@ -893,7 +908,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             .preserve-breaks br {
               display: block !important;
               content: " " !important;
-              margin: 0.5em 0 !important;
+              margin: 0.25em 0 !important; /* Reduced from 0.5em */
             }
             .email-content a {
               color: hsl(var(--primary));
