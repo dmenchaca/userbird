@@ -29,25 +29,6 @@ interface ScrapingProcess {
   }
 }
 
-// Helper functions for localStorage toast tracking
-const hasToastBeenShown = (processId: string, status: string): boolean => {
-  try {
-    const key = `toast-${processId}-${status}`;
-    return localStorage.getItem(key) === 'true';
-  } catch (e) {
-    return false;
-  }
-};
-
-const markToastAsShown = (processId: string, status: string): void => {
-  try {
-    const key = `toast-${processId}-${status}`;
-    localStorage.setItem(key, 'true');
-  } catch (e) {
-    console.error('[AIAutomationTab] Error marking toast as shown:', e);
-  }
-};
-
 export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
