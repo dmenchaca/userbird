@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -20,6 +20,7 @@ import { Switch } from './ui/switch'
 import { Textarea } from './ui/textarea'
 import { CustomEmailTab } from './custom-email-tab'
 import { CollaboratorsTab } from './collaborators-tab'
+import { AIAutomationTab } from './ai-automation-tab'
 
 interface FormSettingsDialogProps {
   formId: string
@@ -39,7 +40,7 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators'
+type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation'
 
 export function FormSettingsDialog({ 
   formId, 
@@ -1120,6 +1121,16 @@ export function FormSettingsDialog({
                   Collaborators
                 </button>
                 <button
+                  onClick={() => handleTabSwitch('ai-automation')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'ai-automation' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI Automation
+                </button>
+                <button
                   onClick={() => handleTabSwitch('webhooks')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
@@ -1440,6 +1451,12 @@ export function FormSettingsDialog({
 
                 {activeTab === 'collaborators' && (
                   <CollaboratorsTab formId={formId} />
+                )}
+
+                {activeTab === 'ai-automation' && (
+                  <div className="space-y-6">
+                    <AIAutomationTab formId={formId} />
+                  </div>
                 )}
 
                 {activeTab === 'webhooks' && (

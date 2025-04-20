@@ -80,6 +80,93 @@ async function generateEmbedding(text: string) {
   }
 }
 
+// Track scraped URL in scraping process
+async function trackScrapedUrl(
+  client: SupabaseClient,
+  processId: string | undefined,
+  url: string
+) {
+  if (!processId) {
+    console.warn('No process_id provided, cannot track scraped URL in docs_scraping_processes');
+    return;
+  }
+  
+  try {
+    console.log(`Tracking scraped URL ${url} for process ${processId}`);
+    
+    // Get current scraped_urls array
+    const { data: process, error: getError } = await client
+      .from('docs_scraping_processes')
+      .select('scraped_urls')
+      .eq('id', processId)
+      .single();
+    
+    if (getError) {
+      console.error(`Error retrieving process ${processId}:`, getError);
+      return;
+    }
+    
+    // Add the new URL if it doesn't already exist
+    const currentUrls = process.scraped_urls || [];
+    if (!currentUrls.includes(url)) {
+      const updatedUrls = [...currentUrls, url];
+      
+      // Update the record
+      const { error: updateError } = await client
+        .from('docs_scraping_processes')
+        .update({ scraped_urls: updatedUrls })
+        .eq('id', processId);
+      
+      if (updateError) {
+        console.error(`Error updating process ${processId} with scraped URL:`, updateError);
+        return;
+      }
+      
+      console.log(`Successfully added URL ${url} to process ${processId}, total URLs: ${updatedUrls.length}`);
+    } else {
+      console.log(`URL ${url} already tracked in process ${processId}`);
+    }
+  } catch (error) {
+    console.error('Error in trackScrapedUrl:', error);
+  }
+}
+
+// Update process status when crawl completes or fails
+async function updateProcessStatus(
+  client: SupabaseClient,
+  processId: string | undefined,
+  status: 'completed' | 'failed',
+  errorMessage?: string
+) {
+  if (!processId) {
+    console.warn('No process_id provided, cannot update process status');
+    return;
+  }
+  
+  try {
+    console.log(`Updating process ${processId} status to ${status}`);
+    
+    const updateData: any = { status };
+    if (errorMessage) {
+      updateData.error_message = errorMessage;
+    }
+    
+    const { error } = await client
+      .from('docs_scraping_processes')
+      .update(updateData)
+      .eq('id', processId);
+    
+    if (error) {
+      console.error(`Error updating process ${processId} status:`, error);
+      return;
+    }
+    
+    console.log(`Successfully updated process ${processId} status to ${status}`);
+  } catch (error) {
+    console.error('Error in updateProcessStatus:', error);
+  }
+}
+
 // Store a document chunk in Supabase
 async function storeDocumentChunk(
   client: SupabaseClient,
@@ -87,7 +174,8 @@ async function storeDocumentChunk(
   embedding: number[],
   formId: string | undefined,
   sourceUrl: string,
-  title: string
+  title: string,
+  processId?: string
 ) {
   try {
     // Log detailed information about the document being stored
@@ -95,6 +183,7 @@ async function storeDocumentChunk(
     console.log(`Form ID: ${formId || 'MISSING - THIS SHOULD NOT HAPPEN'}`);
     console.log(`Source URL: ${sourceUrl}`);
     console.log(`Title: ${title}`);
+    console.log(`Process ID: ${processId || 'Not provided'}`);
     
     if (!formId) {
       console.warn('WARNING: form_id is missing. This should not happen as it is now required!');
@@ -106,7 +195,8 @@ async function storeDocumentChunk(
       title: title,
       page: sourceUrl,
       source: 'firecrawl',
-      blobType: 'text/markdown'
+      blobType: 'text/markdown',
+      process_id: processId
     };
     
     // Create insert object with metadata, but without title field
@@ -131,6 +221,12 @@ async function storeDocumentChunk(
     
     console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL and title');
     console.log('Form ID confirmed in database record:', formId);
+    
+    // Track the scraped URL in the process record if we have a process ID
+    if (processId) {
+      await trackScrapedUrl(client, processId, sourceUrl);
+    }
+    
     return data;
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
@@ -147,6 +243,7 @@ interface FirecrawlWebhookBody {
   form_id?: string;     // Added to check if form_id might be at the root level
   metadata?: {          // Added to check if metadata might be at the root level
     form_id?: string;
+    process_id?: string;
     [key: string]: any;
   };
   data: {
@@ -197,10 +294,26 @@ const handler: Handler = async (event) => {
       console.log('First page metadata (detailed):', JSON.stringify(body.data[0].metadata));
     }
     
+    // Get the process_id from the metadata if available
+    let processId = body.metadata?.process_id;
+    console.log('Process ID from webhook metadata:', processId || 'Not found');
+    
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
     const eventType = body.type || body.event;
     if (eventType && eventType !== 'crawl.page' && eventType !== 'page') {
       console.warn(`Unsupported event type: ${eventType}`);
+      
+      // If we have a process ID and this is an error or completion event, update its status
+      if (processId && (eventType === 'crawl.error' || eventType === 'error')) {
+        const supabaseClient = getSupabaseClient();
+        await updateProcessStatus(
+          supabaseClient, 
+          processId, 
+          'failed', 
+          `Unsupported event type: ${eventType}`
+        );
+      }
+      
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Unsupported event type' }),
@@ -210,6 +323,13 @@ const handler: Handler = async (event) => {
     // Make sure there's data to process
     if (!body.data || body.data.length === 0) {
       console.warn('No data in webhook payload');
+      
+      // If we have a process ID and this seems to be a completion with no data, mark it appropriately
+      if (processId && body.success === true) {
+        const supabaseClient = getSupabaseClient();
+        await updateProcessStatus(supabaseClient, processId, 'completed');
+      }
+      
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'No data in webhook payload' }),
@@ -269,9 +389,15 @@ const handler: Handler = async (event) => {
           embedding,
           form_id,
           sourceURL,
-          title
+          title,
+          processId
         );
       }
+    }
+    
+    // If this appears to be the final payload and we have a process ID, mark it as completed
+    if (body.success === true && processId) {
+      await updateProcessStatus(supabaseClient, processId, 'completed');
     }
     
     console.log('Successfully processed all pages and stored chunks in Supabase');
@@ -284,6 +410,25 @@ const handler: Handler = async (event) => {
     };
   } catch (error) {
     console.error('Error in firecrawl-webhook function:', error);
+    
+    // If we can extract a process ID, update its status to failed
+    try {
+      const body = JSON.parse(event.body || '{}');
+      const processId = body.metadata?.process_id;
+      
+      if (processId) {
+        const supabaseClient = getSupabaseClient();
+        await updateProcessStatus(
+          supabaseClient, 
+          processId, 
+          'failed', 
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+      }
+    } catch (e) {
+      console.error('Error while trying to update process status after failure:', e);
+    }
+    
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' }),

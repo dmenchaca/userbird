@@ -1,0 +1,298 @@
+import { useState, useEffect } from 'react'
+import { Loader2, Globe, AlertCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
+
+interface AIAutomationTabProps {
+  formId: string
+}
+
+interface ScrapingProcess {
+  id: string
+  base_url: string
+  status: 'in_progress' | 'completed' | 'failed'
+  created_at: string
+  completed_at: string | null
+  scraped_urls: string[]
+  error_message: string | null
+}
+
+export function AIAutomationTab({ formId }: AIAutomationTabProps) {
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
+  const [processFetching, setProcessFetching] = useState(true)
+
+  // Fetch the latest scraping process on mount and when form ID changes
+  useEffect(() => {
+    if (!formId) return
+
+    const fetchLatestProcess = async () => {
+      console.log('[AIAutomationTab] Fetching latest scraping process for form ID:', formId)
+      setProcessFetching(true)
+      try {
+        const { data, error } = await supabase
+          .from('docs_scraping_processes')
+          .select('*')
+          .eq('form_id', formId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          console.error('[AIAutomationTab] Error fetching scraping process:', error)
+          return
+        }
+
+        if (data) {
+          console.log('[AIAutomationTab] Successfully fetched latest process:', data)
+          setLatestProcess(data as ScrapingProcess)
+          // If there's a running process, populate the input with its URL
+          if (data.status === 'in_progress') {
+            console.log('[AIAutomationTab] In-progress process found, setting URL to:', data.base_url)
+            setWebsiteUrl(data.base_url)
+          }
+        } else {
+          console.log('[AIAutomationTab] No previous scraping processes found for this form')
+        }
+      } catch (error) {
+        console.error('[AIAutomationTab] Exception when fetching scraping process:', error)
+      } finally {
+        setProcessFetching(false)
+      }
+    }
+
+    fetchLatestProcess()
+  }, [formId])
+
+  // Start a new scraping process
+  const startScrapingProcess = async () => {
+    if (!websiteUrl || !formId) return
+    
+    console.log('[AIAutomationTab] Starting new scraping process for URL:', websiteUrl, 'formId:', formId)
+    setIsLoading(true)
+    try {
+      // Call the start-crawl Netlify function
+      console.log('[AIAutomationTab] Calling start-crawl Netlify function with payload:', {
+        url: websiteUrl,
+        form_id: formId
+      })
+      
+      const response = await fetch('/.netlify/functions/start-crawl', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: websiteUrl,
+          form_id: formId
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[AIAutomationTab] Start-crawl function returned error:', errorData)
+        throw new Error(errorData.error || 'Failed to start scraping process')
+      }
+      
+      const data = await response.json()
+      console.log('[AIAutomationTab] Start-crawl function returned successfully:', data)
+      
+      // Update UI with new process
+      const newProcess: ScrapingProcess = {
+        id: data.process_id,
+        base_url: websiteUrl,
+        status: 'in_progress',
+        created_at: new Date().toISOString(),
+        completed_at: null,
+        scraped_urls: [],
+        error_message: null
+      }
+      
+      console.log('[AIAutomationTab] Created new process object for UI:', newProcess)
+      setLatestProcess(newProcess)
+      toast.success('Document scraping process started successfully')
+    } catch (error) {
+      console.error('[AIAutomationTab] Error starting scraping process:', error)
+      toast.error('Failed to start document scraping process')
+    } finally {
+      setIsLoading(false)
+      setConfirmDialogOpen(false)
+    }
+  }
+
+  // Format the status for display
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'in_progress':
+        return 'In Progress'
+      case 'completed':
+        return 'Completed'
+      case 'failed':
+        return 'Failed'
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1)
+    }
+  }
+
+  // Format the date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ''
+    
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date)
+  }
+
+  // Function to get status icon based on process status
+  const getStatusIcon = (status: string) => {
+    if (status === 'in_progress') {
+      return <Loader2 className="h-4 w-4 animate-spin" />;
+    } else if (status === 'failed') {
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
+    }
+    return null;
+  }
+
+  // Show toast for in-progress or failed status
+  useEffect(() => {
+    if (latestProcess) {
+      console.log('[AIAutomationTab] Process status changed or initialized:', latestProcess.status)
+      if (latestProcess.status === 'in_progress') {
+        toast.info(
+          "Scraping is in progress. This may take several minutes depending on the website size.",
+          { id: `scraping-${latestProcess.id}`, duration: 4000 }
+        );
+      } else if (latestProcess.status === 'failed' && latestProcess.error_message) {
+        console.log('[AIAutomationTab] Process failed with error:', latestProcess.error_message)
+        toast.error(latestProcess.error_message, 
+          { id: `scraping-error-${latestProcess.id}`, duration: 5000 }
+        );
+      } else if (latestProcess.status === 'completed') {
+        console.log('[AIAutomationTab] Process completed successfully, pages processed:', latestProcess.scraped_urls.length)
+      }
+    }
+  }, [latestProcess]);
+
+  // Log when component renders with current state
+  console.log('[AIAutomationTab] Rendering with state:', {
+    formId,
+    websiteUrl,
+    isLoading,
+    processFetching,
+    hasLatestProcess: !!latestProcess,
+    latestProcessStatus: latestProcess?.status
+  })
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <Label htmlFor="websiteUrl">Website to Scrape</Label>
+        <div className="flex gap-2">
+          <Input
+            id="websiteUrl"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            placeholder="https://example.com"
+            disabled={isLoading || (latestProcess?.status === 'in_progress')}
+          />
+          <Button 
+            onClick={() => setConfirmDialogOpen(true)}
+            disabled={!websiteUrl || isLoading || (latestProcess?.status === 'in_progress')}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing
+              </>
+            ) : (
+              <>
+                <Globe className="mr-2 h-4 w-4" />
+                Scrape
+              </>
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Enter the URL of the website you want to scrape for documentation content
+        </p>
+      </div>
+
+      {processFetching ? (
+        <div className="flex justify-center items-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : latestProcess ? (
+        <div className="space-y-4 mt-6">
+          <h3 className="text-sm font-medium">Latest Scraping Process</h3>
+          <div className="border rounded-md p-4">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-muted-foreground">URL:</div>
+              <div className="truncate">{latestProcess.base_url}</div>
+              
+              <div className="text-muted-foreground">Status:</div>
+              <div className={`font-medium flex items-center gap-2 ${
+                latestProcess.status === 'completed' 
+                  ? 'text-green-600' 
+                  : latestProcess.status === 'failed' 
+                    ? 'text-red-600' 
+                    : 'text-amber-600'
+              }`}>
+                {getStatusIcon(latestProcess.status)}
+                {formatStatus(latestProcess.status)}
+              </div>
+              
+              <div className="text-muted-foreground">Started:</div>
+              <div>{formatDate(latestProcess.created_at)}</div>
+              
+              {latestProcess.completed_at && (
+                <>
+                  <div className="text-muted-foreground">Completed:</div>
+                  <div>{formatDate(latestProcess.completed_at)}</div>
+                </>
+              )}
+              
+              <div className="text-muted-foreground">Pages Processed:</div>
+              <div>{latestProcess.scraped_urls.length}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start Website Scraping</AlertDialogTitle>
+            <AlertDialogDescription>
+              <p className="mb-2">
+                This will start scraping and processing content from <strong>{websiteUrl}</strong>.
+              </p>
+              <p className="mb-2">
+                The process may take several minutes depending on the website size. 
+                You can close this dialog and continue working while the process runs in the background.
+              </p>
+              <p>
+                We'll notify you by email once the scraping process is complete.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={startScrapingProcess}>Start Scraping</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+} 
