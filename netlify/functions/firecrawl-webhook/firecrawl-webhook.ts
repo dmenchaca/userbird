@@ -247,42 +247,61 @@ async function storeDocumentChunk(
   formId: string | undefined,
   sourceUrl: string,
   title: string,
-  processId?: string,
-  crawlTimestamp?: string
+  processId?: string
 ) {
   try {
-    // Log detailed information about the document being stored
-    console.log(`Storing document chunk to Supabase: "${content.substring(0, 50)}..."`);
-    console.log(`Form ID: ${formId || 'MISSING - THIS SHOULD NOT HAPPEN'}`);
-    console.log(`Source URL: ${sourceUrl}`);
-    console.log(`Title: ${title}`);
-    console.log(`Process ID: ${processId || 'Not provided'}`);
-    console.log(`Crawl Timestamp: ${crawlTimestamp || 'Not provided, will use current time'}`);
+    console.log(`Storing document chunk for form ${formId} with source URL: ${sourceUrl}`);
     
-    if (!formId) {
-      console.warn('WARNING: form_id is missing. This should not happen as it is now required!');
-    }
-    
-    // Store URL and other metadata in the metadata field
-    const metadata = {
-      sourceURL: sourceUrl,
+    // Prepare metadata for the document
+    const metadata: any = {
+      url: sourceUrl,
       title: title,
-      page: sourceUrl,
-      source: 'firecrawl',
-      blobType: 'text/markdown',
-      process_id: processId  // This is critical for identifying documents from a specific crawl
     };
     
-    // Create insert object with metadata
+    if (processId) {
+      metadata.process_id = processId;
+    }
+    
+    // Get the crawl_timestamp from the process if available
+    let crawlTimestamp: string | null = null;
+    
+    if (processId) {
+      try {
+        console.log(`Looking up crawl_timestamp for process ${processId}`);
+        const { data: process, error } = await client
+          .from('docs_scraping_processes')
+          .select('created_at, metadata')
+          .eq('id', processId)
+          .single();
+          
+        if (error) {
+          console.error(`Error fetching process ${processId}:`, error);
+        } else if (process) {
+          // First check if the timestamp was passed in metadata
+          if (process.metadata?.crawl_timestamp) {
+            crawlTimestamp = process.metadata.crawl_timestamp;
+            console.log(`[firecrawl-webhook] Found crawl_timestamp in process metadata: ${crawlTimestamp}`);
+          } else {
+            // Fall back to using the process created_at time
+            crawlTimestamp = process.created_at;
+            console.log(`[firecrawl-webhook] Using process created_at as crawl_timestamp: ${crawlTimestamp}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error getting crawl_timestamp from process:', error);
+      }
+    }
+    
     const insertData = {
       content,
       embedding,
       form_id: formId,
       metadata, // Store URL, title, and process_id in metadata
-      crawl_timestamp: crawlTimestamp || new Date().toISOString(), // Use provided timestamp or fallback to current time
+      crawl_timestamp: crawlTimestamp || new Date().toISOString(), // Use found timestamp or current time as fallback
       is_current: true  // Mark new documents as current by default
     };
     
+    console.log(`Inserting document with crawl_timestamp: ${insertData.crawl_timestamp}`);
     console.log('Inserting data into Supabase with form_id:', formId);
     
     const { data, error } = await client
@@ -378,11 +397,53 @@ const handler: Handler = async (event) => {
       console.log('First page metadata (detailed):', JSON.stringify(body.data[0].metadata));
     }
     
-    // Get the process_id and crawl_timestamp from the metadata if available
+    // Get the process_id from the metadata if available
     let processId = body.metadata?.process_id;
-    let crawlTimestamp = body.metadata?.crawl_timestamp;
     console.log('Process ID from webhook metadata:', processId || 'Not found');
-    console.log('Crawl timestamp from webhook metadata:', crawlTimestamp || 'Not found');
+
+    // Check for crawl_timestamp in metadata and log it
+    const crawlTimestamp = body.metadata?.crawl_timestamp;
+    console.log('[firecrawl-webhook] Crawl timestamp from webhook metadata:', crawlTimestamp || 'Not found');
+
+    // Get Supabase client
+    const supabaseClient = getSupabaseClient();
+    console.log('Supabase client initialized');
+
+    // Save the crawl_timestamp to the process metadata if needed
+    if (processId && crawlTimestamp) {
+      try {
+        // Get current metadata for the process
+        const { data: process, error: fetchError } = await supabaseClient
+          .from('docs_scraping_processes')
+          .select('metadata')
+          .eq('id', processId)
+          .single();
+          
+        if (fetchError) {
+          console.error(`Error fetching process ${processId}:`, fetchError);
+        } else {
+          // Update metadata with crawl_timestamp if not already present
+          const metadata = process.metadata || {};
+          if (!metadata.crawl_timestamp) {
+            metadata.crawl_timestamp = crawlTimestamp;
+            console.log(`[firecrawl-webhook] Saving crawl_timestamp to process ${processId} metadata:`, crawlTimestamp);
+            
+            const { error: updateError } = await supabaseClient
+              .from('docs_scraping_processes')
+              .update({ metadata })
+              .eq('id', processId);
+              
+            if (updateError) {
+              console.error(`Error updating process ${processId} with crawl_timestamp:`, updateError);
+            } else {
+              console.log(`[firecrawl-webhook] Successfully saved crawl_timestamp to process ${processId}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error saving crawl_timestamp to process:', error);
+      }
+    }
     
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
     const eventType = body.type || body.event;
@@ -406,10 +467,6 @@ const handler: Handler = async (event) => {
       };
     }
     
-    // Get Supabase client
-    const supabaseClient = getSupabaseClient();
-    console.log('Supabase client initialized');
-
     // Handle crawl.completed event specifically
     if (eventType === 'crawl.completed' && processId) {
       console.log(`Received crawl.completed event for process ${processId}`);
@@ -626,8 +683,7 @@ const handler: Handler = async (event) => {
           form_id,
           sourceURL,
           title,
-          processId,
-          crawlTimestamp
+          processId
         );
       }
     }

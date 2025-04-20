@@ -39,7 +39,7 @@ EXECUTE FUNCTION sync_document_crawl_timestamp();
 UPDATE documents d
 SET crawl_timestamp = p.created_at
 FROM docs_scraping_processes p
-WHERE (d.metadata->>'process_id')::text = p.id::text
+WHERE d.scraping_process_id = p.id
   AND (d.crawl_timestamp IS NULL OR d.crawl_timestamp != p.created_at);
 
 -- 6. Create a function to find the latest scraping process for a form

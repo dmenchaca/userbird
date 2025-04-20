@@ -130,7 +130,7 @@ const handler: Handler = async (event) => {
         metadata: { 
           form_id,
           process_id: scrapingProcess.id,  // Pass the tracking record ID
-          crawl_timestamp: scrapingProcess.created_at  // Add the timestamp
+          crawl_timestamp: scrapingProcess.created_at  // Pass the timestamp to use for documents
         },
         events: ["page"]
       },
@@ -141,6 +141,7 @@ const handler: Handler = async (event) => {
     };
     
     console.log('Sending request to Firecrawl with metadata:', JSON.stringify(firecrawlRequest.webhook.metadata));
+    console.log('[start-crawl] Including crawl_timestamp in metadata:', scrapingProcess.created_at);
 
     // Call Firecrawl API
     const response = await fetch(FIRECRAWL_API_URL, {
