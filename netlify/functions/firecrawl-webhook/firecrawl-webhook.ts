@@ -63,14 +63,9 @@ function splitIntoChunks(text: string, maxTokens = 500): string[] {
 }
 
 // Generate embeddings from OpenAI
-async function generateEmbedding(text: string, processId?: string, supabaseClient?: SupabaseClient) {
+async function generateEmbedding(text: string) {
   try {
     console.log('Generating embedding for text:', text.substring(0, 50) + '...');
-    
-    // Update process status to embedding if we have a process ID
-    if (processId && supabaseClient) {
-      await updateProcessStatus(supabaseClient, processId, 'embedding');
-    }
     
     const response = await openai.createEmbedding({
       model: 'text-embedding-ada-002',
@@ -140,7 +135,7 @@ async function trackScrapedUrl(
 async function updateProcessStatus(
   client: SupabaseClient,
   processId: string | undefined,
-  status: 'crawling' | 'extracting' | 'embedding' | 'saving' | 'completed' | 'failed',
+  status: 'completed' | 'failed',
   errorMessage?: string
 ) {
   if (!processId) {
@@ -152,45 +147,6 @@ async function updateProcessStatus(
     console.log(`Updating process ${processId} status to ${status}`);
     
     const updateData: any = { status };
-    
-    // Update current_step in metadata based on status
-    let currentStep = 0;
-    switch (status) {
-      case 'crawling':
-        currentStep = 0;
-        break;
-      case 'extracting':
-        currentStep = 1;
-        break;
-      case 'embedding':
-        currentStep = 2;
-        break;
-      case 'saving':
-        currentStep = 3;
-        break;
-      case 'completed':
-        currentStep = 4;
-        break;
-      case 'failed':
-        // Keep current step for failure
-        break;
-    }
-    
-    // Get current metadata to preserve other fields
-    const { data: process } = await client
-      .from('docs_scraping_processes')
-      .select('metadata')
-      .eq('id', processId)
-      .single();
-    
-    const metadata = process?.metadata || {};
-    
-    // Update metadata with current step
-    updateData.metadata = {
-      ...metadata,
-      current_step: currentStep
-    };
-    
     if (errorMessage) {
       updateData.error_message = errorMessage;
     }
@@ -205,7 +161,7 @@ async function updateProcessStatus(
       return;
     }
     
-    console.log(`Successfully updated process ${processId} status to ${status} with currentStep=${currentStep}`);
+    console.log(`Successfully updated process ${processId} status to ${status}`);
   } catch (error) {
     console.error('Error in updateProcessStatus:', error);
   }
@@ -384,11 +340,6 @@ const handler: Handler = async (event) => {
     const supabaseClient = getSupabaseClient();
     console.log('Supabase client initialized');
     
-    // If we have a process ID, update status to 'extracting'
-    if (processId) {
-      await updateProcessStatus(supabaseClient, processId, 'extracting');
-    }
-    
     // Process each page in the payload
     for (const page of body.data) {
       const { markdown, metadata } = page;
@@ -426,15 +377,10 @@ const handler: Handler = async (event) => {
       const chunks = splitIntoChunks(markdown);
       console.log(`Split content into ${chunks.length} chunks`);
       
-      // If we have a process ID and this is the first chunk of the first page, update to 'saving'
-      if (processId && body.data.indexOf(page) === 0 && chunks.length > 0) {
-        await updateProcessStatus(supabaseClient, processId, 'saving');
-      }
-      
       // Process each chunk
       for (const chunk of chunks) {
         // Generate embedding
-        const embedding = await generateEmbedding(chunk, processId, supabaseClient);
+        const embedding = await generateEmbedding(chunk);
         
         // Store in Supabase
         await storeDocumentChunk(
