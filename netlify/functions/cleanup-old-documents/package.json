@@ -1,0 +1,12 @@
+{
+  "name": "cleanup-old-documents",
+  "version": "1.0.0",
+  "description": "Netlify function to periodically clean up old document records marked with old_crawl=true",
+  "main": "cleanup-old-documents.js",
+  "author": "Userbird",
+  "license": "MIT",
+  "dependencies": {
+    "@netlify/functions": "^1.4.0",
+    "@supabase/supabase-js": "^2.7.1"
+  }
+} 

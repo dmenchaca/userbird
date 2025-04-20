@@ -409,10 +409,10 @@ const handler: Handler = async (event) => {
     if (eventType === 'crawl.completed' && processId) {
       console.log(`Received crawl.completed event for process ${processId}`);
       
-      // Get current process data
+      // Get current process data with form_id and created_at timestamp
       const { data: process, error: fetchError } = await supabaseClient
         .from('docs_scraping_processes')
-        .select('metadata, scraped_urls')
+        .select('form_id, created_at, metadata, scraped_urls')
         .eq('id', processId)
         .single();
       
@@ -435,6 +435,24 @@ const handler: Handler = async (event) => {
           // If no stats in webhook, use data length as expected pages
           metadata.expected_pages = body.data?.length || process.scraped_urls.length;
           console.log(`No taskStats in webhook, using data length (${body.data?.length}) or scraped_urls (${process.scraped_urls.length}) as expected pages`);
+        }
+        
+        // Only delete old documents if this crawl resulted in new data
+        if (process.scraped_urls && process.scraped_urls.length > 0) {
+          // Instead of deleting, mark old documents as old_crawl=true
+          const { error: updateError } = await supabaseClient
+            .from('documents')
+            .update({ old_crawl: true })
+            .eq('form_id', process.form_id)
+            .lt('crawl_timestamp', process.created_at);
+          
+          if (updateError) {
+            console.error(`Error marking old documents for form ${process.form_id}:`, updateError);
+          } else {
+            console.log(`Successfully marked old documents for form ${process.form_id} from before ${process.created_at} as old_crawl=true`);
+          }
+        } else {
+          console.log(`No scraped URLs found for process ${processId}, skipping old document marking`);
         }
         
         const { error: updateError } = await supabaseClient

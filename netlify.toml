@@ -8,6 +8,10 @@
   path = "/api/generate-reply"
   function = "generate-reply"
 
+# Scheduled function to clean up old documents
+[functions.cleanup-old-documents]
+  schedule = "@weekly" # Run once per week (or @daily for daily cleanup)
+
 [[redirects]]
   from = "https://userbird.co/*"
   to = "https://app.userbird.co/:splat"
