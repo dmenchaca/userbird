@@ -17,11 +17,21 @@ CREATE INDEX IF NOT EXISTS documents_crawl_timestamp_idx ON documents(crawl_time
 CREATE OR REPLACE FUNCTION sync_document_crawl_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Set the crawl_timestamp on the new document to match the scraping process's created_at
-  IF NEW.scraping_process_id IS NOT NULL THEN
+  -- If crawl_timestamp is already set, respect that value
+  IF NEW.crawl_timestamp IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  
+  -- If no crawl_timestamp set, try to get process_id from metadata
+  IF NEW.metadata IS NOT NULL AND NEW.metadata->>'process_id' IS NOT NULL THEN
     SELECT created_at INTO NEW.crawl_timestamp
     FROM docs_scraping_processes
-    WHERE id = NEW.scraping_process_id;
+    WHERE id = (NEW.metadata->>'process_id')::UUID;
+  END IF;
+  
+  -- If still no timestamp, use current timestamp
+  IF NEW.crawl_timestamp IS NULL THEN
+    NEW.crawl_timestamp = NOW();
   END IF;
   
   RETURN NEW;
@@ -36,11 +46,14 @@ FOR EACH ROW
 EXECUTE FUNCTION sync_document_crawl_timestamp();
 
 -- 5. Backfill existing documents with correct crawl_timestamp values
+-- This query only updates documents that have process_id in metadata
 UPDATE documents d
 SET crawl_timestamp = p.created_at
 FROM docs_scraping_processes p
-WHERE d.scraping_process_id = p.id
-  AND (d.crawl_timestamp IS NULL OR d.crawl_timestamp != p.created_at);
+WHERE p.id = (d.metadata->>'process_id')::UUID
+  AND (d.crawl_timestamp IS NULL OR d.crawl_timestamp != p.created_at)
+  AND d.metadata IS NOT NULL 
+  AND d.metadata->>'process_id' IS NOT NULL;
 
 -- 6. Create a function to find the latest scraping process for a form
 CREATE OR REPLACE FUNCTION get_latest_scraping_process_id(form_id_param UUID)

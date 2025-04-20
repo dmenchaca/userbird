@@ -252,7 +252,7 @@ async function storeDocumentChunk(
   try {
     console.log(`Storing document chunk for form ${formId} with source URL: ${sourceUrl}`);
     
-    // Prepare metadata for the document
+    // Prepare metadata for the document - include process_id here
     const metadata: any = {
       url: sourceUrl,
       title: title,
@@ -260,6 +260,7 @@ async function storeDocumentChunk(
     
     if (processId) {
       metadata.process_id = processId;
+      console.log(`Including process_id in metadata: ${processId}`);
     }
     
     // Get the crawl_timestamp from the process if available
@@ -292,21 +293,33 @@ async function storeDocumentChunk(
       }
     }
     
+    // Create the object to insert - ensure we don't include any scraping_process_id field
     const insertData = {
       content,
-      embedding,
+      embedding, 
       form_id: formId,
       metadata, // Store URL, title, and process_id in metadata
       crawl_timestamp: crawlTimestamp || new Date().toISOString(), // Use found timestamp or current time as fallback
       is_current: true  // Mark new documents as current by default
     };
     
-    console.log(`Inserting document with crawl_timestamp: ${insertData.crawl_timestamp}`);
+    // Log the full object structure being inserted to help debug
+    console.log(`Document insert structure:`, JSON.stringify(insertData, null, 2));
     console.log('Inserting data into Supabase with form_id:', formId);
     
+    // Insert the document - use explicit column names to avoid scraping_process_id issues
     const { data, error } = await client
       .from('documents')
-      .insert(insertData);
+      .insert([
+        {
+          content: insertData.content,
+          embedding: insertData.embedding,
+          form_id: insertData.form_id,
+          metadata: insertData.metadata,
+          crawl_timestamp: insertData.crawl_timestamp,
+          is_current: insertData.is_current
+        }
+      ]);
     
     if (error) {
       console.error('Error storing document chunk:', error);
