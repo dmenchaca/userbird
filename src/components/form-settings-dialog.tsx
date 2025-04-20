@@ -101,6 +101,7 @@ export function FormSettingsDialog({
   const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
+  const [latestScrapingProcess, setLatestScrapingProcess] = useState<any>(null)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -513,6 +514,49 @@ export function FormSettingsDialog({
       setGifUrls(urls);
     }
   }, [gifUrlsText, isInitialMount]);
+
+  // Fetch the latest scraping process when the dialog opens
+  useEffect(() => {
+    let mounted = true;
+    
+    if (open && formId) {
+      const fetchLatestScrapingProcess = async () => {
+        try {
+          console.log('[FormSettingsDialog] Fetching latest scraping process for form ID:', formId);
+          const { data, error } = await supabase
+            .from('docs_scraping_processes')
+            .select('*')
+            .eq('form_id', formId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+          if (!mounted) return;
+          
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('[FormSettingsDialog] Error fetching scraping process:', error);
+          } else if (data) {
+            console.log('[FormSettingsDialog] Successfully fetched scraping process:', data.id);
+            
+            // Ensure metadata is not null
+            data.metadata = data.metadata || {};
+            
+            setLatestScrapingProcess(data);
+          } else {
+            console.log('[FormSettingsDialog] No previous scraping processes found for this form');
+          }
+        } catch (error) {
+          console.error('[FormSettingsDialog] Exception when fetching scraping process:', error);
+        }
+      };
+      
+      fetchLatestScrapingProcess();
+    }
+    
+    return () => {
+      mounted = false;
+    };
+  }, [open, formId]);
 
   const handleAddEmail = async () => {
     setEmailError('');
@@ -1463,7 +1507,10 @@ export function FormSettingsDialog({
 
                 {activeTab === 'ai-automation' && (
                   <div className="space-y-6">
-                    <AIAutomationTab formId={formId} />
+                    <AIAutomationTab 
+                      formId={formId} 
+                      initialProcess={latestScrapingProcess} 
+                    />
                   </div>
                 )}
 

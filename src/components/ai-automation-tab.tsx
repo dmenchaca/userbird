@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 
 interface AIAutomationTabProps {
   formId: string
+  initialProcess?: ScrapingProcess | null
 }
 
 interface ScrapingProcess {
@@ -24,6 +25,7 @@ interface ScrapingProcess {
     pages_processed?: number
     expected_page_count?: number
     firecrawl_job_id?: string
+    error?: string
   }
 }
 
@@ -46,32 +48,51 @@ const markToastAsShown = (processId: string, status: string): void => {
   }
 };
 
-export function AIAutomationTab({ formId }: AIAutomationTabProps) {
+export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
-  const [processFetching, setProcessFetching] = useState(true)
+  const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(initialProcess || null)
   const [isMounted, setIsMounted] = useState(true)
 
   // Set initial state on mount and cleanup on unmount
   useEffect(() => {
+    console.log('[AIAutomationTab] Component mounted');
     setIsMounted(true);
     
     return () => {
+      console.log('[AIAutomationTab] Component unmounting');
       setIsMounted(false);
     };
   }, []);
 
-  // Fetch the latest scraping process on mount and set up real-time updates
+  // Add a useEffect to log when latestProcess changes
   useEffect(() => {
-    if (!formId || !isMounted) return;
+    if (latestProcess) {
+      console.log('[AIAutomationTab] Rendering with process data:', {
+        id: latestProcess.id,
+        status: latestProcess.status,
+        urls_count: latestProcess.scraped_urls?.length || 0,
+        created_at: latestProcess.created_at
+      });
+      
+      // If there's a running process, populate the input with its URL
+      if (latestProcess.status === 'in_progress') {
+        console.log('[AIAutomationTab] In-progress process found, setting URL to:', latestProcess.base_url)
+        setWebsiteUrl(latestProcess.base_url);
+      }
+    }
+  }, [latestProcess]);
+
+  // Fetch the latest scraping process only if initialProcess is not provided
+  useEffect(() => {
+    if (!formId || !isMounted || initialProcess) return;
 
     // Initial fetch only
     const fetchLatestProcess = async () => {
       console.log('[AIAutomationTab] Fetching latest scraping process for form ID:', formId)
-      setProcessFetching(true)
       try {
+        console.log('[AIAutomationTab] Making database query');
         const { data, error } = await supabase
           .from('docs_scraping_processes')
           .select('*')
@@ -85,75 +106,112 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
         if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
           console.error('[AIAutomationTab] Error fetching scraping process:', error)
         } else if (data) {
-          console.log('[AIAutomationTab] Successfully fetched latest process:', data);
+          console.log('[AIAutomationTab] Successfully fetched process with ID:', data.id);
           const processData = data as ScrapingProcess;
+          
+          // Log the initial data
+          console.log('[AIAutomationTab] Initial process data:', {
+            id: processData.id,
+            status: processData.status,
+            urls_count: processData.scraped_urls?.length || 0,
+            created_at: processData.created_at
+          });
           
           // Ensure metadata is not null
           processData.metadata = processData.metadata || {};
           
           // Set the initial state
           setLatestProcess(processData);
-          
-          // If there's a running process, populate the input with its URL
-          if (processData.status === 'in_progress') {
-            console.log('[AIAutomationTab] In-progress process found, setting URL to:', processData.base_url)
-            setWebsiteUrl(processData.base_url);
-          }
         } else {
           console.log('[AIAutomationTab] No previous scraping processes found for this form')
         }
       } catch (error) {
         console.error('[AIAutomationTab] Exception when fetching scraping process:', error)
-      } finally {
-        setProcessFetching(false);
       }
     };
 
-    // Initial fetch on mount
+    // Initial fetch on mount only if no initialProcess was provided
     fetchLatestProcess();
 
     // Set up real-time subscription for process updates
-    const subscription = supabase
-      .channel(`docs_scraping_processes:form_id=${formId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'docs_scraping_processes',
-        filter: `form_id=eq.${formId}`
-      }, (payload) => {
-        if (!isMounted) return;
-        
-        if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-          const newData = payload.new as ScrapingProcess;
-          
-          // Ensure metadata is not null
-          newData.metadata = newData.metadata || {};
-          
-          // Show toast for status changes
-          if (latestProcess && latestProcess.status !== newData.status) {  
-            if (newData.status === 'completed' && !hasToastBeenShown(newData.id, 'completed')) {
-              markToastAsShown(newData.id, 'completed');
-              toast.success('Scraping completed successfully.');
-            } else if (newData.status === 'failed' && !hasToastBeenShown(newData.id, 'failed')) {
-              markToastAsShown(newData.id, 'failed');
-              toast.error(newData.error_message || 'Process failed');
+    const setupRealtimeUpdates = (processId: string) => {
+      console.log(`[AIAutomationTab] Setting up real-time subscription for process: ${processId}`);
+      
+      const channel = supabase
+        .channel(`docs_scraping_process_${processId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'docs_scraping_processes',
+            filter: `id=eq.${processId}`,
+          },
+          (payload) => {
+            if (!isMounted) {
+              console.log('[AIAutomationTab] Received update but component is unmounted, ignoring');
+              return;
             }
+
+            const newData = payload.new as ScrapingProcess;
+            
+            console.log(`[AIAutomationTab] Real-time update received for process ${processId}:`, {
+              id: newData.id,
+              status: newData.status,
+              urls_count: newData.scraped_urls?.length || 0,
+              metadata: newData.metadata,
+              oldStatus: latestProcess?.status,
+              oldUrlsCount: latestProcess?.scraped_urls?.length || 0
+            });
+
+            // Only update state if there are meaningful changes
+            const statusChanged = newData.status !== latestProcess?.status;
+            const urlsCountChanged = (newData.scraped_urls?.length || 0) !== (latestProcess?.scraped_urls?.length || 0);
+            
+            if (statusChanged) {
+              console.log(`[AIAutomationTab] Status change detected: ${latestProcess?.status} -> ${newData.status}`);
+              if (newData.status === 'completed') {
+                console.log('[AIAutomationTab] Process completed successfully');
+                toast.success('Website scraping completed successfully!');
+              } else if (newData.status === 'failed') {
+                console.log('[AIAutomationTab] Process failed', newData.metadata?.error);
+                toast.error(`Website scraping failed: ${newData.metadata?.error || 'Unknown error'}`);
+              }
+            }
+
+            if (urlsCountChanged) {
+              const oldCount = latestProcess?.scraped_urls?.length || 0;
+              const newCount = newData.scraped_urls?.length || 0;
+              console.log(`[AIAutomationTab] Pages processed count changed: ${oldCount} -> ${newCount}`);
+            }
+
+            setLatestProcess(newData);
           }
+        )
+        .subscribe((status) => {
+          console.log(`[AIAutomationTab] Subscription status: ${status}`, status);
           
-          // Update the process data
-          setLatestProcess(newData);
-        }
-      })
-      .subscribe();
-    
-    return () => {
-      try {
-        subscription.unsubscribe();
-      } catch (error) {
-        console.error('[AIAutomationTab] Error unsubscribing from real-time updates:', error);
-      }
+          if (status === 'SUBSCRIBED') {
+            console.log(`[AIAutomationTab] Successfully subscribed to real-time updates for process ${processId}`);
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('[AIAutomationTab] Error subscribing to real-time updates');
+          } else if (status === 'TIMED_OUT') {
+            console.error('[AIAutomationTab] Subscription timed out');
+          }
+        });
+
+      return () => {
+        console.log(`[AIAutomationTab] Unsubscribing from real-time updates for process ${processId}`);
+        channel.unsubscribe();
+      };
     };
-  }, [formId, isMounted]); 
+
+    // Set up real-time updates for each existing process
+    if (latestProcess) {
+      setupRealtimeUpdates(latestProcess.id);
+      console.log('[AIAutomationTab] Real-time subscription established');
+    }
+  }, [formId, isMounted, initialProcess]); 
 
   // Start a new scraping process
   const startScrapingProcess = async () => {
@@ -293,11 +351,7 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
         </p>
       </div>
 
-      {processFetching ? (
-        <div className="flex justify-center items-center py-4">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : latestProcess ? (
+      {latestProcess ? (
         <div className="space-y-4 mt-6">
           <h3 className="text-sm font-medium">Latest Scraping Process</h3>
           <div className="border rounded-md p-4">
