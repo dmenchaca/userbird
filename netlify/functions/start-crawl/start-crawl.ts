@@ -129,7 +129,8 @@ const handler: Handler = async (event) => {
         url: webhookUrl,
         metadata: { 
           form_id,
-          process_id: scrapingProcess.id  // Pass the tracking record ID
+          process_id: scrapingProcess.id,  // Pass the tracking record ID
+          crawl_timestamp: scrapingProcess.created_at  // Add the timestamp
         },
         events: ["page"]
       },

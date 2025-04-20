@@ -247,7 +247,8 @@ async function storeDocumentChunk(
   formId: string | undefined,
   sourceUrl: string,
   title: string,
-  processId?: string
+  processId?: string,
+  crawlTimestamp?: string
 ) {
   try {
     // Log detailed information about the document being stored
@@ -256,6 +257,7 @@ async function storeDocumentChunk(
     console.log(`Source URL: ${sourceUrl}`);
     console.log(`Title: ${title}`);
     console.log(`Process ID: ${processId || 'Not provided'}`);
+    console.log(`Crawl Timestamp: ${crawlTimestamp || 'Not provided, will use current time'}`);
     
     if (!formId) {
       console.warn('WARNING: form_id is missing. This should not happen as it is now required!');
@@ -277,7 +279,7 @@ async function storeDocumentChunk(
       embedding,
       form_id: formId,
       metadata, // Store URL, title, and process_id in metadata
-      crawl_timestamp: new Date().toISOString(),
+      crawl_timestamp: crawlTimestamp || new Date().toISOString(), // Use provided timestamp or fallback to current time
       is_current: true  // Mark new documents as current by default
     };
     
@@ -376,9 +378,11 @@ const handler: Handler = async (event) => {
       console.log('First page metadata (detailed):', JSON.stringify(body.data[0].metadata));
     }
     
-    // Get the process_id from the metadata if available
+    // Get the process_id and crawl_timestamp from the metadata if available
     let processId = body.metadata?.process_id;
+    let crawlTimestamp = body.metadata?.crawl_timestamp;
     console.log('Process ID from webhook metadata:', processId || 'Not found');
+    console.log('Crawl timestamp from webhook metadata:', crawlTimestamp || 'Not found');
     
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
     const eventType = body.type || body.event;
@@ -622,7 +626,8 @@ const handler: Handler = async (event) => {
           form_id,
           sourceURL,
           title,
-          processId
+          processId,
+          crawlTimestamp
         );
       }
     }
