@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Globe, AlertCircle, Download, Check, ChevronDown, Clock } from 'lucide-react'
+import { Loader2, Globe, AlertCircle, Download, Check, Clock } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
