@@ -19,6 +19,12 @@ interface ScrapingProcess {
   completed_at: string | null
   scraped_urls: string[]
   error_message: string | null
+  metadata?: {
+    crawl_complete?: boolean
+    pages_processed?: number
+    expected_page_count?: number
+    firecrawl_job_id?: string
+  }
 }
 
 // Helper functions for localStorage toast tracking
@@ -50,16 +56,38 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
   const [initialRender, setInitialRender] = useState(true)
   // Track the previous process status to detect real changes
   const [prevProcessStatus, setPrevProcessStatus] = useState<string | null>(null)
+  // Track whether component is mounted to prevent state updates after unmounting
+  const [isMounted, setIsMounted] = useState(true)
 
-  // Set initialRender to false after first render
+  // Set initial state on mount and cleanup on unmount
   useEffect(() => {
     setInitialRender(false);
+    setIsMounted(true);
+    
+    return () => {
+      setIsMounted(false);
+    };
   }, []);
+
+  // Function to safely update state only if component is mounted
+  const safeSetLatestProcess = (data: ScrapingProcess | null) => {
+    if (isMounted) {
+      setLatestProcess(data);
+    }
+  };
+
+  // Function to safely update prevProcessStatus only if component is mounted
+  const safeSetPrevProcessStatus = (status: string | null) => {
+    if (isMounted) {
+      setPrevProcessStatus(status);
+    }
+  };
 
   // Fetch the latest scraping process on mount and when form ID changes
   useEffect(() => {
-    if (!formId) return
+    if (!formId || !isMounted) return;
 
+    let isActive = true;
     const fetchLatestProcess = async () => {
       console.log('[AIAutomationTab] Fetching latest scraping process for form ID:', formId)
       setProcessFetching(true)
@@ -72,21 +100,45 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
           .limit(1)
           .single()
 
+        if (!isActive || !isMounted) return;
+        
         if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
           console.error('[AIAutomationTab] Error fetching scraping process:', error)
-          return
+          return;
         }
 
         if (data) {
-          console.log('[AIAutomationTab] Successfully fetched latest process:', data)
+          console.log('[AIAutomationTab] Successfully fetched latest process:', data);
           const processData = data as ScrapingProcess;
-          setLatestProcess(processData)
-          setPrevProcessStatus(processData.status);
+          
+          // Apply some processing to the fetched data to ensure consistency
+          processData.metadata = processData.metadata || {};
+          
+          // If status is "completed" but the expected page count doesn't match processed count,
+          // we'll display our own calculated status
+          if (processData.status === 'completed' && 
+              processData.metadata.crawl_complete === true &&
+              typeof processData.metadata.pages_processed === 'number' &&
+              typeof processData.metadata.expected_page_count === 'number' &&
+              processData.metadata.pages_processed < processData.metadata.expected_page_count) {
+            
+            // This is just for UI display - doesn't affect the database
+            console.log('[AIAutomationTab] Overriding completed status because processing is still ongoing');
+            const displayProcess = {...processData};
+            displayProcess.status = 'in_progress';
+            safeSetLatestProcess(displayProcess);
+            safeSetPrevProcessStatus(processData.status);
+          } else {
+            safeSetLatestProcess(processData);
+            safeSetPrevProcessStatus(processData.status);
+          }
           
           // If there's a running process, populate the input with its URL
-          if (data.status === 'in_progress') {
-            console.log('[AIAutomationTab] In-progress process found, setting URL to:', data.base_url)
-            setWebsiteUrl(data.base_url)
+          if (processData.status === 'in_progress') {
+            console.log('[AIAutomationTab] In-progress process found, setting URL to:', processData.base_url)
+            if (isMounted) {
+              setWebsiteUrl(processData.base_url);
+            }
           }
         } else {
           console.log('[AIAutomationTab] No previous scraping processes found for this form')
@@ -94,57 +146,98 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
       } catch (error) {
         console.error('[AIAutomationTab] Exception when fetching scraping process:', error)
       } finally {
-        setProcessFetching(false)
+        if (isMounted) {
+          setProcessFetching(false);
+        }
       }
     }
 
-    fetchLatestProcess()
+    fetchLatestProcess();
 
     // Set up real-time subscription for process updates
-    const subscription = supabase
-      .channel(`docs_scraping_processes:form_id=${formId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'docs_scraping_processes',
-        filter: `form_id=eq.${formId}`
-      }, (payload) => {
-        console.log('[AIAutomationTab] Real-time update received:', payload)
-        
-        if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-          // Check if this is our current process - by comparing with the latest one we have
-          if (latestProcess && payload.new.id === latestProcess.id) {
-            console.log('[AIAutomationTab] Updating our current process with real-time data')
-            // Store the previous status before updating
-            setPrevProcessStatus(latestProcess.status);
-            setLatestProcess(payload.new as ScrapingProcess)
-          } else {
-            // This could be a new process that's more recent than what we have
-            console.log('[AIAutomationTab] New process detected, fetching latest')
-            fetchLatestProcess()
+    let subscription: { unsubscribe: () => void } | null = null;
+    
+    try {
+      subscription = supabase
+        .channel(`docs_scraping_processes:form_id=${formId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'docs_scraping_processes',
+          filter: `form_id=eq.${formId}`
+        }, (payload) => {
+          if (!isActive || !isMounted) return;
+          
+          console.log('[AIAutomationTab] Real-time update received:', payload);
+          
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+            const newData = payload.new as ScrapingProcess;
+            
+            // Check if this is our current process
+            if (latestProcess && newData.id === latestProcess.id) {
+              console.log('[AIAutomationTab] Updating our current process with real-time data');
+              
+              // Store the previous status before updating
+              safeSetPrevProcessStatus(latestProcess.status);
+              
+              // Apply the same consistency processing as in the fetch function
+              newData.metadata = newData.metadata || {};
+              
+              // If status is "completed" but the expected page count doesn't match processed count,
+              // override the displayed status for UI consistency
+              if (newData.status === 'completed' && 
+                  newData.metadata.crawl_complete === true &&
+                  typeof newData.metadata.pages_processed === 'number' &&
+                  typeof newData.metadata.expected_page_count === 'number' &&
+                  newData.metadata.pages_processed < newData.metadata.expected_page_count) {
+                
+                console.log('[AIAutomationTab] Overriding completed status from real-time update');
+                const displayData = {...newData};
+                displayData.status = 'in_progress';
+                safeSetLatestProcess(displayData);
+              } else {
+                safeSetLatestProcess(newData);
+              }
+            } else {
+              // This could be a new process that's more recent than what we have
+              console.log('[AIAutomationTab] New process detected, fetching latest');
+              fetchLatestProcess();
+            }
           }
-        }
-      })
-      .subscribe()
+        })
+        .subscribe();
+      
+      console.log('[AIAutomationTab] Real-time subscription established');
+    } catch (error) {
+      console.error('[AIAutomationTab] Error setting up real-time subscription:', error);
+    }
 
     return () => {
-      console.log('[AIAutomationTab] Cleaning up real-time subscription')
-      subscription.unsubscribe()
-    }
-  }, [formId, latestProcess?.id])
+      isActive = false;
+      
+      if (subscription) {
+        console.log('[AIAutomationTab] Cleaning up real-time subscription');
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          console.error('[AIAutomationTab] Error unsubscribing from real-time updates:', error);
+        }
+      }
+    };
+  }, [formId, isMounted]);
 
   // Start a new scraping process
   const startScrapingProcess = async () => {
-    if (!websiteUrl || !formId) return
+    if (!websiteUrl || !formId || !isMounted) return;
     
-    console.log('[AIAutomationTab] Starting new scraping process for URL:', websiteUrl, 'formId:', formId)
-    setIsLoading(true)
+    console.log('[AIAutomationTab] Starting new scraping process for URL:', websiteUrl, 'formId:', formId);
+    setIsLoading(true);
     try {
       // Call the start-crawl Netlify function
       console.log('[AIAutomationTab] Calling start-crawl Netlify function with payload:', {
         url: websiteUrl,
         form_id: formId
-      })
+      });
       
       const response = await fetch('/.netlify/functions/start-crawl', {
         method: 'POST',
@@ -155,16 +248,16 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
           url: websiteUrl,
           form_id: formId
         }),
-      })
+      });
       
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('[AIAutomationTab] Start-crawl function returned error:', errorData)
-        throw new Error(errorData.error || 'Failed to start scraping process')
+        const errorData = await response.json();
+        console.error('[AIAutomationTab] Start-crawl function returned error:', errorData);
+        throw new Error(errorData.error || 'Failed to start scraping process');
       }
       
-      const data = await response.json()
-      console.log('[AIAutomationTab] Start-crawl function returned successfully:', data)
+      const data = await response.json();
+      console.log('[AIAutomationTab] Start-crawl function returned successfully:', data);
       
       // Update UI with new process
       const newProcess: ScrapingProcess = {
@@ -174,49 +267,54 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
         created_at: new Date().toISOString(),
         completed_at: null,
         scraped_urls: [],
-        error_message: null
-      }
+        error_message: null,
+        metadata: {
+          firecrawl_job_id: data.id
+        }
+      };
       
-      console.log('[AIAutomationTab] Created new process object for UI:', newProcess)
-      setPrevProcessStatus(null); // Reset previous status for the new process
-      setLatestProcess(newProcess)
-      toast.success('Document scraping process started successfully')
+      console.log('[AIAutomationTab] Created new process object for UI:', newProcess);
+      safeSetPrevProcessStatus(null); // Reset previous status for the new process
+      safeSetLatestProcess(newProcess);
+      toast.success('Document scraping process started successfully');
     } catch (error) {
-      console.error('[AIAutomationTab] Error starting scraping process:', error)
-      toast.error('Failed to start document scraping process')
+      console.error('[AIAutomationTab] Error starting scraping process:', error);
+      toast.error('Failed to start document scraping process');
     } finally {
-      setIsLoading(false)
-      setConfirmDialogOpen(false)
+      if (isMounted) {
+        setIsLoading(false);
+        setConfirmDialogOpen(false);
+      }
     }
-  }
+  };
 
   // Format the status for display
   const formatStatus = (status: string) => {
     switch (status) {
       case 'in_progress':
-        return 'In Progress'
+        return 'In Progress';
       case 'completed':
-        return 'Completed'
+        return 'Completed';
       case 'failed':
-        return 'Failed'
+        return 'Failed';
       default:
-        return status.charAt(0).toUpperCase() + status.slice(1)
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
-  }
+  };
 
   // Format the date for display
   const formatDate = (dateString: string) => {
-    if (!dateString) return ''
+    if (!dateString) return '';
     
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date)
-  }
+    }).format(date);
+  };
 
   // Function to get status icon based on process status
   const getStatusIcon = (status: string) => {
@@ -226,11 +324,11 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
       return <AlertCircle className="h-4 w-4 text-destructive" />;
     }
     return null;
-  }
+  };
 
   // Show toast for in-progress or failed status, but only for real status changes, not re-renders
   useEffect(() => {
-    if (!latestProcess || initialRender) return;
+    if (!latestProcess || initialRender || !isMounted) return;
     
     // Check if status has actually changed from previous state
     const statusChanged = latestProcess.status !== prevProcessStatus;
@@ -262,24 +360,32 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
       } 
       else if (latestProcess.status === 'completed' && !hasToastBeenShown(processId, 'completed')) {
         markToastAsShown(processId, 'completed');
-        console.log('[AIAutomationTab] Process completed successfully, pages processed:', latestProcess.scraped_urls.length);
+        console.log('[AIAutomationTab] Process completed successfully, pages processed:', 
+          latestProcess.scraped_urls ? latestProcess.scraped_urls.length : 0
+        );
+        
+        // Get page count safely
+        const pageCount = latestProcess.scraped_urls && Array.isArray(latestProcess.scraped_urls) 
+          ? latestProcess.scraped_urls.length 
+          : 0;
+          
         toast.success(
-          `Scraping completed successfully. ${latestProcess.scraped_urls.length} pages processed.`,
+          `Scraping completed successfully. ${pageCount} pages processed.`,
           { id: `scraping-completed-${processId}`, duration: 4000 }
         );
         console.log('[AIAutomationTab] Showed completed toast');
       }
       
       // Update previous status
-      setPrevProcessStatus(latestProcess.status);
+      safeSetPrevProcessStatus(latestProcess.status);
     }
-  }, [latestProcess, initialRender, prevProcessStatus]);
+  }, [latestProcess, initialRender, prevProcessStatus, isMounted]);
 
   // Function to download scraped URLs as CSV
   const downloadScrapedUrlsCSV = () => {
-    if (!latestProcess || !latestProcess.scraped_urls.length) return;
+    if (!latestProcess || !latestProcess.scraped_urls || !latestProcess.scraped_urls.length) return;
 
-    console.log('[AIAutomationTab] Generating CSV for download with', latestProcess.scraped_urls.length, 'URLs')
+    console.log('[AIAutomationTab] Generating CSV for download with', latestProcess.scraped_urls.length, 'URLs');
     
     // Create CSV content
     const csvContent = [
@@ -303,6 +409,26 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     toast.success('CSV file downloaded successfully');
   };
 
+  // Get the page count to display in the UI
+  const getDisplayedPageCount = (): number => {
+    if (!latestProcess || !latestProcess.scraped_urls) return 0;
+    
+    try {
+      // If process is completed and we have an expected page count in metadata, use that for consistency
+      if (latestProcess.status === 'completed' && 
+          latestProcess.metadata?.expected_page_count &&
+          typeof latestProcess.metadata.expected_page_count === 'number') {
+        return latestProcess.metadata.expected_page_count;
+      }
+      
+      // Otherwise, use the actual length of scraped_urls array
+      return Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
+    } catch (e) {
+      console.error('[AIAutomationTab] Error calculating page count:', e);
+      return 0;
+    }
+  };
+
   // Log when component renders with current state
   console.log('[AIAutomationTab] Rendering with state:', {
     formId,
@@ -312,7 +438,8 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     hasLatestProcess: !!latestProcess,
     latestProcessStatus: latestProcess?.status,
     initialRender,
-    prevProcessStatus
+    prevProcessStatus,
+    isMounted
   });
 
   return (
@@ -384,10 +511,10 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
               )}
               
               <div className="text-muted-foreground">Pages Processed:</div>
-              <div>{latestProcess.scraped_urls.length}</div>
+              <div>{getDisplayedPageCount()}</div>
             </div>
 
-            {latestProcess.status === 'completed' && latestProcess.scraped_urls.length > 0 && (
+            {latestProcess.status === 'completed' && latestProcess.scraped_urls && latestProcess.scraped_urls.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <Button 
                   variant="outline" 
