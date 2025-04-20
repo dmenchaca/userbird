@@ -167,6 +167,62 @@ async function updateProcessStatus(
   }
 }
 
+// Update processing progress and check if all documents are processed
+async function updateProcessingProgress(
+  client: SupabaseClient,
+  processId: string | undefined
+) {
+  if (!processId) {
+    console.warn('No process_id provided, cannot update processing progress');
+    return;
+  }
+  
+  try {
+    // Get current process data
+    const { data: process, error: fetchError } = await client
+      .from('docs_scraping_processes')
+      .select('metadata, scraped_urls')
+      .eq('id', processId)
+      .single();
+    
+    if (fetchError) {
+      console.error(`Error fetching process ${processId}:`, fetchError);
+      return;
+    }
+    
+    // Initialize metadata if needed
+    const metadata = process.metadata || {};
+    
+    // Increment processed pages counter
+    metadata.pages_processed = (metadata.pages_processed || 0) + 1;
+    
+    console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${process.scraped_urls.length} pages`);
+    
+    // Check if all pages are processed
+    const isComplete = metadata.crawl_complete && metadata.pages_processed >= process.scraped_urls.length;
+    
+    // Update metadata
+    const { error: updateError } = await client
+      .from('docs_scraping_processes')
+      .update({ 
+        metadata,
+        status: isComplete ? 'completed' : 'in_progress'
+      })
+      .eq('id', processId);
+    
+    if (updateError) {
+      console.error(`Error updating process ${processId} progress:`, updateError);
+      return;
+    }
+    
+    if (isComplete) {
+      console.log(`Process ${processId} completed: All ${metadata.pages_processed} pages processed`);
+    }
+  } catch (error) {
+    console.error('Error in updateProcessingProgress:', error);
+  }
+}
+
 // Store a document chunk in Supabase
 async function storeDocumentChunk(
   client: SupabaseClient,
@@ -225,6 +281,9 @@ async function storeDocumentChunk(
     // Track the scraped URL in the process record if we have a process ID
     if (processId) {
       await trackScrapedUrl(client, processId, sourceUrl);
+      
+      // Update processing progress for this chunk
+      await updateProcessingProgress(client, processId);
     }
     
     return data;
@@ -327,7 +386,36 @@ const handler: Handler = async (event) => {
       // If we have a process ID and this seems to be a completion with no data, mark it appropriately
       if (processId && body.success === true) {
         const supabaseClient = getSupabaseClient();
-        await updateProcessStatus(supabaseClient, processId, 'completed');
+        
+        // Instead of marking as completed, update metadata to indicate crawl is complete
+        const { data: process, error: getError } = await supabaseClient
+          .from('docs_scraping_processes')
+          .select('metadata')
+          .eq('id', processId)
+          .single();
+          
+        if (getError) {
+          console.error(`Error retrieving process ${processId}:`, getError);
+        } else {
+          // Update metadata to flag crawl as complete, but don't change status yet
+          const metadata = process.metadata || {};
+          metadata.crawl_complete = true;
+          metadata.expected_pages = body.data?.length || 0;
+          
+          const { error: updateError } = await supabaseClient
+            .from('docs_scraping_processes')
+            .update({ metadata })
+            .eq('id', processId);
+            
+          if (updateError) {
+            console.error(`Error updating process ${processId} metadata:`, updateError);
+          } else {
+            console.log(`Marked process ${processId} crawl as complete in metadata`);
+            
+            // Check if pages have been processed
+            await updateProcessingProgress(supabaseClient, processId);
+          }
+        }
       }
       
       return {
@@ -339,6 +427,35 @@ const handler: Handler = async (event) => {
     // Get Supabase client
     const supabaseClient = getSupabaseClient();
     console.log('Supabase client initialized');
+    
+    // If this is a completion event, update the metadata to mark crawl as complete
+    if (body.success === true && processId) {
+      const { data: process, error: getError } = await supabaseClient
+        .from('docs_scraping_processes')
+        .select('metadata, scraped_urls')
+        .eq('id', processId)
+        .single();
+        
+      if (getError) {
+        console.error(`Error retrieving process ${processId}:`, getError);
+      } else {
+        // Update metadata to flag crawl as complete
+        const metadata = process.metadata || {};
+        metadata.crawl_complete = true;
+        metadata.expected_pages = body.data.length;
+        
+        const { error: updateError } = await supabaseClient
+          .from('docs_scraping_processes')
+          .update({ metadata })
+          .eq('id', processId);
+          
+        if (updateError) {
+          console.error(`Error updating process ${processId} metadata:`, updateError);
+        } else {
+          console.log(`Marked process ${processId} crawl as complete, expected pages: ${body.data.length}`);
+        }
+      }
+    }
     
     // Process each page in the payload
     for (const page of body.data) {
@@ -395,9 +512,9 @@ const handler: Handler = async (event) => {
       }
     }
     
-    // If this appears to be the final payload and we have a process ID, mark it as completed
-    if (body.success === true && processId) {
-      await updateProcessStatus(supabaseClient, processId, 'completed');
+    // Check if all pages have been processed - updateProcessingProgress will mark as completed if appropriate
+    if (processId) {
+      await updateProcessingProgress(supabaseClient, processId);
     }
     
     console.log('Successfully processed all pages and stored chunks in Supabase');
