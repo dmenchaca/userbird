@@ -111,27 +111,12 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
           console.log('[AIAutomationTab] Successfully fetched latest process:', data);
           const processData = data as ScrapingProcess;
           
-          // Apply some processing to the fetched data to ensure consistency
+          // Ensure metadata is not null
           processData.metadata = processData.metadata || {};
           
-          // If status is "completed" but the expected page count doesn't match processed count,
-          // we'll display our own calculated status
-          if (processData.status === 'completed' && 
-              processData.metadata.crawl_complete === true &&
-              typeof processData.metadata.pages_processed === 'number' &&
-              typeof processData.metadata.expected_page_count === 'number' &&
-              processData.metadata.pages_processed < processData.metadata.expected_page_count) {
-            
-            // This is just for UI display - doesn't affect the database
-            console.log('[AIAutomationTab] Overriding completed status because processing is still ongoing');
-            const displayProcess = {...processData};
-            displayProcess.status = 'in_progress';
-            safeSetLatestProcess(displayProcess);
-            safeSetPrevProcessStatus(processData.status);
-          } else {
-            safeSetLatestProcess(processData);
-            safeSetPrevProcessStatus(processData.status);
-          }
+          // Simplified approach: trust the status from the database
+          safeSetLatestProcess(processData);
+          safeSetPrevProcessStatus(processData.status);
           
           // If there's a running process, populate the input with its URL
           if (processData.status === 'in_progress') {
@@ -180,24 +165,11 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
               // Store the previous status before updating
               safeSetPrevProcessStatus(latestProcess.status);
               
-              // Apply the same consistency processing as in the fetch function
+              // Ensure metadata is not null
               newData.metadata = newData.metadata || {};
               
-              // If status is "completed" but the expected page count doesn't match processed count,
-              // override the displayed status for UI consistency
-              if (newData.status === 'completed' && 
-                  newData.metadata.crawl_complete === true &&
-                  typeof newData.metadata.pages_processed === 'number' &&
-                  typeof newData.metadata.expected_page_count === 'number' &&
-                  newData.metadata.pages_processed < newData.metadata.expected_page_count) {
-                
-                console.log('[AIAutomationTab] Overriding completed status from real-time update');
-                const displayData = {...newData};
-                displayData.status = 'in_progress';
-                safeSetLatestProcess(displayData);
-              } else {
-                safeSetLatestProcess(newData);
-              }
+              // Simplified approach: trust the status from the database
+              safeSetLatestProcess(newData);
             } else {
               // This could be a new process that's more recent than what we have
               console.log('[AIAutomationTab] New process detected, fetching latest');
@@ -409,24 +381,12 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     toast.success('CSV file downloaded successfully');
   };
 
-  // Get the page count to display in the UI
+  // Get the page count to display in the UI - simplified approach
   const getDisplayedPageCount = (): number => {
     if (!latestProcess || !latestProcess.scraped_urls) return 0;
     
-    try {
-      // If process is completed and we have an expected page count in metadata, use that for consistency
-      if (latestProcess.status === 'completed' && 
-          latestProcess.metadata?.expected_page_count &&
-          typeof latestProcess.metadata.expected_page_count === 'number') {
-        return latestProcess.metadata.expected_page_count;
-      }
-      
-      // Otherwise, use the actual length of scraped_urls array
-      return Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
-    } catch (e) {
-      console.error('[AIAutomationTab] Error calculating page count:', e);
-      return 0;
-    }
+    // Simply use the scraped_urls length for consistency and simplicity
+    return Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
   };
 
   // Log when component renders with current state
