@@ -591,15 +591,23 @@ export function FormSettingsDialog({
     setGifUrlsText(initialGifUrls.join('\n'));
   };
 
+  // Set form values when props change
   useEffect(() => {
     setColor(buttonColor);
     setText(supportText || '');
     setUrl(formUrl);
+    setProduct(productName || '');
     setShortcut(keyboardShortcut || '');
     setSoundEnabled(initialSoundEnabled);
     setShowGifOnSuccess(initialShowGifOnSuccess);
     setRemoveBranding(initialRemoveBranding);
-  }, [buttonColor, supportText, formUrl, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding]);
+    
+    // Debug log to verify productName is being received correctly
+    console.log('[FormSettingsDialog] Updated product name from props:', {
+      receivedProductName: productName,
+      setProductValue: productName || ''
+    });
+  }, [buttonColor, supportText, formUrl, productName, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding]);
 
   // Auto-save sound enabled state
   /*
