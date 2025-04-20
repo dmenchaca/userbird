@@ -268,16 +268,17 @@ async function storeDocumentChunk(
       page: sourceUrl,
       source: 'firecrawl',
       blobType: 'text/markdown',
-      process_id: processId
+      process_id: processId  // This is critical for identifying documents from a specific crawl
     };
     
-    // Create insert object with metadata, but without title field
+    // Create insert object with metadata
     const insertData = {
       content,
       embedding,
       form_id: formId,
-      metadata, // Store URL and title in metadata
+      metadata, // Store URL, title, and process_id in metadata
       crawl_timestamp: new Date().toISOString(),
+      is_current: true  // Mark new documents as current by default
     };
     
     console.log('Inserting data into Supabase with form_id:', formId);
@@ -291,7 +292,7 @@ async function storeDocumentChunk(
       throw error;
     }
     
-    console.log('Successfully stored document chunk in Supabase with metadata containing sourceURL and title');
+    console.log('Successfully stored document chunk in Supabase with process_id in metadata');
     console.log('Form ID confirmed in database record:', formId);
     
     // Track the scraped URL in the process record if we have a process ID
@@ -437,22 +438,35 @@ const handler: Handler = async (event) => {
           console.log(`No taskStats in webhook, using data length (${body.data?.length}) or scraped_urls (${process.scraped_urls.length}) as expected pages`);
         }
         
-        // Only delete old documents if this crawl resulted in new data
+        // Only update documents if this crawl resulted in new data
         if (process.scraped_urls && process.scraped_urls.length > 0) {
-          // Instead of marking old_crawl=true, set is_current=false
-          const { error: updateError } = await supabaseClient
+          // MODIFIED APPROACH: First mark ALL documents for this form as not current
+          const formId = process.form_id;
+          const { error: markAllError } = await supabaseClient
             .from('documents')
             .update({ is_current: false })
-            .eq('form_id', process.form_id)
-            .lt('crawl_timestamp', process.created_at);
+            .eq('form_id', formId);
           
-          if (updateError) {
-            console.error(`Error marking old documents for form ${process.form_id}:`, updateError);
+          if (markAllError) {
+            console.error(`Error marking all documents as not current for form ${formId}:`, markAllError);
           } else {
-            console.log(`Successfully marked old documents for form ${process.form_id} from before ${process.created_at} as is_current=false`);
+            console.log(`Successfully marked all existing documents for form ${formId} as is_current=false`);
+            
+            // Now mark documents from THIS crawl as current - using the process_id in metadata
+            const { error: markCurrentError } = await supabaseClient
+              .from('documents')
+              .update({ is_current: true })
+              .eq('form_id', formId)
+              .contains('metadata', { process_id: processId });
+            
+            if (markCurrentError) {
+              console.error(`Error marking current documents for process ${processId}:`, markCurrentError);
+            } else {
+              console.log(`Successfully marked documents from current process ${processId} as is_current=true`);
+            }
           }
         } else {
-          console.log(`No scraped URLs found for process ${processId}, skipping old document marking`);
+          console.log(`No scraped URLs found for process ${processId}, skipping document marking`);
         }
         
         const { error: updateError } = await supabaseClient
