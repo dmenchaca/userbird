@@ -1,7 +1,7 @@
 {
   "name": "cleanup-old-documents",
   "version": "1.0.0",
-  "description": "Netlify function to periodically clean up old document records marked with old_crawl=true",
+  "description": "Netlify function to periodically clean up old document records marked with is_current=false",
   "main": "cleanup-old-documents.js",
   "author": "Userbird",
   "license": "MIT",

@@ -439,17 +439,17 @@ const handler: Handler = async (event) => {
         
         // Only delete old documents if this crawl resulted in new data
         if (process.scraped_urls && process.scraped_urls.length > 0) {
-          // Instead of deleting, mark old documents as old_crawl=true
+          // Instead of marking old_crawl=true, set is_current=false
           const { error: updateError } = await supabaseClient
             .from('documents')
-            .update({ old_crawl: true })
+            .update({ is_current: false })
             .eq('form_id', process.form_id)
             .lt('crawl_timestamp', process.created_at);
           
           if (updateError) {
             console.error(`Error marking old documents for form ${process.form_id}:`, updateError);
           } else {
-            console.log(`Successfully marked old documents for form ${process.form_id} from before ${process.created_at} as old_crawl=true`);
+            console.log(`Successfully marked old documents for form ${process.form_id} from before ${process.created_at} as is_current=false`);
           }
         } else {
           console.log(`No scraped URLs found for process ${processId}, skipping old document marking`);

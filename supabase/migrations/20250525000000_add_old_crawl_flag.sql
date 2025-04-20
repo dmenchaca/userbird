@@ -1,22 +1,22 @@
 /*
-  # Add old_crawl flag to documents table
+  # Add is_current flag to documents table
   
   1. Changes
-    - Add old_crawl boolean column to documents table (default false)
-    - Add index on old_crawl column for efficient filtering
+    - Add is_current boolean column to documents table (default true)
+    - Add index on is_current column for efficient filtering
     - Add comment explaining the purpose of the flag
 */
 
--- Add old_crawl column to documents table
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS old_crawl BOOLEAN DEFAULT FALSE;
+-- Add is_current column to documents table
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE;
 
 -- Add comment to explain the purpose
-COMMENT ON COLUMN documents.old_crawl IS 'Flag indicating whether this document is from an outdated crawl of the same form_id. The match_documents function will filter out documents where this is true.';
+COMMENT ON COLUMN documents.is_current IS 'Flag indicating whether this document is from the current crawl of the same form_id. The match_documents function will only use documents where this is true.';
 
 -- Create index for efficient filtering
-CREATE INDEX IF NOT EXISTS idx_documents_old_crawl ON documents(old_crawl);
+CREATE INDEX IF NOT EXISTS idx_documents_is_current ON documents(is_current);
 
--- Update the match_documents function to filter by old_crawl flag
+-- Update the match_documents function to filter by is_current flag
 CREATE OR REPLACE FUNCTION public.match_documents(
   query_embedding vector, 
   match_count integer DEFAULT NULL::integer, 
@@ -57,7 +57,7 @@ BEGIN
     latest_ts := specific_timestamp;
   END IF;
 
-  -- Run the query with all filters, including old_crawl = FALSE
+  -- Run the query with all filters, including is_current = TRUE
   RETURN QUERY
   SELECT
     id,
@@ -70,7 +70,7 @@ BEGIN
   WHERE 
     metadata @> filter
     AND (form_id_filter IS NULL OR form_id = form_id_filter)
-    AND old_crawl = FALSE -- Filter out documents marked as old
+    AND is_current = TRUE -- Only use current documents
     AND (
       (use_latest_crawl AND latest_ts IS NOT NULL AND crawl_timestamp = latest_ts) OR
       (specific_timestamp IS NOT NULL AND crawl_timestamp = specific_timestamp) OR
@@ -81,5 +81,5 @@ BEGIN
 END;
 $function$;
 
--- Add comment to the function explaining the old_crawl flag
-COMMENT ON FUNCTION public.match_documents IS 'Matches document embeddings against a query embedding, filtering by form_id, timestamps, and old_crawl=FALSE. This ensures only current (non-outdated) crawl data is returned.'; 
+-- Add comment to the function explaining the is_current flag
+COMMENT ON FUNCTION public.match_documents IS 'Matches document embeddings against a query embedding, filtering by form_id, timestamps, and is_current=TRUE. This ensures only current crawl data is returned.'; 

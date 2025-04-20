@@ -25,7 +25,7 @@ const getSupabaseClient = () => {
 };
 
 /**
- * Cleanup old documents marked with old_crawl=true
+ * Cleanup old documents marked with is_current=false
  * 
  * This function can be triggered:
  * 1. Manually via a request to /.netlify/functions/cleanup-old-documents
@@ -51,7 +51,7 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    console.log('[cleanup-old-documents] Starting cleanup of documents marked as old_crawl=true');
+    console.log('[cleanup-old-documents] Starting cleanup of documents marked as is_current=false');
     
     const supabaseClient = getSupabaseClient();
     
@@ -59,7 +59,7 @@ const handler: Handler = async (event) => {
     const { count: beforeCount, error: countError } = await supabaseClient
       .from('documents')
       .select('*', { count: 'exact', head: true })
-      .eq('old_crawl', true);
+      .eq('is_current', false);
       
     if (countError) {
       console.error('[cleanup-old-documents] Error counting old documents:', countError);
@@ -69,16 +69,16 @@ const handler: Handler = async (event) => {
       };
     }
     
-    console.log(`[cleanup-old-documents] Found ${beforeCount} documents marked as old_crawl=true`);
+    console.log(`[cleanup-old-documents] Found ${beforeCount} documents marked as is_current=false`);
     
-    // Delete documents marked as old_crawl=true
+    // Delete documents marked as is_current=false
     // For large databases, consider adding a retention period (e.g., older than 30 days)
     // or using a batch processing approach for very large datasets
     
     const { error: deleteError } = await supabaseClient
       .from('documents')
       .delete()
-      .eq('old_crawl', true);
+      .eq('is_current', false);
       // Optional: Add time-based filter for retention
       // .lt('crawl_timestamp', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
     
@@ -90,12 +90,12 @@ const handler: Handler = async (event) => {
       };
     }
     
-    console.log(`[cleanup-old-documents] Successfully deleted ${beforeCount} old documents`);
+    console.log(`[cleanup-old-documents] Successfully deleted ${beforeCount} outdated documents`);
     
     return {
       statusCode: 200,
       body: JSON.stringify({ 
-        message: `Cleanup complete - deleted ${beforeCount} documents marked as old_crawl=true`,
+        message: `Cleanup complete - deleted ${beforeCount} documents marked as is_current=false`,
         count: beforeCount
       }),
     };
