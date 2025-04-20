@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Globe, AlertCircle } from 'lucide-react'
+import { Loader2, Globe, AlertCircle, Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,37 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     }
 
     fetchLatestProcess()
-  }, [formId])
+
+    // Set up real-time subscription for process updates
+    const subscription = supabase
+      .channel(`docs_scraping_processes:form_id=${formId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'docs_scraping_processes',
+        filter: `form_id=eq.${formId}`
+      }, (payload) => {
+        console.log('[AIAutomationTab] Real-time update received:', payload)
+        
+        if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+          // Check if this is our current process - by comparing with the latest one we have
+          if (latestProcess && payload.new.id === latestProcess.id) {
+            console.log('[AIAutomationTab] Updating our current process with real-time data')
+            setLatestProcess(payload.new as ScrapingProcess)
+          } else {
+            // This could be a new process that's more recent than what we have
+            console.log('[AIAutomationTab] New process detected, fetching latest')
+            fetchLatestProcess()
+          }
+        }
+      })
+      .subscribe()
+
+    return () => {
+      console.log('[AIAutomationTab] Cleaning up real-time subscription')
+      subscription.unsubscribe()
+    }
+  }, [formId, latestProcess?.id])
 
   // Start a new scraping process
   const startScrapingProcess = async () => {
@@ -180,9 +210,41 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
         );
       } else if (latestProcess.status === 'completed') {
         console.log('[AIAutomationTab] Process completed successfully, pages processed:', latestProcess.scraped_urls.length)
+        toast.success(
+          `Scraping completed successfully. ${latestProcess.scraped_urls.length} pages processed.`,
+          { id: `scraping-completed-${latestProcess.id}`, duration: 4000 }
+        );
       }
     }
   }, [latestProcess]);
+
+  // Function to download scraped URLs as CSV
+  const downloadScrapedUrlsCSV = () => {
+    if (!latestProcess || !latestProcess.scraped_urls.length) return;
+
+    console.log('[AIAutomationTab] Generating CSV for download with', latestProcess.scraped_urls.length, 'URLs')
+    
+    // Create CSV content
+    const csvContent = [
+      'URL', // Header row
+      ...latestProcess.scraped_urls // Data rows
+    ].join('\n');
+    
+    // Create a blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create and trigger download
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `scraped-urls-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('CSV file downloaded successfully');
+  };
 
   // Log when component renders with current state
   console.log('[AIAutomationTab] Rendering with state:', {
@@ -265,6 +327,20 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
               <div className="text-muted-foreground">Pages Processed:</div>
               <div>{latestProcess.scraped_urls.length}</div>
             </div>
+
+            {latestProcess.status === 'completed' && latestProcess.scraped_urls.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={downloadScrapedUrlsCSV}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Scraped URLs as CSV
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
