@@ -62,9 +62,11 @@ async function createScrapingProcess(client: SupabaseClient, formId: string, bas
       .insert({
         form_id: formId,
         base_url: baseUrl,
-        status: 'in_progress',
+        status: 'crawling',
         scraped_urls: [],
-        metadata: {}
+        metadata: {
+          current_step: 0
+        }
       })
       .select()
       .single();
