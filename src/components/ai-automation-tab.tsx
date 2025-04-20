@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Globe, AlertCircle, Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,12 +21,40 @@ interface ScrapingProcess {
   error_message: string | null
 }
 
+// Helper functions for localStorage toast tracking
+const hasToastBeenShown = (processId: string, status: string): boolean => {
+  try {
+    const key = `toast-${processId}-${status}`;
+    return localStorage.getItem(key) === 'true';
+  } catch (e) {
+    return false;
+  }
+};
+
+const markToastAsShown = (processId: string, status: string): void => {
+  try {
+    const key = `toast-${processId}-${status}`;
+    localStorage.setItem(key, 'true');
+  } catch (e) {
+    console.error('[AIAutomationTab] Error marking toast as shown:', e);
+  }
+};
+
 export function AIAutomationTab({ formId }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [processFetching, setProcessFetching] = useState(true)
+  // Track whether this is the first render of the component
+  const [initialRender, setInitialRender] = useState(true)
+  // Track the previous process status to detect real changes
+  const [prevProcessStatus, setPrevProcessStatus] = useState<string | null>(null)
+
+  // Set initialRender to false after first render
+  useEffect(() => {
+    setInitialRender(false);
+  }, []);
 
   // Fetch the latest scraping process on mount and when form ID changes
   useEffect(() => {
@@ -51,7 +79,10 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
 
         if (data) {
           console.log('[AIAutomationTab] Successfully fetched latest process:', data)
-          setLatestProcess(data as ScrapingProcess)
+          const processData = data as ScrapingProcess;
+          setLatestProcess(processData)
+          setPrevProcessStatus(processData.status);
+          
           // If there's a running process, populate the input with its URL
           if (data.status === 'in_progress') {
             console.log('[AIAutomationTab] In-progress process found, setting URL to:', data.base_url)
@@ -84,6 +115,8 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
           // Check if this is our current process - by comparing with the latest one we have
           if (latestProcess && payload.new.id === latestProcess.id) {
             console.log('[AIAutomationTab] Updating our current process with real-time data')
+            // Store the previous status before updating
+            setPrevProcessStatus(latestProcess.status);
             setLatestProcess(payload.new as ScrapingProcess)
           } else {
             // This could be a new process that's more recent than what we have
@@ -145,6 +178,7 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
       }
       
       console.log('[AIAutomationTab] Created new process object for UI:', newProcess)
+      setPrevProcessStatus(null); // Reset previous status for the new process
       setLatestProcess(newProcess)
       toast.success('Document scraping process started successfully')
     } catch (error) {
@@ -194,29 +228,52 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     return null;
   }
 
-  // Show toast for in-progress or failed status
+  // Show toast for in-progress or failed status, but only for real status changes, not re-renders
   useEffect(() => {
-    if (latestProcess) {
-      console.log('[AIAutomationTab] Process status changed or initialized:', latestProcess.status)
-      if (latestProcess.status === 'in_progress') {
+    if (!latestProcess || initialRender) return;
+    
+    // Check if status has actually changed from previous state
+    const statusChanged = latestProcess.status !== prevProcessStatus;
+    console.log('[AIAutomationTab] Status check:', { 
+      current: latestProcess.status, 
+      previous: prevProcessStatus, 
+      changed: statusChanged 
+    });
+    
+    // Only show toasts if status has changed
+    if (statusChanged) {
+      const processId = latestProcess.id;
+      
+      if (latestProcess.status === 'in_progress' && !hasToastBeenShown(processId, 'in_progress')) {
+        markToastAsShown(processId, 'in_progress');
         toast.info(
           "Scraping is in progress. This may take several minutes depending on the website size.",
-          { id: `scraping-${latestProcess.id}`, duration: 4000 }
+          { id: `scraping-${processId}`, duration: 4000 }
         );
-      } else if (latestProcess.status === 'failed' && latestProcess.error_message) {
-        console.log('[AIAutomationTab] Process failed with error:', latestProcess.error_message)
-        toast.error(latestProcess.error_message, 
-          { id: `scraping-error-${latestProcess.id}`, duration: 5000 }
+        console.log('[AIAutomationTab] Showed in-progress toast');
+      } 
+      else if (latestProcess.status === 'failed' && !hasToastBeenShown(processId, 'failed')) {
+        markToastAsShown(processId, 'failed');
+        console.log('[AIAutomationTab] Process failed with error:', latestProcess.error_message);
+        toast.error(latestProcess.error_message || 'Process failed', 
+          { id: `scraping-error-${processId}`, duration: 5000 }
         );
-      } else if (latestProcess.status === 'completed') {
-        console.log('[AIAutomationTab] Process completed successfully, pages processed:', latestProcess.scraped_urls.length)
+        console.log('[AIAutomationTab] Showed failed toast');
+      } 
+      else if (latestProcess.status === 'completed' && !hasToastBeenShown(processId, 'completed')) {
+        markToastAsShown(processId, 'completed');
+        console.log('[AIAutomationTab] Process completed successfully, pages processed:', latestProcess.scraped_urls.length);
         toast.success(
           `Scraping completed successfully. ${latestProcess.scraped_urls.length} pages processed.`,
-          { id: `scraping-completed-${latestProcess.id}`, duration: 4000 }
+          { id: `scraping-completed-${processId}`, duration: 4000 }
         );
+        console.log('[AIAutomationTab] Showed completed toast');
       }
+      
+      // Update previous status
+      setPrevProcessStatus(latestProcess.status);
     }
-  }, [latestProcess]);
+  }, [latestProcess, initialRender, prevProcessStatus]);
 
   // Function to download scraped URLs as CSV
   const downloadScrapedUrlsCSV = () => {
@@ -253,8 +310,10 @@ export function AIAutomationTab({ formId }: AIAutomationTabProps) {
     isLoading,
     processFetching,
     hasLatestProcess: !!latestProcess,
-    latestProcessStatus: latestProcess?.status
-  })
+    latestProcessStatus: latestProcess?.status,
+    initialRender,
+    prevProcessStatus
+  });
 
   return (
     <div className="space-y-6">
