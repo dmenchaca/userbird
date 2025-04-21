@@ -21,6 +21,7 @@ interface ScrapingProcess {
   created_at: string
   completed_at: string | null
   scraped_urls: string[]
+  document_count: number
   error_message: string | null
   metadata?: {
     crawl_complete?: boolean
@@ -201,13 +202,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
             
             if (statusChanged) {
               console.log(`[AIAutomationTab] Status change detected: ${latestProcess?.status} -> ${newData.status}`);
-              if (newData.status === 'completed') {
-                console.log('[AIAutomationTab] Process completed successfully');
-                toast.success('Website scraping completed successfully!');
-              } else if (newData.status === 'failed') {
-                console.log('[AIAutomationTab] Process failed', newData.metadata?.error);
-                toast.error(`Website scraping failed: ${newData.metadata?.error || 'Unknown error'}`);
-              }
+              // Status change logging only
             }
 
             if (urlsCountChanged) {
@@ -360,7 +355,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
         },
         body: JSON.stringify({
           formId,
-          message: `Documentation crawling for ${latestProcess.base_url} has completed. ${latestProcess.scraped_urls?.length || 0} pages were processed.`,
+          message: `Documentation crawling for ${latestProcess.base_url} has completed. ${latestProcess.document_count || 0} pages were processed.`,
           type: 'crawl_complete',
           adminOnly: true  // Flag to indicate this is for admin users only
         }),
@@ -409,13 +404,8 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
         timestamp: new Date().toISOString()
       });
       
-      // Successfully started scraping, toast will show
-      toast.success('Document scraping process started successfully');
-      
-      // Add a second toast to inform about email notification
-      toast.info('You will receive an email notification when the crawling process is complete.', {
-        duration: 5000
-      });
+      // Successfully started scraping
+      toast.success('Document scraping process started');
     } catch (error) {
       console.error('[AIAutomationTab] Error starting scraping process:', error);
       toast.error('Failed to start document scraping process');
@@ -464,7 +454,10 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
 
   // Function to download scraped URLs as CSV
   const downloadScrapedUrlsCSV = () => {
-    if (!latestProcess?.scraped_urls?.length) return;
+    if (!latestProcess?.scraped_urls?.length) {
+      toast.error('No scraped URLs available for download');
+      return;
+    }
     
     // Create CSV content
     const csvContent = [
@@ -485,14 +478,14 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
     link.click();
     document.body.removeChild(link);
     
-    toast.success('CSV file downloaded successfully');
+    toast.info('URLs list downloaded');
   };
 
   // Get the page count to display in the UI
   const getDisplayedPageCount = (): string => {
-    if (!latestProcess?.scraped_urls) return '0';
+    if (!latestProcess) return '0';
     
-    const processedCount = Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
+    const processedCount = latestProcess.document_count || 0;
     
     // If process is not in progress, just show the final count
     if (latestProcess.status !== 'in_progress') {
@@ -599,7 +592,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
               </div>
             )}
 
-            {latestProcess.status === 'completed' && latestProcess.scraped_urls && latestProcess.scraped_urls.length > 0 && (
+            {latestProcess.status === 'completed' && latestProcess.document_count > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <Button 
                   variant="outline" 
