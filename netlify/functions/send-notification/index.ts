@@ -98,22 +98,22 @@ export const handler: Handler = async (event) => {
     // If adminOnly flag is set, query only admin users
     if (adminOnly) {
       // First get admin user IDs for this form (owner and admin collaborators)
-      const { data: adminUsers, error: adminError } = await supabase
+      const { data: adminCollaborators, error: adminError } = await supabase
         .from('form_collaborators')
-        .select('user_id, role')
+        .select('user_id, role, invitation_email')
         .eq('form_id', formId)
         .eq('role', 'admin')
         .eq('invitation_accepted', true);
       
       if (adminError) {
-        console.error('Error fetching admin users:', adminError);
+        console.error('Error fetching admin collaborators:', adminError);
         throw adminError;
       }
       
       // Also get the form owner
       const { data: formOwner, error: ownerError } = await supabase
         .from('forms')
-        .select('owner_id')
+        .select('owner_id, owner_email')
         .eq('id', formId)
         .single();
         
@@ -122,35 +122,39 @@ export const handler: Handler = async (event) => {
         throw ownerError;
       }
       
-      // Get emails for all these users
-      const adminIds = [...(adminUsers?.map(u => u.user_id) || [])];
-      if (formOwner?.owner_id) {
-        adminIds.push(formOwner.owner_id);
+      // Get emails for admin collaborators and form owner
+      const adminEmails: string[] = [];
+      
+      // Add collaborator emails from invitation_email field
+      if (adminCollaborators?.length) {
+        adminCollaborators.forEach(collaborator => {
+          if (collaborator.invitation_email) {
+            adminEmails.push(collaborator.invitation_email);
+          }
+        });
       }
       
-      // Only proceed if we have admin IDs
-      if (adminIds.length === 0) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({
-            message: 'No admin users found for this form',
-            success: true
-          })
-        };
+      // Add form owner's email if available
+      if (formOwner?.owner_email) {
+        adminEmails.push(formOwner.owner_email);
       }
       
-      // Get admin user emails from auth.users table
-      const { data: userEmails, error: emailError } = await supabase
-        .from('auth.users')
+      // Get additional emails from notification_settings for this form
+      const { data: formSettings, error: settingsError } = await supabase
+        .from('notification_settings')
         .select('email')
-        .in('id', adminIds);
+        .eq('form_id', formId)
+        .eq('enabled', true);
         
-      if (emailError) {
-        console.error('Error fetching admin emails:', emailError);
-        throw emailError;
+      if (!settingsError && formSettings?.length) {
+        formSettings.forEach(setting => {
+          if (setting.email && !adminEmails.includes(setting.email)) {
+            adminEmails.push(setting.email);
+          }
+        });
       }
       
-      const adminEmails = userEmails?.map(u => u.email) || [];
+      // Log the admin emails
       console.log('Admin emails to notify:', adminEmails);
       
       // Ensure we have emails to notify
@@ -166,7 +170,7 @@ export const handler: Handler = async (event) => {
       
       // If this is an admin-only notification for crawl completion, 
       // we'll send directly to admins without checking notification settings
-      if (adminOnly && type === 'crawl_complete') {
+      if (type === 'crawl_complete') {
         console.log('Sending crawl completion notification directly to admins');
         
         // Send emails directly to admins
