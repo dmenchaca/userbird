@@ -118,6 +118,9 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
     const setupRealtimeUpdates = (processId: string) => {
       console.log(`[AIAutomationTab] Setting up real-time subscription for process: ${processId}`);
       
+      // Log subscription configuration
+      console.log(`[AIAutomationTab] Subscribing to UPDATE events for docs_scraping_processes with id=${processId}`);
+      
       const channel = supabase
         .channel(`docs_scraping_process_${processId}`)
         .on(
@@ -129,6 +132,16 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
             filter: `id=eq.${processId}`,
           },
           (payload) => {
+            console.log(`[AIAutomationTab] UPDATE event received for process ${processId}:`, {
+              event: 'UPDATE',
+              table: 'docs_scraping_processes',
+              oldStatus: latestProcess?.status,
+              newStatus: payload.new.status,
+              payloadType: typeof payload,
+              payloadKeys: Object.keys(payload),
+              timestamp: new Date().toISOString()
+            });
+            
             if (!isMounted) {
               console.log('[AIAutomationTab] Received update but component is unmounted, ignoring');
               return;
@@ -166,11 +179,15 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
               console.log(`[AIAutomationTab] Pages processed count changed: ${oldCount} -> ${newCount}`);
             }
 
+            console.log(`[AIAutomationTab] Updating latestProcess state with new data for ${processId}`);
             setLatestProcess(newData);
           }
         )
         .subscribe((status) => {
-          console.log(`[AIAutomationTab] Subscription status: ${status}`, status);
+          console.log(`[AIAutomationTab] UPDATE subscription status: ${status} for process ${processId}`, {
+            channelName: `docs_scraping_process_${processId}`,
+            timestamp: new Date().toISOString()
+          });
           
           if (status === 'SUBSCRIBED') {
             console.log(`[AIAutomationTab] Successfully subscribed to real-time updates for process ${processId}`);
@@ -194,6 +211,8 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
     }
     
     // Subscribe to new scraping processes for this form
+    console.log(`[AIAutomationTab] Setting up subscription for INSERT events on docs_scraping_processes for form_id=${formId}`);
+    
     const newProcessChannel = supabase
       .channel('new_scraping_processes')
       .on(
@@ -205,6 +224,16 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
           filter: `form_id=eq.${formId}`,
         },
         (payload) => {
+          console.log(`[AIAutomationTab] INSERT event received for form ${formId}:`, {
+            event: 'INSERT',
+            table: 'docs_scraping_processes',
+            newProcessId: payload.new.id,
+            newStatus: payload.new.status,
+            payloadType: typeof payload,
+            payloadKeys: Object.keys(payload),
+            timestamp: new Date().toISOString()
+          });
+          
           if (!isMounted) {
             console.log('[AIAutomationTab] Received new process notification but component is unmounted, ignoring');
             return;
@@ -226,15 +255,27 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
             console.log('[AIAutomationTab] Setting newly created process as latest');
             // Ensure metadata is not null
             newProcess.metadata = newProcess.metadata || {};
+            console.log(`[AIAutomationTab] Updating latestProcess state with new INSERT data, id=${newProcess.id}, status=${newProcess.status}`);
             setLatestProcess(newProcess);
             
             // Also set up real-time updates for this new process
             setupRealtimeUpdates(newProcess.id);
+          } else {
+            console.log(`[AIAutomationTab] Not updating latestProcess - current process is newer:`, {
+              currentId: latestProcess?.id,
+              currentTimestamp,
+              newId: newProcess.id,
+              newTimestamp
+            });
           }
         }
       )
       .subscribe((status) => {
-        console.log(`[AIAutomationTab] New processes subscription status: ${status}`);
+        console.log(`[AIAutomationTab] INSERT subscription status: ${status}`, {
+          channelName: 'new_scraping_processes',
+          formId,
+          timestamp: new Date().toISOString()
+        });
         
         if (status === 'SUBSCRIBED') {
           console.log('[AIAutomationTab] Successfully subscribed to new scraping processes');
@@ -254,6 +295,7 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
   const startScrapingProcess = async () => {
     if (!websiteUrl || !formId) return;
     
+    console.log(`[AIAutomationTab] Starting scraping process for URL: ${websiteUrl}`);
     setIsLoading(true);
     try {
       // Call the start-crawl Netlify function
@@ -268,10 +310,19 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
         }),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start scraping process');
+        console.error(`[AIAutomationTab] Error response from start-crawl:`, responseData);
+        throw new Error(responseData.error || 'Failed to start scraping process');
       }
+      
+      console.log(`[AIAutomationTab] Successfully started scraping process:`, {
+        processId: responseData.process_id,
+        status: responseData.status || 'unknown',
+        success: responseData.success,
+        timestamp: new Date().toISOString()
+      });
       
       // Successfully started scraping, toast will show
       toast.success('Document scraping process started successfully');
