@@ -20,7 +20,6 @@ interface ScrapingProcess {
   status: 'in_progress' | 'completed' | 'failed'
   created_at: string
   completed_at: string | null
-  scraped_urls: string[]
   error_message: string | null
   metadata?: {
     crawl_complete?: boolean
@@ -31,6 +30,7 @@ interface ScrapingProcess {
     crawl_timestamp?: string
     current_processing_url?: string
     processed_urls?: string[]
+    documents_with_latest_timestamp?: number
     crawl_api_status?: {
       status?: string
       total: number
@@ -47,6 +47,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
   const prevStatusRef = React.useRef<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Set initial state on mount and cleanup on unmount
   useEffect(() => {
@@ -74,10 +75,11 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
   // Add a useEffect to log when latestProcess changes
   useEffect(() => {
     if (latestProcess) {
+      const docsCount = latestProcess.metadata?.documents_with_latest_timestamp || 0;
       console.log('[AIAutomationTab] Rendering with process data:', {
         id: latestProcess.id,
         status: latestProcess.status,
-        urls_count: latestProcess.scraped_urls?.length || 0,
+        docs_count: docsCount,
         created_at: latestProcess.created_at
       });
       
@@ -117,7 +119,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
           console.log('[AIAutomationTab] Latest process data:', {
             id: processData.id,
             status: processData.status,
-            urls_count: processData.scraped_urls?.length || 0,
+            docs_count: processData.metadata?.documents_with_latest_timestamp || 0,
             base_url: processData.base_url,
             created_at: processData.created_at
           });
@@ -189,15 +191,16 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
             console.log(`[AIAutomationTab] Real-time update received for process ${processId}:`, {
               id: newData.id,
               status: newData.status,
-              urls_count: newData.scraped_urls?.length || 0,
+              docs_count: newData.metadata?.documents_with_latest_timestamp || 0,
               metadata: newData.metadata,
               oldStatus: latestProcess?.status,
-              oldUrlsCount: latestProcess?.scraped_urls?.length || 0
+              oldDocsCount: latestProcess?.metadata?.documents_with_latest_timestamp || 0
             });
 
             // Only update state if there are meaningful changes
             const statusChanged = newData.status !== latestProcess?.status;
-            const urlsCountChanged = (newData.scraped_urls?.length || 0) !== (latestProcess?.scraped_urls?.length || 0);
+            const docsCountChanged = (newData.metadata?.documents_with_latest_timestamp || 0) !== 
+              (latestProcess?.metadata?.documents_with_latest_timestamp || 0);
             
             if (statusChanged) {
               console.log(`[AIAutomationTab] Status change detected: ${latestProcess?.status} -> ${newData.status}`);
@@ -210,9 +213,9 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
               }
             }
 
-            if (urlsCountChanged) {
-              const oldCount = latestProcess?.scraped_urls?.length || 0;
-              const newCount = newData.scraped_urls?.length || 0;
+            if (docsCountChanged) {
+              const oldCount = latestProcess?.metadata?.documents_with_latest_timestamp || 0;
+              const newCount = newData.metadata?.documents_with_latest_timestamp || 0;
               console.log(`[AIAutomationTab] Pages processed count changed: ${oldCount} -> ${newCount}`);
             }
 
@@ -348,31 +351,34 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
 
   // Function to send notification when crawling completes
   const sendCompletionNotification = async () => {
-    if (!formId || !latestProcess) return;
+    if (!latestProcess || !formId) return;
     
     try {
-      console.log('[AIAutomationTab] Sending completion notification to admins');
+      console.log('[AIAutomationTab] Sending crawl completion notification');
       
-      const response = await fetch('/.netlify/functions/send-notification', {
+      const processedCount = latestProcess.metadata?.documents_with_latest_timestamp || 0;
+      const totalPages = latestProcess.metadata?.crawl_api_status?.total || processedCount;
+      
+      const response = await fetch('/api/send-notification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          formId,
-          message: `Documentation crawling for ${latestProcess.base_url} has completed. ${latestProcess.scraped_urls?.length || 0} pages were processed.`,
+          formId: formId,
           type: 'crawl_complete',
-          adminOnly: true  // Flag to indicate this is for admin users only
+          adminOnly: true,
+          message: `Documentation crawling for ${latestProcess.base_url} has completed. ${processedCount} pages were processed.`,
         }),
       });
       
-      if (!response.ok) {
-        console.error('[AIAutomationTab] Failed to send completion notification:', await response.text());
+      if (response.ok) {
+        console.log('[AIAutomationTab] Notification sent successfully');
       } else {
-        console.log('[AIAutomationTab] Completion notification sent successfully');
+        console.error('[AIAutomationTab] Failed to send notification:', await response.text());
       }
     } catch (error) {
-      console.error('[AIAutomationTab] Error sending completion notification:', error);
+      console.error('[AIAutomationTab] Error sending notification:', error);
     }
   };
 
@@ -462,37 +468,114 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
     return null;
   };
 
+  // Update the local state with new process data
+  const updateProcessState = (newData: ScrapingProcess) => {
+    // Update if this is a newer or the same process
+    const newTimestamp = new Date(newData.created_at).getTime();
+    const currentTimestamp = latestProcess?.created_at 
+      ? new Date(latestProcess.created_at).getTime() 
+      : 0;
+      
+    // Calculate metrics for tracking changes
+    const metadata = newData.metadata || {};
+    const docs_count = metadata.documents_with_latest_timestamp || 0;
+    const statusChanged = newData.status !== latestProcess?.status;
+    const oldDocsCount = latestProcess?.metadata?.documents_with_latest_timestamp || 0;
+    const docsCountChanged = docs_count !== oldDocsCount;
+    
+    // Check for crawl completion
+    const isCompleted = newData.status === 'completed' && latestProcess?.status !== 'completed';
+    const docsCountIncreased = docsCountChanged && docs_count > oldDocsCount;
+    
+    if (statusChanged) {
+      console.log('[AIAutomationTab] Process status changed:', {
+        oldStatus: latestProcess?.status,
+        newStatus: newData.status
+      });
+    }
+    
+    if (docsCountChanged) {
+      const oldCount = oldDocsCount;
+      const newCount = docs_count;
+      console.log('[AIAutomationTab] Pages processed count changed:', { 
+        oldCount, 
+        newCount, 
+        difference: newCount - oldCount 
+      });
+    }
+
+    // Update the state if this is a never process or has changed
+    if (newTimestamp >= currentTimestamp && (statusChanged || docsCountChanged)) {
+      setLatestProcess(newData);
+    }
+    
+    // If the process just completed, try to send the notification
+    if (isCompleted && formId) {
+      console.log('[AIAutomationTab] Process completed, sending notification');
+      sendCompletionNotification();
+    }
+  };
+
   // Function to download scraped URLs as CSV
-  const downloadScrapedUrlsCSV = () => {
-    if (!latestProcess?.scraped_urls?.length) return;
+  const downloadScrapedUrlsCSV = async () => {
+    if (!latestProcess?.id) return;
     
-    // Create CSV content
-    const csvContent = [
-      'URL', // Header row
-      ...latestProcess.scraped_urls // Data rows
-    ].join('\n');
-    
-    // Create a blob and download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create and trigger download
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `scraped-urls-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast.success('CSV file downloaded successfully');
+    try {
+      setIsExporting(true);
+      
+      // Call the database function through Supabase
+      const { data: urls, error } = await supabase
+        .rpc('get_process_urls', { process_id_param: latestProcess.id });
+      
+      if (error) {
+        console.error('Error fetching URLs:', error);
+        toast.error('Failed to fetch URLs for export');
+        setIsExporting(false);
+        return;
+      }
+      
+      if (!urls?.length) {
+        toast.info('No URLs found to export');
+        setIsExporting(false);
+        return;
+      }
+      
+      // Create CSV content
+      const csvContent = [
+        'URL', // Header row
+        ...urls.map((item: { url: string }) => item.url) // Data rows with proper typing
+      ].join('\n');
+      
+      // Create a blob and download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `scraped-urls-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('CSV file downloaded successfully');
+    } catch (e) {
+      console.error('Error downloading URLs:', e);
+      toast.error('Failed to download URLs');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Get the page count to display in the UI
   const getDisplayedPageCount = (): string => {
-    if (!latestProcess?.scraped_urls) return '0';
+    if (!latestProcess) return '0';
     
-    const processedCount = Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
+    const metadata = latestProcess.metadata || {};
+    
+    // Get the processed count from documents_with_latest_timestamp
+    const processedCount = metadata.documents_with_latest_timestamp || 0;
     
     // If process is not in progress, just show the final count
     if (latestProcess.status !== 'in_progress') {
@@ -500,7 +583,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
     }
     
     // For in-progress processes, show "X of Y"
-    const metadata = latestProcess.metadata || {};
     let expectedTotal = 0;
     
     // Try to get the total from crawl_api_status first
@@ -599,16 +681,26 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
               </div>
             )}
 
-            {latestProcess.status === 'completed' && latestProcess.scraped_urls && latestProcess.scraped_urls.length > 0 && (
+            {latestProcess.status === 'completed' && (
               <div className="mt-4 pt-4 border-t border-border">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={downloadScrapedUrlsCSV}
                   className="w-full"
+                  disabled={isExporting}
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Scraped URLs as CSV
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Exporting URLs...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Scraped URLs as CSV
+                    </>
+                  )}
                 </Button>
               </div>
             )}

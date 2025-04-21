@@ -80,57 +80,6 @@ async function generateEmbedding(text: string) {
   }
 }
 
-// Track scraped URL in scraping process
-async function trackScrapedUrl(
-  client: SupabaseClient,
-  processId: string | undefined,
-  url: string
-) {
-  if (!processId) {
-    console.warn('No process_id provided, cannot track scraped URL in docs_scraping_processes');
-    return;
-  }
-  
-  try {
-    console.log(`Tracking scraped URL ${url} for process ${processId}`);
-    
-    // Get current scraped_urls array
-    const { data: process, error: getError } = await client
-      .from('docs_scraping_processes')
-      .select('scraped_urls')
-      .eq('id', processId)
-      .single();
-    
-    if (getError) {
-      console.error(`Error retrieving process ${processId}:`, getError);
-      return;
-    }
-    
-    // Add the new URL if it doesn't already exist
-    const currentUrls = process.scraped_urls || [];
-    if (!currentUrls.includes(url)) {
-      const updatedUrls = [...currentUrls, url];
-      
-      // Update the record
-      const { error: updateError } = await client
-        .from('docs_scraping_processes')
-        .update({ scraped_urls: updatedUrls })
-        .eq('id', processId);
-      
-      if (updateError) {
-        console.error(`Error updating process ${processId} with scraped URL:`, updateError);
-        return;
-      }
-      
-      console.log(`Successfully added URL ${url} to process ${processId}, total URLs: ${updatedUrls.length}`);
-    } else {
-      console.log(`URL ${url} already tracked in process ${processId}`);
-    }
-  } catch (error) {
-    console.error('Error in trackScrapedUrl:', error);
-  }
-}
-
 // Update process status when crawl completes or fails
 async function updateProcessStatus(
   client: SupabaseClient,
@@ -181,7 +130,7 @@ async function updateProcessingProgress(
     // Get current process data
     const { data: process, error: fetchError } = await client
       .from('docs_scraping_processes')
-      .select('metadata, scraped_urls, status')
+      .select('metadata, status, created_at')
       .eq('id', processId)
       .single();
     
@@ -193,75 +142,91 @@ async function updateProcessingProgress(
     // Get metadata
     const metadata = process.metadata || {};
     
-    // Use Firecrawl's API stats if available instead of incrementing our own counter
-    if (metadata.crawl_api_status) {
-      // Log the process using Firecrawl's API values
-      const completed = metadata.crawl_api_status.completed || 0;
-      const total = metadata.crawl_api_status.total || process.scraped_urls.length;
+    // Use Firecrawl's API stats for total count - require it to be available
+    if (!metadata.crawl_api_status?.total) {
+      const errorMessage = `Process ${processId}: Missing required crawl_api_status.total from Firecrawl`;
+      console.error(errorMessage);
       
-      console.log(`Process ${processId}: Firecrawl reports ${completed} of ${total} pages completed (${process.scraped_urls.length} scraped URLs)`);
-      
-      // Check if we should mark the process as completed based on scraped URLs
-      if (process.status !== 'completed' && process.scraped_urls.length >= total) {
-        console.log(`Process ${processId}: All URLs processed, marking as completed`);
+      // Update metadata to indicate an error occurred
+      metadata.error = errorMessage;
+      await client
+        .from('docs_scraping_processes')
+        .update({ 
+          metadata,
+          status: 'failed',
+          error_message: errorMessage
+        })
+        .eq('id', processId);
         
-        await client
-          .from('docs_scraping_processes')
-          .update({ 
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            metadata: {
-              ...metadata,
-              crawl_complete: true
-            }
-          })
-          .eq('id', processId);
-      }
-    } else {
-      // If we don't have API stats, fall back to original behavior but avoid double-counting
-      // by checking if we've already processed this URL
-      const currentUrl = metadata.current_processing_url;
-      const processedUrls = metadata.processed_urls || [];
-      
-      // Only increment if this URL hasn't been processed yet
-      if (currentUrl && !processedUrls.includes(currentUrl)) {
-        // Increment processed pages counter
-        metadata.pages_processed = (metadata.pages_processed || 0) + 1;
-        
-        // Track this URL as processed
-        processedUrls.push(currentUrl);
-        metadata.processed_urls = processedUrls;
-        
-        // Use expected_pages from metadata or fall back to scraped_urls length
-        const expectedPages = metadata.expected_pages || process.scraped_urls.length;
-        
-        console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${expectedPages} expected pages (${process.scraped_urls.length} scraped URLs)`);
-        
-        // Check if we should mark the process as completed
-        const updateData: any = { metadata };
-        
-        if (process.status !== 'completed' && process.scraped_urls.length >= expectedPages) {
-          console.log(`Process ${processId}: All expected URLs processed, marking as completed`);
-          updateData.status = 'completed';
-          updateData.completed_at = new Date().toISOString();
-          metadata.crawl_complete = true;
-        }
-        
-        // Update metadata
-        const { error: updateError } = await client
-          .from('docs_scraping_processes')
-          .update(updateData)
-          .eq('id', processId);
-        
-        if (updateError) {
-          console.error(`Error updating process ${processId} progress:`, updateError);
-          return;
-        }
-      }
+      throw new Error(errorMessage);
     }
+    
+    const total = metadata.crawl_api_status.total;
+    
+    // Get the current crawl timestamp from metadata
+    const crawlTimestamp = metadata.crawl_timestamp || process.created_at;
+    console.log(`Process ${processId}: Using crawl timestamp ${crawlTimestamp} for counting processed documents`);
+    
+    // Count documents with matching latest timestamp
+    const { count: docsWithLatestTimestamp, error: countError } = await client
+      .from('documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('crawl_timestamp', crawlTimestamp)
+      .filter('metadata->process_id', 'eq', processId);
+    
+    if (countError) {
+      console.error(`Error counting documents for process ${processId}:`, countError);
+      return;
+    }
+    
+    // The number of documents with matching timestamp is our processed count
+    const processedCount = docsWithLatestTimestamp || 0;
+    
+    // Update metadata with the latest counts
+    metadata.documents_with_latest_timestamp = processedCount;
+    
+    // Log the progress using our new counting method
+    console.log(`Process ${processId}: ${processedCount} of ${total} pages completed (matched by timestamp)`);
+    
+    // Update the process with the new metadata
+    const updateData: any = { 
+      metadata
+    };
+    
+    // Check if we should mark the process as completed
+    if (process.status !== 'completed' && processedCount >= total) {
+      console.log(`Process ${processId}: All documents processed (${processedCount} of ${total}), marking as completed`);
+      updateData.status = 'completed';
+      updateData.completed_at = new Date().toISOString();
+      metadata.crawl_complete = true;
+    }
+    
+    // Update metadata and process status
+    const { error: updateError } = await client
+      .from('docs_scraping_processes')
+      .update(updateData)
+      .eq('id', processId);
+    
+    if (updateError) {
+      console.error(`Error updating process ${processId} progress:`, updateError);
+      return;
+    }
+    
+    console.log(`Process ${processId}: Successfully updated progress tracking`);
   } catch (error) {
     console.error('Error in updateProcessingProgress:', error);
   }
+}
+
+// Interface for docs_scraping_processes table
+interface ScrapingProcess {
+  id: string;
+  status: 'in_progress' | 'completed' | 'failed';
+  metadata: any;
+  created_at: string;
+  completed_at?: string;
+  error_message?: string;
+  form_id?: string;
 }
 
 // Store a document chunk in Supabase
@@ -362,11 +327,8 @@ async function storeDocumentChunk(
     console.log('Successfully stored document chunk in Supabase with process_id in metadata');
     console.log('Form ID confirmed in database record:', formId);
     
-    // Track the scraped URL in the process record if we have a process ID
+    // Update processing progress for this chunk
     if (processId) {
-      await trackScrapedUrl(client, processId, sourceUrl);
-      
-      // Update processing progress for this chunk
       await updateProcessingProgress(client, processId);
     }
     
@@ -608,7 +570,7 @@ const handler: Handler = async (event) => {
       // Always get current process data to check URLs processed vs expected
       const { data: process, error: fetchError } = await supabaseClient
         .from('docs_scraping_processes')
-        .select('form_id, created_at, metadata, scraped_urls, status')
+        .select('form_id, created_at, metadata, status')
         .eq('id', processId)
         .single();
       
@@ -630,51 +592,58 @@ const handler: Handler = async (event) => {
           } else if (body.data?.length) {
             metadata.expected_pages = body.data.length;
             console.log(`Fallback: Using data length (${body.data.length}) as expected pages`);
-          } else {
-            metadata.expected_pages = process.scraped_urls.length;
-            console.log(`Fallback: Using scraped_urls length (${process.scraped_urls.length}) as expected pages`);
           }
         }
         
-        // Get current count of unique URLs processed
-        const uniqueUrlsProcessed = process.scraped_urls.length;
-        
-        // Only update status to completed if all expected URLs have been processed
-        const updateData: any = { metadata };
-        
-        // Mark as completed if we have processed all expected pages, regardless of completion event
-        if (process.status !== 'completed' && uniqueUrlsProcessed >= metadata.expected_pages) {
-          updateData.status = 'completed';
-          updateData.completed_at = new Date().toISOString();
-          console.log(`Successfully marking process ${processId} as COMPLETED (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
+        // Get current count of documents with the latest timestamp
+        const { count: processedDocs, error: countError } = await supabaseClient
+          .from('documents')
+          .select('id', { count: 'exact', head: true })
+          .eq('crawl_timestamp', metadata.crawl_timestamp || process.created_at)
+          .filter('metadata->process_id', 'eq', processId);
           
-          // Flag for completion event handling
-          if (!isCompletionEvent) {
-            isCompletionEvent = true;
-            completionSource = 'scraped_urls count completion';
-            // Mark completion in metadata
-            metadata.crawl_complete = true;
-          }
-        } else if (isCompletionEvent && process.status !== 'completed') {
-          console.log(`Process ${processId} has completion signal but waiting for all URLs (${uniqueUrlsProcessed}/${metadata.expected_pages} processed)`);
-        } else if (uniqueUrlsProcessed >= metadata.expected_pages && process.status === 'completed') {
-          console.log(`Process ${processId} already marked as completed (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
+        if (countError) {
+          console.error(`Error counting documents for process ${processId}:`, countError);
         } else {
-          console.log(`Process ${processId} still in progress (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
-        }
-        
-        const { error: updateError } = await supabaseClient
-          .from('docs_scraping_processes')
-          .update(updateData)
-          .eq('id', processId);
+          const uniqueDocsProcessed = processedDocs || 0;
           
-        if (updateError) {
-          console.error(`Error updating process ${processId} status and metadata:`, updateError);
-        } else {
-          if (updateData.status === 'completed') {
-            console.log(`Successfully marked process ${processId} as COMPLETED`);
+          // Only update status to completed if all expected documents have been processed
+          const updateData: any = { metadata };
+          
+          // Mark as completed if we have processed all expected pages, regardless of completion event
+          if (process.status !== 'completed' && uniqueDocsProcessed >= metadata.expected_pages) {
+            updateData.status = 'completed';
+            updateData.completed_at = new Date().toISOString();
+            console.log(`Successfully marking process ${processId} as COMPLETED (${uniqueDocsProcessed}/${metadata.expected_pages} documents processed)`);
+            
+            // Flag for completion event handling
+            if (!isCompletionEvent) {
+              isCompletionEvent = true;
+              completionSource = 'document count completion';
+              // Mark completion in metadata
+              metadata.crawl_complete = true;
+            }
+          } else if (isCompletionEvent && process.status !== 'completed') {
+            console.log(`Process ${processId} has completion signal but waiting for all documents (${uniqueDocsProcessed}/${metadata.expected_pages} processed)`);
+          } else if (uniqueDocsProcessed >= metadata.expected_pages && process.status === 'completed') {
+            console.log(`Process ${processId} already marked as completed (${uniqueDocsProcessed}/${metadata.expected_pages} documents processed)`);
           } else {
-            console.log(`Updated process ${processId} metadata, expected pages: ${metadata.expected_pages}`);
+            console.log(`Process ${processId} still in progress (${uniqueDocsProcessed}/${metadata.expected_pages} documents processed)`);
+          }
+          
+          const { error: updateError } = await supabaseClient
+            .from('docs_scraping_processes')
+            .update(updateData)
+            .eq('id', processId);
+            
+          if (updateError) {
+            console.error(`Error updating process ${processId} status and metadata:`, updateError);
+          } else {
+            if (updateData.status === 'completed') {
+              console.log(`Successfully marked process ${processId} as COMPLETED`);
+            } else {
+              console.log(`Updated process ${processId} metadata, expected pages: ${metadata.expected_pages}`);
+            }
           }
         }
       }
@@ -764,30 +733,40 @@ const handler: Handler = async (event) => {
       // Final check for completion status
       const { data: finalProcess } = await supabaseClient
         .from('docs_scraping_processes')
-        .select('status, metadata, scraped_urls')
+        .select('status, metadata, created_at')
         .eq('id', processId)
         .single();
         
       if (finalProcess && finalProcess.status !== 'completed') {
         const metadata = finalProcess.metadata || {};
-        const expectedPages = metadata.expected_pages || finalProcess.scraped_urls.length;
-        const actualProcessed = finalProcess.scraped_urls.length;
+        const expectedPages = metadata.expected_pages || 0;
         
-        // If we've processed all expected pages but status is still not completed, update it
-        if (actualProcessed >= expectedPages) {
-          console.log(`Final check: Marking process ${processId} as COMPLETED (${actualProcessed}/${expectedPages} URLs processed)`);
+        // Count current documents with matching timestamp
+        const { count: currentDocs, error: countError } = await supabaseClient
+          .from('documents')
+          .select('id', { count: 'exact', head: true })
+          .eq('crawl_timestamp', metadata.crawl_timestamp || finalProcess.created_at)
+          .filter('metadata->process_id', 'eq', processId);
           
-          await supabaseClient
-            .from('docs_scraping_processes')
-            .update({ 
-              status: 'completed', 
-              completed_at: new Date().toISOString(),
-              metadata: { 
-                ...metadata,
-                crawl_complete: true 
-              }
-            })
-            .eq('id', processId);
+        if (!countError) {
+          const actualProcessed = currentDocs || 0;
+          
+          // If we've processed all expected pages but status is still not completed, update it
+          if (actualProcessed >= expectedPages) {
+            console.log(`Final check: Marking process ${processId} as COMPLETED (${actualProcessed}/${expectedPages} documents processed)`);
+            
+            await supabaseClient
+              .from('docs_scraping_processes')
+              .update({ 
+                status: 'completed', 
+                completed_at: new Date().toISOString(),
+                metadata: { 
+                  ...metadata,
+                  crawl_complete: true 
+                }
+              })
+              .eq('id', processId);
+          }
         }
       }
     }

@@ -63,8 +63,9 @@ async function createScrapingProcess(client: SupabaseClient, formId: string, bas
         form_id: formId,
         base_url: baseUrl,
         status: 'in_progress',
-        scraped_urls: [],
-        metadata: {}
+        metadata: {
+          documents_with_latest_timestamp: 0 // Initialize with zero documents
+        }
       })
       .select()
       .single();
