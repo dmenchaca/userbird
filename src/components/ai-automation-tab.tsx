@@ -54,8 +54,51 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
   
   // Rules state
   const [rules, setRules] = useState(formRules || '')
-  const debouncedRules = useDebounce(rules, 1000)
   const previousRulesRef = useRef<string | null>(formRules || null)
+  
+  // Function to save rules on blur or dialog close
+  const saveRules = async () => {
+    if (!formId || !isMounted) return;
+    
+    // Skip saving if the rules haven't changed
+    if (rules === previousRulesRef.current) {
+      console.log('[AIAutomationTab] Rules unchanged, skipping save');
+      return;
+    }
+    
+    console.log(`[AIAutomationTab] Rules changed from "${previousRulesRef.current}" to "${rules}"`);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ rules })
+        .eq('id', formId);
+        
+      if (error) {
+        console.error('[AIAutomationTab] Error saving rules:', error);
+        toast.error('Failed to save AI rules');
+        return;
+      }
+      
+      // Only show toast if there was an actual change
+      const hasChanged = previousRulesRef.current !== rules;
+      if (hasChanged) {
+        toast.success('AI rules saved successfully');
+        console.log('[AIAutomationTab] Rules saved successfully');
+      }
+      
+      // Update the previous rules ref
+      previousRulesRef.current = rules;
+    } catch (error) {
+      console.error('[AIAutomationTab] Exception when saving rules:', error);
+      toast.error('Failed to save AI rules');
+    }
+  };
+
+  // Handle blur event for text area
+  const handleRulesBlur = () => {
+    saveRules();
+  };
 
   // Set initial state on mount and cleanup on unmount
   useEffect(() => {
@@ -82,6 +125,8 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
     
     return () => {
       console.log('[AIAutomationTab] Component unmounting');
+      // Save rules when component unmounts (dialog closes)
+      saveRules();
       setIsMounted(false);
     };
   }, [initialProcess, formRules]);
@@ -115,49 +160,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
     
     fetchFormRules();
   }, [formId, isMounted, formRules]);
-
-  // Save rules when debounced value changes
-  useEffect(() => {
-    if (!formId || !isMounted) return;
-    
-    // Skip saving if the rules haven't changed
-    if (debouncedRules === previousRulesRef.current) {
-      console.log('[AIAutomationTab] Rules unchanged, skipping save');
-      return;
-    }
-    
-    console.log(`[AIAutomationTab] Rules changed from "${previousRulesRef.current}" to "${debouncedRules}"`);
-    
-    const saveRules = async () => {
-      try {
-        const { error } = await supabase
-          .from('forms')
-          .update({ rules: debouncedRules })
-          .eq('id', formId);
-          
-        if (error) {
-          console.error('[AIAutomationTab] Error saving rules:', error);
-          toast.error('Failed to save AI rules');
-          return;
-        }
-        
-        // Only show toast if there was an actual change
-        const hasChanged = previousRulesRef.current !== debouncedRules;
-        if (hasChanged) {
-          toast.success('AI rules saved successfully');
-          console.log('[AIAutomationTab] Rules saved successfully');
-        }
-        
-        // Update the previous rules ref
-        previousRulesRef.current = debouncedRules;
-      } catch (error) {
-        console.error('[AIAutomationTab] Exception when saving rules:', error);
-        toast.error('Failed to save AI rules');
-      }
-    };
-    
-    saveRules();
-  }, [debouncedRules, formId, isMounted]);
 
   // Add a useEffect to log when latestProcess changes
   useEffect(() => {
@@ -617,6 +619,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
               id="rules"
               value={rules}
               onChange={(e) => setRules(e.target.value)}
+              onBlur={handleRulesBlur}
               placeholder="E.g., 'Always mention our refund policy' or 'Include link to our docs'"
               className="min-h-[150px] mt-2"
             />
