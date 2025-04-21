@@ -23,9 +23,19 @@ interface ScrapingProcess {
   metadata?: {
     crawl_complete?: boolean
     pages_processed?: number
-    expected_page_count?: number
+    expected_pages?: number
     firecrawl_job_id?: string
     error?: string
+    crawl_timestamp?: string
+    current_processing_url?: string
+    processed_urls?: string[]
+    crawl_api_status?: {
+      status?: string
+      total: number
+      completed: number
+      creditsUsed?: number
+      expiresAt?: string
+    }
   }
 }
 
@@ -407,9 +417,34 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
   };
 
   // Get the page count to display in the UI
-  const getDisplayedPageCount = (): number => {
-    if (!latestProcess?.scraped_urls) return 0;
-    return Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
+  const getDisplayedPageCount = (): string => {
+    if (!latestProcess?.scraped_urls) return '0';
+    
+    const processedCount = Array.isArray(latestProcess.scraped_urls) ? latestProcess.scraped_urls.length : 0;
+    
+    // If process is not in progress, just show the final count
+    if (latestProcess.status !== 'in_progress') {
+      return processedCount.toString();
+    }
+    
+    // For in-progress processes, show "X of Y"
+    const metadata = latestProcess.metadata || {};
+    let expectedTotal = 0;
+    
+    // Try to get the total from crawl_api_status first
+    if (metadata.crawl_api_status?.total) {
+      expectedTotal = metadata.crawl_api_status.total;
+    } 
+    // Fall back to expected_pages if available
+    else if (metadata.expected_pages) {
+      expectedTotal = metadata.expected_pages;
+    } 
+    // Default to the current count if we don't have better information
+    else {
+      expectedTotal = processedCount > 0 ? processedCount : 1;
+    }
+    
+    return `${processedCount} of ${expectedTotal}`;
   };
 
   return (
