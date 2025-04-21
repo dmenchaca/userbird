@@ -296,15 +296,15 @@ async function storeDocumentChunk(
     // Create the object to insert - ensure we don't include any scraping_process_id field
     const insertData = {
       content,
-      embedding, 
+      embedding,
       form_id: formId,
       metadata, // Store URL, title, and process_id in metadata
       crawl_timestamp: crawlTimestamp || new Date().toISOString(), // Use found timestamp or current time as fallback
-      is_current: true  // Mark new documents as current by default
     };
     
-    // Log the full object structure being inserted to help debug
-    console.log(`Document insert structure:`, JSON.stringify(insertData, null, 2));
+    // Log the object structure being inserted (exclude the actual embedding vectors)
+    const logData = {...insertData, embedding: `[${insertData.embedding.length} dimensions]`};
+    console.log(`Document insert structure:`, JSON.stringify(logData, null, 2));
     console.log('Inserting data into Supabase with form_id:', formId);
     
     // Insert the document - use explicit column names to avoid scraping_process_id issues
@@ -316,8 +316,7 @@ async function storeDocumentChunk(
           embedding: insertData.embedding,
           form_id: insertData.form_id,
           metadata: insertData.metadata,
-          crawl_timestamp: insertData.crawl_timestamp,
-          is_current: insertData.is_current
+          crawl_timestamp: insertData.crawl_timestamp
         }
       ]);
     
@@ -386,29 +385,16 @@ const handler: Handler = async (event) => {
     // Parse the webhook payload
     const body: FirecrawlWebhookBody = JSON.parse(event.body || '{}');
     
-    // Log the COMPLETE webhook payload for debugging
-    console.log('========== FIRECRAWL WEBHOOK - COMPLETE PAYLOAD ==========');
-    console.log(JSON.stringify(body, null, 2));
+    // Log basic webhook info instead of the entire payload
+    console.log('========== FIRECRAWL WEBHOOK - BASIC INFO ==========');
+    console.log('Event type:', body.type || body.event);
+    console.log('Data count:', body.data?.length || 0);
+    console.log('Job ID:', body.id || 'Not found');
+    console.log('Process ID:', body.metadata?.process_id || 'Not found');
     console.log('==========================================================');
-    
-    // Log the headers too, might contain relevant information
-    console.log('========== FIRECRAWL WEBHOOK - REQUEST HEADERS ==========');
-    console.log(JSON.stringify(event.headers, null, 2));
-    console.log('=========================================================');
     
     // Check if there's any form_id in the root payload
     console.log('Checking for form_id in root level payload:', body.form_id || 'Not found');
-    
-    // Extract and log important data
-    console.log('Webhook event type:', body.type || body.event);
-    console.log('Webhook data count:', body.data?.length || 0);
-    console.log('Webhook job ID:', body.id || 'Not found');
-    
-    // Check for metadata in the webhook
-    if (body.data && body.data.length > 0) {
-      console.log('First page metadata keys:', Object.keys(body.data[0].metadata));
-      console.log('First page metadata (detailed):', JSON.stringify(body.data[0].metadata));
-    }
     
     // Get the process_id from the metadata if available
     let processId = body.metadata?.process_id;
@@ -510,37 +496,6 @@ const handler: Handler = async (event) => {
           // If no stats in webhook, use data length as expected pages
           metadata.expected_pages = body.data?.length || process.scraped_urls.length;
           console.log(`No taskStats in webhook, using data length (${body.data?.length}) or scraped_urls (${process.scraped_urls.length}) as expected pages`);
-        }
-        
-        // Only update documents if this crawl resulted in new data
-        if (process.scraped_urls && process.scraped_urls.length > 0) {
-          // MODIFIED APPROACH: First mark ALL documents for this form as not current
-          const formId = process.form_id;
-          const { error: markAllError } = await supabaseClient
-            .from('documents')
-            .update({ is_current: false })
-            .eq('form_id', formId);
-          
-          if (markAllError) {
-            console.error(`Error marking all documents as not current for form ${formId}:`, markAllError);
-          } else {
-            console.log(`Successfully marked all existing documents for form ${formId} as is_current=false`);
-            
-            // Now mark documents from THIS crawl as current - using the process_id in metadata
-            const { error: markCurrentError } = await supabaseClient
-              .from('documents')
-              .update({ is_current: true })
-              .eq('form_id', formId)
-              .contains('metadata', { process_id: processId });
-            
-            if (markCurrentError) {
-              console.error(`Error marking current documents for process ${processId}:`, markCurrentError);
-            } else {
-              console.log(`Successfully marked documents from current process ${processId} as is_current=true`);
-            }
-          }
-        } else {
-          console.log(`No scraped URLs found for process ${processId}, skipping document marking`);
         }
         
         const { error: updateError } = await supabaseClient

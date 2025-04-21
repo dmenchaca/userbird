@@ -25,7 +25,7 @@ const getSupabaseClient = () => {
 };
 
 /**
- * Cleanup old documents marked with is_current=false
+ * Cleanup outdated documents based on crawl_timestamp
  * 
  * This function can be triggered:
  * 1. Manually via a request to /.netlify/functions/cleanup-old-documents
@@ -51,52 +51,31 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    console.log('[cleanup-old-documents] Starting cleanup of documents marked as is_current=false');
+    console.log('[cleanup-old-documents] Starting cleanup of outdated documents based on crawl_timestamp');
     
     const supabaseClient = getSupabaseClient();
     
-    // Get count before deletion for reporting
-    const { count: beforeCount, error: countError } = await supabaseClient
-      .from('documents')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_current', false);
+    // Use the database function to clean up outdated documents
+    // Default retention period of 30 days
+    const { data, error } = await supabaseClient
+      .rpc('cleanup_outdated_documents', { retention_days: 30 });
       
-    if (countError) {
-      console.error('[cleanup-old-documents] Error counting old documents:', countError);
+    if (error) {
+      console.error('[cleanup-old-documents] Error cleaning up outdated documents:', error);
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Failed to count old documents' }),
+        body: JSON.stringify({ error: 'Failed to clean up outdated documents' }),
       };
     }
     
-    console.log(`[cleanup-old-documents] Found ${beforeCount} documents marked as is_current=false`);
-    
-    // Delete documents marked as is_current=false
-    // For large databases, consider adding a retention period (e.g., older than 30 days)
-    // or using a batch processing approach for very large datasets
-    
-    const { error: deleteError } = await supabaseClient
-      .from('documents')
-      .delete()
-      .eq('is_current', false);
-      // Optional: Add time-based filter for retention
-      // .lt('crawl_timestamp', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-    
-    if (deleteError) {
-      console.error('[cleanup-old-documents] Error deleting old documents:', deleteError);
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Failed to delete old documents' }),
-      };
-    }
-    
-    console.log(`[cleanup-old-documents] Successfully deleted ${beforeCount} outdated documents`);
+    const deletedCount = data || 0;
+    console.log(`[cleanup-old-documents] Successfully deleted ${deletedCount} outdated documents`);
     
     return {
       statusCode: 200,
       body: JSON.stringify({ 
-        message: `Cleanup complete - deleted ${beforeCount} documents marked as is_current=false`,
-        count: beforeCount
+        message: `Cleanup complete - deleted ${deletedCount} outdated documents`,
+        count: deletedCount
       }),
     };
   } catch (error) {
