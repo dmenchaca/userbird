@@ -267,7 +267,7 @@ export default async (request: Request, context: any) => {
         query_embedding: queryEmbedding,
         match_count: TOP_K_DOCUMENTS,
         form_id_filter: form_id,
-        use_latest_crawl: true,  // Use latest crawl data
+        use_latest_crawl: true,  // Only use latest crawl data
         similarity_threshold: 0.75  // Only include documents with at least 75% similarity
       }
     );
@@ -279,66 +279,68 @@ export default async (request: Request, context: any) => {
 
     console.log(`Retrieved ${topDocs?.length || 0} relevant documents from latest crawl`);
 
-    // Fallback: If no docs found or not enough, try again without the latest crawl restriction
+    // Use only docs from latest crawl - no fallback to older crawls
     let finalDocs = topDocs || [];
-    if (!finalDocs || finalDocs.length < 2) {
-      console.log("Few or no documents found with latest crawl, trying with all crawls...");
-      
-      const { data: allCrawlDocs, error: allCrawlError } = await supabase.rpc(
-        'match_documents',
-        {
-          query_embedding: queryEmbedding,
-          match_count: TOP_K_DOCUMENTS,
-          form_id_filter: form_id,
-          use_latest_crawl: false,  // Use all crawls
-          similarity_threshold: 0.7  // Slightly lower threshold for fallback
-        }
-      );
-      
-      if (allCrawlError) {
-        console.error('Error searching all crawls:', allCrawlError);
-      } else {
-        finalDocs = allCrawlDocs || [];
-        console.log(`Retrieved ${finalDocs.length || 0} relevant documents from all crawls`);
-      }
+    
+    // If no docs found, add a note to inform the model
+    let noDocsNote: string | undefined = undefined;
+    if (!finalDocs || finalDocs.length === 0) {
+      console.log("No documents found in latest crawl. No fallback will be used.");
+      noDocsNote = "No relevant documentation was found in our knowledge base. Please acknowledge this to the user and provide general guidance based on common best practices or suggest they provide more details about their issue.";
     }
 
     // Last resort: If we're looking for specific terms like 'calendly' but didn't find them,
     // try a direct SQL lookup for documents with those terms in the title
+    // BUT ONLY FROM THE LATEST CRAWL
     if (foundTerms.length > 0 && 
         (!finalDocs || 
          finalDocs.length === 0 || 
          !finalDocs.some(doc => 
            doc.metadata?.title?.toLowerCase().includes(foundTerms[0].toLowerCase())))) {
       
-      console.log(`No documents found with '${foundTerms[0]}' in title, attempting direct lookup...`);
+      console.log(`No documents found with '${foundTerms[0]}' in title, attempting direct lookup in latest crawl...`);
       
       try {
-        // Direct query for documents with the term in the title
-        const { data: directDocs, error: directError } = await supabase
+        // Get the latest crawl timestamp first
+        const { data: latestCrawl, error: latestCrawlError } = await supabase
           .from('documents')
-          .select('*')
+          .select('crawl_timestamp')
           .eq('form_id', form_id)
-          .ilike('metadata->>title', `%${foundTerms[0]}%`)
-          .limit(5);
-        
-        if (directError) {
-          console.error('Error in direct document lookup:', directError);
-        } else if (directDocs && directDocs.length > 0) {
-          console.log(`Found ${directDocs.length} documents with '${foundTerms[0]}' in title via direct lookup`);
+          .order('crawl_timestamp', { ascending: false })
+          .limit(1);
           
-          // Format these docs to match the structure expected by the rest of the code
-          const formattedDirectDocs = directDocs.map(doc => ({
-            id: doc.id,
-            content: doc.content,
-            metadata: doc.metadata,
-            similarity: 0.8, // Assign a reasonable similarity score
-            form_id: doc.form_id,
-            crawl_timestamp: doc.crawl_timestamp
-          }));
+        if (latestCrawlError || !latestCrawl || latestCrawl.length === 0) {
+          console.error('Error getting latest crawl timestamp:', latestCrawlError);
+        } else {
+          const latestTimestamp = latestCrawl[0].crawl_timestamp;
           
-          // Add these to our final docs, potentially replacing less relevant ones
-          finalDocs = [...formattedDirectDocs, ...finalDocs].slice(0, TOP_K_DOCUMENTS);
+          // Direct query for documents with the term in the title - but only from latest crawl
+          const { data: directDocs, error: directError } = await supabase
+            .from('documents')
+            .select('*')
+            .eq('form_id', form_id)
+            .eq('crawl_timestamp', latestTimestamp)
+            .ilike('metadata->>title', `%${foundTerms[0]}%`)
+            .limit(5);
+          
+          if (directError) {
+            console.error('Error in direct document lookup:', directError);
+          } else if (directDocs && directDocs.length > 0) {
+            console.log(`Found ${directDocs.length} documents with '${foundTerms[0]}' in title via direct lookup in latest crawl`);
+            
+            // Format these docs to match the structure expected by the rest of the code
+            const formattedDirectDocs = directDocs.map(doc => ({
+              id: doc.id,
+              content: doc.content,
+              metadata: doc.metadata,
+              similarity: 0.8, // Assign a reasonable similarity score
+              form_id: doc.form_id,
+              crawl_timestamp: doc.crawl_timestamp
+            }));
+            
+            // Add these to our final docs, potentially replacing less relevant ones
+            finalDocs = [...formattedDirectDocs, ...finalDocs].slice(0, TOP_K_DOCUMENTS);
+          }
         }
       } catch (directQueryError) {
         console.error('Exception in direct document lookup:', directQueryError);
@@ -363,6 +365,15 @@ export default async (request: Request, context: any) => {
 
     // Prepare chat messages with context
     const messages = createChatMessages(feedback, replies || [], finalDocs || [], finalAdminFirstName);
+    
+    // If no docs were found, add a special instruction
+    if (noDocsNote) {
+      messages.push({
+        role: 'system',
+        content: noDocsNote
+      });
+    }
+    
     console.log("=== DEBUG: OpenAI Request Messages ===");
     console.log(JSON.stringify(messages, null, 2));
     
