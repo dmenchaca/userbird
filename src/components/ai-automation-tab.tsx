@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Globe, AlertCircle, Download, InfoIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -6,12 +6,15 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { Textarea } from '@/components/ui/textarea'
+import { useDebounce } from '../hooks/use-debounce'
 import React from 'react'
 
 interface AIAutomationTabProps {
   formId: string
   initialProcess?: ScrapingProcess | null
   refreshKey?: string | number
+  formRules?: string | null
 }
 
 interface ScrapingProcess {
@@ -42,12 +45,18 @@ interface ScrapingProcess {
   }
 }
 
-export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutomationTabProps) {
+export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
   const prevStatusRef = React.useRef<string | null>(null)
+  
+  // Rules state
+  const [rules, setRules] = useState(formRules || '')
+  const [isSavingRules, setIsSavingRules] = useState(false)
+  const debouncedRules = useDebounce(rules, 1000)
+  const previousRulesRef = useRef<string | null>(formRules || null)
 
   // Set initial state on mount and cleanup on unmount
   useEffect(() => {
@@ -66,11 +75,93 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
       }
     }
     
+    // Initialize rules state from props
+    if (formRules !== undefined) {
+      setRules(formRules || '');
+      previousRulesRef.current = formRules || '';
+    }
+    
     return () => {
       console.log('[AIAutomationTab] Component unmounting');
       setIsMounted(false);
     };
-  }, [initialProcess]);
+  }, [initialProcess, formRules]);
+
+  // Fetch the form rules if not provided
+  useEffect(() => {
+    if (!formId || !isMounted || formRules !== undefined) return;
+    
+    const fetchFormRules = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('rules')
+          .eq('id', formId)
+          .single();
+          
+        if (error) {
+          console.error('[AIAutomationTab] Error fetching form rules:', error);
+          return;
+        }
+        
+        if (data) {
+          setRules(data.rules || '');
+          previousRulesRef.current = data.rules || '';
+          console.log('[AIAutomationTab] Fetched form rules:', data.rules);
+        }
+      } catch (error) {
+        console.error('[AIAutomationTab] Exception when fetching form rules:', error);
+      }
+    };
+    
+    fetchFormRules();
+  }, [formId, isMounted, formRules]);
+
+  // Save rules when debounced value changes
+  useEffect(() => {
+    if (!formId || !isMounted) return;
+    
+    // Skip saving if the rules haven't changed
+    if (debouncedRules === previousRulesRef.current) {
+      console.log('[AIAutomationTab] Rules unchanged, skipping save');
+      return;
+    }
+    
+    console.log(`[AIAutomationTab] Rules changed from "${previousRulesRef.current}" to "${debouncedRules}"`);
+    
+    const saveRules = async () => {
+      setIsSavingRules(true);
+      try {
+        const { error } = await supabase
+          .from('forms')
+          .update({ rules: debouncedRules })
+          .eq('id', formId);
+          
+        if (error) {
+          console.error('[AIAutomationTab] Error saving rules:', error);
+          toast.error('Failed to save AI rules');
+          return;
+        }
+        
+        // Only show toast if there was an actual change
+        const hasChanged = previousRulesRef.current !== debouncedRules;
+        if (hasChanged) {
+          toast.success('AI rules saved successfully');
+          console.log('[AIAutomationTab] Rules saved successfully');
+        }
+        
+        // Update the previous rules ref
+        previousRulesRef.current = debouncedRules;
+      } catch (error) {
+        console.error('[AIAutomationTab] Exception when saving rules:', error);
+        toast.error('Failed to save AI rules');
+      } finally {
+        setIsSavingRules(false);
+      }
+    };
+    
+    saveRules();
+  }, [debouncedRules, formId, isMounted]);
 
   // Add a useEffect to log when latestProcess changes
   useEffect(() => {
@@ -513,101 +604,132 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <Label htmlFor="websiteUrl">Link to your help docs</Label>
-        <div className="flex gap-2">
-          <Input
-            id="websiteUrl"
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-            placeholder="https://help.yourstartup.com"
-            disabled={isLoading || (latestProcess?.status === 'in_progress')}
-          />
-          <Button 
-            onClick={startScrapingProcess}
-            disabled={!websiteUrl || isLoading || (latestProcess?.status === 'in_progress')}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing
-              </>
-            ) : (
-              <>
-                <Globe className="mr-2 h-4 w-4" />
-                Crawl docs
-              </>
-            )}
-          </Button>
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium">AI Reply Rules</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Customize how AI generates replies to your users' feedback. These rules take priority over default behavior.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Enter the URL of the website you want to scrape for documentation content
-        </p>
-      </div>
-
-      {latestProcess ? (
-        <div className="space-y-4 mt-6">
-          <h3 className="text-sm font-medium">Latest crawling process</h3>
-          <div className="border rounded-md p-4">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">URL:</div>
-              <div className="truncate">{latestProcess.base_url}</div>
-              
-              <div className="text-muted-foreground">Status:</div>
-              <div className={`font-medium flex items-center gap-2 ${
-                latestProcess.status === 'completed' 
-                  ? 'text-green-600' 
-                  : latestProcess.status === 'failed' 
-                    ? 'text-red-600' 
-                    : 'text-amber-600'
-              }`}>
-                {getStatusIcon(latestProcess.status)}
-                {formatStatus(latestProcess.status)}
-              </div>
-              
-              <div className="text-muted-foreground">Started:</div>
-              <div>{formatDate(latestProcess.created_at)}</div>
-              
-              {latestProcess.completed_at && (
-                <>
-                  <div className="text-muted-foreground">Completed:</div>
-                  <div>{formatDate(latestProcess.completed_at)}</div>
-                </>
-              )}
-              
-              <div className="text-muted-foreground">Pages Processed:</div>
-              <div>{getDisplayedPageCount()}</div>
-            </div>
-
-            {latestProcess.status === 'in_progress' && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <Alert className="bg-blue-50 border-blue-200">
-                  <InfoIcon className="h-4 w-4 text-blue-500" />
-                  <AlertTitle>Processing in progress</AlertTitle>
-                  <AlertDescription>
-                    This process can take up to 5 minutes to complete. You can close this window and we'll send an email notification to admin users once the crawling is finished.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-
-            {latestProcess.status === 'completed' && latestProcess.document_count > 0 && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={downloadScrapedUrlsCSV}
-                  className="w-full"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Scraped URLs as CSV
-                </Button>
-              </div>
-            )}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="rules">Custom Instructions</Label>
+            <Textarea
+              id="rules"
+              value={rules}
+              onChange={(e) => setRules(e.target.value)}
+              placeholder="E.g., 'Always mention our refund policy' or 'Include link to our docs'"
+              className="min-h-[150px] mt-2"
+            />
           </div>
         </div>
-      ) : null}
+      </div>
+      
+      <div className="pt-6 border-t">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium">Help Documentation Source</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Specify a website to crawl for help documentation that the AI can reference when answering support queries.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="website">Website URL</Label>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  id="website"
+                  type="url"
+                  placeholder="https://docs.example.com"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  disabled={isLoading || latestProcess?.status === 'in_progress'}
+                />
+                <Button 
+                  onClick={startScrapingProcess}
+                  disabled={isLoading || !websiteUrl || latestProcess?.status === 'in_progress'}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading
+                    </>
+                  ) : (
+                    <>Start Crawl</>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Enter the URL of your help documentation site. We'll crawl it to generate a knowledge base.
+              </p>
+            </div>
+
+            {latestProcess ? (
+              <div className="space-y-4 mt-6">
+                <h3 className="text-sm font-medium">Latest crawling process</h3>
+                <div className="border rounded-md p-4">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="text-muted-foreground">URL:</div>
+                    <div className="truncate">{latestProcess.base_url}</div>
+                    
+                    <div className="text-muted-foreground">Status:</div>
+                    <div className={`font-medium flex items-center gap-2 ${
+                      latestProcess.status === 'completed' 
+                        ? 'text-green-600' 
+                        : latestProcess.status === 'failed' 
+                          ? 'text-red-600' 
+                          : 'text-amber-600'
+                    }`}>
+                      {getStatusIcon(latestProcess.status)}
+                      {formatStatus(latestProcess.status)}
+                    </div>
+                    
+                    <div className="text-muted-foreground">Started:</div>
+                    <div>{formatDate(latestProcess.created_at)}</div>
+                    
+                    {latestProcess.completed_at && (
+                      <>
+                        <div className="text-muted-foreground">Completed:</div>
+                        <div>{formatDate(latestProcess.completed_at)}</div>
+                      </>
+                    )}
+                    
+                    <div className="text-muted-foreground">Pages Processed:</div>
+                    <div>{getDisplayedPageCount()}</div>
+                  </div>
+
+                  {latestProcess.status === 'in_progress' && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Alert className="bg-blue-50 border-blue-200">
+                        <InfoIcon className="h-4 w-4 text-blue-500" />
+                        <AlertTitle>Processing in progress</AlertTitle>
+                        <AlertDescription>
+                          This process can take up to 5 minutes to complete. You can close this window and we'll send an email notification to admin users once the crawling is finished.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+
+                  {latestProcess.status === 'completed' && (latestProcess.document_count > 0) && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={downloadScrapedUrlsCSV}
+                        className="w-full"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Scraped URLs as CSV
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </div>
   )
 } 

@@ -102,6 +102,9 @@ export function FormSettingsDialog({
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<any>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [formRules, setFormRules] = useState<string | null>(null)
+  const [isLoadingFormRules, setIsLoadingFormRules] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -517,46 +520,67 @@ export function FormSettingsDialog({
 
   // Fetch the latest scraping process when the dialog opens
   useEffect(() => {
-    let mounted = true;
-    
     if (open && formId) {
-      const fetchLatestScrapingProcess = async () => {
-        try {
-          console.log('[FormSettingsDialog] Fetching latest scraping process for form ID:', formId);
-          const { data, error } = await supabase
-            .from('docs_scraping_processes')
-            .select('*')
-            .eq('form_id', formId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-            
-          if (!mounted) return;
-          
-          if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-            console.error('[FormSettingsDialog] Error fetching scraping process:', error);
-          } else if (data) {
-            console.log('[FormSettingsDialog] Successfully fetched scraping process:', data.id);
-            
-            // Ensure metadata is not null
-            data.metadata = data.metadata || {};
-            
-            setLatestScrapingProcess(data);
-          } else {
-            console.log('[FormSettingsDialog] No previous scraping processes found for this form');
-          }
-        } catch (error) {
-          console.error('[FormSettingsDialog] Exception when fetching scraping process:', error);
-        }
-      };
-      
       fetchLatestScrapingProcess();
+      fetchFormRules();
     }
-    
-    return () => {
-      mounted = false;
-    };
   }, [open, formId]);
+
+  // Function to fetch the latest scraping process
+  const fetchLatestScrapingProcess = async () => {
+    if (!formId) return;
+    
+    try {
+      console.log('[FormSettingsDialog] Fetching latest scraping process for form ID:', formId);
+      const { data, error } = await supabase
+        .from('docs_scraping_processes')
+        .select('*')
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('[FormSettingsDialog] Error fetching scraping process:', error);
+      } else if (data) {
+        console.log('[FormSettingsDialog] Successfully fetched scraping process:', data.id);
+        
+        // Ensure metadata is not null
+        data.metadata = data.metadata || {};
+        
+        setLatestScrapingProcess(data);
+      } else {
+        console.log('[FormSettingsDialog] No previous scraping processes found for this form');
+      }
+    } catch (error) {
+      console.error('[FormSettingsDialog] Exception when fetching scraping process:', error);
+    }
+  };
+
+  // Function to fetch form rules
+  const fetchFormRules = async () => {
+    if (!formId) return;
+    
+    setIsLoadingFormRules(true);
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('rules')
+        .eq('id', formId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching form rules:', error);
+        return;
+      }
+      
+      setFormRules(data.rules);
+    } catch (error) {
+      console.error('Exception when fetching form rules:', error);
+    } finally {
+      setIsLoadingFormRules(false);
+    }
+  };
 
   const handleAddEmail = async () => {
     setEmailError('');
@@ -1511,6 +1535,7 @@ export function FormSettingsDialog({
                       formId={formId} 
                       initialProcess={latestScrapingProcess}
                       refreshKey={`${open}-${activeTab === 'ai-automation'}`}
+                      formRules={formRules}
                     />
                   </div>
                 )}

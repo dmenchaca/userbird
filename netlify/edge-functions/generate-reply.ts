@@ -52,10 +52,22 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   // Start with system prompt
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT.replace('{admin_first_name}', adminFirstName) },
-    // Add user name information explicitly
-    { role: 'system', content: `The customer's first name is: ${customerFirstName}.` }
   ];
-
+  
+  // Add custom form rules if available (highest priority after system prompt)
+  if (feedback.form?.rules) {
+    messages.push({
+      role: 'system',
+      content: `IMPORTANT CUSTOM INSTRUCTIONS: ${feedback.form.rules}`
+    });
+  }
+  
+  // Add user name information
+  messages.push({
+    role: 'system', 
+    content: `The customer's first name is: ${customerFirstName}.`
+  });
+  
   // Add tag context if available
   if (feedback.tagInfo) {
     const tagInstruction = `This feedback is tagged as "${feedback.tagInfo.name}". ` + 
@@ -223,7 +235,9 @@ export default async (request: Request, context: any) => {
     console.log(`First name extracted: ${feedback.user_name ? feedback.user_name.split(' ')[0] : 'N/A'}`);
 
     const form_id = feedback.form_id;
+    const formRules = feedback.form?.rules;
     console.log(`Retrieved form_id: ${form_id} for feedback`);
+    console.log(`Form has custom rules: ${formRules ? 'Yes' : 'No'}`);
     
     // Check if feedback has a tag and fetch the tag info if it exists
     let tagInfo = null;
