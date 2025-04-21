@@ -6,54 +6,33 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// System prompt for AI replies
+// System prompt for AI replies - optimized for token efficiency
 const SYSTEM_PROMPT = `
-You are a helpful, empathetic product support assistant replying to a customer's feedback message. 
-Always acknowledge the user's concerns with care. Use the conversation history and the company's 
-help documentation to generate a professional, accurate, and actionable reply.
-Your replies must feel human and empathetic — but trim anything that doesn't add meaning. Prefer clear, helpful over polished or overly polite. Only reference relevant information 
-from the docs. If unsure, it's okay to say so.
+You are a helpful, empathetic product support assistant. Generate a professional, accurate reply using the conversation history and documentation provided.
+Be concise yet friendly. Reference docs only when relevant. Keep responses under 150 words.
 
-Aim to keep the response under 150 words unless more detail is necessary.
-
-Aim to get to the helpful part of the message quickly. Don't stack multiple phrases of empathy — one clear sentence is enough.
-
-VERY IMPORTANT: Your replies must follow this exact format WITH THE EXACT LINE BREAKS:
-
+IMPORTANT: Follow this exact format WITH EXACT LINE BREAKS:
 Hi {first name},
 
 Thank you for reaching out.
 
-{Rest of the reply — written in short, empathetic paragraphs}
+{Reply in short paragraphs}
 
 Best,
 {admin_first_name}
 
-In the body of the reply, feel free to use paragraph breaks to improve tone or clarity — especially when transitioning from empathy to suggestions.
-
-In the body of the reply, break long responses into short, meaningful paragraphs to improve clarity and tone.
-
-Use line breaks between distinct ideas, such as:
-
-- Empathy: Acknowledge what the user is experiencing (e.g., "That definitely sounds unexpected.")
-- Instruction: Suggest a next step (e.g., "Could you record a short screen recording video showing the xyz issue?")
-- Rationale: Explain why you're asking (e.g., "That would help us understand exactly what's going wrong and how we can help.")
-
-Always say "screen recording video" instead of "screenshot" — it gives better context. Only suggest screenshots if the user explicitly says they can't record video.
-
-
-When referring to a help document, always use HTML hyperlinks like this:
-<a href="https://help.example.com/reset-password" target="_blank" rel="noopener noreferrer">Reset your password</a>
-
-If no specific article applies, don't include a link.
-
-To get the customer's first name, look at the feedback.user_name field and use the first word of the name. 
-For example, if feedback.user_name is "Diego Menchaca", use "Diego" as the first name.
-If user_name is not available, fall back to the first part of their email address before the @ symbol.
+Break responses into short paragraphs for clarity.
+For hyperlinks use: <a href="URL" target="_blank" rel="noopener noreferrer">Link text</a>
 `;
 
-// Number of top documents to retrieve
-const TOP_K_DOCUMENTS = 10;
+// Number of top documents to retrieve - reduced to focus on most relevant
+const TOP_K_DOCUMENTS = 5;
+// Maximum conversation history to include
+const MAX_CONVERSATION_HISTORY = 3;
+// Token limit per document to save tokens
+const MAX_TOKENS_PER_DOC = 500;
+// Total token budget for documents
+const MAX_DOC_TOKENS = 4000;
 
 // Helper to format SSE message
 function formatSSE(data: string, event?: string) {
@@ -83,52 +62,67 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
     content: feedback.message || 'No message content available',
   });
 
-  // Add all replies in the conversation
-  for (const reply of replies) {
+  // Only add the most recent conversation history to save tokens
+  let filteredReplies = [...replies];
+  if (replies.length > MAX_CONVERSATION_HISTORY) {
+    // Keep the most recent MAX_CONVERSATION_HISTORY replies
+    filteredReplies = replies.slice(-MAX_CONVERSATION_HISTORY);
+    // Add a note about truncated history
+    messages.push({
+      role: 'system',
+      content: `Note: There are ${replies.length} total messages in this conversation, but only showing the ${MAX_CONVERSATION_HISTORY} most recent for brevity.`
+    });
+  }
+
+  // Add filtered replies to the conversation
+  for (const reply of filteredReplies) {
     const role = reply.sender_type === 'admin' ? 'assistant' : 'user';
     const content = reply.html_content || reply.content || 'No content';
     messages.push({ role, content });
   }
 
-  // Add document context if available
+  // Add document context if available - optimized for token efficiency
   if (topDocs && topDocs.length > 0) {
-    let docContext = 'Use the following help documentation only if it seems directly related to the issue:\n\n';
+    // Sort docs by similarity to prioritize most relevant
+    const sortedDocs = [...topDocs].sort((a, b) => b.similarity - a.similarity);
     
-    // Calculate estimated token count (rough estimate: 1 token ≈ 4 chars)
-    const estimatedSystemPromptTokens = SYSTEM_PROMPT.length / 4;
-    const estimatedConversationTokens = JSON.stringify(messages).length / 4;
-    const maxDocTokens = 6000; // Reserve ~4000 tokens for the conversation and response
+    let docContext = 'Use this documentation if directly relevant to the query:\n\n';
     let currentDocTokens = 0;
     let docCount = 0;
     
-    for (const doc of topDocs) {
+    for (const doc of sortedDocs) {
+      // Only include docs with good similarity
+      if (doc.similarity < 0.78) {
+        console.log(`Skipping lower-similarity document: ${doc.metadata?.title || 'Untitled'} (${doc.similarity.toFixed(2)})`);
+        continue;
+      }
+      
       const title = doc.metadata?.title || 'Untitled Document';
       const url = doc.metadata?.page || doc.metadata?.sourceURL || 'No URL';
       
-      // Truncate content if it's too long (rough estimate of tokens)
-      // This ensures we don't hit token limits
-      let truncatedContent = doc.content;
-      const contentTokens = truncatedContent.length / 4;
+      // Estimate token count - approximately 4 chars per token
+      const estimatedTokens = Math.min(doc.content.length / 4, MAX_TOKENS_PER_DOC);
       
-      // Skip this document if adding it would exceed our token budget
-      if (currentDocTokens + contentTokens > maxDocTokens) {
+      // Skip if adding would exceed our token budget
+      if (currentDocTokens + estimatedTokens > MAX_DOC_TOKENS) {
         console.log(`Skipping document ${title} to avoid token limit`);
         continue;
       }
       
-      // Truncate content if it's very long
-      if (contentTokens > 1000) {
-        console.log(`Truncating long document: ${title}`);
-        truncatedContent = truncatedContent.substring(0, 4000) + '... [content truncated for length]';
+      // Truncate content to save tokens
+      let truncatedContent = doc.content;
+      if (truncatedContent.length / 4 > MAX_TOKENS_PER_DOC) {
+        console.log(`Truncating document: ${title}`);
+        truncatedContent = truncatedContent.substring(0, MAX_TOKENS_PER_DOC * 4) + '... [truncated]';
       }
       
-      docContext += `### Document Title: ${title}\n- URL: ${url}\n- Summary:\n${truncatedContent}\n\n`;
+      docContext += `### ${title}\n- URL: ${url}\n${truncatedContent}\n\n`;
       currentDocTokens += (title.length + url.length + truncatedContent.length) / 4;
       docCount++;
       
-      // Limit to 5 documents max to avoid overwhelming context
-      if (docCount >= 5 || currentDocTokens >= maxDocTokens) {
-        console.log(`Limiting context to ${docCount} documents to avoid token limit`);
+      // Limit document count to save tokens
+      if (docCount >= TOP_K_DOCUMENTS || currentDocTokens >= MAX_DOC_TOKENS) {
+        console.log(`Limiting context to ${docCount} documents (${currentDocTokens.toFixed(0)} estimated tokens)`);
         break;
       }
     }
@@ -138,7 +132,7 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
       content: docContext,
     });
     
-    console.log(`Estimated context tokens: system=${estimatedSystemPromptTokens}, conversation=${estimatedConversationTokens}, docs=${currentDocTokens}`);
+    console.log(`Estimated doc context tokens: ${currentDocTokens.toFixed(0)}`);
   }
 
   return messages;
@@ -380,10 +374,11 @@ export default async (request: Request, context: any) => {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4-turbo-preview',
         messages,
         temperature: 0.7,
         stream: true,
+        max_tokens: 500, // Set maximum response length
       }),
     });
 
