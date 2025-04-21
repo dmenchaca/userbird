@@ -413,7 +413,77 @@ const handler: Handler = async (event) => {
     // Get Supabase client
     const supabaseClient = getSupabaseClient();
     console.log('Supabase client initialized');
-
+    
+    // Fetch complete crawl status from the Firecrawl API
+    if (body.id) {
+      try {
+        const crawlId = body.id;
+        console.log(`Fetching complete crawl status for job ${crawlId}`);
+        
+        const apiResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${crawlId}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`
+          }
+        });
+        
+        if (apiResponse.ok) {
+          const crawlStatus = await apiResponse.json();
+          
+          // Sanitize large data fields for logging
+          const sanitizedStatus = JSON.parse(JSON.stringify(crawlStatus));
+          if (sanitizedStatus.data) {
+            sanitizedStatus.data = sanitizedStatus.data.map((item: any) => {
+              // Replace large content fields with placeholders to reduce log size
+              if (item.markdown && item.markdown.length > 100) {
+                item.markdown = `${item.markdown.substring(0, 100)}... [${item.markdown.length} chars]`;
+              }
+              if (item.html && item.html.length > 100) {
+                item.html = `${item.html.substring(0, 100)}... [${item.html.length} chars]`;
+              }
+              if (item.rawHtml && item.rawHtml.length > 100) {
+                item.rawHtml = `${item.rawHtml.substring(0, 100)}... [${item.rawHtml.length} chars]`;
+              }
+              return item;
+            });
+          }
+          
+          console.log('COMPLETE FIRECRAWL API RESPONSE:', JSON.stringify(sanitizedStatus, null, 2));
+          
+          // Store additional metadata from the API response
+          if (processId) {
+            const { data: process, error: getError } = await supabaseClient
+              .from('docs_scraping_processes')
+              .select('metadata')
+              .eq('id', processId)
+              .single();
+              
+            if (!getError && process) {
+              const metadata = process.metadata || {};
+              metadata.crawl_api_status = {
+                status: crawlStatus.status,
+                total: crawlStatus.total,
+                completed: crawlStatus.completed,
+                creditsUsed: crawlStatus.creditsUsed,
+                expiresAt: crawlStatus.expiresAt
+              };
+              
+              await supabaseClient
+                .from('docs_scraping_processes')
+                .update({ metadata })
+                .eq('id', processId);
+                
+              console.log(`Updated process ${processId} with API status metadata`);
+            }
+          }
+        } else {
+          console.error(`Error fetching crawl status: ${apiResponse.status} ${apiResponse.statusText}`);
+        }
+      } catch (error) {
+        console.error('Error fetching crawl status from API:', error);
+      }
+    }
+    
     // Save the crawl_timestamp to the process metadata if needed
     if (processId && crawlTimestamp) {
       try {
