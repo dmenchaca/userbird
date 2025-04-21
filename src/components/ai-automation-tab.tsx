@@ -357,7 +357,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
       console.log('[AIAutomationTab] Sending crawl completion notification');
       
       const processedCount = latestProcess.metadata?.documents_with_latest_timestamp || 0;
-      const totalPages = latestProcess.metadata?.crawl_api_status?.total || processedCount;
       
       const response = await fetch('/api/send-notification', {
         method: 'POST',
@@ -466,54 +465,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
       return <AlertCircle className="h-4 w-4 text-destructive" />;
     }
     return null;
-  };
-
-  // Update the local state with new process data
-  const updateProcessState = (newData: ScrapingProcess) => {
-    // Update if this is a newer or the same process
-    const newTimestamp = new Date(newData.created_at).getTime();
-    const currentTimestamp = latestProcess?.created_at 
-      ? new Date(latestProcess.created_at).getTime() 
-      : 0;
-      
-    // Calculate metrics for tracking changes
-    const metadata = newData.metadata || {};
-    const docs_count = metadata.documents_with_latest_timestamp || 0;
-    const statusChanged = newData.status !== latestProcess?.status;
-    const oldDocsCount = latestProcess?.metadata?.documents_with_latest_timestamp || 0;
-    const docsCountChanged = docs_count !== oldDocsCount;
-    
-    // Check for crawl completion
-    const isCompleted = newData.status === 'completed' && latestProcess?.status !== 'completed';
-    const docsCountIncreased = docsCountChanged && docs_count > oldDocsCount;
-    
-    if (statusChanged) {
-      console.log('[AIAutomationTab] Process status changed:', {
-        oldStatus: latestProcess?.status,
-        newStatus: newData.status
-      });
-    }
-    
-    if (docsCountChanged) {
-      const oldCount = oldDocsCount;
-      const newCount = docs_count;
-      console.log('[AIAutomationTab] Pages processed count changed:', { 
-        oldCount, 
-        newCount, 
-        difference: newCount - oldCount 
-      });
-    }
-
-    // Update the state if this is a never process or has changed
-    if (newTimestamp >= currentTimestamp && (statusChanged || docsCountChanged)) {
-      setLatestProcess(newData);
-    }
-    
-    // If the process just completed, try to send the notification
-    if (isCompleted && formId) {
-      console.log('[AIAutomationTab] Process completed, sending notification');
-      sendCompletionNotification();
-    }
   };
 
   // Function to download scraped URLs as CSV
