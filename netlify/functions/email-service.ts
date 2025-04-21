@@ -257,6 +257,14 @@ function formatSender(sender: { email: string, name?: string, product_name?: str
   return sender.email;
 }
 
+// Add this helper function near the top of the file, before EmailService class
+function getNotificationLabel(emailType?: 'crawl_complete' | 'feedback' | 'assignment'): string {
+  if (emailType === 'crawl_complete') {
+    return 'Notification';
+  }
+  return 'Message';
+}
+
 export class EmailService {
   static async sendEmail(params: EmailParams) {
     try {
@@ -529,7 +537,10 @@ We run on Userbird (https://app.userbird.co)
 
       <div style="margin-bottom: 24px;">
         <p style="color: #1f2937; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
-          Your documentation from <strong>${formUrl}</strong> has been successfully crawled and processed. All <strong>${message?.match(/(\d+) pages/)?.[1] || ''}</strong> pages are now indexed and ready to power help you generate replies to support tickets at blazing speed.
+          Your documentation from <strong>${formUrl}</strong> has been successfully crawled and processed.
+        </p>
+        <p style="color: #1f2937; font-size: 15px; line-height: 1.6; margin: 0 0 16px;"><br>
+          All <strong>${message?.match(/(\d+) pages/)?.[1] || ''}</strong> pages are now indexed and ready to help you generate replies to support tickets at blazing speed.
         </p>
         
         <div style="background-color: #f9fafb; border-left: 4px solid #3b82f6; padding: 16px; margin: 20px 0; border-radius: 0 4px 4px 0;">
@@ -549,7 +560,7 @@ We run on Userbird (https://app.userbird.co)
       
       <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
         <p style="color: #6b7280; font-size: 13px; margin: 0;">
-          Need help? Reply to this email or contact support at support@userbird.com
+          Need help? Reply to this email or contact support at support@userbird.co
         </p>
       </div>
     </div>
@@ -560,14 +571,16 @@ We run on Userbird (https://app.userbird.co)
       const textMessage = `
 🎉 Success! Your help docs has been processed
 
-Your documentation from ${formUrl} has been successfully crawled and processed. All pages are now indexed and ready to power help you generate replies to support tickets at blazing speed.
+Your documentation from ${formUrl} has been successfully crawled and processed.
+
+All pages are now indexed and ready to help you generate replies to support tickets at blazing speed.
 
 What's next?
 Go to any support ticket on the dashboard and click on "Generate" - you'll see how we instantly craft relevant replies using knowledge from your help docs.
 
 Try generating a support reply now: ${primaryActionUrl}
 
-Need help? Reply to this email or contact support at support@userbird.com
+Need help? Reply to this email or contact support at support@userbird.co
 `;
 
       // Custom subject for crawl completion
@@ -621,7 +634,7 @@ Need help? Reply to this email or contact support at support@userbird.com
       <div style="margin-bottom: 24px;">
         ${message ? `
         <div style="margin-bottom: 16px;">
-          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">${customEmailType === 'crawl_complete' ? 'Notification' : 'Message'}</h4>
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">${getNotificationLabel(customEmailType)}</h4>
           <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
         </div>
         ` : ''}
@@ -680,7 +693,7 @@ Need help? Reply to this email or contact support at support@userbird.com
     const textMessage = `
 ${headerTitle} for ${formUrl}
 
-${message ? `${customEmailType === 'crawl_complete' ? 'Notification' : 'Message'}:
+${message ? `${getNotificationLabel(customEmailType)}:
 ${message}
 
 ` : ''}${showUserInfo ? `User Information:
