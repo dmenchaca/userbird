@@ -113,6 +113,13 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
 
     // Initial fetch on mount only if no initialProcess was provided
     fetchLatestProcess();
+  }, [formId, isMounted, initialProcess]);
+
+  // Set up real-time subscriptions for process updates, regardless of initialProcess
+  useEffect(() => {
+    if (!formId || !isMounted) return;
+    
+    console.log('[AIAutomationTab] Setting up real-time subscriptions');
 
     // Set up real-time subscription for process updates
     const setupRealtimeUpdates = (processId: string) => {
@@ -289,7 +296,7 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
         newProcessChannel.unsubscribe();
       }
     };
-  }, [formId, isMounted, initialProcess]);
+  }, [formId, isMounted, latestProcess]);
 
   // Start a new scraping process
   const startScrapingProcess = async () => {
