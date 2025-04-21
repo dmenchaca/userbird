@@ -56,6 +56,17 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
     { role: 'system', content: `The customer's first name is: ${customerFirstName}.` }
   ];
 
+  // Add tag context if available
+  if (feedback.tagInfo) {
+    const tagInstruction = `This feedback is tagged as "${feedback.tagInfo.name}". ` + 
+      getTagBasedInstructions(feedback.tagInfo.name);
+    
+    messages.push({
+      role: 'system',
+      content: tagInstruction
+    });
+  }
+
   // Add initial feedback as user message
   messages.push({
     role: 'user',
@@ -138,6 +149,30 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   return messages;
 }
 
+// Helper function to provide specific instructions based on tag type
+function getTagBasedInstructions(tagName: string): string {
+  const normalizedTag = tagName.toLowerCase();
+  
+  if (normalizedTag.includes('bug') || normalizedTag.includes('glitch') || normalizedTag.includes('error')) {
+    return 'This is about a technical problem. Be empathetic, acknowledge the problem, and ask for specific details like browser/device information if needed.';
+  }
+  
+  if (normalizedTag.includes('feature') || normalizedTag.includes('request') || normalizedTag.includes('suggestion')) {
+    return 'This is a feature request. Thank the user for their suggestion and explain if the feature is on your roadmap or if you need more details to consider it.';
+  }
+  
+  if (normalizedTag.includes('question') || normalizedTag.includes('help')) {
+    return 'This is a help request. Focus on giving clear, step-by-step instructions that directly answer their question.';
+  }
+  
+  if (normalizedTag.includes('data') || normalizedTag.includes('loss')) {
+    return 'This appears to be about data loss, which is a high-priority issue. Express urgency in your response and ask for specific details about what was lost and when.';
+  }
+  
+  // Default case
+  return 'Consider this context when crafting your response.';
+}
+
 export default async (request: Request, context: any) => {
   console.log("=== DEBUG: Generate Reply Function Starting ===");
   
@@ -189,6 +224,25 @@ export default async (request: Request, context: any) => {
 
     const form_id = feedback.form_id;
     console.log(`Retrieved form_id: ${form_id} for feedback`);
+    
+    // Check if feedback has a tag and fetch the tag info if it exists
+    let tagInfo = null;
+    if (feedback.tag_id) {
+      const { data: tag, error: tagError } = await supabase
+        .from('feedback_tags')
+        .select('*')
+        .eq('id', feedback.tag_id)
+        .single();
+        
+      if (tagError) {
+        console.error('Error fetching tag information:', tagError);
+      } else if (tag) {
+        tagInfo = tag;
+        console.log(`Feedback has tag: ${tag.name} (${tag.color})`);
+      }
+    } else {
+      console.log('Feedback has no tag assigned');
+    }
 
     // 2. Fetch all replies for this feedback
     const { data: replies, error: repliesError } = await supabase
@@ -364,7 +418,12 @@ export default async (request: Request, context: any) => {
     const finalAdminFirstName = admin_first_name || 'Support';
 
     // Prepare chat messages with context
-    const messages = createChatMessages(feedback, replies || [], finalDocs || [], finalAdminFirstName);
+    const messages = createChatMessages(
+      { ...feedback, tagInfo }, // Pass tag info along with feedback
+      replies || [], 
+      finalDocs || [], 
+      finalAdminFirstName
+    );
     
     // If no docs were found, add a special instruction
     if (noDocsNote) {
