@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Loader2, AlertCircle, Download, InfoIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -55,8 +55,8 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
   const [rules, setRules] = useState(formRules || '')
   const previousRulesRef = useRef<string | null>(formRules || null)
   
-  // Function to save rules on blur or dialog close
-  const saveRules = async () => {
+  // Function to save rules on blur or dialog close - wrapped in useCallback to avoid dependency issues
+  const saveRules = useCallback(async () => {
     if (!formId || !isMounted) return;
     
     // Skip saving if the rules haven't changed
@@ -92,7 +92,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
       console.error('[AIAutomationTab] Exception when saving rules:', error);
       toast.error('Failed to save AI rules');
     }
-  };
+  }, [formId, isMounted, rules, previousRulesRef]);
 
   // Handle blur event for text area
   const handleRulesBlur = () => {
@@ -124,11 +124,16 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
     
     return () => {
       console.log('[AIAutomationTab] Component unmounting');
-      // Save rules when component unmounts (dialog closes)
-      saveRules();
+      
+      // Save rules before unmounting if they've changed
+      if (rules !== previousRulesRef.current) {
+        console.log('[AIAutomationTab] Saving rules on unmount...');
+        saveRules();
+      }
+      
       setIsMounted(false);
     };
-  }, [initialProcess, formRules]);
+  }, [initialProcess, formRules, rules, previousRulesRef, saveRules]);
 
   // Fetch the form rules if not provided
   useEffect(() => {

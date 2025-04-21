@@ -643,7 +643,8 @@ export function FormSettingsDialog({
       document.activeElement.blur();
     }
     
-    // Reset all form values to original values
+    // Reset relevant form values to original values - but don't reset AI rules
+    // since they are handled by the AIAutomationTab component
     onOpenChange(false);
     setColor(buttonColor);
     setText(supportText || '');
