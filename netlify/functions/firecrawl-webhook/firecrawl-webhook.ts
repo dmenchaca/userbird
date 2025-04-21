@@ -80,26 +80,6 @@ async function generateEmbedding(text: string) {
   }
 }
 
-// New function to track processed URLs by counting documents instead
-async function trackProcessedUrl(
-  client: SupabaseClient,
-  processId: string | undefined,
-  url: string
-) {
-  if (!processId) {
-    console.warn('No process_id provided, cannot track processed URL');
-    return;
-  }
-  
-  try {
-    console.log(`URL ${url} processed for process ${processId}, updating processing progress`);
-    // Instead of modifying a list, we'll just update the processing progress
-    await updateProcessingProgress(client, processId);
-  } catch (error) {
-    console.error('Error in trackProcessedUrl:', error);
-  }
-}
-
 // Update process status when crawl completes or fails
 async function updateProcessStatus(
   client: SupabaseClient,
@@ -150,7 +130,7 @@ async function updateProcessingProgress(
     // Get current process data - no longer need to select scraped_urls
     const { data: process, error: fetchError } = await client
       .from('docs_scraping_processes')
-      .select('metadata, status, created_at')
+      .select('metadata, status, created_at, document_count')
       .eq('id', processId)
       .single();
     
@@ -183,32 +163,16 @@ async function updateProcessingProgress(
     
     const total = metadata.crawl_api_status.total;
     
-    // Get the current crawl timestamp from metadata
-    const crawlTimestamp = metadata.crawl_timestamp || process.created_at;
-    console.log(`Process ${processId}: Using crawl timestamp ${crawlTimestamp} for counting processed documents`);
-    
-    // Count documents with matching latest timestamp
-    const { count: docsWithLatestTimestamp, error: countError } = await client
-      .from('documents')
-      .select('id', { count: 'exact', head: true })
-      .eq('crawl_timestamp', crawlTimestamp)
-      .filter('metadata->process_id', 'eq', processId);
-    
-    if (countError) {
-      console.error(`Error counting documents for process ${processId}:`, countError);
-      return;
-    }
-    
-    // The number of documents with matching timestamp is our processed count
-    const processedCount = docsWithLatestTimestamp || 0;
+    // Instead of querying for documents, use the document_count column
+    const processedCount = process.document_count || 0;
     
     // Update metadata with the latest counts
     metadata.documents_with_latest_timestamp = processedCount;
     
-    // Log the progress using our new counting method
-    console.log(`Process ${processId}: ${processedCount} of ${total} pages completed (matched by timestamp)`);
+    // Log the progress using our document_count value
+    console.log(`Process ${processId}: ${processedCount} of ${total} pages completed (from document_count)`);
     
-    // Update the process with the new metadata - no longer updating scraped_urls
+    // Update the process with the new metadata
     const updateData: any = { 
       metadata
     };
@@ -336,11 +300,11 @@ async function storeDocumentChunk(
     console.log('Successfully stored document chunk in Supabase with process_id in metadata');
     console.log('Form ID confirmed in database record:', formId);
     
-    // Track the scraped URL in the process record if we have a process ID
+    // Document insertion triggers the database function to increment document_count
+    // No need to call trackProcessedUrl anymore
+    
+    // Update processing progress for this chunk
     if (processId) {
-      await trackProcessedUrl(client, processId, sourceUrl);
-      
-      // Update processing progress for this chunk
       await updateProcessingProgress(client, processId);
     }
     
