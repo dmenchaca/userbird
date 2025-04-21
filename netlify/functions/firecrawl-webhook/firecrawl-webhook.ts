@@ -202,25 +202,13 @@ async function updateProcessingProgress(
     
     console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${expectedPages} expected pages (${process.scraped_urls.length} scraped URLs)`);
     
-    // Check if all pages are processed - only mark complete if:
-    // 1. The crawl is marked as complete in metadata
-    // 2. We've processed all the expected pages
-    const isComplete = metadata.crawl_complete && metadata.pages_processed >= expectedPages;
+    // REMOVED: Check if all pages are processed based on expected count
+    // We now rely solely on crawl_complete flag from Firecrawl
     
-    // Only update status to completed if we weren't already in that state and we're complete
-    const shouldUpdateStatus = isComplete && process.status !== 'completed';
-    
-    // Prepare update data
+    // Prepare update data - only update the metadata with page count
     const updateData: any = { metadata };
     
-    // Only change status if needed
-    if (shouldUpdateStatus) {
-      updateData.status = 'completed';
-      updateData.completed_at = new Date().toISOString();
-      console.log(`Setting process ${processId} status to completed: processed ${metadata.pages_processed} of ${expectedPages} pages`);
-    }
-    
-    // Update metadata and status if needed
+    // Update metadata
     const { error: updateError } = await client
       .from('docs_scraping_processes')
       .update(updateData)
@@ -231,9 +219,8 @@ async function updateProcessingProgress(
       return;
     }
     
-    if (isComplete && shouldUpdateStatus) {
-      console.log(`Process ${processId} completed: All ${metadata.pages_processed} pages processed`);
-    }
+    // If the crawl is marked as complete and we're not already in completed state,
+    // update the status separately when we get the crawl.completed event
   } catch (error) {
     console.error('Error in updateProcessingProgress:', error);
   }
@@ -473,7 +460,7 @@ const handler: Handler = async (event) => {
       // Get current process data with form_id and created_at timestamp
       const { data: process, error: fetchError } = await supabaseClient
         .from('docs_scraping_processes')
-        .select('form_id, created_at, metadata, scraped_urls')
+        .select('form_id, created_at, metadata, scraped_urls, status')
         .eq('id', processId)
         .single();
       
@@ -498,19 +485,26 @@ const handler: Handler = async (event) => {
           console.log(`No taskStats in webhook, using data length (${body.data?.length}) or scraped_urls (${process.scraped_urls.length}) as expected pages`);
         }
         
+        // Prepare update data with completed status
+        const updateData = { 
+          metadata,
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        };
+        
         const { error: updateError } = await supabaseClient
           .from('docs_scraping_processes')
-          .update({ metadata })
+          .update(updateData)
           .eq('id', processId);
           
         if (updateError) {
-          console.error(`Error updating process ${processId} metadata:`, updateError);
+          console.error(`Error updating process ${processId} status and metadata:`, updateError);
           return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Error updating process metadata' }),
+            body: JSON.stringify({ error: 'Error updating process status and metadata' }),
           };
         } else {
-          console.log(`Successfully updated process ${processId} metadata with crawl completion info`);
+          console.log(`Successfully marked process ${processId} as COMPLETED with crawl completion info`);
           
           // Check if all documents have already been processed
           await updateProcessingProgress(supabaseClient, processId);
@@ -535,27 +529,40 @@ const handler: Handler = async (event) => {
         // Update metadata to flag crawl as complete, but don't change status yet
         const { data: process, error: getError } = await supabaseClient
           .from('docs_scraping_processes')
-          .select('metadata')
+          .select('metadata, status')
           .eq('id', processId)
           .single();
           
         if (getError) {
           console.error(`Error retrieving process ${processId}:`, getError);
         } else {
-          // Update metadata to flag crawl as complete, but don't change status yet
+          // Update metadata to flag crawl as complete
           const metadata = process.metadata || {};
           metadata.crawl_complete = true;
           metadata.expected_pages = body.data?.length || 0;
           
+          // Prepare update data with completed status
+          const updateData: any = { metadata };
+          
+          // Only update status if it's not already completed
+          if (process.status !== 'completed') {
+            updateData.status = 'completed';
+            updateData.completed_at = new Date().toISOString();
+          }
+          
           const { error: updateError } = await supabaseClient
             .from('docs_scraping_processes')
-            .update({ metadata })
+            .update(updateData)
             .eq('id', processId);
             
           if (updateError) {
-            console.error(`Error updating process ${processId} metadata:`, updateError);
+            console.error(`Error updating process ${processId} status and metadata:`, updateError);
           } else {
-            console.log(`Marked process ${processId} crawl as complete in metadata`);
+            if (updateData.status === 'completed') {
+              console.log(`Successfully marked process ${processId} as COMPLETED (empty data)`);
+            } else {
+              console.log(`Updated process ${processId} metadata (empty data)`);
+            }
             
             // Check if pages have been processed
             await updateProcessingProgress(supabaseClient, processId);
@@ -573,7 +580,7 @@ const handler: Handler = async (event) => {
     if (body.success === true && processId) {
       const { data: process, error: getError } = await supabaseClient
         .from('docs_scraping_processes')
-        .select('metadata, scraped_urls')
+        .select('metadata, scraped_urls, status')
         .eq('id', processId)
         .single();
         
@@ -588,15 +595,28 @@ const handler: Handler = async (event) => {
         metadata.expected_pages = body.data.length;
         console.log(`Marking process ${processId} crawl as complete, expected pages from data: ${body.data.length}`);
         
+        // Prepare update data with completed status if not already completed
+        const updateData: any = { metadata };
+        
+        // Only update status if it's not already completed
+        if (process.status !== 'completed') {
+          updateData.status = 'completed';
+          updateData.completed_at = new Date().toISOString();
+        }
+        
         const { error: updateError } = await supabaseClient
           .from('docs_scraping_processes')
-          .update({ metadata })
+          .update(updateData)
           .eq('id', processId);
           
         if (updateError) {
-          console.error(`Error updating process ${processId} metadata:`, updateError);
+          console.error(`Error updating process ${processId} status and metadata:`, updateError);
         } else {
-          console.log(`Marked process ${processId} crawl as complete, expected pages: ${body.data.length}`);
+          if (updateData.status === 'completed') {
+            console.log(`Successfully marked process ${processId} as COMPLETED from success event`);
+          } else {
+            console.log(`Updated process ${processId} metadata, expected pages: ${body.data.length}`);
+          }
         }
       }
     }
