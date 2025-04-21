@@ -30,14 +30,15 @@ export const handler: Handler = async (event) => {
 
   try {
     const requestBody = JSON.parse(event.body || '{}');
-    const { formId, message, type, feedbackId, assigneeEmail, assigneeName, senderName, senderId } = requestBody;
+    const { formId, message, type, feedbackId, assigneeEmail, assigneeName, senderName, senderId, adminOnly } = requestBody;
     
     console.log('Parsed request:', { 
       type,
       hasFormId: !!formId, 
       messageLength: message?.length,
       hasFeedbackId: !!feedbackId,
-      hasAssigneeEmail: !!assigneeEmail
+      hasAssigneeEmail: !!assigneeEmail,
+      adminOnly: !!adminOnly
     });
     
     // Handle assignment notifications
@@ -87,12 +88,137 @@ export const handler: Handler = async (event) => {
       return { statusCode: 404, body: JSON.stringify({ error: 'Form not found' }) };
     }
 
-    // Get enabled notification settings
-    const { data: settings, error: settingsError } = await supabase
+    // Query based on whether adminOnly is specified
+    let settingsQuery = supabase
       .from('notification_settings')
       .select('email, notification_attributes')
       .eq('form_id', formId)
       .eq('enabled', true);
+    
+    // If adminOnly flag is set, query only admin users
+    if (adminOnly) {
+      // First get admin user IDs for this form (owner and admin collaborators)
+      const { data: adminUsers, error: adminError } = await supabase
+        .from('form_collaborators')
+        .select('user_id, role')
+        .eq('form_id', formId)
+        .eq('role', 'admin')
+        .eq('invitation_accepted', true);
+      
+      if (adminError) {
+        console.error('Error fetching admin users:', adminError);
+        throw adminError;
+      }
+      
+      // Also get the form owner
+      const { data: formOwner, error: ownerError } = await supabase
+        .from('forms')
+        .select('owner_id')
+        .eq('id', formId)
+        .single();
+        
+      if (ownerError) {
+        console.error('Error fetching form owner:', ownerError);
+        throw ownerError;
+      }
+      
+      // Get emails for all these users
+      const adminIds = [...(adminUsers?.map(u => u.user_id) || [])];
+      if (formOwner?.owner_id) {
+        adminIds.push(formOwner.owner_id);
+      }
+      
+      // Only proceed if we have admin IDs
+      if (adminIds.length === 0) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            message: 'No admin users found for this form',
+            success: true
+          })
+        };
+      }
+      
+      // Get admin user emails from auth.users table
+      const { data: userEmails, error: emailError } = await supabase
+        .from('auth.users')
+        .select('email')
+        .in('id', adminIds);
+        
+      if (emailError) {
+        console.error('Error fetching admin emails:', emailError);
+        throw emailError;
+      }
+      
+      const adminEmails = userEmails?.map(u => u.email) || [];
+      console.log('Admin emails to notify:', adminEmails);
+      
+      // Ensure we have emails to notify
+      if (adminEmails.length === 0) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            message: 'No admin emails found for this form',
+            success: true
+          })
+        };
+      }
+      
+      // If this is an admin-only notification for crawl completion, 
+      // we'll send directly to admins without checking notification settings
+      if (adminOnly && type === 'crawl_complete') {
+        console.log('Sending crawl completion notification directly to admins');
+        
+        // Send emails directly to admins
+        const emailPromises = adminEmails.map(async (email) => {
+          // Create unique ID for this message
+          const messageId = `<crawl-notification-${formId}-${Date.now()}@userbird.co>`;
+          
+          try {
+            // Use the EmailService to send the notification
+            const emailResult = await EmailService.sendFeedbackNotification({
+              to: email,
+              formUrl: form.url,
+              formId: formId,
+              message: message || `Documentation crawling for ${form.url} has completed.`,
+              feedbackId: formId // Use formId as a substitute since we don't have a feedbackId
+            });
+            
+            return {
+              email: email,
+              messageId: emailResult.messageId || messageId,
+              success: true
+            };
+          } catch (error) {
+            console.error(`Error sending to admin ${email}:`, error);
+            return {
+              email: email,
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+        
+        const results = await Promise.all(emailPromises);
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            success: true,
+            emailResults: results.map(r => ({ 
+              success: r.success, 
+              hasMessageId: !!r.messageId
+            }))
+          })
+        };
+      }
+      
+      // For regular notifications, continue with existing logic but filter to admin emails
+      settingsQuery = settingsQuery.in('email', adminEmails);
+    }
+    
+    // Execute the final query
+    const { data: settings, error: settingsError } = await settingsQuery;
 
     if (settingsError) {
       console.error('Settings query error:', settingsError);
@@ -102,7 +228,8 @@ export const handler: Handler = async (event) => {
     console.log('Notification settings query result:', { 
       found: !!settings, 
       count: settings?.length || 0,
-      emails: settings?.map(s => s.email) || []
+      emails: settings?.map(s => s.email) || [],
+      adminOnly: !!adminOnly
     });
 
     if (!settings?.length) {

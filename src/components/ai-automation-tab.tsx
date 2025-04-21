@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Globe, AlertCircle, Download } from 'lucide-react'
+import { Loader2, Globe, AlertCircle, Download, InfoIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import React from 'react'
 
 interface AIAutomationTabProps {
   formId: string
@@ -44,6 +46,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
   const [isLoading, setIsLoading] = useState(false)
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
+  const prevStatusRef = React.useRef<string | null>(null)
 
   // Set initial state on mount and cleanup on unmount
   useEffect(() => {
@@ -325,6 +328,54 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
     };
   }, [formId, isMounted, latestProcess]);
 
+  // Add effect to send notification when process completes
+  useEffect(() => {
+    if (!formId || !latestProcess) return;
+    
+    // Store current status
+    const currentStatus = latestProcess.status;
+    
+    // Check if we need to send a notification (when status changes from 'in_progress' to 'completed')
+    if (prevStatusRef.current === 'in_progress' && currentStatus === 'completed') {
+      console.log('[AIAutomationTab] Status changed from in_progress to completed, sending notification');
+      sendCompletionNotification();
+    }
+    
+    // Update previous status reference for next check
+    prevStatusRef.current = currentStatus;
+    
+  }, [latestProcess?.status, formId, latestProcess]);
+
+  // Function to send notification when crawling completes
+  const sendCompletionNotification = async () => {
+    if (!formId || !latestProcess) return;
+    
+    try {
+      console.log('[AIAutomationTab] Sending completion notification to admins');
+      
+      const response = await fetch('/.netlify/functions/send-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formId,
+          message: `Documentation crawling for ${latestProcess.base_url} has completed. ${latestProcess.scraped_urls?.length || 0} pages were processed.`,
+          type: 'crawl_complete',
+          adminOnly: true  // Flag to indicate this is for admin users only
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('[AIAutomationTab] Failed to send completion notification:', await response.text());
+      } else {
+        console.log('[AIAutomationTab] Completion notification sent successfully');
+      }
+    } catch (error) {
+      console.error('[AIAutomationTab] Error sending completion notification:', error);
+    }
+  };
+
   // Start a new scraping process
   const startScrapingProcess = async () => {
     if (!websiteUrl || !formId) return;
@@ -360,6 +411,11 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
       
       // Successfully started scraping, toast will show
       toast.success('Document scraping process started successfully');
+      
+      // Add a second toast to inform about email notification
+      toast.info('You will receive an email notification when the crawling process is complete.', {
+        duration: 5000
+      });
     } catch (error) {
       console.error('[AIAutomationTab] Error starting scraping process:', error);
       toast.error('Failed to start document scraping process');
@@ -530,6 +586,18 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
               <div className="text-muted-foreground">Pages Processed:</div>
               <div>{getDisplayedPageCount()}</div>
             </div>
+
+            {latestProcess.status === 'in_progress' && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <InfoIcon className="h-4 w-4 text-blue-500" />
+                  <AlertTitle>Processing in progress</AlertTitle>
+                  <AlertDescription>
+                    This process can take up to 5 minutes to complete. You can close this window and we'll send an email notification to admin users once the crawling is finished.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
 
             {latestProcess.status === 'completed' && latestProcess.scraped_urls && latestProcess.scraped_urls.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
