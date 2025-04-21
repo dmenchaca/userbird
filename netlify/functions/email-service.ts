@@ -512,8 +512,75 @@ We run on Userbird (https://app.userbird.co)
     }
 
     if (customEmailType === 'crawl_complete') {
-      headerTitle = 'Documentation Crawling Complete';
-      primaryActionLabel = 'View Documentation Settings';
+      headerTitle = '🎉 Success! Your help docs has been processed';
+      primaryActionLabel = 'Try generating a support reply now';
+      primaryActionUrl = `https://app.userbird.co/forms/${formId}`;
+      
+      // Special template for crawl completion emails
+      const htmlMessage = `<!DOCTYPE html>
+<html>
+  <body style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+      <div style="margin-bottom: 24px;">
+        <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 8px;">
+          🎉 Success! Your help docs has been processed
+        </h2>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <p style="color: #1f2937; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+          Your documentation from <strong>${formUrl}</strong> has been successfully crawled and processed. All <strong>${message?.match(/(\d+) pages/)?.[1] || ''}</strong> pages are now indexed and ready to power help you generate replies to support tickets at blazing speed.
+        </p>
+        
+        <div style="background-color: #f9fafb; border-left: 4px solid #3b82f6; padding: 16px; margin: 20px 0; border-radius: 0 4px 4px 0;">
+          <h4 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">What's next?</h4>
+          <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">
+            Go to any support ticket on the dashboard and click on "Generate" - you'll see how we instantly craft relevant replies using knowledge from your help docs.
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="${primaryActionUrl}" 
+           style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 500;">
+          ${primaryActionLabel}
+        </a>
+      </div>
+      
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
+        <p style="color: #6b7280; font-size: 13px; margin: 0;">
+          Need help? Reply to this email or contact support at support@userbird.com
+        </p>
+      </div>
+    </div>
+  </body>
+</html>`;
+
+      // Create plain text version for crawl completion
+      const textMessage = `
+🎉 Success! Your help docs has been processed
+
+Your documentation from ${formUrl} has been successfully crawled and processed. All pages are now indexed and ready to power help you generate replies to support tickets at blazing speed.
+
+What's next?
+Go to any support ticket on the dashboard and click on "Generate" - you'll see how we instantly craft relevant replies using knowledge from your help docs.
+
+Try generating a support reply now: ${primaryActionUrl}
+
+Need help? Reply to this email or contact support at support@userbird.com
+`;
+
+      // Custom subject for crawl completion
+      emailSubject = `🎉 Your help docs are successfully crawled and indexed`;
+      
+      return this.sendEmail({
+        to,
+        from,
+        subject: emailSubject,
+        text: textMessage,
+        html: htmlMessage,
+        feedbackId
+      });
     } else if (isAssignment) {
       // Extract ticket number from the message
       // Message format is: "AssignerName has assigned Ticket #123 to you." or "You have been assigned Ticket #123."
