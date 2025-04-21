@@ -93,17 +93,52 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   // Add document context if available
   if (topDocs && topDocs.length > 0) {
     let docContext = 'Use the following help documentation only if it seems directly related to the issue:\n\n';
-    topDocs.forEach((doc, index) => {
+    
+    // Calculate estimated token count (rough estimate: 1 token ≈ 4 chars)
+    const estimatedSystemPromptTokens = SYSTEM_PROMPT.length / 4;
+    const estimatedConversationTokens = JSON.stringify(messages).length / 4;
+    const maxDocTokens = 6000; // Reserve ~4000 tokens for the conversation and response
+    let currentDocTokens = 0;
+    let docCount = 0;
+    
+    for (const doc of topDocs) {
       const title = doc.metadata?.title || 'Untitled Document';
       const url = doc.metadata?.page || doc.metadata?.sourceURL || 'No URL';
       
-      docContext += `### Document Title: ${title}\n- URL: ${url}\n- Summary:\n${doc.content}\n\n`;
-    });
+      // Truncate content if it's too long (rough estimate of tokens)
+      // This ensures we don't hit token limits
+      let truncatedContent = doc.content;
+      const contentTokens = truncatedContent.length / 4;
+      
+      // Skip this document if adding it would exceed our token budget
+      if (currentDocTokens + contentTokens > maxDocTokens) {
+        console.log(`Skipping document ${title} to avoid token limit`);
+        continue;
+      }
+      
+      // Truncate content if it's very long
+      if (contentTokens > 1000) {
+        console.log(`Truncating long document: ${title}`);
+        truncatedContent = truncatedContent.substring(0, 4000) + '... [content truncated for length]';
+      }
+      
+      docContext += `### Document Title: ${title}\n- URL: ${url}\n- Summary:\n${truncatedContent}\n\n`;
+      currentDocTokens += (title.length + url.length + truncatedContent.length) / 4;
+      docCount++;
+      
+      // Limit to 5 documents max to avoid overwhelming context
+      if (docCount >= 5 || currentDocTokens >= maxDocTokens) {
+        console.log(`Limiting context to ${docCount} documents to avoid token limit`);
+        break;
+      }
+    }
 
     messages.push({
       role: 'system',
       content: docContext,
     });
+    
+    console.log(`Estimated context tokens: system=${estimatedSystemPromptTokens}, conversation=${estimatedConversationTokens}, docs=${currentDocTokens}`);
   }
 
   return messages;
@@ -239,6 +274,7 @@ export default async (request: Request, context: any) => {
         match_count: TOP_K_DOCUMENTS,
         form_id_filter: form_id,
         use_latest_crawl: true,  // Use latest crawl data
+        similarity_threshold: 0.75  // Only include documents with at least 75% similarity
       }
     );
 
@@ -261,6 +297,7 @@ export default async (request: Request, context: any) => {
           match_count: TOP_K_DOCUMENTS,
           form_id_filter: form_id,
           use_latest_crawl: false,  // Use all crawls
+          similarity_threshold: 0.7  // Slightly lower threshold for fallback
         }
       );
       
