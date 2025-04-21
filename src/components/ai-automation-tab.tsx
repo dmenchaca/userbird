@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 interface AIAutomationTabProps {
   formId: string
   initialProcess?: ScrapingProcess | null
+  refreshKey?: string | number
 }
 
 interface ScrapingProcess {
@@ -39,11 +40,11 @@ interface ScrapingProcess {
   }
 }
 
-export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps) {
+export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(initialProcess || null)
+  const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
 
   // Set initial state on mount and cleanup on unmount
@@ -51,11 +52,23 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
     console.log('[AIAutomationTab] Component mounted');
     setIsMounted(true);
     
+    // If initialProcess is provided, use it initially
+    if (initialProcess) {
+      console.log('[AIAutomationTab] Using provided initialProcess:', initialProcess.id);
+      setLatestProcess(initialProcess);
+      
+      // If there's a running process, populate the input with its URL
+      if (initialProcess.status === 'in_progress') {
+        console.log('[AIAutomationTab] In-progress process found in initialProcess, setting URL to:', initialProcess.base_url)
+        setWebsiteUrl(initialProcess.base_url);
+      }
+    }
+    
     return () => {
       console.log('[AIAutomationTab] Component unmounting');
       setIsMounted(false);
     };
-  }, []);
+  }, [initialProcess]);
 
   // Add a useEffect to log when latestProcess changes
   useEffect(() => {
@@ -75,11 +88,10 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
     }
   }, [latestProcess]);
 
-  // Fetch the latest scraping process only if initialProcess is not provided
+  // Fetch the latest scraping process whenever the component mounts
   useEffect(() => {
-    if (!formId || !isMounted || initialProcess) return;
+    if (!formId || !isMounted) return;
 
-    // Initial fetch only
     const fetchLatestProcess = async () => {
       console.log('[AIAutomationTab] Fetching latest scraping process for form ID:', formId)
       try {
@@ -101,29 +113,36 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
           const processData = data as ScrapingProcess;
           
           // Log the initial data
-          console.log('[AIAutomationTab] Initial process data:', {
+          console.log('[AIAutomationTab] Latest process data:', {
             id: processData.id,
             status: processData.status,
             urls_count: processData.scraped_urls?.length || 0,
+            base_url: processData.base_url,
             created_at: processData.created_at
           });
           
           // Ensure metadata is not null
           processData.metadata = processData.metadata || {};
           
-          // Set the initial state
+          // Set the state with the latest process
           setLatestProcess(processData);
         } else {
           console.log('[AIAutomationTab] No previous scraping processes found for this form')
+          // Clear the state if no process is found
+          setLatestProcess(null);
         }
       } catch (error) {
         console.error('[AIAutomationTab] Exception when fetching scraping process:', error)
       }
     };
 
-    // Initial fetch on mount only if no initialProcess was provided
+    // Always fetch the latest process on mount
     fetchLatestProcess();
-  }, [formId, isMounted, initialProcess]);
+    
+    // Add a unique key that changes when the dialog is opened/closed
+    const now = new Date().getTime();
+    console.log(`[AIAutomationTab] Fetch trigger time: ${now}, refreshKey: ${refreshKey}`);
+  }, [formId, isMounted, refreshKey]);
 
   // Set up real-time subscriptions for process updates, regardless of initialProcess
   useEffect(() => {

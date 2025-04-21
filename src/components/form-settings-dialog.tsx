@@ -1509,7 +1509,8 @@ export function FormSettingsDialog({
                   <div className="space-y-6">
                     <AIAutomationTab 
                       formId={formId} 
-                      initialProcess={latestScrapingProcess} 
+                      initialProcess={latestScrapingProcess}
+                      refreshKey={`${open}-${activeTab === 'ai-automation'}`}
                     />
                   </div>
                 )}
