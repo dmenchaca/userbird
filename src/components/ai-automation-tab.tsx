@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 
 interface AIAutomationTabProps {
@@ -43,7 +42,6 @@ interface ScrapingProcess {
 export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
 
@@ -367,7 +365,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
       toast.error('Failed to start document scraping process');
     } finally {
       setIsLoading(false);
-      setConfirmDialogOpen(false);
     }
   };
 
@@ -479,7 +476,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
             disabled={isLoading || (latestProcess?.status === 'in_progress')}
           />
           <Button 
-            onClick={() => setConfirmDialogOpen(true)}
+            onClick={startScrapingProcess}
             disabled={!websiteUrl || isLoading || (latestProcess?.status === 'in_progress')}
           >
             {isLoading ? (
@@ -550,31 +547,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
           </div>
         </div>
       ) : null}
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Start Website Scraping</AlertDialogTitle>
-            <AlertDialogDescription>
-              <p className="mb-2">
-                This will start scraping and processing content from <strong>{websiteUrl}</strong>.
-              </p>
-              <p className="mb-2">
-                The process may take several minutes depending on the website size. 
-                You can close this dialog and continue working while the process runs in the background.
-              </p>
-              <p>
-                We'll notify you by email once the scraping process is complete.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={startScrapingProcess}>Start Scraping</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 } 
