@@ -97,10 +97,10 @@ export const handler: Handler = async (event) => {
     
     // If adminOnly flag is set, query only admin users
     if (adminOnly) {
-      // First get admin user IDs for this form (owner and admin collaborators)
+      // Collect admin emails directly from form_collaborators
       const { data: adminCollaborators, error: adminError } = await supabase
         .from('form_collaborators')
-        .select('user_id, role, invitation_email')
+        .select('invitation_email')
         .eq('form_id', formId)
         .eq('role', 'admin')
         .eq('invitation_accepted', true);
@@ -110,55 +110,47 @@ export const handler: Handler = async (event) => {
         throw adminError;
       }
       
-      // Also get the form owner
-      const { data: formOwner, error: ownerError } = await supabase
-        .from('forms')
-        .select('owner_id, owner_email')
-        .eq('id', formId)
-        .single();
-        
-      if (ownerError) {
-        console.error('Error fetching form owner:', ownerError);
-        throw ownerError;
-      }
-      
-      // Get emails for admin collaborators and form owner
-      const adminEmails: string[] = [];
-      
-      // Add collaborator emails from invitation_email field
-      if (adminCollaborators?.length) {
-        adminCollaborators.forEach(collaborator => {
-          if (collaborator.invitation_email) {
-            adminEmails.push(collaborator.invitation_email);
-          }
-        });
-      }
-      
-      // Add form owner's email if available
-      if (formOwner?.owner_email) {
-        adminEmails.push(formOwner.owner_email);
-      }
-      
-      // Get additional emails from notification_settings for this form
-      const { data: formSettings, error: settingsError } = await supabase
+      // Also get notification settings for this form
+      const { data: notificationSettings, error: settingsError } = await supabase
         .from('notification_settings')
         .select('email')
         .eq('form_id', formId)
         .eq('enabled', true);
         
-      if (!settingsError && formSettings?.length) {
-        formSettings.forEach(setting => {
-          if (setting.email && !adminEmails.includes(setting.email)) {
-            adminEmails.push(setting.email);
+      if (settingsError) {
+        console.error('Error fetching notification settings:', settingsError);
+        throw settingsError;
+      }
+      
+      // Compile all unique emails
+      const adminEmails = new Set<string>();
+      
+      // Add emails from admin collaborators
+      if (adminCollaborators?.length) {
+        adminCollaborators.forEach(collaborator => {
+          if (collaborator.invitation_email) {
+            adminEmails.add(collaborator.invitation_email);
           }
         });
       }
       
+      // Add emails from notification settings
+      if (notificationSettings?.length) {
+        notificationSettings.forEach(setting => {
+          if (setting.email) {
+            adminEmails.add(setting.email);
+          }
+        });
+      }
+      
+      // Convert Set to Array
+      const adminEmailsList = Array.from(adminEmails);
+      
       // Log the admin emails
-      console.log('Admin emails to notify:', adminEmails);
+      console.log('Admin emails to notify:', adminEmailsList);
       
       // Ensure we have emails to notify
-      if (adminEmails.length === 0) {
+      if (adminEmailsList.length === 0) {
         return {
           statusCode: 200,
           body: JSON.stringify({
@@ -169,12 +161,12 @@ export const handler: Handler = async (event) => {
       }
       
       // If this is an admin-only notification for crawl completion, 
-      // we'll send directly to admins without checking notification settings
+      // we'll send directly to these emails without checking other settings
       if (type === 'crawl_complete') {
         console.log('Sending crawl completion notification directly to admins');
         
         // Send emails directly to admins
-        const emailPromises = adminEmails.map(async (email) => {
+        const emailPromises = adminEmailsList.map(async (email) => {
           // Create unique ID for this message
           const messageId = `<crawl-notification-${formId}-${Date.now()}@userbird.co>`;
           
@@ -218,7 +210,7 @@ export const handler: Handler = async (event) => {
       }
       
       // For regular notifications, continue with existing logic but filter to admin emails
-      settingsQuery = settingsQuery.in('email', adminEmails);
+      settingsQuery = settingsQuery.in('email', adminEmailsList);
     }
     
     // Execute the final query
