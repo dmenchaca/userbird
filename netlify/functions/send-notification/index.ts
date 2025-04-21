@@ -176,8 +176,10 @@ export const handler: Handler = async (event) => {
               to: email,
               formUrl: form.url,
               formId: formId,
-              message: message || `Documentation crawling for ${form.url} has completed.`,
-              feedbackId: formId // Use formId as a substitute since we don't have a feedbackId
+              message: message || `Documentation crawling for ${form.url} has completed successfully. Your documentation is now ready for AI to use.`,
+              feedbackId: formId, // Use formId as a substitute since we don't have a feedbackId
+              customSubject: `Userbird: Documentation Crawling Complete - ${form.url}`,
+              customEmailType: 'crawl_complete'
             });
             
             return {

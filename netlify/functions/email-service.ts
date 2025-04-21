@@ -467,8 +467,10 @@ We run on Userbird (https://app.userbird.co)
     feedbackId: string;
     ticket_number?: number;
     isAssignment?: boolean;
+    customSubject?: string;
+    customEmailType?: 'crawl_complete' | 'feedback' | 'assignment';
   }) {
-    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment } = params;
+    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment, customSubject, customEmailType } = params;
 
     // Get formated date
     const formatedDate = created_at || new Date().toLocaleString('en-US', {
@@ -503,13 +505,22 @@ We run on Userbird (https://app.userbird.co)
     let primaryActionUrl = `https://app.userbird.co/forms/${formId}`;
     let primaryActionLabel = 'View All Responses';
     let emailSubject = `New Feedback for ${formUrl}`;
+    let headerTitle = 'New feedback received';
     
-    if (isAssignment) {
+    if (customSubject) {
+      emailSubject = customSubject;
+    }
+
+    if (customEmailType === 'crawl_complete') {
+      headerTitle = 'Documentation Crawling Complete';
+      primaryActionLabel = 'View Documentation Settings';
+    } else if (isAssignment) {
       // Extract ticket number from the message
       // Message format is: "AssignerName has assigned Ticket #123 to you." or "You have been assigned Ticket #123."
       const ticketNumberMatch = message.match(/Ticket #(\d+)/i);
       const extractedTicketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
       
+      headerTitle = 'Ticket Assignment';
       console.log('Extracted ticket number for email subject:', {
         message: message.substring(0, 50),
         ticketNumberMatch,
@@ -524,9 +535,9 @@ We run on Userbird (https://app.userbird.co)
       
       // Use ticket number in subject if available, otherwise use generic subject
       const displayTicketNumber = ticket_number || extractedTicketNumber;
-      emailSubject = displayTicketNumber 
+      emailSubject = customSubject || (displayTicketNumber 
         ? `Action needed: Ticket #${displayTicketNumber} is now yours` 
-        : `Action needed: You've been assigned a ticket`;
+        : `Action needed: You've been assigned a ticket`);
     }
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
@@ -536,14 +547,14 @@ We run on Userbird (https://app.userbird.co)
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
       <div style="margin-bottom: 24px;">
         <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-          ${isAssignment ? 'Ticket Assignment' : 'New feedback received'} for <strong>${formUrl}</strong>
+          ${headerTitle} for <strong>${formUrl}</strong>
         </h3>
       </div>
 
       <div style="margin-bottom: 24px;">
         ${message ? `
         <div style="margin-bottom: 16px;">
-          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Message</h4>
+          <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">${customEmailType === 'crawl_complete' ? 'Notification' : 'Message'}</h4>
           <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
         </div>
         ` : ''}
@@ -600,9 +611,9 @@ We run on Userbird (https://app.userbird.co)
 
     // Create plain text version
     const textMessage = `
-${isAssignment ? 'Ticket Assignment' : 'New feedback received'} for ${formUrl}
+${headerTitle} for ${formUrl}
 
-${message ? `Message:
+${message ? `${customEmailType === 'crawl_complete' ? 'Notification' : 'Message'}:
 ${message}
 
 ` : ''}${showUserInfo ? `User Information:
