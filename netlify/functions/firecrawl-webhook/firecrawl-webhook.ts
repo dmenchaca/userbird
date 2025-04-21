@@ -201,7 +201,22 @@ async function updateProcessingProgress(
       
       console.log(`Process ${processId}: Firecrawl reports ${completed} of ${total} pages completed (${process.scraped_urls.length} scraped URLs)`);
       
-      // Don't need to update our own counter since we're using Firecrawl's stats
+      // Check if we should mark the process as completed based on scraped URLs
+      if (process.status !== 'completed' && process.scraped_urls.length >= total) {
+        console.log(`Process ${processId}: All URLs processed, marking as completed`);
+        
+        await client
+          .from('docs_scraping_processes')
+          .update({ 
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            metadata: {
+              ...metadata,
+              crawl_complete: true
+            }
+          })
+          .eq('id', processId);
+      }
     } else {
       // If we don't have API stats, fall back to original behavior but avoid double-counting
       // by checking if we've already processed this URL
@@ -222,10 +237,20 @@ async function updateProcessingProgress(
         
         console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${expectedPages} expected pages (${process.scraped_urls.length} scraped URLs)`);
         
+        // Check if we should mark the process as completed
+        const updateData: any = { metadata };
+        
+        if (process.status !== 'completed' && process.scraped_urls.length >= expectedPages) {
+          console.log(`Process ${processId}: All expected URLs processed, marking as completed`);
+          updateData.status = 'completed';
+          updateData.completed_at = new Date().toISOString();
+          metadata.crawl_complete = true;
+        }
+        
         // Update metadata
         const { error: updateError } = await client
           .from('docs_scraping_processes')
-          .update({ metadata })
+          .update(updateData)
           .eq('id', processId);
         
         if (updateError) {
@@ -580,68 +605,76 @@ const handler: Handler = async (event) => {
         completionSource = 'API status';
       }
       
-      if (isCompletionEvent) {
-        console.log(`Detected completion via ${completionSource} for process ${processId}`);
+      // Always get current process data to check URLs processed vs expected
+      const { data: process, error: fetchError } = await supabaseClient
+        .from('docs_scraping_processes')
+        .select('form_id, created_at, metadata, scraped_urls, status')
+        .eq('id', processId)
+        .single();
+      
+      if (fetchError) {
+        console.error(`Error fetching process ${processId}:`, fetchError);
+      } else {
+        // Update metadata with completion information if this is an explicit completion event
+        const metadata = process.metadata || {};
         
-        // Get current process data with form_id and created_at timestamp
-        const { data: process, error: fetchError } = await supabaseClient
-          .from('docs_scraping_processes')
-          .select('form_id, created_at, metadata, scraped_urls, status')
-          .eq('id', processId)
-          .single();
-        
-        if (fetchError) {
-          console.error(`Error fetching process ${processId}:`, fetchError);
+        // Use the official total from the Firecrawl API for expected_pages
+        if (apiCrawlStatus?.total) {
+          metadata.expected_pages = apiCrawlStatus.total;
+          console.log(`Using API total (${apiCrawlStatus.total}) as expected pages`);
         } else {
-          // Update metadata with completion information
-          const metadata = process.metadata || {};
-          metadata.crawl_complete = true;
-          
-          // Use the official total from the Firecrawl API for expected_pages
-          if (apiCrawlStatus?.total) {
-            metadata.expected_pages = apiCrawlStatus.total;
-            console.log(`Using API total (${apiCrawlStatus.total}) as expected pages`);
+          // Fallback to existing logic only if API data isn't available
+          if (body.taskStats?.pagesScraped) {
+            metadata.expected_pages = body.taskStats.pagesScraped;
+            console.log(`Fallback: Using taskStats.pagesScraped (${body.taskStats.pagesScraped}) as expected pages`);
+          } else if (body.data?.length) {
+            metadata.expected_pages = body.data.length;
+            console.log(`Fallback: Using data length (${body.data.length}) as expected pages`);
           } else {
-            // Fallback to existing logic only if API data isn't available
-            if (body.taskStats?.pagesScraped) {
-              metadata.expected_pages = body.taskStats.pagesScraped;
-              console.log(`Fallback: Using taskStats.pagesScraped (${body.taskStats.pagesScraped}) as expected pages`);
-            } else if (body.data?.length) {
-              metadata.expected_pages = body.data.length;
-              console.log(`Fallback: Using data length (${body.data.length}) as expected pages`);
-            } else {
-              metadata.expected_pages = process.scraped_urls.length;
-              console.log(`Fallback: Using scraped_urls length (${process.scraped_urls.length}) as expected pages`);
-            }
+            metadata.expected_pages = process.scraped_urls.length;
+            console.log(`Fallback: Using scraped_urls length (${process.scraped_urls.length}) as expected pages`);
           }
+        }
+        
+        // Get current count of unique URLs processed
+        const uniqueUrlsProcessed = process.scraped_urls.length;
+        
+        // Only update status to completed if all expected URLs have been processed
+        const updateData: any = { metadata };
+        
+        // Mark as completed if we have processed all expected pages, regardless of completion event
+        if (process.status !== 'completed' && uniqueUrlsProcessed >= metadata.expected_pages) {
+          updateData.status = 'completed';
+          updateData.completed_at = new Date().toISOString();
+          console.log(`Successfully marking process ${processId} as COMPLETED (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
           
-          // Get current count of unique URLs processed
-          const uniqueUrlsProcessed = process.scraped_urls.length;
-          
-          // Only update status to completed if all expected URLs have been processed
-          const updateData: any = { metadata };
-          
-          if (process.status !== 'completed' && uniqueUrlsProcessed >= metadata.expected_pages) {
-            updateData.status = 'completed';
-            updateData.completed_at = new Date().toISOString();
-            console.log(`Successfully marking process ${processId} as COMPLETED (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
-          } else if (process.status !== 'completed') {
-            console.log(`Process ${processId} has completion signal but waiting for all URLs (${uniqueUrlsProcessed}/${metadata.expected_pages} processed)`);
+          // Flag for completion event handling
+          if (!isCompletionEvent) {
+            isCompletionEvent = true;
+            completionSource = 'scraped_urls count completion';
+            // Mark completion in metadata
+            metadata.crawl_complete = true;
           }
+        } else if (isCompletionEvent && process.status !== 'completed') {
+          console.log(`Process ${processId} has completion signal but waiting for all URLs (${uniqueUrlsProcessed}/${metadata.expected_pages} processed)`);
+        } else if (uniqueUrlsProcessed >= metadata.expected_pages && process.status === 'completed') {
+          console.log(`Process ${processId} already marked as completed (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
+        } else {
+          console.log(`Process ${processId} still in progress (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
+        }
+        
+        const { error: updateError } = await supabaseClient
+          .from('docs_scraping_processes')
+          .update(updateData)
+          .eq('id', processId);
           
-          const { error: updateError } = await supabaseClient
-            .from('docs_scraping_processes')
-            .update(updateData)
-            .eq('id', processId);
-            
-          if (updateError) {
-            console.error(`Error updating process ${processId} status and metadata:`, updateError);
+        if (updateError) {
+          console.error(`Error updating process ${processId} status and metadata:`, updateError);
+        } else {
+          if (updateData.status === 'completed') {
+            console.log(`Successfully marked process ${processId} as COMPLETED`);
           } else {
-            if (updateData.status === 'completed') {
-              console.log(`Successfully marked process ${processId} as COMPLETED`);
-            } else {
-              console.log(`Updated process ${processId} metadata, expected pages: ${metadata.expected_pages}`);
-            }
+            console.log(`Updated process ${processId} metadata, expected pages: ${metadata.expected_pages}`);
           }
         }
       }
@@ -727,6 +760,36 @@ const handler: Handler = async (event) => {
     // Check if all pages have been processed
     if (processId) {
       await updateProcessingProgress(supabaseClient, processId);
+      
+      // Final check for completion status
+      const { data: finalProcess } = await supabaseClient
+        .from('docs_scraping_processes')
+        .select('status, metadata, scraped_urls')
+        .eq('id', processId)
+        .single();
+        
+      if (finalProcess && finalProcess.status !== 'completed') {
+        const metadata = finalProcess.metadata || {};
+        const expectedPages = metadata.expected_pages || finalProcess.scraped_urls.length;
+        const actualProcessed = finalProcess.scraped_urls.length;
+        
+        // If we've processed all expected pages but status is still not completed, update it
+        if (actualProcessed >= expectedPages) {
+          console.log(`Final check: Marking process ${processId} as COMPLETED (${actualProcessed}/${expectedPages} URLs processed)`);
+          
+          await supabaseClient
+            .from('docs_scraping_processes')
+            .update({ 
+              status: 'completed', 
+              completed_at: new Date().toISOString(),
+              metadata: { 
+                ...metadata,
+                crawl_complete: true 
+              }
+            })
+            .eq('id', processId);
+        }
+      }
     }
     
     console.log('Successfully processed all pages and stored chunks in Supabase');
