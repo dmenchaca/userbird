@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, AlertCircle, Download, InfoIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,13 +7,14 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
-import React from 'react'
 
 interface AIAutomationTabProps {
   formId: string
   initialProcess?: ScrapingProcess | null
   refreshKey?: string | number
   formRules?: string | null
+  onRulesChange?: (value: string) => void
+  onRulesBlur?: () => void
 }
 
 export interface ScrapingProcess {
@@ -44,33 +45,99 @@ export interface ScrapingProcess {
   }
 }
 
-export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules }: AIAutomationTabProps) {
+export function AIAutomationTab({ 
+  formId, 
+  initialProcess, 
+  refreshKey, 
+  formRules, 
+  onRulesChange, 
+  onRulesBlur 
+}: AIAutomationTabProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [latestProcess, setLatestProcess] = useState<ScrapingProcess | null>(null)
   const [isMounted, setIsMounted] = useState(true)
-  const prevStatusRef = React.useRef<string | null>(null)
+  const prevStatusRef = useRef<string | null>(null)
   
-  // Rules state
-  const [rules, setRules] = useState(formRules || '')
+  // Only use local state if parent doesn't provide handlers
+  const [localRules, setLocalRules] = useState(formRules || '')
   const previousRulesRef = useRef<string | null>(formRules || null)
   
-  // Function to save rules on blur or dialog close - wrapped in useCallback to avoid dependency issues
-  const saveRules = useCallback(async () => {
+  // Create refs for cleanup
+  const formIdRef = useRef(formId);
+  
+  // Keep refs updated with latest values
+  useEffect(() => {
+    formIdRef.current = formId;
+  }, [formId]);
+  
+  // Set initial state on mount
+  useEffect(() => {
+    console.log('[AIAutomationTab] Component mounted');
+    setIsMounted(true);
+    
+    if (initialProcess) {
+      console.log('[AIAutomationTab] Using provided initialProcess:', initialProcess.id);
+      setLatestProcess(initialProcess);
+      
+      if (initialProcess.status === 'in_progress') {
+        console.log('[AIAutomationTab] In-progress process found in initialProcess, setting URL to:', initialProcess.base_url)
+        setWebsiteUrl(initialProcess.base_url);
+      }
+    }
+    
+    return () => {
+      console.log('[AIAutomationTab] Component unmounting');
+      setIsMounted(false);
+    };
+  }, [initialProcess]);
+  
+  // Update local rules when formRules changes
+  useEffect(() => {
+    if (formRules !== undefined) {
+      setLocalRules(formRules || '');
+    }
+  }, [formRules]);
+
+  // Handle text change based on whether parent is controlling state
+  const handleRulesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    
+    if (onRulesChange) {
+      // Parent controls state
+      onRulesChange(newValue);
+    } else {
+      // Local state
+      setLocalRules(newValue);
+    }
+  };
+  
+  // Handle blur event based on whether parent provides handler
+  const handleRulesBlur = () => {
+    if (onRulesBlur) {
+      // Parent handles saving
+      onRulesBlur();
+    } else {
+      // Local saving logic
+      saveRules();
+    }
+  };
+  
+  // Local save function (only used if parent doesn't provide handlers)
+  const saveRules = async () => {
     if (!formId || !isMounted) return;
     
-    // Skip saving if the rules haven't changed
-    if (rules === previousRulesRef.current) {
+    if (localRules === previousRulesRef.current) {
       console.log('[AIAutomationTab] Rules unchanged, skipping save');
       return;
     }
     
-    console.log(`[AIAutomationTab] Rules changed from "${previousRulesRef.current}" to "${rules}"`);
+    console.log(`[AIAutomationTab] Rules changed, saving...`);
     
     try {
       const { error } = await supabase
         .from('forms')
-        .update({ rules })
+        .update({ rules: localRules })
         .eq('id', formId);
         
       if (error) {
@@ -79,61 +146,15 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
         return;
       }
       
-      // Only show toast if there was an actual change
-      const hasChanged = previousRulesRef.current !== rules;
-      if (hasChanged) {
-        toast.success('AI rules saved successfully');
-        console.log('[AIAutomationTab] Rules saved successfully');
-      }
+      toast.success('AI rules saved successfully');
+      console.log('[AIAutomationTab] Rules saved successfully');
       
-      // Update the previous rules ref
-      previousRulesRef.current = rules;
+      previousRulesRef.current = localRules;
     } catch (error) {
       console.error('[AIAutomationTab] Exception when saving rules:', error);
       toast.error('Failed to save AI rules');
     }
-  }, [formId, isMounted, rules, previousRulesRef]);
-
-  // Handle blur event for text area
-  const handleRulesBlur = () => {
-    saveRules();
   };
-
-  // Set initial state on mount and cleanup on unmount
-  useEffect(() => {
-    console.log('[AIAutomationTab] Component mounted');
-    setIsMounted(true);
-    
-    // If initialProcess is provided, use it initially
-    if (initialProcess) {
-      console.log('[AIAutomationTab] Using provided initialProcess:', initialProcess.id);
-      setLatestProcess(initialProcess);
-      
-      // If there's a running process, populate the input with its URL
-      if (initialProcess.status === 'in_progress') {
-        console.log('[AIAutomationTab] In-progress process found in initialProcess, setting URL to:', initialProcess.base_url)
-        setWebsiteUrl(initialProcess.base_url);
-      }
-    }
-    
-    // Initialize rules state from props
-    if (formRules !== undefined) {
-      setRules(formRules || '');
-      previousRulesRef.current = formRules || '';
-    }
-    
-    return () => {
-      console.log('[AIAutomationTab] Component unmounting');
-      
-      // Save rules before unmounting if they've changed
-      if (rules !== previousRulesRef.current) {
-        console.log('[AIAutomationTab] Saving rules on unmount...');
-        saveRules();
-      }
-      
-      setIsMounted(false);
-    };
-  }, [initialProcess, formRules, rules, previousRulesRef, saveRules]);
 
   // Fetch the form rules if not provided
   useEffect(() => {
@@ -153,7 +174,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
         }
         
         if (data) {
-          setRules(data.rules || '');
+          setLocalRules(data.rules || '');
           previousRulesRef.current = data.rules || '';
           console.log('[AIAutomationTab] Fetched form rules:', data.rules);
         }
@@ -621,8 +642,8 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
             <Label htmlFor="rules">Custom Instructions</Label>
             <Textarea
               id="rules"
-              value={rules}
-              onChange={(e) => setRules(e.target.value)}
+              value={onRulesChange ? formRules || '' : localRules}
+              onChange={handleRulesChange}
               onBlur={handleRulesBlur}
               placeholder="E.g., 'Always mention our refund policy' or 'Include link to our docs'"
               className="min-h-[150px] mt-2"

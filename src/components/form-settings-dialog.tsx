@@ -105,6 +105,7 @@ export function FormSettingsDialog({
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
   const [formRules, setFormRules] = useState<string | null>(null)
+  const [originalRules, setOriginalRules] = useState<string | null>(null)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -518,7 +519,7 @@ export function FormSettingsDialog({
     }
   }, [gifUrlsText, isInitialMount]);
 
-  // Fetch the latest scraping process when the dialog opens
+  // Fetch the latest scraping process and rules when the dialog opens
   useEffect(() => {
     if (open && formId) {
       fetchLatestScrapingProcess();
@@ -562,6 +563,7 @@ export function FormSettingsDialog({
     if (!formId) return;
     
     try {
+      console.log('[FormSettingsDialog] Fetching form rules...');
       const { data, error } = await supabase
         .from('forms')
         .select('rules')
@@ -569,13 +571,15 @@ export function FormSettingsDialog({
         .single();
       
       if (error) {
-        console.error('Error fetching form rules:', error);
+        console.error('[FormSettingsDialog] Error fetching form rules:', error);
         return;
       }
       
+      console.log('[FormSettingsDialog] Successfully fetched form rules:', data.rules);
       setFormRules(data.rules);
+      setOriginalRules(data.rules);
     } catch (error) {
-      console.error('Exception when fetching form rules:', error);
+      console.error('[FormSettingsDialog] Exception when fetching form rules:', error);
     }
   };
 
@@ -635,6 +639,13 @@ export function FormSettingsDialog({
 
   const handleTabSwitch = (newTab: SettingsTab) => {
     setActiveTab(newTab);
+    
+    // If switching to AI tab, refresh the data
+    if (newTab === 'ai-automation' && formId) {
+      console.log('[FormSettingsDialog] Switching to AI tab, refreshing data');
+      fetchLatestScrapingProcess();
+      fetchFormRules();
+    }
   };
 
   const handleDialogClose = () => {
@@ -1140,6 +1151,34 @@ export function FormSettingsDialog({
     }
   };
 
+  // Handle rules change
+  const handleRulesChange = (value: string) => {
+    setFormRules(value);
+  };
+
+  // Handle rules blur to save changes
+  const handleRulesBlur = async () => {
+    if (formRules === originalRules) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ rules: formRules })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalRules(formRules);
+      toast.success('AI rules saved successfully');
+    } catch (error) {
+      console.error('Error updating AI rules:', error);
+      setFormRules(originalRules);
+      toast.error('Failed to update AI rules');
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1533,6 +1572,8 @@ export function FormSettingsDialog({
                       formId={formId} 
                       initialProcess={latestScrapingProcess}
                       formRules={formRules}
+                      onRulesChange={handleRulesChange}
+                      onRulesBlur={handleRulesBlur}
                     />
                   </div>
                 )}
