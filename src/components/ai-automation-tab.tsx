@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Globe, AlertCircle, Download, InfoIcon } from 'lucide-react'
+import { Loader2, AlertCircle, Download, InfoIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ interface AIAutomationTabProps {
   formRules?: string | null
 }
 
-interface ScrapingProcess {
+export interface ScrapingProcess {
   id: string
   base_url: string
   status: 'in_progress' | 'completed' | 'failed'
@@ -54,7 +54,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
   
   // Rules state
   const [rules, setRules] = useState(formRules || '')
-  const [isSavingRules, setIsSavingRules] = useState(false)
   const debouncedRules = useDebounce(rules, 1000)
   const previousRulesRef = useRef<string | null>(formRules || null)
 
@@ -130,7 +129,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
     console.log(`[AIAutomationTab] Rules changed from "${previousRulesRef.current}" to "${debouncedRules}"`);
     
     const saveRules = async () => {
-      setIsSavingRules(true);
       try {
         const { error } = await supabase
           .from('forms')
@@ -155,8 +153,6 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
       } catch (error) {
         console.error('[AIAutomationTab] Exception when saving rules:', error);
         toast.error('Failed to save AI rules');
-      } finally {
-        setIsSavingRules(false);
       }
     };
     
@@ -234,7 +230,9 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey, formRules 
     
     // Add a unique key that changes when the dialog is opened/closed
     const now = new Date().getTime();
-    console.log(`[AIAutomationTab] Fetch trigger time: ${now}, refreshKey: ${refreshKey}`);
+    if (refreshKey) {
+      console.log(`[AIAutomationTab] Fetch trigger time: ${now}, refreshKey: ${refreshKey}`);
+    }
   }, [formId, isMounted, refreshKey]);
 
   // Set up real-time subscriptions for process updates, regardless of initialProcess

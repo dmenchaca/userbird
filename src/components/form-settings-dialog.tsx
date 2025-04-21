@@ -21,7 +21,9 @@ import { Textarea } from './ui/textarea'
 import { CustomEmailTab } from './custom-email-tab'
 import { CollaboratorsTab } from './collaborators-tab'
 import { AIAutomationTab } from './ai-automation-tab'
+import type { ScrapingProcess } from './ai-automation-tab'
 
+// Interfaces for form settings
 interface FormSettingsDialogProps {
   formId: string
   formUrl: string
@@ -101,10 +103,8 @@ export function FormSettingsDialog({
   const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
-  const [latestScrapingProcess, setLatestScrapingProcess] = useState<any>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
   const [formRules, setFormRules] = useState<string | null>(null)
-  const [isLoadingFormRules, setIsLoadingFormRules] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -561,7 +561,6 @@ export function FormSettingsDialog({
   const fetchFormRules = async () => {
     if (!formId) return;
     
-    setIsLoadingFormRules(true);
     try {
       const { data, error } = await supabase
         .from('forms')
@@ -577,8 +576,6 @@ export function FormSettingsDialog({
       setFormRules(data.rules);
     } catch (error) {
       console.error('Exception when fetching form rules:', error);
-    } finally {
-      setIsLoadingFormRules(false);
     }
   };
 
@@ -1534,7 +1531,6 @@ export function FormSettingsDialog({
                     <AIAutomationTab 
                       formId={formId} 
                       initialProcess={latestScrapingProcess}
-                      refreshKey={`${open}-${activeTab === 'ai-automation'}`}
                       formRules={formRules}
                     />
                   </div>
