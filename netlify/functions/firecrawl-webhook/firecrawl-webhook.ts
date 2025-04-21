@@ -80,6 +80,57 @@ async function generateEmbedding(text: string) {
   }
 }
 
+// Track scraped URL in scraping process
+async function trackScrapedUrl(
+  client: SupabaseClient,
+  processId: string | undefined,
+  url: string
+) {
+  if (!processId) {
+    console.warn('No process_id provided, cannot track scraped URL in docs_scraping_processes');
+    return;
+  }
+  
+  try {
+    console.log(`Tracking scraped URL ${url} for process ${processId}`);
+    
+    // Get current scraped_urls array
+    const { data: process, error: getError } = await client
+      .from('docs_scraping_processes')
+      .select('scraped_urls')
+      .eq('id', processId)
+      .single();
+    
+    if (getError) {
+      console.error(`Error retrieving process ${processId}:`, getError);
+      return;
+    }
+    
+    // Add the new URL if it doesn't already exist
+    const currentUrls = process.scraped_urls || [];
+    if (!currentUrls.includes(url)) {
+      const updatedUrls = [...currentUrls, url];
+      
+      // Update the record
+      const { error: updateError } = await client
+        .from('docs_scraping_processes')
+        .update({ scraped_urls: updatedUrls })
+        .eq('id', processId);
+      
+      if (updateError) {
+        console.error(`Error updating process ${processId} with scraped URL:`, updateError);
+        return;
+      }
+      
+      console.log(`Successfully added URL ${url} to process ${processId}, total URLs: ${updatedUrls.length}`);
+    } else {
+      console.log(`URL ${url} already tracked in process ${processId}`);
+    }
+  } catch (error) {
+    console.error('Error in trackScrapedUrl:', error);
+  }
+}
+
 // Update process status when crawl completes or fails
 async function updateProcessStatus(
   client: SupabaseClient,
@@ -311,9 +362,9 @@ async function storeDocumentChunk(
     console.log('Successfully stored document chunk in Supabase with process_id in metadata');
     console.log('Form ID confirmed in database record:', formId);
     
-    // If we have a process ID, update the scraped_urls array by querying documents table
+    // Track the scraped URL in the process record if we have a process ID
     if (processId) {
-      await updateScrapedUrlsFromDocuments(client, processId, crawlTimestamp);
+      await trackScrapedUrl(client, processId, sourceUrl);
       
       // Update processing progress for this chunk
       await updateProcessingProgress(client, processId);
@@ -323,75 +374,6 @@ async function storeDocumentChunk(
   } catch (error) {
     console.error('Error in storeDocumentChunk:', error);
     throw error;
-  }
-}
-
-// Update scraped URLs by querying the documents table
-async function updateScrapedUrlsFromDocuments(
-  client: SupabaseClient,
-  processId: string,
-  crawlTimestamp: string | null
-) {
-  try {
-    console.log(`Updating scraped URLs for process ${processId} from documents table`);
-    
-    // First get the process to check the crawl_timestamp
-    const { data: process, error: processError } = await client
-      .from('docs_scraping_processes')
-      .select('metadata')
-      .eq('id', processId)
-      .single();
-    
-    if (processError) {
-      console.error(`Error retrieving process ${processId}:`, processError);
-      return;
-    }
-    
-    // Get the crawl_timestamp for filtering documents
-    const processCrawlTimestamp = process.metadata?.crawl_timestamp || crawlTimestamp;
-    
-    if (!processCrawlTimestamp) {
-      console.warn(`No crawl_timestamp found for process ${processId}, can't update scraped_urls`);
-      return;
-    }
-    
-    // Query all documents with this process_id in their metadata
-    const { data: documents, error: docsError } = await client
-      .from('documents')
-      .select('metadata')
-      .contains('metadata', { process_id: processId });
-    
-    if (docsError) {
-      console.error(`Error retrieving documents for process ${processId}:`, docsError);
-      return;
-    }
-    
-    if (!documents || documents.length === 0) {
-      console.log(`No documents found for process ${processId}`);
-      return;
-    }
-    
-    // Extract unique URLs from document metadata
-    const uniqueUrls = Array.from(new Set(
-      documents.map(doc => doc.metadata?.url).filter(Boolean)
-    ));
-    
-    console.log(`Found ${uniqueUrls.length} unique URLs in documents for process ${processId}`);
-    
-    // Update the scraped_urls array in the process record
-    const { error: updateError } = await client
-      .from('docs_scraping_processes')
-      .update({ scraped_urls: uniqueUrls })
-      .eq('id', processId);
-    
-    if (updateError) {
-      console.error(`Error updating scraped_urls for process ${processId}:`, updateError);
-      return;
-    }
-    
-    console.log(`Successfully updated scraped_urls for process ${processId}, total URLs: ${uniqueUrls.length}`);
-  } catch (error) {
-    console.error('Error in updateScrapedUrlsFromDocuments:', error);
   }
 }
 
@@ -777,8 +759,6 @@ const handler: Handler = async (event) => {
     
     // Check if all pages have been processed
     if (processId) {
-      // Do one final update of scraped_urls from documents before checking completion
-      await updateScrapedUrlsFromDocuments(supabaseClient, processId, crawlTimestamp);
       await updateProcessingProgress(supabaseClient, processId);
       
       // Final check for completion status
