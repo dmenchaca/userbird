@@ -380,6 +380,25 @@ const handler: Handler = async (event) => {
     console.log('Process ID:', body.metadata?.process_id || 'Not found');
     console.log('==========================================================');
     
+    // Log the complete webhook payload for debugging - sanitized for embedding data
+    const sanitizedPayload = JSON.parse(JSON.stringify(body));
+    if (sanitizedPayload.data) {
+      sanitizedPayload.data = sanitizedPayload.data.map((item: any) => {
+        // Replace large content fields with placeholders to reduce log size
+        if (item.markdown && item.markdown.length > 100) {
+          item.markdown = `${item.markdown.substring(0, 100)}... [${item.markdown.length} chars]`;
+        }
+        if (item.html && item.html.length > 100) {
+          item.html = `${item.html.substring(0, 100)}... [${item.html.length} chars]`;
+        }
+        if (item.rawHtml && item.rawHtml.length > 100) {
+          item.rawHtml = `${item.rawHtml.substring(0, 100)}... [${item.rawHtml.length} chars]`;
+        }
+        return item;
+      });
+    }
+    console.log('COMPLETE FIRECRAWL WEBHOOK PAYLOAD:', JSON.stringify(sanitizedPayload, null, 2));
+    
     // Check if there's any form_id in the root payload
     console.log('Checking for form_id in root level payload:', body.form_id || 'Not found');
     
@@ -433,6 +452,10 @@ const handler: Handler = async (event) => {
     
     // Check for valid page event - accept either "crawl.page" or "page" or even no type if there's data
     const eventType = body.type || body.event;
+    console.log('EVENT TYPE DETECTED:', eventType);
+    console.log('BODY SUCCESS FLAG:', body.success);
+    console.log('BODY STATUS:', body.status);
+    
     if (eventType && eventType !== 'crawl.page' && eventType !== 'page' && eventType !== 'crawl.completed') {
       console.warn(`Unsupported event type: ${eventType}`);
       
@@ -578,6 +601,14 @@ const handler: Handler = async (event) => {
     
     // If this is a completion event, update the metadata to mark crawl as complete
     if (body.success === true && processId) {
+      console.log('DETECTED COMPLETION VIA SUCCESS FLAG:', body.success);
+      console.log('COMPLETION METADATA:', {
+        status: body.status,
+        total: body.total,
+        completed: body.completed,
+        creditsUsed: body.creditsUsed
+      });
+      
       const { data: process, error: getError } = await supabaseClient
         .from('docs_scraping_processes')
         .select('metadata, scraped_urls, status')
