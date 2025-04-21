@@ -158,6 +158,36 @@ const handler: Handler = async (event) => {
     
     console.log('Firecrawl response:', JSON.stringify(data));
     
+    // Check if the request was successful
+    if (!data.success || response.status >= 400) {
+      const errorMessage = data.error || 'Unknown error from Firecrawl';
+      console.error(`Firecrawl request failed: ${errorMessage}`);
+      
+      // Update the process to failed status
+      await supabaseClient
+        .from('docs_scraping_processes')
+        .update({ 
+          status: 'failed',
+          error_message: errorMessage,
+          completed_at: new Date().toISOString(),
+          metadata: { 
+            ...scrapingProcess.metadata,
+            error: errorMessage
+          } 
+        })
+        .eq('id', scrapingProcess.id);
+      
+      console.log(`Updated scraping process ${scrapingProcess.id} to failed status due to error: ${errorMessage}`);
+      
+      return {
+        statusCode: response.status,
+        body: JSON.stringify({
+          error: errorMessage,
+          process_id: scrapingProcess.id
+        }),
+      };
+    }
+    
     // Update our tracking record with the Firecrawl job ID if available
     if (data.id) {
       await supabaseClient

@@ -192,7 +192,63 @@ export function AIAutomationTab({ formId, initialProcess }: AIAutomationTabProps
       setupRealtimeUpdates(latestProcess.id);
       console.log('[AIAutomationTab] Real-time subscription established');
     }
-  }, [formId, isMounted, initialProcess]); 
+    
+    // Subscribe to new scraping processes for this form
+    const newProcessChannel = supabase
+      .channel('new_scraping_processes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'docs_scraping_processes',
+          filter: `form_id=eq.${formId}`,
+        },
+        (payload) => {
+          if (!isMounted) {
+            console.log('[AIAutomationTab] Received new process notification but component is unmounted, ignoring');
+            return;
+          }
+          
+          const newProcess = payload.new as ScrapingProcess;
+          console.log(`[AIAutomationTab] New scraping process detected:`, {
+            id: newProcess.id,
+            status: newProcess.status,
+            base_url: newProcess.base_url,
+            created_at: newProcess.created_at
+          });
+          
+          // Only update if this is a newer process than what we have
+          const currentTimestamp = latestProcess?.created_at ? new Date(latestProcess.created_at).getTime() : 0;
+          const newTimestamp = new Date(newProcess.created_at).getTime();
+          
+          if (!latestProcess || newTimestamp > currentTimestamp) {
+            console.log('[AIAutomationTab] Setting newly created process as latest');
+            // Ensure metadata is not null
+            newProcess.metadata = newProcess.metadata || {};
+            setLatestProcess(newProcess);
+            
+            // Also set up real-time updates for this new process
+            setupRealtimeUpdates(newProcess.id);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[AIAutomationTab] New processes subscription status: ${status}`);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('[AIAutomationTab] Successfully subscribed to new scraping processes');
+        }
+      });
+      
+    return () => {
+      // Cleanup will be handled by the channel unsubscribe functions
+      if (newProcessChannel) {
+        console.log('[AIAutomationTab] Unsubscribing from new scraping processes');
+        newProcessChannel.unsubscribe();
+      }
+    };
+  }, [formId, isMounted, initialProcess]);
 
   // Start a new scraping process
   const startScrapingProcess = async () => {
