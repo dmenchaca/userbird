@@ -466,13 +466,13 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <Label htmlFor="websiteUrl">Website to Scrape</Label>
+        <Label htmlFor="websiteUrl">Link to your help docs</Label>
         <div className="flex gap-2">
           <Input
             id="websiteUrl"
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
-            placeholder="https://example.com"
+            placeholder="https://help.yourstartup.com"
             disabled={isLoading || (latestProcess?.status === 'in_progress')}
           />
           <Button 
@@ -487,7 +487,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
             ) : (
               <>
                 <Globe className="mr-2 h-4 w-4" />
-                Scrape
+                Crawl docs
               </>
             )}
           </Button>
@@ -499,7 +499,7 @@ export function AIAutomationTab({ formId, initialProcess, refreshKey }: AIAutoma
 
       {latestProcess ? (
         <div className="space-y-4 mt-6">
-          <h3 className="text-sm font-medium">Latest Scraping Process</h3>
+          <h3 className="text-sm font-medium">Latest crawling process</h3>
           <div className="border rounded-md p-4">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-muted-foreground">URL:</div>
