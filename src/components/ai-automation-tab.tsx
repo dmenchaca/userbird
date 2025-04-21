@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
-import { useDebounce } from '../hooks/use-debounce'
 import React from 'react'
 
 interface AIAutomationTabProps {
