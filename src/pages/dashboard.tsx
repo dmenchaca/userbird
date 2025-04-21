@@ -974,7 +974,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     const handleKeyDown = (event: KeyboardEvent) => {
       // Skip handling if in an input field or modal or if cmd/ctrl+R is pressed (browser refresh)
       if (!selectedResponse || 
-          (event.ctrlKey || event.metaKey) && event.key === 'r' ||
+          (event.ctrlKey || event.metaKey) && (event.key === 'r' || event.key === 'j' || event.key === 'J') ||
           event.target instanceof HTMLInputElement || 
           event.target instanceof HTMLTextAreaElement ||
           // Add additional checks for Tiptap editor
