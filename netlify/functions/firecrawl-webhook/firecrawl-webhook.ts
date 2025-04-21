@@ -190,37 +190,50 @@ async function updateProcessingProgress(
       return;
     }
     
-    // Initialize metadata if needed
+    // Get metadata
     const metadata = process.metadata || {};
     
-    // Increment processed pages counter
-    metadata.pages_processed = (metadata.pages_processed || 0) + 1;
-    
-    // If we have expected_pages from webhook or stored metadata, use that
-    // Otherwise, we'll use the scraped_urls length as a fallback
-    const expectedPages = metadata.expected_pages || process.scraped_urls.length;
-    
-    console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${expectedPages} expected pages (${process.scraped_urls.length} scraped URLs)`);
-    
-    // REMOVED: Check if all pages are processed based on expected count
-    // We now rely solely on crawl_complete flag from Firecrawl
-    
-    // Prepare update data - only update the metadata with page count
-    const updateData: any = { metadata };
-    
-    // Update metadata
-    const { error: updateError } = await client
-      .from('docs_scraping_processes')
-      .update(updateData)
-      .eq('id', processId);
-    
-    if (updateError) {
-      console.error(`Error updating process ${processId} progress:`, updateError);
-      return;
+    // Use Firecrawl's API stats if available instead of incrementing our own counter
+    if (metadata.crawl_api_status) {
+      // Log the process using Firecrawl's API values
+      const completed = metadata.crawl_api_status.completed || 0;
+      const total = metadata.crawl_api_status.total || process.scraped_urls.length;
+      
+      console.log(`Process ${processId}: Firecrawl reports ${completed} of ${total} pages completed (${process.scraped_urls.length} scraped URLs)`);
+      
+      // Don't need to update our own counter since we're using Firecrawl's stats
+    } else {
+      // If we don't have API stats, fall back to original behavior but avoid double-counting
+      // by checking if we've already processed this URL
+      const currentUrl = metadata.current_processing_url;
+      const processedUrls = metadata.processed_urls || [];
+      
+      // Only increment if this URL hasn't been processed yet
+      if (currentUrl && !processedUrls.includes(currentUrl)) {
+        // Increment processed pages counter
+        metadata.pages_processed = (metadata.pages_processed || 0) + 1;
+        
+        // Track this URL as processed
+        processedUrls.push(currentUrl);
+        metadata.processed_urls = processedUrls;
+        
+        // Use expected_pages from metadata or fall back to scraped_urls length
+        const expectedPages = metadata.expected_pages || process.scraped_urls.length;
+        
+        console.log(`Process ${processId}: processed ${metadata.pages_processed} of ${expectedPages} expected pages (${process.scraped_urls.length} scraped URLs)`);
+        
+        // Update metadata
+        const { error: updateError } = await client
+          .from('docs_scraping_processes')
+          .update({ metadata })
+          .eq('id', processId);
+        
+        if (updateError) {
+          console.error(`Error updating process ${processId} progress:`, updateError);
+          return;
+        }
+      }
     }
-    
-    // If the crawl is marked as complete and we're not already in completed state,
-    // update the status separately when we get the crawl.completed event
   } catch (error) {
     console.error('Error in updateProcessingProgress:', error);
   }
@@ -273,6 +286,15 @@ async function storeDocumentChunk(
             // Fall back to using the process created_at time
             crawlTimestamp = process.created_at;
             console.log(`[firecrawl-webhook] Using process created_at as crawl_timestamp: ${crawlTimestamp}`);
+          }
+          
+          // Track this URL as the currently processing URL to prevent double-counting
+          if (process.metadata) {
+            const updatedMetadata = { ...process.metadata, current_processing_url: sourceUrl };
+            await client
+              .from('docs_scraping_processes')
+              .update({ metadata: updatedMetadata })
+              .eq('id', processId);
           }
         }
       } catch (error) {
