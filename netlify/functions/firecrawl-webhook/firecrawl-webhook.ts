@@ -359,6 +359,27 @@ interface FirecrawlWebhookBody {
   };
 }
 
+// Function to sanitize large content fields for logging
+function sanitizePayloadForLogging(payload: any): any {
+  const sanitized = JSON.parse(JSON.stringify(payload));
+  if (sanitized.data && Array.isArray(sanitized.data)) {
+    sanitized.data = sanitized.data.map((item: any) => {
+      // Replace large content fields with placeholders to reduce log size
+      if (item.markdown && item.markdown.length > 100) {
+        item.markdown = `${item.markdown.substring(0, 100)}... [${item.markdown.length} chars]`;
+      }
+      if (item.html && item.html.length > 100) {
+        item.html = `${item.html.substring(0, 100)}... [${item.html.length} chars]`;
+      }
+      if (item.rawHtml && item.rawHtml.length > 100) {
+        item.rawHtml = `${item.rawHtml.substring(0, 100)}... [${item.rawHtml.length} chars]`;
+      }
+      return item;
+    });
+  }
+  return sanitized;
+}
+
 const handler: Handler = async (event) => {
   // Only accept POST requests
   if (event.httpMethod !== 'POST') {
@@ -381,22 +402,7 @@ const handler: Handler = async (event) => {
     console.log('==========================================================');
     
     // Log the complete webhook payload for debugging - sanitized for embedding data
-    const sanitizedPayload = JSON.parse(JSON.stringify(body));
-    if (sanitizedPayload.data) {
-      sanitizedPayload.data = sanitizedPayload.data.map((item: any) => {
-        // Replace large content fields with placeholders to reduce log size
-        if (item.markdown && item.markdown.length > 100) {
-          item.markdown = `${item.markdown.substring(0, 100)}... [${item.markdown.length} chars]`;
-        }
-        if (item.html && item.html.length > 100) {
-          item.html = `${item.html.substring(0, 100)}... [${item.html.length} chars]`;
-        }
-        if (item.rawHtml && item.rawHtml.length > 100) {
-          item.rawHtml = `${item.rawHtml.substring(0, 100)}... [${item.rawHtml.length} chars]`;
-        }
-        return item;
-      });
-    }
+    const sanitizedPayload = sanitizePayloadForLogging(body);
     console.log('COMPLETE FIRECRAWL WEBHOOK PAYLOAD:', JSON.stringify(sanitizedPayload, null, 2));
     
     // Check if there's any form_id in the root payload
@@ -414,7 +420,10 @@ const handler: Handler = async (event) => {
     const supabaseClient = getSupabaseClient();
     console.log('Supabase client initialized');
     
-    // Fetch complete crawl status from the Firecrawl API
+    // Combined API call and metadata updates
+    let apiCrawlStatus: any = null;
+    
+    // Fetch complete crawl status from the Firecrawl API if we have a job ID
     if (body.id) {
       try {
         const crawlId = body.id;
@@ -428,54 +437,11 @@ const handler: Handler = async (event) => {
         });
         
         if (apiResponse.ok) {
-          const crawlStatus = await apiResponse.json();
+          apiCrawlStatus = await apiResponse.json();
           
-          // Sanitize large data fields for logging
-          const sanitizedStatus = JSON.parse(JSON.stringify(crawlStatus));
-          if (sanitizedStatus.data) {
-            sanitizedStatus.data = sanitizedStatus.data.map((item: any) => {
-              // Replace large content fields with placeholders to reduce log size
-              if (item.markdown && item.markdown.length > 100) {
-                item.markdown = `${item.markdown.substring(0, 100)}... [${item.markdown.length} chars]`;
-              }
-              if (item.html && item.html.length > 100) {
-                item.html = `${item.html.substring(0, 100)}... [${item.html.length} chars]`;
-              }
-              if (item.rawHtml && item.rawHtml.length > 100) {
-                item.rawHtml = `${item.rawHtml.substring(0, 100)}... [${item.rawHtml.length} chars]`;
-              }
-              return item;
-            });
-          }
-          
+          // Log the complete API response for debugging
+          const sanitizedStatus = sanitizePayloadForLogging(apiCrawlStatus);
           console.log('COMPLETE FIRECRAWL API RESPONSE:', JSON.stringify(sanitizedStatus, null, 2));
-          
-          // Store additional metadata from the API response
-          if (processId) {
-            const { data: process, error: getError } = await supabaseClient
-              .from('docs_scraping_processes')
-              .select('metadata')
-              .eq('id', processId)
-              .single();
-              
-            if (!getError && process) {
-              const metadata = process.metadata || {};
-              metadata.crawl_api_status = {
-                status: crawlStatus.status,
-                total: crawlStatus.total,
-                completed: crawlStatus.completed,
-                creditsUsed: crawlStatus.creditsUsed,
-                expiresAt: crawlStatus.expiresAt
-              };
-              
-              await supabaseClient
-                .from('docs_scraping_processes')
-                .update({ metadata })
-                .eq('id', processId);
-                
-              console.log(`Updated process ${processId} with API status metadata`);
-            }
-          }
         } else {
           console.error(`Error fetching crawl status: ${apiResponse.status} ${apiResponse.statusText}`);
         }
@@ -484,10 +450,10 @@ const handler: Handler = async (event) => {
       }
     }
     
-    // Save the crawl_timestamp to the process metadata if needed
-    if (processId && crawlTimestamp) {
+    // Update process metadata if we have a process ID
+    if (processId) {
       try {
-        // Get current metadata for the process
+        // Get current process metadata
         const { data: process, error: fetchError } = await supabaseClient
           .from('docs_scraping_processes')
           .select('metadata')
@@ -497,26 +463,46 @@ const handler: Handler = async (event) => {
         if (fetchError) {
           console.error(`Error fetching process ${processId}:`, fetchError);
         } else {
-          // Update metadata with crawl_timestamp if not already present
+          // Prepare metadata updates - combine all sources
           const metadata = process.metadata || {};
-          if (!metadata.crawl_timestamp) {
+          let metadataUpdated = false;
+          
+          // 1. Add crawl_timestamp if not present
+          if (crawlTimestamp && !metadata.crawl_timestamp) {
             metadata.crawl_timestamp = crawlTimestamp;
-            console.log(`[firecrawl-webhook] Saving crawl_timestamp to process ${processId} metadata:`, crawlTimestamp);
-            
+            console.log(`[firecrawl-webhook] Adding crawl_timestamp to metadata:`, crawlTimestamp);
+            metadataUpdated = true;
+          }
+          
+          // 2. Add API crawl status information if available
+          if (apiCrawlStatus) {
+            metadata.crawl_api_status = {
+              status: apiCrawlStatus.status,
+              total: apiCrawlStatus.total,
+              completed: apiCrawlStatus.completed,
+              creditsUsed: apiCrawlStatus.creditsUsed,
+              expiresAt: apiCrawlStatus.expiresAt
+            };
+            console.log(`[firecrawl-webhook] Adding API crawl status to metadata`);
+            metadataUpdated = true;
+          }
+          
+          // Perform a single update if any metadata was changed
+          if (metadataUpdated) {
             const { error: updateError } = await supabaseClient
               .from('docs_scraping_processes')
               .update({ metadata })
               .eq('id', processId);
               
             if (updateError) {
-              console.error(`Error updating process ${processId} with crawl_timestamp:`, updateError);
+              console.error(`Error updating process ${processId} metadata:`, updateError);
             } else {
-              console.log(`[firecrawl-webhook] Successfully saved crawl_timestamp to process ${processId}`);
+              console.log(`[firecrawl-webhook] Successfully updated process ${processId} metadata`);
             }
           }
         }
       } catch (error) {
-        console.error('Error saving crawl_timestamp to process:', error);
+        console.error('Error updating process metadata:', error);
       }
     }
     
@@ -531,7 +517,6 @@ const handler: Handler = async (event) => {
       
       // If we have a process ID and this is an error or completion event, update its status
       if (processId && (eventType === 'crawl.error' || eventType === 'error')) {
-        const supabaseClient = getSupabaseClient();
         await updateProcessStatus(
           supabaseClient, 
           processId, 
@@ -546,98 +531,70 @@ const handler: Handler = async (event) => {
       };
     }
     
-    // Handle crawl.completed event specifically
-    if (eventType === 'crawl.completed' && processId) {
-      console.log(`Received crawl.completed event for process ${processId}`);
-      
-      // Get current process data with form_id and created_at timestamp
-      const { data: process, error: fetchError } = await supabaseClient
-        .from('docs_scraping_processes')
-        .select('form_id, created_at, metadata, scraped_urls, status')
-        .eq('id', processId)
-        .single();
-      
-      if (fetchError) {
-        console.error(`Error fetching process ${processId}:`, fetchError);
-      } else {
-        // Update metadata with completion information
-        const metadata = process.metadata || {};
-        metadata.crawl_complete = true;
-        
-        // Extract and save detailed stats from the webhook if available
-        if (body.taskStats) {
-          metadata.pages_discovered = body.taskStats.pagesDiscovered;
-          metadata.pages_scraped = body.taskStats.pagesScraped;
-          metadata.crawl_duration = body.taskStats.durationInMs;
-          metadata.expected_pages = body.taskStats.pagesScraped;
-          
-          console.log(`Crawl stats: discovered=${body.taskStats.pagesDiscovered}, scraped=${body.taskStats.pagesScraped}, duration=${body.taskStats.durationInMs}ms`);
-        } else {
-          // If no stats in webhook, use data length as expected pages
-          metadata.expected_pages = body.data?.length || process.scraped_urls.length;
-          console.log(`No taskStats in webhook, using data length (${body.data?.length}) or scraped_urls (${process.scraped_urls.length}) as expected pages`);
-        }
-        
-        // Prepare update data with completed status
-        const updateData = { 
-          metadata,
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        };
-        
-        const { error: updateError } = await supabaseClient
-          .from('docs_scraping_processes')
-          .update(updateData)
-          .eq('id', processId);
-          
-        if (updateError) {
-          console.error(`Error updating process ${processId} status and metadata:`, updateError);
-          return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Error updating process status and metadata' }),
-          };
-        } else {
-          console.log(`Successfully marked process ${processId} as COMPLETED with crawl completion info`);
-          
-          // Check if all documents have already been processed
-          await updateProcessingProgress(supabaseClient, processId);
-          
-          return {
-            statusCode: 200,
-            body: JSON.stringify({ 
-              status: 'success',
-              message: 'Successfully processed crawl completion webhook'
-            }),
-          };
-        }
-      }
-    }
+    // Variables for tracking completion status
+    let isCompletionEvent = false;
+    let completionSource = '';
     
-    // Make sure there's data to process
-    if (!body.data || body.data.length === 0) {
-      console.warn('No data in webhook payload');
+    // Unified handling of process status and metadata updates
+    if (processId) {
+      // Check if this is a completion event by examining multiple signals
       
-      // If we have a process ID and this seems to be a completion with no data, mark it appropriately
-      if (processId && body.success === true) {
-        // Update metadata to flag crawl as complete, but don't change status yet
-        const { data: process, error: getError } = await supabaseClient
+      // Case 1: Explicit crawl.completed event
+      if (eventType === 'crawl.completed') {
+        isCompletionEvent = true;
+        completionSource = 'crawl.completed event';
+      } 
+      // Case 2: Success flag is true
+      else if (body.success === true) {
+        isCompletionEvent = true;
+        completionSource = 'success flag';
+      }
+      // Case 3: API status indicates completion
+      else if (apiCrawlStatus && 
+              (apiCrawlStatus.status === 'completed' || 
+              apiCrawlStatus.status === 'success' || 
+              apiCrawlStatus.completed === apiCrawlStatus.total)) {
+        isCompletionEvent = true;
+        completionSource = 'API status';
+      }
+      
+      if (isCompletionEvent) {
+        console.log(`Detected completion via ${completionSource} for process ${processId}`);
+        
+        // Get current process data with form_id and created_at timestamp
+        const { data: process, error: fetchError } = await supabaseClient
           .from('docs_scraping_processes')
-          .select('metadata, status')
+          .select('form_id, created_at, metadata, scraped_urls, status')
           .eq('id', processId)
           .single();
-          
-        if (getError) {
-          console.error(`Error retrieving process ${processId}:`, getError);
+        
+        if (fetchError) {
+          console.error(`Error fetching process ${processId}:`, fetchError);
         } else {
-          // Update metadata to flag crawl as complete
+          // Update metadata with completion information
           const metadata = process.metadata || {};
           metadata.crawl_complete = true;
-          metadata.expected_pages = body.data?.length || 0;
           
-          // Prepare update data with completed status
-          const updateData: any = { metadata };
+          // Use the official total from the Firecrawl API for expected_pages
+          if (apiCrawlStatus?.total) {
+            metadata.expected_pages = apiCrawlStatus.total;
+            console.log(`Using API total (${apiCrawlStatus.total}) as expected pages`);
+          } else {
+            // Fallback to existing logic only if API data isn't available
+            if (body.taskStats?.pagesScraped) {
+              metadata.expected_pages = body.taskStats.pagesScraped;
+              console.log(`Fallback: Using taskStats.pagesScraped (${body.taskStats.pagesScraped}) as expected pages`);
+            } else if (body.data?.length) {
+              metadata.expected_pages = body.data.length;
+              console.log(`Fallback: Using data length (${body.data.length}) as expected pages`);
+            } else {
+              metadata.expected_pages = process.scraped_urls.length;
+              console.log(`Fallback: Using scraped_urls length (${process.scraped_urls.length}) as expected pages`);
+            }
+          }
           
           // Only update status if it's not already completed
+          const updateData: any = { metadata };
           if (process.status !== 'completed') {
             updateData.status = 'completed';
             updateData.completed_at = new Date().toISOString();
@@ -652,74 +609,35 @@ const handler: Handler = async (event) => {
             console.error(`Error updating process ${processId} status and metadata:`, updateError);
           } else {
             if (updateData.status === 'completed') {
-              console.log(`Successfully marked process ${processId} as COMPLETED (empty data)`);
+              console.log(`Successfully marked process ${processId} as COMPLETED`);
             } else {
-              console.log(`Updated process ${processId} metadata (empty data)`);
+              console.log(`Updated process ${processId} metadata, expected pages: ${metadata.expected_pages}`);
             }
-            
-            // Check if pages have been processed
-            await updateProcessingProgress(supabaseClient, processId);
           }
         }
+      }
+    }
+    
+    // Make sure there's data to process
+    if (!body.data || body.data.length === 0) {
+      console.warn('No data in webhook payload');
+      
+      // Handle completion with no data if appropriate
+      if (isCompletionEvent && processId) {
+        // Check if we already processed this completion event
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            status: 'success',
+            message: 'Successfully processed completion event with no data'
+          }),
+        };
       }
       
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'No data in webhook payload' }),
       };
-    }
-    
-    // If this is a completion event, update the metadata to mark crawl as complete
-    if (body.success === true && processId) {
-      console.log('DETECTED COMPLETION VIA SUCCESS FLAG:', body.success);
-      console.log('COMPLETION METADATA:', {
-        status: body.status,
-        total: body.total,
-        completed: body.completed,
-        creditsUsed: body.creditsUsed
-      });
-      
-      const { data: process, error: getError } = await supabaseClient
-        .from('docs_scraping_processes')
-        .select('metadata, scraped_urls, status')
-        .eq('id', processId)
-        .single();
-        
-      if (getError) {
-        console.error(`Error retrieving process ${processId}:`, getError);
-      } else {
-        // Update metadata to flag crawl as complete
-        const metadata = process.metadata || {};
-        metadata.crawl_complete = true;
-        
-        // Set expected pages from the webhook data
-        metadata.expected_pages = body.data.length;
-        console.log(`Marking process ${processId} crawl as complete, expected pages from data: ${body.data.length}`);
-        
-        // Prepare update data with completed status if not already completed
-        const updateData: any = { metadata };
-        
-        // Only update status if it's not already completed
-        if (process.status !== 'completed') {
-          updateData.status = 'completed';
-          updateData.completed_at = new Date().toISOString();
-        }
-        
-        const { error: updateError } = await supabaseClient
-          .from('docs_scraping_processes')
-          .update(updateData)
-          .eq('id', processId);
-          
-        if (updateError) {
-          console.error(`Error updating process ${processId} status and metadata:`, updateError);
-        } else {
-          if (updateData.status === 'completed') {
-            console.log(`Successfully marked process ${processId} as COMPLETED from success event`);
-          } else {
-            console.log(`Updated process ${processId} metadata, expected pages: ${body.data.length}`);
-          }
-        }
-      }
     }
     
     // Process each page in the payload
@@ -777,7 +695,7 @@ const handler: Handler = async (event) => {
       }
     }
     
-    // Check if all pages have been processed - updateProcessingProgress will mark as completed if appropriate
+    // Check if all pages have been processed
     if (processId) {
       await updateProcessingProgress(supabaseClient, processId);
     }
