@@ -615,11 +615,18 @@ const handler: Handler = async (event) => {
             }
           }
           
-          // Only update status if it's not already completed
+          // Get current count of unique URLs processed
+          const uniqueUrlsProcessed = process.scraped_urls.length;
+          
+          // Only update status to completed if all expected URLs have been processed
           const updateData: any = { metadata };
-          if (process.status !== 'completed') {
+          
+          if (process.status !== 'completed' && uniqueUrlsProcessed >= metadata.expected_pages) {
             updateData.status = 'completed';
             updateData.completed_at = new Date().toISOString();
+            console.log(`Successfully marking process ${processId} as COMPLETED (${uniqueUrlsProcessed}/${metadata.expected_pages} URLs processed)`);
+          } else if (process.status !== 'completed') {
+            console.log(`Process ${processId} has completion signal but waiting for all URLs (${uniqueUrlsProcessed}/${metadata.expected_pages} processed)`);
           }
           
           const { error: updateError } = await supabaseClient
