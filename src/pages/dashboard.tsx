@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown } from 'lucide-react'
+import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown, PanelRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
@@ -93,6 +93,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const assigneeSearchInputRef = useRef<HTMLInputElement>(null)
   const [assigneeSearchTerm, setAssigneeSearchTerm] = useState('')
   const [focusedAssigneeIndex, setFocusedAssigneeIndex] = useState(-1)
+  const [isShowingDetails, setIsShowingDetails] = useState(() => {
+    // Load the panel state from localStorage, default to false (closed)
+    const savedState = localStorage.getItem('userbird-details-panel-open')
+    return savedState === 'true'
+  })
   
   // Function to navigate to the next/previous response
   const navigateToResponse = (direction: 'next' | 'prev') => {
@@ -1840,6 +1845,89 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                           </div>
                         </h2>
                         <div className="flex gap-2">
+                          <DropdownMenu open={isTagDropdownOpen} onOpenChange={handleTagDropdownOpenChange}>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                ref={tagDropdownTriggerRef}
+                                variant="outline" 
+                                size="sm"
+                                className={cn(
+                                  "text-teal-600 border-teal-200 bg-teal-50 hover:bg-teal-100",
+                                  selectedResponse.tag ? "justify-between" : ""
+                                )}
+                              >
+                                <div className="flex items-center">
+                                  {selectedResponse.tag ? (
+                                    <>
+                                      <div 
+                                        className="w-3 h-3 rounded-full mr-2" 
+                                        style={{ backgroundColor: selectedResponse.tag.color }}
+                                      />
+                                      {selectedResponse.tag.name}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Tag className="h-4 w-4 mr-2 text-teal-500" />
+                                      Label
+                                    </>
+                                  )}
+                                </div>
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-teal-100 text-teal-600 mr-1">
+                                  L
+                                </span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                              align="end" 
+                              className="w-[--trigger-width]"
+                              onKeyDown={(e) => {
+                                // Handle enter key to select the focused item
+                                if (e.key === 'Enter') {
+                                  const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
+                                  if (focusedItem) {
+                                    focusedItem.click();
+                                  }
+                                }
+                              }}
+                            >
+                              {availableTags.map(tag => (
+                                <DropdownMenuItem 
+                                  key={tag.id}
+                                  className={cn(
+                                    "flex items-center cursor-pointer",
+                                    selectedResponse.tag_id === tag.id ? "bg-accent" : ""
+                                  )}
+                                  onClick={() => {
+                                    console.log(`Clicked tag: ${tag.name} (${tag.id})`);
+                                    handleTagChange(selectedResponse.id, tag.name);
+                                    setIsTagDropdownOpen(false); // Close the dropdown after selection
+                                  }}
+                                >
+                                  <div 
+                                    className="w-3 h-3 rounded-full mr-2" 
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                  <span className="truncate">{tag.name}</span>
+                                  {selectedResponse.tag_id === tag.id && (
+                                    <Check className="h-4 w-4 ml-auto" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                              {selectedResponse.tag_id && (
+                                <DropdownMenuItem 
+                                  className="flex items-center cursor-pointer border-t mt-1 pt-1"
+                                  onClick={() => {
+                                    console.log("Clearing tag");
+                                    handleTagChange(selectedResponse.id, null);
+                                    setIsTagDropdownOpen(false); // Close the dropdown after selection
+                                  }}
+                                >
+                                  Clear label
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
                           <DropdownMenu open={isStatusDropdownOpen} onOpenChange={handleStatusDropdownOpenChange}>
                             <DropdownMenuTrigger asChild>
                               <Button 
@@ -2063,167 +2151,129 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                               </div>
                             </PopoverContent>
                           </Popover>
+
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-100"
+                                  onClick={() => {
+                                    const newState = !isShowingDetails
+                                    setIsShowingDetails(newState)
+                                    // Save the panel state to localStorage
+                                    localStorage.setItem('userbird-details-panel-open', String(newState))
+                                  }}
+                                >
+                                  <PanelRight className={cn(
+                                    "h-4 w-4",
+                                    isShowingDetails ? "text-slate-600" : "text-slate-400"
+                                  )} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {isShowingDetails ? "Hide details" : "Show details"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
                     </div>
                   </header>
                   <div className="container px-0 flex-1 h-[calc(100vh-65px)] overflow-hidden">
-                    <ConversationThread 
-                      ref={conversationThreadRef}
-                      response={selectedResponse} 
-                      onStatusChange={handleResponseStatusChange}
-                      collaborators={collaborators}
-                    />
-                  </div>
-                </div>
-                
-                <div className="hidden md:block w-[27%] flex-shrink-0 details-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col" style={{ maxWidth: "400px" }}>
-                  <header className="border-b border-border">
-                    <div className="container py-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-base truncate">Details</h2>
+                    <div className="flex h-full relative">
+                      <div className={cn(
+                        "flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out",
+                        isShowingDetails ? "pr-[260px]" : ""
+                      )}>
+                        <ConversationThread 
+                          ref={conversationThreadRef}
+                          response={selectedResponse} 
+                          onStatusChange={handleResponseStatusChange}
+                          collaborators={collaborators}
+                        />
                       </div>
-                    </div>
-                  </header>
-                  <div className="container p-4 overflow-y-auto h-[calc(100vh-65px)] flex-1">
-                    <div className="space-y-6">
-                      {/* Label section */}
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground flex items-center">
-                          <span>Label</span>
-                          <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-2">L</span>
-                        </p>
-                        <DropdownMenu open={isTagDropdownOpen} onOpenChange={handleTagDropdownOpenChange}>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              ref={tagDropdownTriggerRef}
-                              variant="outline"
-                              className="w-full justify-between"
-                            >
-                              {selectedResponse.tag ? (
-                                <div className="flex items-center">
-                                  <div 
-                                    className="w-3 h-3 rounded-full mr-2" 
-                                    style={{ backgroundColor: selectedResponse.tag.color }}
-                                  />
-                                  {selectedResponse.tag.name}
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  Select a label
+                      
+                      <div 
+                        className={cn(
+                          "absolute right-0 top-0 w-[260px] border-l overflow-hidden h-full transition-transform duration-300 ease-in-out",
+                          isShowingDetails ? "translate-x-0" : "translate-x-full"
+                        )}
+                      >
+                        <div className="w-full h-full flex flex-col">
+                          <header className="border-b border-border">
+                            <div className="container py-2 px-4">
+                              <div className="flex items-center justify-between">
+                                <h2 className="text-base truncate">Details</h2>
+                              </div>
+                            </div>
+                          </header>
+                          <div className="container p-4 overflow-y-auto overflow-x-hidden h-[calc(100vh-65px)] flex-1">
+                            <div className="space-y-6 break-words">
+                              {/* Label section - Removed and moved to top bar */}
+                              
+                              {selectedResponse.image_url && (
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-muted-foreground">Image</p>
+                                  <div className="feedback-image-container" onClick={() => setShowImagePreview(true)}>
+                                    <FeedbackImage
+                                      imagePath={selectedResponse.image_url}
+                                      alt="Feedback screenshot"
+                                      className="feedback-image max-w-full"
+                                    />
+                                  </div>
+                                  {selectedResponse.image_name && (
+                                    <p className="text-xs text-muted-foreground truncate">{selectedResponse.image_name}</p>
+                                  )}
                                 </div>
                               )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                            align="start" 
-                            className="w-[--trigger-width]"
-                            onKeyDown={(e) => {
-                              // Handle enter key to select the focused item
-                              if (e.key === 'Enter') {
-                                const focusedItem = document.querySelector('[data-radix-dropdown-item][data-highlighted]') as HTMLElement;
-                                if (focusedItem) {
-                                  focusedItem.click();
-                                }
-                              }
-                            }}
-                          >
-                            {availableTags.map(tag => (
-                              <DropdownMenuItem 
-                                key={tag.id}
-                                className={cn(
-                                  "flex items-center cursor-pointer",
-                                  selectedResponse.tag_id === tag.id ? "bg-accent" : ""
-                                )}
-                                onClick={() => {
-                                  console.log(`Clicked tag: ${tag.name} (${tag.id})`);
-                                  handleTagChange(selectedResponse.id, tag.name);
-                                  setIsTagDropdownOpen(false); // Close the dropdown after selection
-                                }}
-                              >
-                                <div 
-                                  className="w-3 h-3 rounded-full mr-2" 
-                                  style={{ backgroundColor: tag.color }}
-                                />
-                                <span className="truncate">{tag.name}</span>
-                                {selectedResponse.tag_id === tag.id && (
-                                  <Check className="h-4 w-4 ml-auto" />
-                                )}
-                              </DropdownMenuItem>
-                            ))}
-                            {selectedResponse.tag_id && (
-                              <DropdownMenuItem 
-                                className="flex items-center cursor-pointer border-t mt-1 pt-1"
-                                onClick={() => {
-                                  console.log("Clearing tag");
-                                  handleTagChange(selectedResponse.id, null);
-                                  setIsTagDropdownOpen(false); // Close the dropdown after selection
-                                }}
-                              >
-                                Clear label
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      
-                      {selectedResponse.image_url && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">Image</p>
-                          <div className="feedback-image-container" onClick={() => setShowImagePreview(true)}>
-                            <FeedbackImage
-                              imagePath={selectedResponse.image_url}
-                              alt="Feedback screenshot"
-                              className="feedback-image"
-                            />
+                              
+                              <div className="space-y-4">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-muted-foreground">User Information</p>
+                                  <div className="text-sm space-y-1">
+                                    <p>ID: <span className="break-all">{selectedResponse.user_id || '-'}</span></p>
+                                    <p>Email: <span className="break-all">{selectedResponse.user_email || '-'}</span></p>
+                                    <p>Name: <span className="break-all">{selectedResponse.user_name || '-'}</span></p>
+                                    <p>Page URL: <span className="break-all">{selectedResponse.url_path || '-'}</span></p>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-muted-foreground">System Information</p>
+                                  <div className="text-sm space-y-1">
+                                    <p>OS: <span className="break-all">{selectedResponse.operating_system}</span></p>
+                                    <p>Device: <span className="break-all">{selectedResponse.screen_category}</span></p>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-muted-foreground">Date</p>
+                                  <p className="text-sm">
+                                    {new Date(selectedResponse.created_at).toLocaleString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: 'numeric',
+                                      minute: 'numeric',
+                                      hour12: true
+                                    })}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex justify-start">
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                    onClick={() => handleResponseDelete(selectedResponse.id)}
+                                  >
+                                    Delete Feedback
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          {selectedResponse.image_name && (
-                            <p className="text-xs text-muted-foreground">{selectedResponse.image_name}</p>
-                          )}
-                        </div>
-                      )}
-                      
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">User Information</p>
-                          <div className="text-sm space-y-1">
-                            <p>ID: <span className="break-all">{selectedResponse.user_id || '-'}</span></p>
-                            <p>Email: <span className="break-all">{selectedResponse.user_email || '-'}</span></p>
-                            <p>Name: <span className="break-all">{selectedResponse.user_name || '-'}</span></p>
-                            <p>Page URL: <span className="break-all">{selectedResponse.url_path || '-'}</span></p>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">System Information</p>
-                          <div className="text-sm space-y-1">
-                            <p>OS: <span className="break-all">{selectedResponse.operating_system}</span></p>
-                            <p>Device: <span className="break-all">{selectedResponse.screen_category}</span></p>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Date</p>
-                          <p className="text-sm">
-                            {new Date(selectedResponse.created_at).toLocaleString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: 'numeric',
-                              hour12: true
-                            })}
-                          </p>
-                        </div>
-                        
-                        <div className="flex justify-start">
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleResponseDelete(selectedResponse.id)}
-                          >
-                            Delete Feedback
-                          </Button>
                         </div>
                       </div>
                     </div>
