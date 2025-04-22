@@ -21,6 +21,8 @@ Thank you for reaching out.
 Best,
 {admin_first_name}
 
+IMPORTANT: Always use the exact admin name provided to you as {admin_first_name}. Do not substitute with "Admin" or any other default value.
+
 Break responses into short paragraphs for clarity.
 For hyperlinks use: <a href="URL" target="_blank" rel="noopener noreferrer">Link text</a>
 `;
@@ -41,6 +43,8 @@ function formatSSE(data: string, event?: string) {
 
 // Helper to create OpenAI chat messages
 function createChatMessages(feedback: any, replies: any[], topDocs: any[], adminFirstName: string) {
+  console.log(`Creating chat messages with admin name: "${adminFirstName}"`);
+  
   // Get user's first name
   let customerFirstName = "";
   if (feedback.user_name) {
@@ -50,8 +54,11 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   }
   
   // Start with system prompt
+  const systemPromptWithName = SYSTEM_PROMPT.replace('{admin_first_name}', adminFirstName);
+  console.log(`System prompt with admin name replacement: "${systemPromptWithName.slice(systemPromptWithName.indexOf('Best,'), systemPromptWithName.indexOf('IMPORTANT: Always use the exact admin name'))}"`);
+  
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT.replace('{admin_first_name}', adminFirstName) },
+    { role: 'system', content: systemPromptWithName },
   ];
   
   // Add custom form rules if available (highest priority after system prompt)
@@ -209,7 +216,7 @@ export default async (request: Request, context: any) => {
     }
 
     console.log(`Generating reply for feedback_id: ${feedback_id}`);
-    console.log(`Admin first name: ${admin_first_name || 'Not provided'}`);
+    console.log(`Admin first name from request: ${admin_first_name === undefined ? 'undefined' : admin_first_name === null ? 'null' : `"${admin_first_name}"`}`);
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -429,7 +436,8 @@ export default async (request: Request, context: any) => {
     }
 
     // Use a default name if none provided
-    const finalAdminFirstName = admin_first_name || 'Support';
+    const finalAdminFirstName = (admin_first_name || '').trim() || 'Support';
+    console.log(`Using admin name: ${finalAdminFirstName} for the template`);
 
     // Prepare chat messages with context
     const messages = createChatMessages(
@@ -505,6 +513,35 @@ export default async (request: Request, context: any) => {
             console.log("=== DEBUG: OpenAI stream complete ===");
             console.log("=== DEBUG: Complete response from OpenAI ===");
             console.log(completeResponse);
+            
+            // Check if the response contains "Best,\nAdmin" at the end and replace it
+            if (completeResponse.includes("Best,\nAdmin")) {
+              console.log("=== NOTICE: Found 'Admin' in signature, replacing with provided admin name ===");
+              
+              // Send a corrected version as the last chunk, replacing just the signature portion
+              const correctedResponse = completeResponse.replace(
+                "Best,\nAdmin", 
+                `Best,\n${finalAdminFirstName}`
+              );
+              
+              // Let the client know we're sending a correction
+              writer.write(encoder.encode(formatSSE(
+                JSON.stringify({ 
+                  message: "Correcting signature with proper admin name",
+                  original: "Admin",
+                  replacement: finalAdminFirstName
+                }), 
+                'admin_name_correction'
+              )));
+              
+              // Send the full corrected message to ensure consistency
+              // This will replace the entire content at the client side
+              writer.write(encoder.encode(formatSSE(
+                JSON.stringify({ fullText: correctedResponse }), 
+                'full_replacement'
+              )));
+            }
+            
             console.log("=== DEBUG: Checking for line breaks ===");
             console.log("Line breaks count:", (completeResponse.match(/\n/g) || []).length);
             console.log("First few lines:", completeResponse.split('\n').slice(0, 5));

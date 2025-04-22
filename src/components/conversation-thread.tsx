@@ -7,6 +7,7 @@ import { TiptapEditor } from './tiptap-editor'
 import { useAuth } from '@/lib/auth'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
+import { toast } from 'sonner'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -835,11 +836,77 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           // Decode the chunk and process it
           const chunk = decoder.decode(value, { stream: true });
           console.log(`=== CLIENT: Received chunk (${chunk.length} chars) ===`);
-          console.log(chunk.replace(/\n/g, "\\n"));
           
+          // Process full chunk first
+          if (chunk.includes('event: full_replacement')) {
+            try {
+              // Extract the JSON data from the full_replacement event
+              const fullReplaceMatch = chunk.match(/event: full_replacement\ndata: (.*?)(?:\n\n|$)/s);
+              if (fullReplaceMatch && fullReplaceMatch[1]) {
+                const jsonData = JSON.parse(fullReplaceMatch[1]);
+                if (jsonData.fullText) {
+                  console.log("=== CLIENT: Processing full_replacement event ===");
+                  accumulatedContent = jsonData.fullText;
+                  setReplyContent(accumulatedContent);
+                  console.log(`=== CLIENT: Full replacement applied ===`);
+                  console.log(accumulatedContent.replace(/\n/g, "\\n"));
+                  continue;
+                }
+              }
+            } catch (e) {
+              console.error('Error processing full_replacement event:', e);
+            }
+          }
+          
+          // Now process line by line
           const lines = chunk.split('\n\n');
           
           for (const line of lines) {
+            // Special event handling
+            if (line.startsWith('event: full_replacement')) {
+              try {
+                // Extract the data portion
+                const dataMatch = line.match(/data: (.*?)$/);
+                if (dataMatch && dataMatch[1]) {
+                  const jsonData = JSON.parse(dataMatch[1]);
+                  if (jsonData.fullText) {
+                    accumulatedContent = jsonData.fullText;
+                    setReplyContent(accumulatedContent);
+                    console.log(`=== CLIENT: Full replacement applied from event ===`);
+                    console.log(accumulatedContent.replace(/\n/g, "\\n"));
+                  }
+                }
+              } catch (e) {
+                console.error('Error processing full_replacement event:', e);
+              }
+              continue;
+            }
+            
+            if (line.startsWith('event: admin_name_correction')) {
+              try {
+                // Extract the data portion
+                const dataMatch = line.match(/data: (.*?)$/);
+                if (dataMatch && dataMatch[1]) {
+                  const jsonData = JSON.parse(dataMatch[1]);
+                  console.log(`=== CLIENT: Admin name correction: "${jsonData.original}" -> "${jsonData.replacement}" ===`);
+                }
+              } catch (e) {
+                console.error('Error processing admin_name_correction event:', e);
+              }
+              continue;
+            }
+            
+            if (line.startsWith('event: error')) {
+              console.error('Error in AI generation:', line);
+              throw new Error('Error generating AI reply');
+            }
+            
+            if (line.startsWith('event: done')) {
+              console.log('AI generation complete');
+              continue;
+            }
+            
+            // Standard data line processing
             if (line.startsWith('data: ')) {
               const data = line.substring(6); // Remove "data: " prefix
               
@@ -849,13 +916,21 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 continue;
               }
               
+              try {
+                // Check if this is JSON data for a special event
+                JSON.parse(data);
+                // If it parses without error but doesn't match any special event type,
+                // we'll just skip it as it's likely metadata
+                console.log(`=== CLIENT: Received JSON data, skipping as not content: ${data} ===`);
+                continue;
+              } catch (e) {
+                // Not JSON, process as regular content
+              }
+              
               // Restore line breaks from special markers
               let processedData = data;
               if (data.includes("[[DOUBLE_NEWLINE]]") || data.includes("[[NEWLINE]]")) {
-                // When processing AI-generated content from the edge function,
-                // preserve the distinction between single and double line breaks
                 processedData = data
-                  // Map double newlines to two consecutive newlines to ensure proper spacing
                   .replace(/\[\[DOUBLE_NEWLINE\]\]/g, "\n\n")
                   .replace(/\[\[NEWLINE\]\]/g, "\n");
                 console.log(`=== CLIENT: Restored line breaks in chunk ===`);
@@ -863,43 +938,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               
               // Append this content to the editor
               accumulatedContent += processedData;
-              console.log(`=== CLIENT: Content chunk: "${processedData.replace(/\n/g, "\\n")}" ===`);
-              
-              // Log current state of accumulated content with visible line breaks
-              console.log(`=== CLIENT: Current accumulated (${accumulatedContent.length} chars) ===`);
-              console.log(accumulatedContent.replace(/\n/g, "\\n"));
-              
               setReplyContent(accumulatedContent);
-            } else if (line.startsWith('event: error')) {
-              // Handle error events
-              console.error('Error in AI generation:', line);
-              throw new Error('Error generating AI reply');
-            } else if (line.startsWith('event: done')) {
-              // Handle completion
-              console.log('AI generation complete');
             }
           }
         }
-        
-        // Check if the TipTap editor is preserving line breaks
-        console.log("=== CLIENT: Checking TipTap content after setting ===");
-        setTimeout(() => {
-          const editorElement = editorRef.current?.querySelector('.ProseMirror');
-          if (editorElement) {
-            console.log("TipTap HTML content:");
-            console.log(editorElement.innerHTML);
-          }
-        }, 500);
-        
       } catch (error) {
-        // Only show errors if not due to user cancellation
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Error generating AI reply:', error);
-          // Optionally show error to user
-        }
+        console.error('Error generating AI reply:', error);
+        toast.error('Failed to generate an AI reply. Please try again.');
       } finally {
-        setIsGeneratingAIReply(false);
         setAiReplyGenController(null);
+        setIsGeneratingAIReply(false);
       }
     };
     
