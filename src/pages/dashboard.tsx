@@ -1852,7 +1852,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 variant="outline" 
                                 size="sm"
                                 className={cn(
-                                  "text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-100",
+                                  "text-slate-600 border-slate-200 bg-white hover:bg-slate-100",
                                   selectedResponse.tag ? "justify-between" : ""
                                 )}
                               >
