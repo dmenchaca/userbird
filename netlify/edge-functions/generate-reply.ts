@@ -236,6 +236,38 @@ export default async (request: Request, context: any) => {
     console.log(`Generating reply for feedback_id: ${feedback_id}`);
     console.log(`Admin first name from request: ${admin_first_name === undefined ? 'undefined' : admin_first_name === null ? 'null' : `"${admin_first_name}"`}`);
     console.log(`Admin first name type: ${typeof admin_first_name}`);
+    
+    // More thorough validation to block generation with invalid admin names
+    const isInvalidAdminName = (name: string | null | undefined): boolean => {
+      if (!name) return true;
+      
+      // Convert to string and trim
+      const trimmedName = String(name).trim().toLowerCase();
+      
+      // Check for empty string
+      if (trimmedName === '') return true;
+      
+      // Check for minimum length
+      if (trimmedName.length < 2) return true;
+      
+      // Check for generic/default names
+      const invalidNames = ['admin', 'administrator', 'support', 'user', 'customer', 'help', 'service'];
+      if (invalidNames.includes(trimmedName)) return true;
+      
+      // Valid name
+      return false;
+    };
+    
+    // Block generation if admin_first_name is invalid
+    if (isInvalidAdminName(admin_first_name)) {
+      console.error(`Error: Invalid admin first name: "${admin_first_name}". Generation blocked.`);
+      return new Response(JSON.stringify({ 
+        error: 'Valid admin first name is required. Cannot use generic names like "Admin" or "Support".' 
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -454,15 +486,8 @@ export default async (request: Request, context: any) => {
       });
     }
 
-    // Use a default name if none provided - improved handling of null/undefined/empty strings
-    let finalAdminFirstName = 'Support';
-    if (admin_first_name !== undefined && admin_first_name !== null) {
-      const trimmedName = String(admin_first_name).trim();
-      if (trimmedName.length > 0) {
-        finalAdminFirstName = trimmedName;
-      }
-    }
-    
+    // Use admin name without any fallback - will never reach here if name is invalid
+    const finalAdminFirstName = admin_first_name.trim();
     console.log(`Using admin name: ${finalAdminFirstName} for the template`);
     console.log(`Environment variables present: OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}, VITE_SUPABASE_URL=${!!process.env.VITE_SUPABASE_URL}, SUPABASE_SERVICE_ROLE_KEY=${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
     

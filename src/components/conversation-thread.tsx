@@ -59,8 +59,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     }))
 
     // Get admin display information
-    const adminName = user?.user_metadata?.full_name || user?.email || 'Admin'
-    const adminInitials = adminName?.[0]?.toUpperCase() || 'A'
+    const adminName = user?.user_metadata?.full_name || user?.email || '';
+    const adminInitials = adminName?.[0]?.toUpperCase() || '?';
     const adminAvatarUrl = user?.user_metadata?.avatar_url
     
     // Get the admin's first name for the sender display
@@ -76,9 +76,33 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       return displayName.split(' ')[0];
     }
     
+    // Validate if a name is usable as an admin name
+    const isValidAdminName = (name: string | null | undefined): boolean => {
+      if (!name) return false;
+      
+      // Convert to string and trim
+      const trimmedName = String(name).trim().toLowerCase();
+      
+      // Check for empty string
+      if (trimmedName === '') return false;
+      
+      // Check for minimum length
+      if (trimmedName.length < 2) return false;
+      
+      // Check for generic/default names
+      const invalidNames = ['admin', 'administrator', 'support', 'user', 'customer', 'help', 'service'];
+      if (invalidNames.includes(trimmedName)) return false;
+      
+      // Valid name
+      return true;
+    };
+    
     const adminFirstName = getFirstName(adminName)
     console.log(`[Conversation Thread] INITIAL adminName: "${adminName}", adminFirstName: "${adminFirstName}"`)
 
+    // Check if we have a valid admin name to use for AI generation
+    const hasValidAdminName = isValidAdminName(adminFirstName);
+    
     // Use a ref to track if the component has been re-rendered with different values
     const adminNameRef = useRef(adminName)
     const adminFirstNameRef = useRef(adminFirstName)
@@ -797,6 +821,12 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const generateAIReply = async () => {
       if (isGeneratingAIReply || isSubmitting) return;
       
+      // Verify we have a valid admin name
+      if (!hasValidAdminName) {
+        toast.error('Cannot generate AI reply: Please update your profile with a valid name (not "Admin" or "Support").');
+        return;
+      }
+      
       // Clear any existing content in the editor
       setReplyContent('');
       setIsGeneratingAIReply(true);
@@ -807,9 +837,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       console.log(`=== CLIENT: User metadata:`, user?.user_metadata, `===`);
       
       // Ensure we're using the correct admin name - recalculate it here to be sure
-      const currentAdminName = user?.user_metadata?.full_name || user?.email || 'Admin';
+      const currentAdminName = user?.user_metadata?.full_name || user?.email || '';
       const currentAdminFirstName = getFirstName(currentAdminName);
       console.log(`=== CLIENT: Re-calculated admin first name: "${currentAdminFirstName}" ===`);
+      
+      // Validate admin name again to be extra safe
+      if (!isValidAdminName(currentAdminFirstName)) {
+        toast.error('Cannot generate AI reply: Please update your profile with a valid name (not "Admin" or "Support").');
+        setIsGeneratingAIReply(false);
+        return;
+      }
       
       try {
         // Create abort controller for cancellation
@@ -820,10 +857,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           console.log(`=== CLIENT: WARNING: Mismatch between state adminFirstName "${adminFirstName}" and calculated value "${currentAdminFirstName}" ===`);
         }
         
-        // Ensure we have a valid string - handle null, undefined, and empty strings
-        const adminNameToSend = currentAdminFirstName && currentAdminFirstName.trim().length > 0 
-          ? currentAdminFirstName.trim() 
-          : getFirstName(adminName);
+        // Use the admin name without any fallbacks
+        const adminNameToSend = currentAdminFirstName.trim();
           
         console.log(`=== CLIENT: Using admin name for API request: "${adminNameToSend}" ===`);
           
@@ -1182,7 +1217,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             ) : (
                               // Render current user avatar (fallback or when sender_id matches current user)
                               adminAvatarUrl ? (
-                                <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                                <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" />
                               ) : (
                                 <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
                               )
@@ -1337,13 +1372,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   <div className="flex items-center gap-2">
                     <Avatar className="h-7 w-7 rounded-full">
                       {adminAvatarUrl ? (
-                        <img src={adminAvatarUrl} alt={adminName} className="h-full w-full object-cover rounded-full" />
+                        <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" />
                       ) : (
                         <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
                       )}
                     </Avatar>
                     <span className="text-sm font-medium">
-                      Reply as {adminFirstName} at {productName} <span className="text-muted-foreground">&lt;{supportEmail}&gt;</span>
+                      Reply as {adminFirstName || <span className="text-red-500">Set your name in profile</span>} at {productName} <span className="text-muted-foreground">&lt;{supportEmail}&gt;</span>
                     </span>
                   </div>
                   <div className="ml-auto">
@@ -1374,7 +1409,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                               variant="outline"
                               size="sm"
                               className="flex items-center gap-1 text-xs"
-                              disabled={isSubmitting}
+                              disabled={isSubmitting || !hasValidAdminName}
                             >
                               <Sparkles className="h-3.5 w-3.5" />
                               Generate
@@ -1382,12 +1417,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                           </TooltipTrigger>
                           <TooltipContent side="top" align="center" className="px-2 py-1">
                             <p className="text-sm font-medium text-muted-foreground flex items-center">
-                              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded flex items-center">
-                                {navigator.platform.includes('Mac') ? 
-                                  <Command className="inline h-3 w-3" /> : 
-                                  'Ctrl'} 
-                                <span className="ml-0.5">J</span>
-                              </span>
+                              {!hasValidAdminName ? (
+                                "Set your name in profile settings to use AI generation"
+                              ) : (
+                                <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded flex items-center">
+                                  {navigator.platform.includes('Mac') ? 
+                                    <Command className="inline h-3 w-3" /> : 
+                                    'Ctrl'} 
+                                  <span className="ml-0.5">J</span>
+                                </span>
+                              )}
                             </p>
                           </TooltipContent>
                         </Tooltip>
