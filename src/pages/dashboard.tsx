@@ -1852,7 +1852,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 variant="outline" 
                                 size="sm"
                                 className={cn(
-                                  "text-teal-600 border-teal-200 bg-teal-50 hover:bg-teal-100",
+                                  "text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-100",
                                   selectedResponse.tag ? "justify-between" : ""
                                 )}
                               >
@@ -1867,12 +1867,12 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     </>
                                   ) : (
                                     <>
-                                      <Tag className="h-4 w-4 mr-2 text-teal-500" />
+                                      <Tag className="h-4 w-4 mr-2 text-slate-500" />
                                       Label
                                     </>
                                   )}
                                 </div>
-                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-teal-100 text-teal-600 mr-1">
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 mr-1">
                                   L
                                 </span>
                               </Button>
