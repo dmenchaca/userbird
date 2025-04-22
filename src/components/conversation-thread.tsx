@@ -168,6 +168,12 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             // Only if we're not already generating and there is a response to work with
             if (!isGeneratingAIReply && !isSubmitting && response) {
               e.preventDefault();
+              // Check cached admin name validity before proceeding
+              if (!cachedHasValidName) {
+                toast.error('Cannot generate AI reply: Please update your profile with a valid name (not "Admin" or "Support").');
+                return;
+              }
+              console.log(`[Keyboard Shortcut] Using cached admin name values - valid: ${cachedHasValidName}, name: "${cachedAdminFirstName}"`);
               generateAIReply();
             }
           }
