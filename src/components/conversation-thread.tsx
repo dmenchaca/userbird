@@ -77,7 +77,22 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     }
     
     const adminFirstName = getFirstName(adminName)
-    console.log(`[Conversation Thread] adminName: "${adminName}", adminFirstName: "${adminFirstName}"`)
+    console.log(`[Conversation Thread] INITIAL adminName: "${adminName}", adminFirstName: "${adminFirstName}"`)
+
+    // Use a ref to track if the component has been re-rendered with different values
+    const adminNameRef = useRef(adminName)
+    const adminFirstNameRef = useRef(adminFirstName)
+    
+    // Check for inconsistencies during renders
+    if (adminNameRef.current !== adminName) {
+      console.log(`[Conversation Thread] WARNING: adminName changed from "${adminNameRef.current}" to "${adminName}"`)
+      adminNameRef.current = adminName
+    }
+    
+    if (adminFirstNameRef.current !== adminFirstName) {
+      console.log(`[Conversation Thread] WARNING: adminFirstName changed from "${adminFirstNameRef.current}" to "${adminFirstName}"`)
+      adminFirstNameRef.current = adminFirstName
+    }
 
     useEffect(() => {
       if (response) {
@@ -787,17 +802,34 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       setIsGeneratingAIReply(true);
       
       console.log("=== CLIENT: Starting AI reply generation ===");
-      console.log(`=== CLIENT: Using admin first name: "${adminFirstName}" ===`);
+      console.log(`=== CLIENT: Using admin first name from state: "${adminFirstName}" ===`);
+      console.log(`=== CLIENT: Using admin first name from ref: "${adminFirstNameRef.current}" ===`);
       console.log(`=== CLIENT: User metadata:`, user?.user_metadata, `===`);
+      
+      // Ensure we're using the correct admin name - recalculate it here to be sure
+      const currentAdminName = user?.user_metadata?.full_name || user?.email || 'Admin';
+      const currentAdminFirstName = getFirstName(currentAdminName);
+      console.log(`=== CLIENT: Re-calculated admin first name: "${currentAdminFirstName}" ===`);
       
       try {
         // Create abort controller for cancellation
         const controller = new AbortController();
         setAiReplyGenController(controller);
         
+        if (currentAdminFirstName !== adminFirstName) {
+          console.log(`=== CLIENT: WARNING: Mismatch between state adminFirstName "${adminFirstName}" and calculated value "${currentAdminFirstName}" ===`);
+        }
+        
+        // Ensure we have a valid string - handle null, undefined, and empty strings
+        const adminNameToSend = currentAdminFirstName && currentAdminFirstName.trim().length > 0 
+          ? currentAdminFirstName.trim() 
+          : getFirstName(adminName);
+          
+        console.log(`=== CLIENT: Using admin name for API request: "${adminNameToSend}" ===`);
+          
         const requestBody = { 
           feedback_id: response.id,
-          admin_first_name: adminFirstName 
+          admin_first_name: adminNameToSend // Use the validated name
         };
         console.log("=== CLIENT: Request body:", JSON.stringify(requestBody), "===");
         

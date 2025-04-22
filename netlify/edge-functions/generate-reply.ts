@@ -45,6 +45,12 @@ function formatSSE(data: string, event?: string) {
 function createChatMessages(feedback: any, replies: any[], topDocs: any[], adminFirstName: string) {
   console.log(`Creating chat messages with admin name: "${adminFirstName}"`);
   
+  // Validate admin name one more time to ensure it's valid
+  if (!adminFirstName || adminFirstName.trim() === '') {
+    console.warn('Empty admin name received in createChatMessages, using fallback "Support"');
+    adminFirstName = 'Support';
+  }
+  
   // Get user's first name
   let customerFirstName = "";
   if (feedback.user_name) {
@@ -55,11 +61,20 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   
   // Start with system prompt
   const systemPromptWithName = SYSTEM_PROMPT.replace('{admin_first_name}', adminFirstName);
+  // Log the full signature line to debug any issues
+  const signatureLine = `Best,\n${adminFirstName}`;
+  console.log(`Final signature in system prompt will be: "${signatureLine}"`);
   console.log(`System prompt with admin name replacement: "${systemPromptWithName.slice(systemPromptWithName.indexOf('Best,'), systemPromptWithName.indexOf('CRITICAL INSTRUCTION: You MUST use "{admin_first_name}" exactly as provided. DO NOT substitute with any other name, even if you think another name would be better. Do not use "Admin", "Support", "Theo", or any other name you might think of. Use ONLY the exact admin_first_name value given to you.'))}"`);
   
   const messages = [
     { role: 'system', content: systemPromptWithName },
   ];
+  
+  // Add a special instruction just for the name to reinforce it
+  messages.push({
+    role: 'system', 
+    content: `YOUR SIGNATURE MUST END WITH EXACTLY: "Best,\n${adminFirstName}". DO NOT CHANGE THIS NAME UNDER ANY CIRCUMSTANCES.`
+  });
   
   // Add custom form rules if available (highest priority after system prompt)
   if (feedback.form?.rules) {
@@ -220,6 +235,7 @@ export default async (request: Request, context: any) => {
 
     console.log(`Generating reply for feedback_id: ${feedback_id}`);
     console.log(`Admin first name from request: ${admin_first_name === undefined ? 'undefined' : admin_first_name === null ? 'null' : `"${admin_first_name}"`}`);
+    console.log(`Admin first name type: ${typeof admin_first_name}`);
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -438,8 +454,15 @@ export default async (request: Request, context: any) => {
       });
     }
 
-    // Use a default name if none provided
-    const finalAdminFirstName = (admin_first_name || '').trim() || 'Support';
+    // Use a default name if none provided - improved handling of null/undefined/empty strings
+    let finalAdminFirstName = 'Support';
+    if (admin_first_name !== undefined && admin_first_name !== null) {
+      const trimmedName = String(admin_first_name).trim();
+      if (trimmedName.length > 0) {
+        finalAdminFirstName = trimmedName;
+      }
+    }
+    
     console.log(`Using admin name: ${finalAdminFirstName} for the template`);
     console.log(`Environment variables present: OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}, VITE_SUPABASE_URL=${!!process.env.VITE_SUPABASE_URL}, SUPABASE_SERVICE_ROLE_KEY=${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
     
@@ -522,17 +545,46 @@ export default async (request: Request, context: any) => {
             console.log(completeResponse);
             
             // Check for any name in the "Best,\n[NAME]" signature that doesn't match our expected name
-            const signatureMatch = completeResponse.match(/Best,\s*\n([^\n]+)$/);
+            // More robust signature detection with various patterns
+            const signaturePatterns = [
+              /Best,\s*\n([^\n]+)$/,                // Standard: "Best,\nName"
+              /Best regards,\s*\n([^\n]+)$/,        // Alternate: "Best regards,\nName"
+              /Regards,\s*\n([^\n]+)$/,             // Alternate: "Regards,\nName"
+              /Thanks,\s*\n([^\n]+)$/,              // Alternate: "Thanks,\nName"
+              /Thank you,\s*\n([^\n]+)$/,           // Alternate: "Thank you,\nName"
+              /Sincerely,\s*\n([^\n]+)$/,           // Alternate: "Sincerely,\nName"
+              /Cheers,\s*\n([^\n]+)$/,              // Alternate: "Cheers,\nName"
+              /\n([A-Za-z]+)\s*$/                    // Fallback: just a name at the end
+            ];
+            
+            let signatureMatch: RegExpMatchArray | null = null;
+            let matchedPattern: RegExp | null = null;
+            
+            // Try each pattern until we find a match
+            for (const pattern of signaturePatterns) {
+              const match = completeResponse.match(pattern);
+              if (match && match[1]) {
+                signatureMatch = match;
+                matchedPattern = pattern;
+                break;
+              }
+            }
             
             if (signatureMatch && signatureMatch[1] !== finalAdminFirstName) {
               const incorrectName = signatureMatch[1];
-              console.log(`=== NOTICE: Found incorrect name '${incorrectName}' in signature, replacing with provided admin name '${finalAdminFirstName}' ===`);
+              console.log(`=== NOTICE: Found incorrect name '${incorrectName}' in signature with pattern ${matchedPattern?.toString() || 'unknown'}, replacing with provided admin name '${finalAdminFirstName}' ===`);
               
-              // Send a corrected version as the last chunk, replacing just the signature portion
-              const correctedResponse = completeResponse.replace(
-                `Best,\n${incorrectName}`, 
-                `Best,\n${finalAdminFirstName}`
-              );
+              // Find what matched
+              const fullMatch = signatureMatch[0];
+              const nameMatch = signatureMatch[1];
+              
+              // Create the correct closing text based on the matched pattern
+              const originalClosing = fullMatch.substring(0, fullMatch.length - nameMatch.length);
+              const correctedClosing = originalClosing + finalAdminFirstName;
+              
+              // Create corrected response
+              // Replace just the end of the message to preserve formatting
+              const correctedResponse = completeResponse.substring(0, completeResponse.length - fullMatch.length) + correctedClosing;
               
               // Let the client know we're sending a correction
               writer.write(encoder.encode(formatSSE(
@@ -546,6 +598,24 @@ export default async (request: Request, context: any) => {
               
               // Send the full corrected message to ensure consistency
               // This will replace the entire content at the client side
+              writer.write(encoder.encode(formatSSE(
+                JSON.stringify({ fullText: correctedResponse }), 
+                'full_replacement'
+              )));
+            } else if (!signatureMatch) {
+              console.log("=== NOTICE: No signature pattern found in response ===");
+              // If no signature was found, let's add one
+              const correctedResponse = completeResponse.trim() + `\n\nBest,\n${finalAdminFirstName}`;
+              
+              writer.write(encoder.encode(formatSSE(
+                JSON.stringify({ 
+                  message: "Adding missing signature with admin name",
+                  original: "MISSING",
+                  replacement: finalAdminFirstName
+                }), 
+                'admin_name_correction'
+              )));
+              
               writer.write(encoder.encode(formatSSE(
                 JSON.stringify({ fullText: correctedResponse }), 
                 'full_replacement'
