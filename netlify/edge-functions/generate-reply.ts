@@ -21,7 +21,7 @@ Thank you for reaching out.
 Best,
 {admin_first_name}
 
-IMPORTANT: Always use the exact admin name provided to you as {admin_first_name}. Do not substitute with "Admin" or any other default value.
+CRITICAL INSTRUCTION: You MUST use "{admin_first_name}" exactly as provided. DO NOT substitute with any other name, even if you think another name would be better. Do not use "Admin", "Support", "Theo", or any other name you might think of. Use ONLY the exact admin_first_name value given to you.
 
 Break responses into short paragraphs for clarity.
 For hyperlinks use: <a href="URL" target="_blank" rel="noopener noreferrer">Link text</a>
@@ -55,7 +55,7 @@ function createChatMessages(feedback: any, replies: any[], topDocs: any[], admin
   
   // Start with system prompt
   const systemPromptWithName = SYSTEM_PROMPT.replace('{admin_first_name}', adminFirstName);
-  console.log(`System prompt with admin name replacement: "${systemPromptWithName.slice(systemPromptWithName.indexOf('Best,'), systemPromptWithName.indexOf('IMPORTANT: Always use the exact admin name'))}"`);
+  console.log(`System prompt with admin name replacement: "${systemPromptWithName.slice(systemPromptWithName.indexOf('Best,'), systemPromptWithName.indexOf('CRITICAL INSTRUCTION: You MUST use "{admin_first_name}" exactly as provided. DO NOT substitute with any other name, even if you think another name would be better. Do not use "Admin", "Support", "Theo", or any other name you might think of. Use ONLY the exact admin_first_name value given to you.'))}"`);
   
   const messages = [
     { role: 'system', content: systemPromptWithName },
@@ -207,6 +207,9 @@ export default async (request: Request, context: any) => {
     // Parse request body
     const requestBody = await request.json();
     const { feedback_id, admin_first_name } = requestBody;
+    
+    // Raw request debugging
+    console.log(`=== Raw request JSON: ${JSON.stringify(requestBody)} ===`);
     
     if (!feedback_id) {
       return new Response(JSON.stringify({ error: 'feedback_id is required' }), {
@@ -438,6 +441,10 @@ export default async (request: Request, context: any) => {
     // Use a default name if none provided
     const finalAdminFirstName = (admin_first_name || '').trim() || 'Support';
     console.log(`Using admin name: ${finalAdminFirstName} for the template`);
+    console.log(`Environment variables present: OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}, VITE_SUPABASE_URL=${!!process.env.VITE_SUPABASE_URL}, SUPABASE_SERVICE_ROLE_KEY=${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+    
+    // Debug header information
+    console.log(`=== Request headers: ${JSON.stringify([...request.headers.entries()])} ===`);
 
     // Prepare chat messages with context
     const messages = createChatMessages(
@@ -468,7 +475,7 @@ export default async (request: Request, context: any) => {
       body: JSON.stringify({
         model: 'gpt-4-turbo-preview',
         messages,
-        temperature: 0.7,
+        temperature: 0.2, // Reduced from 0.7 to make model more conservative/precise
         stream: true,
         max_tokens: 500, // Set maximum response length
       }),
@@ -514,13 +521,16 @@ export default async (request: Request, context: any) => {
             console.log("=== DEBUG: Complete response from OpenAI ===");
             console.log(completeResponse);
             
-            // Check if the response contains "Best,\nAdmin" at the end and replace it
-            if (completeResponse.includes("Best,\nAdmin")) {
-              console.log("=== NOTICE: Found 'Admin' in signature, replacing with provided admin name ===");
+            // Check for any name in the "Best,\n[NAME]" signature that doesn't match our expected name
+            const signatureMatch = completeResponse.match(/Best,\s*\n([^\n]+)$/);
+            
+            if (signatureMatch && signatureMatch[1] !== finalAdminFirstName) {
+              const incorrectName = signatureMatch[1];
+              console.log(`=== NOTICE: Found incorrect name '${incorrectName}' in signature, replacing with provided admin name '${finalAdminFirstName}' ===`);
               
               // Send a corrected version as the last chunk, replacing just the signature portion
               const correctedResponse = completeResponse.replace(
-                "Best,\nAdmin", 
+                `Best,\n${incorrectName}`, 
                 `Best,\n${finalAdminFirstName}`
               );
               
@@ -528,7 +538,7 @@ export default async (request: Request, context: any) => {
               writer.write(encoder.encode(formatSSE(
                 JSON.stringify({ 
                   message: "Correcting signature with proper admin name",
-                  original: "Admin",
+                  original: incorrectName,
                   replacement: finalAdminFirstName
                 }), 
                 'admin_name_correction'

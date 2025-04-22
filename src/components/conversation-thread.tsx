@@ -77,6 +77,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     }
     
     const adminFirstName = getFirstName(adminName)
+    console.log(`[Conversation Thread] adminName: "${adminName}", adminFirstName: "${adminFirstName}"`)
 
     useEffect(() => {
       if (response) {
@@ -786,11 +787,36 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       setIsGeneratingAIReply(true);
       
       console.log("=== CLIENT: Starting AI reply generation ===");
+      console.log(`=== CLIENT: Using admin first name: "${adminFirstName}" ===`);
+      console.log(`=== CLIENT: User metadata:`, user?.user_metadata, `===`);
       
       try {
         // Create abort controller for cancellation
         const controller = new AbortController();
         setAiReplyGenController(controller);
+        
+        const requestBody = { 
+          feedback_id: response.id,
+          admin_first_name: adminFirstName 
+        };
+        console.log("=== CLIENT: Request body:", JSON.stringify(requestBody), "===");
+        
+        // Intercept the original fetch to log details
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+          console.log("=== CLIENT: Fetch called with:", JSON.stringify(args), "===");
+          
+          // Restore original fetch to avoid recursive interception
+          window.fetch = originalFetch;
+          
+          // Call the original fetch
+          const result = await originalFetch.apply(this, args);
+          
+          // Log response information for debugging
+          console.log(`=== CLIENT: Fetch response status: ${result.status} ===`);
+          
+          return result;
+        };
         
         // Call the generate-reply edge function
         const streamResponse = await fetch('/api/generate-reply', {
@@ -798,12 +824,12 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
-            feedback_id: response.id,
-            admin_first_name: adminFirstName 
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal
         });
+        
+        // Restore original fetch
+        window.fetch = originalFetch;
         
         if (!streamResponse.ok) {
           throw new Error(`Failed to generate reply: ${streamResponse.statusText}`);
