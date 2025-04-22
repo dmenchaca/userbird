@@ -98,7 +98,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     };
     
     const adminFirstName = getFirstName(adminName)
-    console.log(`[Conversation Thread] INITIAL adminName: "${adminName}", adminFirstName: "${adminFirstName}"`)
 
     // Check if we have a valid admin name to use for AI generation
     const hasValidAdminName = isValidAdminName(adminFirstName);
@@ -126,15 +125,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     useEffect(() => {
       // When user data changes, update our admin name values
       if (user) {
-        console.log('[Conversation Thread] User data updated, refreshing admin name');
-        
         // Recalculate admin name info from user data
         const updatedAdminName = user.user_metadata?.full_name || user.email || '';
         const updatedAdminFirstName = getFirstName(updatedAdminName);
         const updatedHasValidName = isValidAdminName(updatedAdminFirstName);
-        
-        // Log what we found
-        console.log(`[Conversation Thread] Updated admin name from user data: "${updatedAdminName}", first name: "${updatedAdminFirstName}", valid: ${updatedHasValidName}`);
         
         // Update our cached values for use in the component
         setCachedAdminFirstName(updatedAdminFirstName);
@@ -173,7 +167,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 toast.error('Cannot generate AI reply: Please update your profile with a valid name (not "Admin" or "Support").');
                 return;
               }
-              console.log(`[Keyboard Shortcut] Using cached admin name values - valid: ${cachedHasValidName}, name: "${cachedAdminFirstName}"`);
               generateAIReply();
             }
           }
