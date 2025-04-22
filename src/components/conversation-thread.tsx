@@ -118,6 +118,34 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       adminFirstNameRef.current = adminFirstName
     }
 
+    // Add a useEffect to watch for user data changes and update admin name information
+    // This solves the issue when loading directly to a ticket URL
+    const [cachedAdminFirstName, setCachedAdminFirstName] = useState(adminFirstName);
+    const [cachedHasValidName, setCachedHasValidName] = useState(hasValidAdminName);
+
+    useEffect(() => {
+      // When user data changes, update our admin name values
+      if (user) {
+        console.log('[Conversation Thread] User data updated, refreshing admin name');
+        
+        // Recalculate admin name info from user data
+        const updatedAdminName = user.user_metadata?.full_name || user.email || '';
+        const updatedAdminFirstName = getFirstName(updatedAdminName);
+        const updatedHasValidName = isValidAdminName(updatedAdminFirstName);
+        
+        // Log what we found
+        console.log(`[Conversation Thread] Updated admin name from user data: "${updatedAdminName}", first name: "${updatedAdminFirstName}", valid: ${updatedHasValidName}`);
+        
+        // Update our cached values for use in the component
+        setCachedAdminFirstName(updatedAdminFirstName);
+        setCachedHasValidName(updatedHasValidName);
+        
+        // Update refs to avoid unnecessary warnings
+        adminNameRef.current = updatedAdminName;
+        adminFirstNameRef.current = updatedAdminFirstName;
+      }
+    }, [user, isValidAdminName]); // Only re-run when user object changes
+
     useEffect(() => {
       if (response) {
         fetchReplies()
@@ -821,8 +849,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const generateAIReply = async () => {
       if (isGeneratingAIReply || isSubmitting) return;
       
-      // Verify we have a valid admin name
-      if (!hasValidAdminName) {
+      // Use the cached value that gets updated when user data changes
+      if (!cachedHasValidName) {
         toast.error('Cannot generate AI reply: Please update your profile with a valid name (not "Admin" or "Support").');
         return;
       }
@@ -832,8 +860,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       setIsGeneratingAIReply(true);
       
       console.log("=== CLIENT: Starting AI reply generation ===");
-      console.log(`=== CLIENT: Using admin first name from state: "${adminFirstName}" ===`);
-      console.log(`=== CLIENT: Using admin first name from ref: "${adminFirstNameRef.current}" ===`);
+      console.log(`=== CLIENT: Using admin first name from cached state: "${cachedAdminFirstName}" ===`);
       console.log(`=== CLIENT: User metadata:`, user?.user_metadata, `===`);
       
       // Ensure we're using the correct admin name - recalculate it here to be sure
@@ -852,10 +879,6 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Create abort controller for cancellation
         const controller = new AbortController();
         setAiReplyGenController(controller);
-        
-        if (currentAdminFirstName !== adminFirstName) {
-          console.log(`=== CLIENT: WARNING: Mismatch between state adminFirstName "${adminFirstName}" and calculated value "${currentAdminFirstName}" ===`);
-        }
         
         // Use the admin name without any fallbacks
         const adminNameToSend = currentAdminFirstName.trim();
@@ -1378,7 +1401,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                       )}
                     </Avatar>
                     <span className="text-sm font-medium">
-                      Reply as {adminFirstName || <span className="text-red-500">Set your name in profile</span>} at {productName} <span className="text-muted-foreground">&lt;{supportEmail}&gt;</span>
+                      Reply as {cachedAdminFirstName || <span className="text-red-500">Set your name in profile</span>} at {productName} <span className="text-muted-foreground">&lt;{supportEmail}&gt;</span>
                     </span>
                   </div>
                   <div className="ml-auto">
@@ -1409,7 +1432,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                               variant="outline"
                               size="sm"
                               className="flex items-center gap-1 text-xs"
-                              disabled={isSubmitting || !hasValidAdminName}
+                              disabled={isSubmitting || !cachedHasValidName}
                             >
                               <Sparkles className="h-3.5 w-3.5" />
                               Generate
@@ -1417,7 +1440,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                           </TooltipTrigger>
                           <TooltipContent side="top" align="center" className="px-2 py-1">
                             <p className="text-sm font-medium text-muted-foreground flex items-center">
-                              {!hasValidAdminName ? (
+                              {!cachedHasValidName ? (
                                 "Set your name in profile settings to use AI generation"
                               ) : (
                                 <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded flex items-center">
