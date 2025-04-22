@@ -189,7 +189,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         }
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [response?.id, isGeneratingAIReply, isSubmitting])
+    }, [response?.id, isGeneratingAIReply, isSubmitting, cachedHasValidName, cachedAdminFirstName])
 
     useEffect(() => {
       // When response changes, reset the reply content
