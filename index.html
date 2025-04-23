@@ -23,10 +23,12 @@
             w.UserBird._pendingUserData = userData;
             return;
           }
-          // Set user data on widget
-          w.UserBird.email = userData.email;
-          w.UserBird.name = userData.name || userData.username;
-          w.UserBird.userId = userData.id;
+          // Set user data using the user object approach
+          w.UserBird.user = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name || userData.username
+          };
           console.log('Userbird widget: User data updated');
         };
         

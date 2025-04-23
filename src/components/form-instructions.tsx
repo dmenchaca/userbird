@@ -45,19 +45,29 @@ export function FormInstructions({ formId }: FormInstructionsProps) {
                   <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
                     <code>{`<!-- Initialize Userbird -->
 <script>
-  (function(w,d,s){
+  (function(w,d,s) {
+    // Initialize Userbird widget
     w.UserBird = w.UserBird || {};
     w.UserBird.formId = "${formId}";
+    
     // Optional: Add user information
     w.UserBird.user = {
-      id: 'user-123',      // Your user's ID
-      email: 'user@example.com',  // User's email
-      name: 'John Doe'     // User's name
+      id: 'user-123',                 // Your user's ID
+      email: 'user@example.com',      // User's email
+      name: 'John Doe'                // User's name
     };
+    
+    // Load the widget script
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
+    s.onload = function() {
+      console.log('Userbird widget loaded successfully');
+    };
+    s.onerror = function(error) {
+      console.error('Failed to load Userbird widget');
+    };
     d.head.appendChild(s);
-  })(window,document);
+  })(window, document);
 </script>`}</code>
                   </pre>
                 </div>
@@ -74,10 +84,23 @@ export function FormInstructions({ formId }: FormInstructionsProps) {
                   <h4 className="text-sm font-medium mb-2">Step 1: Create a utility function</h4>
                   <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
                     <code>{`// userbird.ts
-export function initUserbird(formId: string) {
+export function initUserbird(formId: string, userData?: { 
+  id?: string; 
+  email?: string; 
+  name?: string;
+}) {
   return new Promise((resolve, reject) => {
     window.UserBird = window.UserBird || {};
     window.UserBird.formId = formId;
+    
+    // Set user data if provided
+    if (userData) {
+      window.UserBird.user = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name
+      };
+    }
     
     const script = document.createElement('script');
     script.src = 'https://userbird.netlify.app/widget.js';
@@ -101,14 +124,12 @@ function App() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Optional: Add user information
-        window.UserBird.user = {
-          id: 'user-123',      // Your user's ID
-          email: 'user@example.com',  // User's email
-          name: 'John Doe'     // User's name
-        };
-        
-        await initUserbird("${formId}");
+        // Initialize with form ID and optional user data
+        await initUserbird("${formId}", {
+          id: 'user-123',             // Your user's ID (optional)
+          email: 'user@example.com',  // User's email (optional)
+          name: 'John Doe'            // User's name (optional)
+        });
         console.log('Userbird widget loaded successfully');
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
@@ -145,6 +166,7 @@ function App() {
             <li>• The widget script will automatically handle positioning relative to the trigger button</li>
             <li>• Always pass the trigger button element to UserBird.open() for proper positioning</li>
             <li>• User information is optional but recommended for better feedback tracking</li>
+            <li>• The widget initializes consistently across all pages with the same configuration</li>
           </ul>
         </div>
 

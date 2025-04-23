@@ -25,25 +25,6 @@ import { useSidebar } from "@/components/ui/sidebar"
 export function UserMenu() {
   const { user, signOut } = useAuth()
   const { isMobile } = useSidebar()
-  
-  useEffect(() => {
-    function setupUserInfo() {
-      if (!user) return;
-      
-      // Add user information to the JS widget
-      window.UserBird = window.UserBird || {};
-      window.UserBird.formId = "4hNUB7DVhf";
-      window.UserBird.user = {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || user.email
-      };
-    }
-    
-    if (user) {
-      setupUserInfo();
-    }
-  }, [user]);
 
   if (!user) return null
 

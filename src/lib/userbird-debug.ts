@@ -15,10 +15,8 @@ export function checkUserbirdStatus() {
     hasPendingData: !!w.UserBird?._pendingUserData,
     hasSetUserInfo: typeof w.UserBird?.setUserInfo === 'function',
     hasOpen: typeof w.UserBird?.open === 'function',
-    userData: {
-      email: w.UserBird?.email,
-      name: w.UserBird?.name,
-      userId: w.UserBird?.userId
+    userData: w.UserBird?.user || {
+      note: 'User data not set'
     },
     scriptLoaded: !!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]'),
     buttonExists: !!document.getElementById('userbird-trigger-4hNUB7DVhf')
@@ -43,12 +41,14 @@ export function updateUserbirdUser(userData: { id?: string; email?: string; name
       w.UserBird.setUserInfo(userData);
       console.log('Updated Userbird widget with user data using setUserInfo');
     } 
-    // Fall back to directly setting the properties
+    // Fall back to directly setting the user object
     else {
-      w.UserBird.email = userData.email;
-      w.UserBird.name = userData.name;
-      w.UserBird.userId = userData.id;
-      console.log('Updated Userbird widget with user data directly');
+      w.UserBird.user = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name
+      };
+      console.log('Updated Userbird widget with user data using user object');
     }
   } catch (error) {
     console.error('Error updating Userbird user data:', error);

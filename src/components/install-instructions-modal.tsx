@@ -80,8 +80,8 @@ Step 2: Initialize the widget
 \`\`\`html
 <!-- Initialize Userbird - Place this before the closing </body> tag -->
 <script>
-  (function(w,d,s){
-    // First set up the UserBird object and user information
+  (function(w,d,s) {
+    // Initialize Userbird widget
     w.UserBird = w.UserBird || {};
     w.UserBird.formId = "${formId}";
     
@@ -89,7 +89,7 @@ Step 2: Initialize the widget
     w.UserBird.user = {
       id: 'user-123',                 // Your user's ID
       email: 'user@example.com',      // User's email
-      name: 'John Doe',               // User's name
+      name: 'John Doe'                // User's name
     };
     
     // Load the widget script
@@ -98,11 +98,11 @@ Step 2: Initialize the widget
     s.onload = function() {
       console.log('Userbird widget loaded successfully');
     };
-    s.onerror = function() {
+    s.onerror = function(error) {
       console.error('Failed to load Userbird widget');
     };
     d.head.appendChild(s);
-  })(window,document);
+  })(window, document);
 </script>
 \`\`\`
 
@@ -140,8 +140,8 @@ Common issues:
 Key features:
 • UserBird.open() - Opens the feedback form from anywhere in your code
 • UserBird.formId - Connects feedback to your specific form
-• UserBird.user - Optionally add user context (id, email, name)
-• You can also add a default trigger with id="userbird-trigger-\`${formId}\`"
+• UserBird.user - Add user context (id, email, name) for better feedback tracking
+• Keyboard shortcut: Press 'F' to open the form when a button with id="userbird-trigger-\`${formId}\`" exists
 `;
 
   // Function to format content consistently using a simpler approach with divs

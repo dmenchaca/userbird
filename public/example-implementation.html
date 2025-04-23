@@ -138,16 +138,22 @@ document.getElementById('my-feedback-button').addEventListener('click', function
     w.UserBird = w.UserBird || {};
     w.UserBird.formId = "YOUR_FORM_ID";
     
-    // Add user information if available
+    // Optional: Add user information
     w.UserBird.user = {
       id: 'user-123',                 // Your user's ID
       email: 'user@example.com',      // User's email
-      name: 'John Doe',               // User's name
+      name: 'John Doe'                // User's name
     };
     
     // Load the widget script
     s = d.createElement('script');
     s.src = 'https://userbird.netlify.app/widget.js';
+    s.onload = function() {
+      console.log('Userbird widget loaded successfully');
+    };
+    s.onerror = function(error) {
+      console.error('Failed to load Userbird widget');
+    };
     d.head.appendChild(s);
   })(window, document);
 &lt;/script&gt;</code></pre>
