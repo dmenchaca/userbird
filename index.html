@@ -26,11 +26,65 @@
           // User information will be set by the dashboard
           // when the user data is available
           
+          // Enhanced open method that can be called directly
+          w.UserBird.open = function(triggerElement) {
+            // If the widget isn't loaded yet, store the request and retry later
+            if (!w.UserBird._initialized) {
+              w.UserBird._pendingOpenRequest = triggerElement;
+              return;
+            }
+            
+            // Call the original open method if it exists (set by widget.js)
+            if (typeof w.UserBird._originalOpen === 'function') {
+              w.UserBird._originalOpen(triggerElement);
+            }
+          };
+          
           // Load the widget script
           s = d.createElement('script');
           s.src = 'https://userbird.netlify.app/widget.js';
           s.onload = function() {
             console.log('Userbird widget (JS) loaded successfully');
+            
+            // Store the original open method
+            if (typeof w.UserBird.open === 'function') {
+              w.UserBird._originalOpen = w.UserBird.open;
+            }
+            
+            // Enhanced event delegation - setup global click handler
+            // This avoids the need for pointer-events-none on button children
+            d.addEventListener('click', function(event) {
+              // Find if the click target is inside a userbird trigger button
+              let targetElement = event.target;
+              let triggerButton = null;
+              
+              // Check if the element or any of its parents is a userbird trigger
+              while (targetElement && targetElement !== d.body) {
+                if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
+                  triggerButton = targetElement;
+                  break;
+                }
+                targetElement = targetElement.parentElement;
+              }
+              
+              // If we found a trigger button, call the open method
+              if (triggerButton) {
+                event.preventDefault();
+                event.stopPropagation();
+                w.UserBird.open(triggerButton);
+              }
+            });
+            
+            // Set initialized flag
+            w.UserBird._initialized = true;
+            
+            // Process any pending open requests
+            if (w.UserBird._pendingOpenRequest) {
+              setTimeout(function() {
+                w.UserBird.open(w.UserBird._pendingOpenRequest);
+                w.UserBird._pendingOpenRequest = null;
+              }, 100);
+            }
           };
           s.onerror = function() {
             console.error('Failed to load Userbird widget (JS)');

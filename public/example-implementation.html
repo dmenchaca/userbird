@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Userbird Enhanced Implementation Example</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+    }
+    
+    button {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    button:hover {
+      background-color: #f9f9f9;
+    }
+    
+    .icon {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .badge {
+      background-color: #eee;
+      border-radius: 4px;
+      padding: 0.15rem 0.4rem;
+      font-size: 0.75rem;
+      color: #555;
+    }
+    
+    code {
+      background-color: #f5f5f5;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Courier New', Courier, monospace;
+      font-size: 0.9rem;
+    }
+    
+    .example-section {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+    
+    h1 {
+      margin-top: 0;
+    }
+    
+    pre {
+      background-color: #f5f5f5;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Userbird Enhanced Implementation</h1>
+  
+  <p>This example demonstrates how to use Userbird's enhanced JavaScript implementation without needing to add <code>pointer-events-none</code> classes to button children.</p>
+  
+  <div class="example-section">
+    <h2>Example 1: Button with Icon and Text</h2>
+    <div class="navbar">
+      <div>Dashboard</div>
+      
+      <!-- 
+        No pointer-events-none needed on any elements!
+        The event delegation in our enhanced implementation handles it automatically.
+      -->
+      <button id="userbird-trigger-4hNUB7DVhf">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Feedback</span>
+        <span class="badge">F</span>
+      </button>
+    </div>
+    
+    <h3>HTML Code:</h3>
+    <pre><code>&lt;button id="userbird-trigger-4hNUB7DVhf"&gt;
+  &lt;svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"&gt;
+    &lt;path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"&gt;&lt;/path&gt;
+  &lt;/svg&gt;
+  &lt;span&gt;Feedback&lt;/span&gt;
+  &lt;span class="badge"&gt;F&lt;/span&gt;
+&lt;/button&gt;</code></pre>
+  </div>
+  
+  <div class="example-section">
+    <h2>Example 2: Using JavaScript to Open the Widget</h2>
+    
+    <button onclick="window.UserBird.open(this)">Open Feedback Widget Programmatically</button>
+    
+    <h3>JavaScript Code:</h3>
+    <pre><code>// Method 1: With click handler
+&lt;button onclick="window.UserBird.open(this)"&gt;Open Feedback Widget&lt;/button&gt;
+
+// Method 2: Using JavaScript
+document.getElementById('my-feedback-button').addEventListener('click', function() {
+  window.UserBird.open(this);
+});</code></pre>
+  </div>
+  
+  <div class="example-section">
+    <h2>Installation Instructions</h2>
+    
+    <p>Add this snippet to your HTML before the closing <code>&lt;/body&gt;</code> tag:</p>
+    
+    <pre><code>&lt;!-- Userbird Widget Initialization --&gt;
+&lt;script&gt;
+  (function(w,d,s) {
+    // Initialize Userbird widget
+    w.UserBird = w.UserBird || {};
+    w.UserBird.formId = "YOUR_FORM_ID";
+    
+    // Add user information if available
+    w.UserBird.user = {
+      id: 'user-123',                 // Your user's ID
+      email: 'user@example.com',      // User's email
+      name: 'John Doe',               // User's name
+    };
+    
+    // Load the widget script
+    s = d.createElement('script');
+    s.src = 'https://userbird.netlify.app/widget.js';
+    d.head.appendChild(s);
+  })(window, document);
+&lt;/script&gt;</code></pre>
+  </div>
+  
+  <!-- Userbird Widget Initialization -->
+  <script>
+    // This would be the actual initialization in a real implementation
+    // For demo purposes, we're just creating a mock UserBird object
+    window.UserBird = window.UserBird || {};
+    window.UserBird.formId = "4hNUB7DVhf";
+    window.UserBird.open = function(trigger) {
+      alert('Userbird widget would open here. Trigger: ' + (trigger ? trigger.tagName : 'none'));
+    };
+  </script>
+</body>
+</html> 

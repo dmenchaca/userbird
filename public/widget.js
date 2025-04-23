@@ -11,6 +11,33 @@
   let successSound = null;
   let isAnimationRunning = false;
   
+  // Store the original open method if one is defined
+  const originalOpen = window.UserBird && typeof window.UserBird.open === 'function' ? 
+                      window.UserBird.open : null;
+  
+  // Setup event delegation for trigger elements
+  document.addEventListener('click', function(event) {
+    // Find if the click target is inside a userbird trigger button
+    let targetElement = event.target;
+    let triggerButton = null;
+    
+    // Check if the element or any of its parents is a userbird trigger
+    while (targetElement && targetElement !== document.body) {
+      if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
+        triggerButton = targetElement;
+        break;
+      }
+      targetElement = targetElement.parentElement;
+    }
+    
+    // If we found a trigger button, open the widget
+    if (triggerButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openModal(triggerButton);
+    }
+  });
+  
   const MESSAGES = {
     success: {
       title: 'Thank you',
@@ -1140,8 +1167,7 @@
 
   // Initialize global API
   window.UserBird = window.UserBird || {};
-  window.UserBird.open = openModal;
-  window.UserBird.close = closeModal;
+  window.UserBird.formId = window.UserBird.formId || formId;
   
   // Add animation control flags
   window.UserBird.setAnimationRunning = function(isRunning) {
@@ -1149,7 +1175,21 @@
     console.log(`Animation running state: ${isRunning}`);
   };
 
-  if (window.UserBird?.formId) {
-    init().catch(console.error);
+  // Enhanced open method - respects the original if it was defined previously
+  window.UserBird.open = function(trigger) {
+    if (originalOpen) {
+      // Call original method first if it was defined
+      originalOpen(trigger);
+    }
+    
+    // Then call our implementation
+    openModal(trigger);
+  };
+
+  // Initialize widget once the DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
