@@ -16,8 +16,9 @@ export function AuthPage() {
     async function loadWidget() {
       try {
         console.log('🔧 Initializing Userbird widget');
-        await initUserbird("4hNUB7DVhf");
-        console.log('✅ Userbird widget initialized successfully');
+        // Temporarily commenting out the widget initialization to test if this resolves the double loading issue
+        // await initUserbird("4hNUB7DVhf");
+        console.log('✅ Userbird widget initialization commented out for testing');
         
         // Define the animation function first
         function initAnimation() {

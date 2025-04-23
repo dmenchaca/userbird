@@ -12,7 +12,9 @@ export function LoginPage() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        await initUserbird("4hNUB7DVhf");
+        // Temporarily commenting out the widget initialization to test if this resolves the double loading issue
+        // await initUserbird("4hNUB7DVhf");
+        console.log('Userbird widget initialization commented out for testing in login.tsx');
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
       }

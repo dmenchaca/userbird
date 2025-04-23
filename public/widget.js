@@ -15,28 +15,64 @@
   const originalOpen = window.UserBird && typeof window.UserBird.open === 'function' ? 
                       window.UserBird.open : null;
   
-  // Setup event delegation for trigger elements
-  document.addEventListener('click', function(event) {
-    // Find if the click target is inside a userbird trigger button
-    let targetElement = event.target;
-    let triggerButton = null;
+  // Simplified direct approach to handle trigger button clicks
+  function setupTriggerEvents() {
+    // Find all existing trigger buttons and add click listeners
+    document.querySelectorAll('[id^="userbird-trigger-"]').forEach(triggerButton => {
+      triggerButton.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        if (modal && modal.modal.classList.contains('open') && currentTrigger === triggerButton) {
+          closeModal();
+        } else {
+          openModal(triggerButton);
+        }
+      });
+    });
     
-    // Check if the element or any of its parents is a userbird trigger
-    while (targetElement && targetElement !== document.body) {
-      if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
-        triggerButton = targetElement;
-        break;
-      }
-      targetElement = targetElement.parentElement;
-    }
+    // Also set up a MutationObserver to handle dynamically added trigger buttons
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.addedNodes.length) {
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === 1) { // Element node
+              // Check if the added node is a trigger button
+              if (node.id && node.id.startsWith('userbird-trigger-')) {
+                node.addEventListener('click', function(event) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  
+                  if (modal && modal.modal.classList.contains('open') && currentTrigger === node) {
+                    closeModal();
+                  } else {
+                    openModal(node);
+                  }
+                });
+              }
+              
+              // Also check for trigger buttons inside the added node
+              const triggerButtons = node.querySelectorAll('[id^="userbird-trigger-"]');
+              triggerButtons.forEach(btn => {
+                btn.addEventListener('click', function(event) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  
+                  if (modal && modal.modal.classList.contains('open') && currentTrigger === btn) {
+                    closeModal();
+                  } else {
+                    openModal(btn);
+                  }
+                });
+              });
+            }
+          });
+        }
+      });
+    });
     
-    // If we found a trigger button, open the widget
-    if (triggerButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      openModal(triggerButton);
-    }
-  });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
   
   const MESSAGES = {
     success: {
@@ -767,6 +803,10 @@
         document.addEventListener('keyup', handleKeyUp);
         
         settingsLoaded = true;
+        
+        // Setup trigger button click events after settings are loaded
+        setupTriggerEvents();
+        
         return settings;
       })
       .catch(error => {
@@ -775,19 +815,10 @@
         modal = createModal();
         setupModal('#1f2937', null);
         settingsLoaded = true;
+        
+        // Setup trigger button click events even if settings failed
+        setupTriggerEvents();
       });
-    
-    const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
-    if (defaultTrigger) {
-      defaultTrigger.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (modal.modal.classList.contains('open') && currentTrigger === defaultTrigger) {
-          closeModal();
-        } else {
-          openModal(defaultTrigger);
-        }
-      });
-    }
   }
   
   function setupModal(buttonColor, supportText) {
