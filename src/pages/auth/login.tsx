@@ -3,7 +3,7 @@ import { Bird } from 'lucide-react'
 import { AuthForm } from '@/components/auth/auth-form'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 import { useEffect } from 'react'
-import { initUserbird } from '@/lib/userbird'
+// import { initUserbird } from '@/lib/userbird'
 
 export function LoginPage() {
   const [searchParams] = useSearchParams()
