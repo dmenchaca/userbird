@@ -10,87 +10,90 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Userbird Widget Initialization for non-auth pages -->
+    <!-- Userbird Widget Initialization -->
     <script>
       (function(w,d,s) {
-        // Only initialize on non-auth pages (dashboard)
-        const isAuthPage = window.location.pathname.startsWith('/auth') || 
-                          window.location.pathname === '/login' || 
-                          window.location.pathname === '/signup';
+        // Always initialize Userbird widget regardless of page type
+        w.UserBird = w.UserBird || {};
+        w.UserBird.formId = "4hNUB7DVhf";
         
-        if (!isAuthPage) {
-          // Initialize Userbird widget
-          w.UserBird = w.UserBird || {};
-          w.UserBird.formId = "4hNUB7DVhf";
+        // Add a method to update user info after login
+        w.UserBird.setUserInfo = function(userData) {
+          if (!w.UserBird._initialized) {
+            w.UserBird._pendingUserData = userData;
+            return;
+          }
+          // Set user data on widget
+          w.UserBird.email = userData.email;
+          w.UserBird.name = userData.name || userData.username;
+          w.UserBird.userId = userData.id;
+          console.log('Userbird widget: User data updated');
+        };
+        
+        // Enhanced open method
+        w.UserBird.open = function(triggerElement) {
+          if (!w.UserBird._initialized) {
+            w.UserBird._pendingOpenRequest = triggerElement;
+            return;
+          }
+          if (typeof w.UserBird._originalOpen === 'function') {
+            w.UserBird._originalOpen(triggerElement);
+          }
+        };
+        
+        // Load the widget script
+        s = d.createElement('script');
+        s.src = 'https://userbird.netlify.app/widget.js';
+        s.onload = function() {
+          console.log('Userbird widget loaded successfully');
           
-          // User information will be set by the dashboard
-          // when the user data is available
+          if (typeof w.UserBird.open === 'function') {
+            w.UserBird._originalOpen = w.UserBird.open;
+          }
           
-          // Enhanced open method that can be called directly
-          w.UserBird.open = function(triggerElement) {
-            // If the widget isn't loaded yet, store the request and retry later
-            if (!w.UserBird._initialized) {
-              w.UserBird._pendingOpenRequest = triggerElement;
-              return;
-            }
-            
-            // Call the original open method if it exists (set by widget.js)
-            if (typeof w.UserBird._originalOpen === 'function') {
-              w.UserBird._originalOpen(triggerElement);
-            }
-          };
+          // Set initialized flag
+          w.UserBird._initialized = true;
           
-          // Load the widget script
-          s = d.createElement('script');
-          s.src = 'https://userbird.netlify.app/widget.js';
-          s.onload = function() {
-            console.log('Userbird widget (JS) loaded successfully');
-            
-            // Store the original open method
-            if (typeof w.UserBird.open === 'function') {
-              w.UserBird._originalOpen = w.UserBird.open;
+          // Apply any pending data
+          if (w.UserBird._pendingUserData) {
+            w.UserBird.setUserInfo(w.UserBird._pendingUserData);
+            w.UserBird._pendingUserData = null;
+          }
+          
+          // Process any pending open requests
+          if (w.UserBird._pendingOpenRequest) {
+            setTimeout(function() {
+              w.UserBird.open(w.UserBird._pendingOpenRequest);
+              w.UserBird._pendingOpenRequest = null;
+            }, 100);
+          }
+        };
+        
+        s.onerror = function(error) {
+          console.error('Failed to load Userbird widget:', error);
+        };
+        
+        d.head.appendChild(s);
+        
+        // Global click handler for widget triggers
+        d.addEventListener('click', function(event) {
+          let targetElement = event.target;
+          let triggerButton = null;
+          
+          while (targetElement && targetElement !== d.body) {
+            if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
+              triggerButton = targetElement;
+              break;
             }
-            
-            // Enhanced event delegation - setup global click handler
-            // This avoids the need for pointer-events-none on button children
-            d.addEventListener('click', function(event) {
-              // Find if the click target is inside a userbird trigger button
-              let targetElement = event.target;
-              let triggerButton = null;
-              
-              // Check if the element or any of its parents is a userbird trigger
-              while (targetElement && targetElement !== d.body) {
-                if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
-                  triggerButton = targetElement;
-                  break;
-                }
-                targetElement = targetElement.parentElement;
-              }
-              
-              // If we found a trigger button, call the open method
-              if (triggerButton) {
-                event.preventDefault();
-                event.stopPropagation();
-                w.UserBird.open(triggerButton);
-              }
-            });
-            
-            // Set initialized flag
-            w.UserBird._initialized = true;
-            
-            // Process any pending open requests
-            if (w.UserBird._pendingOpenRequest) {
-              setTimeout(function() {
-                w.UserBird.open(w.UserBird._pendingOpenRequest);
-                w.UserBird._pendingOpenRequest = null;
-              }, 100);
-            }
-          };
-          s.onerror = function() {
-            console.error('Failed to load Userbird widget (JS)');
-          };
-          d.head.appendChild(s);
-        }
+            targetElement = targetElement.parentElement;
+          }
+          
+          if (triggerButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            w.UserBird.open(triggerButton);
+          }
+        });
       })(window, document);
     </script>
   </body>

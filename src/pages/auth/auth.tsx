@@ -11,36 +11,10 @@ export function AuthPage() {
   const mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
 
   useEffect(() => {
-    console.log('🔍 Auth page mounted, preparing to load widget and demo');
+    console.log('🔍 Auth page mounted, preparing to load demo');
     
-    async function loadWidget() {
+    async function loadDemo() {
       try {
-        console.log('🔧 Initializing Userbird widget using HTML/JS implementation');
-        
-        // Initialize Userbird widget using plain HTML/JS approach - this is now the preferred method
-        const formId = "4hNUB7DVhf";
-        
-        // Only initialize if not already loaded
-        if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
-          // First set up the UserBird object
-          window.UserBird = window.UserBird || {};
-          // Use type assertion to set properties
-          (window.UserBird as any).formId = formId;
-          
-          // Create and append the script
-          const script = document.createElement('script');
-          script.src = 'https://userbird.netlify.app/widget.js';
-          script.onload = () => {
-            console.log('✅ Userbird widget loaded successfully via HTML/JS implementation');
-          };
-          script.onerror = (error) => {
-            console.error('❌ Failed to load Userbird widget script:', error);
-          };
-          document.head.appendChild(script);
-        } else {
-          console.log('ℹ️ Userbird widget script already loaded');
-        }
-        
         // Define the animation function first
         function initAnimation() {
           console.log('🎬 Starting cursor demo animation');
@@ -71,6 +45,7 @@ export function AuthPage() {
           console.log('🔍 Checking DOM for widget elements...');
           
           // Look for the feedback button
+          const formId = "4hNUB7DVhf";
           const buttonId = `userbird-trigger-${formId}`;
           const buttonById = document.getElementById(buttonId);
           
@@ -148,11 +123,11 @@ export function AuthPage() {
         // Start the check immediately
         checkWidgetButton();
       } catch (error) {
-        console.error('❌ Failed to load Userbird widget:', error);
+        console.error('❌ Failed to load demo:', error);
       }
     }
     
-    loadWidget();
+    loadDemo();
   }, []);
 
   return (

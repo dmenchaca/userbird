@@ -4,6 +4,37 @@ import { useAuth } from '@/lib/auth'
 import { Loader } from 'lucide-react'
 import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
+// Simple utility function to update Userbird with user data
+function updateUserbirdUserData(user: any) {
+  if (!user || typeof window.UserBird === 'undefined') return;
+  
+  try {
+    // Get user display name from metadata
+    const name = user.user_metadata?.full_name || 
+                user.user_metadata?.name || 
+                user.email;
+    
+    // Try the setUserInfo method first if available
+    if (typeof (window.UserBird as any).setUserInfo === 'function') {
+      (window.UserBird as any).setUserInfo({
+        id: user.id,
+        email: user.email,
+        name: name
+      });
+      console.log('Updated Userbird widget with user data using setUserInfo');
+    } 
+    // Fall back to directly setting the properties
+    else {
+      (window.UserBird as any).email = user.email;
+      (window.UserBird as any).name = name;
+      (window.UserBird as any).userId = user.id;
+      console.log('Updated Userbird widget with user data directly');
+    }
+  } catch (error) {
+    console.error('Error updating Userbird user data:', error);
+  }
+}
+
 interface AuthGuardProps {
   children: React.ReactNode
 }
@@ -19,6 +50,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
       navigate('/login')
     }
   }, [user, loading, initialized, navigate])
+
+  // Update the Userbird widget with user data when available
+  useEffect(() => {
+    if (user) {
+      updateUserbirdUserData(user);
+    }
+  }, [user]);
 
   // Redirect to setup wizard when needed
   useEffect(() => {

@@ -2,48 +2,12 @@ import { useSearchParams } from 'react-router-dom'
 import { Bird } from 'lucide-react'
 import { AuthForm } from '@/components/auth/auth-form'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
-import { useEffect } from 'react'
+// import { useEffect } from 'react'
 // import { initUserbird } from '@/lib/userbird'
 
 export function LoginPage() {
   const [searchParams] = useSearchParams()
   const mode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
-
-  useEffect(() => {
-    async function loadWidget() {
-      try {
-        console.log('🔧 Initializing Userbird widget using HTML/JS implementation in login.tsx');
-        
-        // Initialize Userbird widget using plain HTML/JS approach
-        const formId = "4hNUB7DVhf";
-        
-        // Only initialize if not already loaded
-        if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
-          // First set up the UserBird object
-          window.UserBird = window.UserBird || {};
-          // Use type assertion to set properties
-          (window.UserBird as any).formId = formId;
-          
-          // Create and append the script
-          const script = document.createElement('script');
-          script.src = 'https://userbird.netlify.app/widget.js';
-          script.onload = () => {
-            console.log('✅ Userbird widget loaded successfully via HTML/JS implementation');
-          };
-          script.onerror = (error) => {
-            console.error('❌ Failed to load Userbird widget script:', error);
-          };
-          document.head.appendChild(script);
-        } else {
-          console.log('ℹ️ Userbird widget script already loaded');
-        }
-      } catch (error) {
-        console.error('Failed to load Userbird widget:', error);
-      }
-    }
-    
-    loadWidget();
-  }, []);
 
   return (
     <div className="container relative h-screen grid lg:max-w-none lg:grid-cols-[2fr_3fr] lg:px-0 overflow-hidden">
