@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { useAuth } from '@/lib/auth';
-import { initUserbird } from '@/lib/userbird';
 import {
   BadgeCheck,
   LogOut,
@@ -28,25 +27,21 @@ export function UserMenu() {
   const { isMobile } = useSidebar()
   
   useEffect(() => {
-    async function loadWidget() {
-      try {
-        // Add user information
-        window.UserBird = window.UserBird || {};
-        window.UserBird.formId = "4hNUB7DVhf";
-        window.UserBird.user = user ? {
-          id: user.id,
-          email: user.email,
-          name: user.user_metadata?.full_name || user.email
-        } : undefined;
-        
-        await initUserbird("4hNUB7DVhf");
-      } catch (error) {
-        console.error('Failed to load Userbird widget:', error);
-      }
+    function setupUserInfo() {
+      if (!user) return;
+      
+      // Add user information to the JS widget
+      window.UserBird = window.UserBird || {};
+      window.UserBird.formId = "4hNUB7DVhf";
+      window.UserBird.user = {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email
+      };
     }
     
     if (user) {
-      loadWidget();
+      setupUserInfo();
     }
   }, [user]);
 
@@ -65,11 +60,11 @@ export function UserMenu() {
         variant="ghost"
         className="h-9 w-full justify-between whitespace-nowrap rounded-md px-3 py-2 text-sm bg-transparent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center"
       >
-        <span className="flex items-center gap-2" style={{ pointerEvents: 'none' }}>
-          <MessageSquare className="h-4 w-4" />
-          <span>Feedback</span>
+        <span className="flex items-center gap-2 pointer-events-none">
+          <MessageSquare className="h-4 w-4 pointer-events-none" />
+          <span className="pointer-events-none">Feedback</span>
         </span>
-        <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">F</span>
+        <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
       </Button>
       
       {/* User Profile Dropdown */}

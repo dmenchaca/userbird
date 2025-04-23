@@ -9,5 +9,35 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Userbird Widget Initialization for non-auth pages -->
+    <script>
+      (function(w,d,s) {
+        // Only initialize on non-auth pages (dashboard)
+        const isAuthPage = window.location.pathname.startsWith('/auth') || 
+                          window.location.pathname === '/login' || 
+                          window.location.pathname === '/signup';
+        
+        if (!isAuthPage) {
+          // Initialize Userbird widget
+          w.UserBird = w.UserBird || {};
+          w.UserBird.formId = "4hNUB7DVhf";
+          
+          // User information will be set by the dashboard
+          // when the user data is available
+          
+          // Load the widget script
+          s = d.createElement('script');
+          s.src = 'https://userbird.netlify.app/widget.js';
+          s.onload = function() {
+            console.log('Userbird widget (JS) loaded successfully');
+          };
+          s.onerror = function() {
+            console.error('Failed to load Userbird widget (JS)');
+          };
+          d.head.appendChild(s);
+        }
+      })(window, document);
+    </script>
   </body>
 </html>
