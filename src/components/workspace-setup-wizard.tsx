@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Loader } from 'lucide-react'
+import { Loader, Bird } from 'lucide-react'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -27,6 +27,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [isCreating, setIsCreating] = useState(false)
   const navigate = useNavigate()
   const { user } = useAuth()
+  
+  // Get user's first name for the welcome message
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 
+                   user?.user_metadata?.name?.split(' ')[0] || 
+                   user?.email?.split('@')[0] || 
+                   'there'
 
   // Check if URL is actually optional in the database schema
   useEffect(() => {
@@ -177,10 +183,39 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
 
   return (
     <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <svg
+        className="absolute inset-0 h-full w-full -z-10"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ filter: 'contrast(1.1)' }}
+      >
+        <defs>
+          <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#D3EDCC" stopOpacity="0.2" />
+            <stop offset="50%" stopColor="#FF77F6" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#2BF2B9" stopOpacity="0.2" />
+          </linearGradient>
+          <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="70" />
+          </filter>
+        </defs>
+        <circle cx="60%" cy="20%" r="50%" fill="url(#gradient1)" filter="url(#blur)" opacity="0.25" />
+        <circle cx="85%" cy="50%" r="45%" fill="#D3EDCC" filter="url(#blur)" opacity="0.1" />
+        <circle cx="15%" cy="60%" r="55%" fill="#2BF2B9" filter="url(#blur)" opacity="0.08" />
+        <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
+      </svg>
+      
       <div className="bg-background rounded-lg shadow-lg border w-full max-w-md p-6">
         {step === 1 && (
           <div className="space-y-6 text-center">
-            <h2 className="text-2xl font-semibold">Welcome to Userbird</h2>
+            <div className="flex justify-center pb-4">
+              <a href="/" className="flex items-center gap-2 font-medium">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <Bird className="h-4 w-4" />
+                </div>
+                Userbird
+              </a>
+            </div>
+            <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
             <p className="text-muted-foreground">
               Set up your new customer support and feedback system.
             </p>
