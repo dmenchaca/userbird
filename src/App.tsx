@@ -6,6 +6,7 @@ import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
 import { FormView } from './pages/form-view';
 import { useWorkspaceSetupCheck } from './lib/hooks/useWorkspaceSetupCheck';
+import { WorkspaceSetupWizard } from './components/workspace-setup-wizard';
 import { useEffect } from 'react';
 
 export default function App() {
@@ -24,6 +25,11 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/auth/callback" element={<CallbackPage />} />
+        <Route path="/setup-workspace" element={
+          <AuthGuard>
+            <WorkspaceSetupWizard onComplete={() => {}} />
+          </AuthGuard>
+        } />
         <Route path="/forms/:formId/ticket/:ticketNumber" element={
           <AuthGuard>
             <FormView />
