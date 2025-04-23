@@ -12,9 +12,31 @@ export function LoginPage() {
   useEffect(() => {
     async function loadWidget() {
       try {
-        // Temporarily commenting out the widget initialization to test if this resolves the double loading issue
-        // await initUserbird("4hNUB7DVhf");
-        console.log('Userbird widget initialization commented out for testing in login.tsx');
+        console.log('🔧 Initializing Userbird widget using HTML/JS implementation in login.tsx');
+        
+        // Initialize Userbird widget using plain HTML/JS approach
+        const formId = "4hNUB7DVhf";
+        
+        // Only initialize if not already loaded
+        if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
+          // First set up the UserBird object
+          window.UserBird = window.UserBird || {};
+          // Use type assertion to set properties
+          (window.UserBird as any).formId = formId;
+          
+          // Create and append the script
+          const script = document.createElement('script');
+          script.src = 'https://userbird.netlify.app/widget.js';
+          script.onload = () => {
+            console.log('✅ Userbird widget loaded successfully via HTML/JS implementation');
+          };
+          script.onerror = (error) => {
+            console.error('❌ Failed to load Userbird widget script:', error);
+          };
+          document.head.appendChild(script);
+        } else {
+          console.log('ℹ️ Userbird widget script already loaded');
+        }
       } catch (error) {
         console.error('Failed to load Userbird widget:', error);
       }

@@ -15,10 +15,31 @@ export function AuthPage() {
     
     async function loadWidget() {
       try {
-        console.log('🔧 Initializing Userbird widget');
-        // Temporarily commenting out the widget initialization to test if this resolves the double loading issue
-        // await initUserbird("4hNUB7DVhf");
-        console.log('✅ Userbird widget initialization commented out for testing');
+        console.log('🔧 Initializing Userbird widget using HTML/JS implementation');
+        
+        // Initialize Userbird widget using plain HTML/JS approach - this is now the preferred method
+        const formId = "4hNUB7DVhf";
+        
+        // Only initialize if not already loaded
+        if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
+          // First set up the UserBird object
+          window.UserBird = window.UserBird || {};
+          // Use type assertion to set properties
+          (window.UserBird as any).formId = formId;
+          
+          // Create and append the script
+          const script = document.createElement('script');
+          script.src = 'https://userbird.netlify.app/widget.js';
+          script.onload = () => {
+            console.log('✅ Userbird widget loaded successfully via HTML/JS implementation');
+          };
+          script.onerror = (error) => {
+            console.error('❌ Failed to load Userbird widget script:', error);
+          };
+          document.head.appendChild(script);
+        } else {
+          console.log('ℹ️ Userbird widget script already loaded');
+        }
         
         // Define the animation function first
         function initAnimation() {
@@ -50,7 +71,6 @@ export function AuthPage() {
           console.log('🔍 Checking DOM for widget elements...');
           
           // Look for the feedback button
-          const formId = "4hNUB7DVhf";
           const buttonId = `userbird-trigger-${formId}`;
           const buttonById = document.getElementById(buttonId);
           
@@ -90,7 +110,7 @@ export function AuthPage() {
           // Initialize cursor demo, which will now run on every page load
           console.log('💯 Initializing animation with button found:', !!document.getElementById(`userbird-trigger-${formId}`));
           const cleanup = initCursorDemo({
-            formId: "4hNUB7DVhf",
+            formId: formId,
             // Start immediately
             delay: 0
           });

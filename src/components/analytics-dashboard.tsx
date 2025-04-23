@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AreaChart, Area, XAxis, ResponsiveContainer } from 'recharts'
 import { Avatar } from '@/components/ui/avatar'
+import { useEffect, useRef } from 'react'
 
 const sessionData = [
   { name: 'Mon', value: 2.4 },
@@ -26,6 +27,33 @@ const pagesData = [
 ];
 
 export function AnalyticsDashboard() {
+  const feedbackButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Initialize the Userbird widget using plain JS
+  useEffect(() => {
+    // Check if the Userbird script already exists to avoid duplicates
+    if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
+      // Initialize Userbird using HTML/JS approach
+      const formId = "4hNUB7DVhf";
+      
+      // First set up the UserBird object
+      window.UserBird = window.UserBird || {};
+      // Use type assertion to set properties
+      (window.UserBird as any).formId = formId;
+      
+      // Create and append the script
+      const script = document.createElement('script');
+      script.src = 'https://userbird.netlify.app/widget.js';
+      script.onload = () => {
+        console.log('Userbird widget loaded successfully via HTML/JS implementation');
+      };
+      script.onerror = () => {
+        console.error('Failed to load Userbird widget');
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+  
   return (
     <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden">
       {/* Browser Address Bar */}
@@ -76,15 +104,15 @@ export function AnalyticsDashboard() {
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-2">
-            <Button 
+            {/* HTML/JS implementation of the Feedback button */}
+            <button 
               id="userbird-trigger-4hNUB7DVhf"
-              variant="outline" 
-              size="default" 
-              className="gap-2 h-9 px-3 relative z-[3] transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
+              ref={feedbackButtonRef}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative z-[3] transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
             >
               <span className="pointer-events-none">Feedback</span>
               <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
-            </Button>
+            </button>
             <Avatar className="h-8 w-8 opacity-50">
               <img
                 src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=256&h=256&q=80"
