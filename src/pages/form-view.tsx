@@ -6,8 +6,6 @@ export function FormView() {
   const { formId, ticketNumber } = useParams()
   const navigate = useNavigate()
   
-  console.log('FormView params:', { formId, ticketNumber, ticketNumberType: typeof ticketNumber });
-
   // Handle old format redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)

@@ -49,7 +49,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // Log the workspace setup check result when it changes
   useEffect(() => {
     if (needsSetupWizard !== null && user) {
-      console.log('AuthGuard: Workspace setup wizard needed:', needsSetupWizard)
+      // console log removed
     }
   }, [needsSetupWizard, user])
 
