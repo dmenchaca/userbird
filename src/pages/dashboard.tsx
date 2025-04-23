@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { FeedbackImage } from '../../app/components/FeedbackImage'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { assignFeedback } from '@/lib/services/feedback-assignments'
+import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
 interface DashboardProps {
   initialFormId?: string
@@ -33,6 +34,7 @@ interface DashboardProps {
 export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { needsSetupWizard } = useWorkspaceSetupCheck()
   const [selectedFormId, setSelectedFormId] = useState<string | undefined>(initialFormId)
   const [formName, setFormName] = useState<string>('')
   const [productName, setProductName] = useState<string | null>(null)
@@ -1343,6 +1345,13 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
     fetchTicket();
   }, [selectedFormId, initialTicketNumber, collaborators]);
+
+  // Log the result of the workspace setup check when it changes
+  useEffect(() => {
+    if (needsSetupWizard !== null) {
+      console.log('Workspace setup wizard needed:', needsSetupWizard)
+    }
+  }, [needsSetupWizard])
 
   if (loading) {
     return (

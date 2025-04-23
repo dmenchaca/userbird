@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import { Loader } from 'lucide-react'
+import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -9,6 +10,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading, initialized } = useAuth()
+  const { needsSetupWizard } = useWorkspaceSetupCheck()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -16,6 +18,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
       navigate('/login')
     }
   }, [user, loading, initialized, navigate])
+
+  // Log the workspace setup check result when it changes
+  useEffect(() => {
+    if (needsSetupWizard !== null && user) {
+      console.log('AuthGuard: Workspace setup wizard needed:', needsSetupWizard)
+    }
+  }, [needsSetupWizard, user])
 
   if (loading) {
     return (

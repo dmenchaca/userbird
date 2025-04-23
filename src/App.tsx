@@ -5,8 +5,19 @@ import { AuthPage } from './pages/auth/auth';
 import { CallbackPage } from './pages/auth/callback';
 import { Dashboard } from './pages/dashboard';
 import { FormView } from './pages/form-view';
+import { useWorkspaceSetupCheck } from './lib/hooks/useWorkspaceSetupCheck';
+import { useEffect } from 'react';
 
 export default function App() {
+  const { needsSetupWizard } = useWorkspaceSetupCheck();
+
+  // Log the workspace setup check result when it changes
+  useEffect(() => {
+    if (needsSetupWizard !== null) {
+      console.log('App: Workspace setup wizard needed:', needsSetupWizard);
+    }
+  }, [needsSetupWizard]);
+
   return (
     <>
       <Toaster position="bottom-center" />

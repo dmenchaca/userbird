@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
 export function CallbackPage() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  const { needsSetupWizard } = useWorkspaceSetupCheck()
+
+  // Log the workspace setup check result when it changes
+  useEffect(() => {
+    if (needsSetupWizard !== null) {
+      console.log('Auth callback: Workspace setup wizard needed:', needsSetupWizard)
+    }
+  }, [needsSetupWizard])
 
   useEffect(() => {
     // Process the hash fragment first to extract the session
