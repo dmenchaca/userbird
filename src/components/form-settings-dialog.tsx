@@ -1666,7 +1666,7 @@ export function FormSettingsDialog({
           onDelete();
           onOpenChange(false);
         }}
-        formUrl={formUrl}
+        productName={productName || formUrl}
       />
     </>
   )

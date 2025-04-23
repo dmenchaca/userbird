@@ -15,25 +15,25 @@ interface DeleteFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
-  formUrl: string
+  productName: string
 }
 
 export function DeleteFormDialog({ 
   open, 
   onOpenChange, 
   onConfirm, 
-  formUrl 
+  productName 
 }: DeleteFormDialogProps) {
-  const [confirmUrl, setConfirmUrl] = useState('')
+  const [confirmProduct, setConfirmProduct] = useState('')
   const [error, setError] = useState(false)
 
-  const urlMatches = confirmUrl === formUrl
+  const productMatches = confirmProduct === productName
 
   const handleConfirm = () => {
-    if (urlMatches) {
+    if (productMatches) {
       onConfirm()
       onOpenChange(false)
-      setConfirmUrl('')
+      setConfirmProduct('')
       setError(false)
     } else {
       setError(true)
@@ -43,7 +43,7 @@ export function DeleteFormDialog({
   const handleOpenChange = (open: boolean) => {
     onOpenChange(open)
     if (!open) {
-      setConfirmUrl('')
+      setConfirmProduct('')
       setError(false)
     }
   }
@@ -62,22 +62,22 @@ export function DeleteFormDialog({
           <div className="grid gap-2 pb-2">
             <div className="text-sm">
               <span className="font-normal">Please type </span>
-              <span className="font-medium select-text">{formUrl}</span>
+              <span className="font-medium select-text">{productName}</span>
               <span className="font-normal"> to confirm:</span>
             </div>
             <Input
-              value={confirmUrl}
+              value={confirmProduct}
               onChange={(e) => {
-                setConfirmUrl(e.target.value)
+                setConfirmProduct(e.target.value)
                 setError(false)
               }}
-              placeholder={formUrl}
+              placeholder={productName}
               className={error ? 'border-destructive' : ''}
             />
             {error && (
               <div className="flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4" />
-                <span>The URL you entered doesn't match</span>
+                <span>The product name you entered doesn't match</span>
               </div>
             )}
           </div>
@@ -92,7 +92,7 @@ export function DeleteFormDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!urlMatches}
+            disabled={!productMatches}
           >
             Delete Form
           </Button>
