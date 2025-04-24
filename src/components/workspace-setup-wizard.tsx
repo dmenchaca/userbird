@@ -1,7 +1,6 @@
-import { useState, useEffect, KeyboardEvent, FormEvent } from 'react'
+import { useState, useEffect, KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -26,7 +25,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [productName, setProductName] = useState('')
   const [helpDocsUrl, setHelpDocsUrl] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const navigate = useNavigate()
   const { user } = useAuth()
   
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
