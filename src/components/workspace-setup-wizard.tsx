@@ -329,21 +329,51 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
       </svg>
       
-      <div className="bg-background rounded-lg shadow-lg border w-full max-w-md p-6 transition-all duration-500 ease-in-out">
-        <div>
+      <div className="flex flex-col items-end w-full max-w-md">
+        {/* Userbird Feedback Button */}
+        <div className="mb-4">
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function(w, d, s, o) {
+                  w.UserBirdObject = o;
+                  w[o] = w[o] || function() {
+                    (w[o].q = w[o].q || []).push(arguments);
+                  };
+                  const f = d.getElementsByTagName(s)[0];
+                  const ubird = d.createElement(s);
+                  ubird.async = 1;
+                  ubird.src = 'https://cdn.userbird.co/userbird.js';
+                  f.parentNode.insertBefore(ubird, f);
+                })(window, document, 'script', 'ub');
+                ub('form', '4hNUB7DVhf');
+              `
+            }}
+          />
+          <button 
+            id="userbird-trigger-4hNUB7DVhf"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
+          >
+            <span className="pointer-events-none">Feedback</span>
+            <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
+          </button>
+        </div>
+        
+        <div className="bg-background rounded-lg shadow-lg border w-full max-w-md p-6 transition-all duration-500 ease-in-out">
+          <div>
         {step === 1 && (
-            <div 
-              className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500"
-              onKeyDown={(e) => {
-                console.log('Key pressed in step 1 specific handler:', e.key);
-                if (e.key === 'Enter') {
-                  console.log('Enter pressed in step 1 specific handler');
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleNext();
-                }
-              }}
-            >
+              <div 
+                className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500"
+                onKeyDown={(e) => {
+                  console.log('Key pressed in step 1 specific handler:', e.key);
+                  if (e.key === 'Enter') {
+                    console.log('Enter pressed in step 1 specific handler');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleNext();
+                  }
+                }}
+              >
             <div className="flex justify-center pb-4">
               <a href="/" className="flex items-center gap-2 font-medium">
                 <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -352,43 +382,43 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 Userbird
               </a>
             </div>
-              <div className="space-y-2 mb-6">
+                <div className="space-y-2 mb-6">
             <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
             <p className="text-muted-foreground">
               Set up your new customer support and feedback system.
             </p>
-              </div>
-              
-              <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
-                <iframe 
-                  src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5" 
-                  frameBorder="0" 
-                  allowFullScreen 
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
-                />
-              </div>
-              
-              <Button 
-                className="w-full group" 
-                onClick={handleStep1Next}
-                autoFocus // Auto focus the button to capture keyboard events
-              >
+                </div>
+                
+                <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                  <iframe 
+                    src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5" 
+                    frameBorder="0" 
+                    allowFullScreen 
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
+                  />
+                </div>
+                
+                <Button 
+                  className="w-full group" 
+                  onClick={handleStep1Next}
+                  autoFocus // Auto focus the button to capture keyboard events
+                >
               Get started
-                <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                  Enter
-                </span>
+                  <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                    Enter
+                  </span>
             </Button>
           </div>
         )}
 
         {step === 2 && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div>
-                <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
-                <p className="text-muted-foreground text-center mb-6">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div>
+                  <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
+                  <p className="text-muted-foreground text-center mb-6">
               Manage your customer support and feedback hub in a shared workspace with your team.
             </p>
-                <div className="space-y-2 mb-6">
+                  <div className="space-y-2 mb-6">
               <label htmlFor="product-name" className="text-sm font-medium">
                 Product/company name
               </label>
@@ -397,97 +427,98 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="e.g., Acme Inc."
-                    autoFocus
+                      autoFocus
               />
             </div>
             <Button 
-                  className="w-full group" 
-                  onClick={handleNext}
-                  disabled={!productName.trim()}
-                >
-                  Continue
-                  <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                    Enter
-                  </span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6">
-                <button 
-                  type="button"
-                  onClick={handleBack}
-                  className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
-                >
-                  <ArrowLeft className="h-3 w-3 mr-1" />
-                  <span>Back</span>
-                </button>
-                <h2 className="text-2xl font-semibold text-center">Connect your help docs</h2>
-              </div>
-              
-              <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start">
-                <Info className="h-5 w-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="text-sm mb-2 font-medium">Why connect your help docs?</p>
-                  <p className="text-sm text-muted-foreground">
-                    Connecting your documentation helps Userbird automatically suggest relevant articles to your users, reducing support volume and improving user experience.
-                  </p>
+                    className="w-full group" 
+                    onClick={handleNext}
+                    disabled={!productName.trim()}
+                  >
+                    Continue
+                    <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                      Enter
+                    </span>
+                  </Button>
                 </div>
               </div>
+            )}
 
-              <div className="space-y-2 mb-6">
-                <label htmlFor="help-docs-url" className="text-sm font-medium">
-                  Documentation URL
-                </label>
-                <Input
-                  id="help-docs-url"
-                  value={helpDocsUrl}
-                  onChange={(e) => setHelpDocsUrl(e.target.value)}
-                  placeholder="https://docs.yourapp.com"
-                  disabled={isCreating}
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground">
-                  We support most documentation platforms including Gitbook, Notion, and custom docs.
-                </p>
-              </div>
+            {step === 3 && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="mb-6">
+                  <button 
+                    type="button"
+                    onClick={handleBack}
+                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3 mr-1" />
+                    <span>Back</span>
+                  </button>
+                  <h2 className="text-2xl font-semibold text-center">Connect your help docs</h2>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start">
+                  <Info className="h-5 w-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm mb-2 font-medium">Why connect your help docs?</p>
+                    <p className="text-sm text-muted-foreground">
+                      Connecting your documentation helps Userbird automatically suggest relevant articles to your users, reducing support volume and improving user experience.
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex gap-3">
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  onClick={handleCreateWorkspace} 
-                  disabled={isCreating}
-                  className="flex-1"
-                >
-                  Skip for now
-                </Button>
-                <Button 
-                  type="button"
-                  className="flex-1 group" 
+                <div className="space-y-2 mb-6">
+                  <label htmlFor="help-docs-url" className="text-sm font-medium">
+                    Documentation URL
+                  </label>
+                  <Input
+                    id="help-docs-url"
+                    value={helpDocsUrl}
+                    onChange={(e) => setHelpDocsUrl(e.target.value)}
+                    placeholder="https://docs.yourapp.com"
+                    disabled={isCreating}
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We support most documentation platforms including Gitbook, Notion, and custom docs.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    onClick={handleCreateWorkspace} 
+                    disabled={isCreating}
+                    className="flex-1"
+                  >
+                    Skip for now
+                  </Button>
+                  <Button 
+                    type="button"
+                    className="flex-1 group" 
               onClick={handleCreateWorkspace} 
               disabled={isCreating}
             >
               {isCreating ? (
                 <>
                   <Loader className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      Create workspace
-                      <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                        Enter
-                      </span>
-                    </>
-                  )}
+                        Creating...
+                  </>
+                    ) : (
+                      <>
+                        Create workspace
+                        <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                          Enter
+                        </span>
+                      </>
+                    )}
             </Button>
-              </div>
+                </div>
+            </div>
+          )}
           </div>
-        )}
         </div>
       </div>
     </div>
