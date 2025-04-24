@@ -329,7 +329,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
       </svg>
       
-      <div className="flex flex-col items-end w-full max-w-md">
+      <div className="flex flex-col items-end w-full max-w-xl">
         {/* Userbird Feedback Button */}
         <div className="mb-4">
           <script
@@ -359,7 +359,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           </button>
         </div>
         
-        <div className="bg-background rounded-lg shadow-lg border w-full max-w-md p-6 transition-all duration-500 ease-in-out">
+        <div className="bg-background rounded-lg shadow-lg border w-full max-w-xl p-8 py-10 transition-all duration-500 ease-in-out">
           <div>
         {step === 1 && (
               <div 
@@ -389,48 +389,81 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             </p>
                 </div>
                 
-                <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, backgroundColor: "#f5f5f5", borderRadius: "8px" }}>
+                  {/* Thumbnail placeholder that shows immediately */}
+                  <div 
+                    style={{ 
+                      position: "absolute", 
+                      top: 0, 
+                      left: 0, 
+                      width: "100%", 
+                      height: "100%", 
+                      backgroundImage: "url('https://cdn.loom.com/sessions/thumbnails/2972dfe00ea24bf5b0f39d0ee8d7bdd1-with-play.jpg')", 
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <div style={{ 
+                      width: "64px", 
+                      height: "64px", 
+                      borderRadius: "50%", 
+                      backgroundColor: "rgba(0,0,0,0.7)", 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center" 
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 5V19L19 12L8 5Z" fill="white" />
+                      </svg>
+                    </div>
+                  </div>
                   <iframe 
-                    src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5" 
+                    src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5&hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true"
                     frameBorder="0" 
                     allowFullScreen 
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
+                    loading="lazy"
                   />
                 </div>
                 
                 <Button 
-                  className="w-full group" 
+                  className="w-full max-w-sm mx-auto group" 
                   onClick={handleStep1Next}
                   autoFocus // Auto focus the button to capture keyboard events
                 >
-              Get started
+                Get started
                   <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
                     Enter
                   </span>
-            </Button>
-          </div>
-        )}
+              </Button>
+            </div>
+          )}
 
-        {step === 2 && (
+          {step === 2 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div>
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
-              Manage your customer support and feedback hub in a shared workspace with your team.
-            </p>
-                  <div className="space-y-2 mb-6">
-              <label htmlFor="product-name" className="text-sm font-medium">
-                Product/company name
-              </label>
-              <Input
-                id="product-name"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                placeholder="e.g., Acme Inc."
+                Manage your customer support and feedback hub in a shared workspace with your team.
+              </p>
+                  <div className="space-y-2 mb-6 max-w-sm mx-auto">
+                <label htmlFor="product-name" className="text-sm font-medium">
+                  Product/company name
+                </label>
+                <Input
+                  id="product-name"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="e.g., Acme Inc."
                       autoFocus
-              />
-            </div>
-            <Button 
+                />
+              </div>
+              <div className="max-w-sm mx-auto">
+                <Button 
                     className="w-full group" 
                     onClick={handleNext}
                     disabled={!productName.trim()}
@@ -440,6 +473,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       Enter
                     </span>
                   </Button>
+                </div>
                 </div>
               </div>
             )}
@@ -455,7 +489,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     <ArrowLeft className="h-3 w-3 mr-1" />
                     <span>Back</span>
                   </button>
-                  <h2 className="text-2xl font-semibold text-center">Connect your help docs</h2>
+                  <h2 className="text-2xl font-semibold text-center">Manage feedback at blazing speed 🚀</h2>
                 </div>
                 
                 <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start">
@@ -468,7 +502,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   </div>
                 </div>
 
-                <div className="space-y-2 mb-6">
+                <div className="space-y-2 mb-6 max-w-sm mx-auto">
                   <label htmlFor="help-docs-url" className="text-sm font-medium">
                     Documentation URL
                   </label>
@@ -485,7 +519,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 max-w-sm mx-auto">
                   <Button 
                     type="button"
                     variant="outline" 
@@ -498,13 +532,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   <Button 
                     type="button"
                     className="flex-1 group" 
-              onClick={handleCreateWorkspace} 
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
+                onClick={handleCreateWorkspace} 
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
                   </>
                     ) : (
                       <>
@@ -514,7 +548,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                         </span>
                       </>
                     )}
-            </Button>
+                </Button>
                 </div>
             </div>
           )}
