@@ -27,7 +27,11 @@ export default function App() {
         <Route path="/auth/callback" element={<CallbackPage />} />
         <Route path="/setup-workspace" element={
           <AuthGuard>
-            <WorkspaceSetupWizard onComplete={() => {}} />
+            <WorkspaceSetupWizard onComplete={() => {
+              console.log('Setup wizard completed, forcing hard navigation to dashboard');
+              // Force a hard navigation to the dashboard to ensure clean state
+              window.location.href = '/';
+            }} />
           </AuthGuard>
         } />
         <Route path="/forms/:formId/ticket/:ticketNumber" element={
