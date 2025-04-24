@@ -28,7 +28,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const { user } = useAuth()
   
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
-
+  
   // Get user's first name for the welcome message
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 
                    user?.user_metadata?.name?.split(' ')[0] || 
@@ -51,7 +51,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       try {
         // Skip the debug_table_schema call as it's causing errors
         console.log('Skipping schema check and trying direct test insert');
-        
+
         // Fallback method - try a simple insert without URL
         const testData = {
           id: generateShortId(), // Generate a random ID similar to existing format
@@ -184,6 +184,36 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         throw error;
       }
 
+      // Add the user as an admin collaborator to the workspace
+      if (data?.id && user?.id && user?.email) {
+        try {
+          console.log('Adding user as admin collaborator for workspace:', formId);
+          
+          const { data: collaboratorData, error: collaboratorError } = await supabase
+            .from('form_collaborators')
+            .insert({
+              form_id: formId,
+              user_id: user.id,
+              role: 'admin',
+              invited_by: user.id,
+              invitation_email: user.email,
+              invitation_accepted: true
+            })
+            .select()
+            .single();
+            
+          if (collaboratorError) {
+            console.error('Error adding user as admin collaborator:', collaboratorError);
+            // Don't throw here, we want to continue even if collaborator creation fails
+          } else {
+            console.log('User added as admin collaborator:', collaboratorData);
+          }
+        } catch (collaboratorError) {
+          console.error('Exception when adding user as collaborator:', collaboratorError);
+          // Continue anyway, the form is created successfully
+        }
+      }
+
       // If help docs URL was provided, create a scraping process
       if (data?.id && helpDocsUrl.trim()) {
         try {
@@ -301,7 +331,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       <div className="bg-background rounded-lg shadow-lg border w-full max-w-md p-6 transition-all duration-500 ease-in-out">
         <div>
-          {step === 1 && (
+        {step === 1 && (
             <div 
               className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500"
               onKeyDown={(e) => {
@@ -314,53 +344,53 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 }
               }}
             >
-              <div className="flex justify-center pb-4">
-                <a href="/" className="flex items-center gap-2 font-medium">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <Bird className="h-4 w-4" />
-                  </div>
-                  Userbird
-                </a>
-              </div>
+            <div className="flex justify-center pb-4">
+              <a href="/" className="flex items-center gap-2 font-medium">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <Bird className="h-4 w-4" />
+                </div>
+                Userbird
+              </a>
+            </div>
               <div className="space-y-2 mb-6">
-                <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
-                <p className="text-muted-foreground">
-                  Set up your new customer support and feedback system.
-                </p>
+            <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
+            <p className="text-muted-foreground">
+              Set up your new customer support and feedback system.
+            </p>
               </div>
               <Button 
                 className="w-full group" 
                 onClick={handleStep1Next}
                 autoFocus // Auto focus the button to capture keyboard events
               >
-                Get started
+              Get started
                 <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
                   Enter
                 </span>
-              </Button>
-            </div>
-          )}
+            </Button>
+          </div>
+        )}
 
-          {step === 2 && (
+        {step === 2 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div>
                 <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                 <p className="text-muted-foreground text-center mb-6">
-                  Manage your customer support and feedback hub in a shared workspace with your team.
-                </p>
+              Manage your customer support and feedback hub in a shared workspace with your team.
+            </p>
                 <div className="space-y-2 mb-6">
-                  <label htmlFor="product-name" className="text-sm font-medium">
-                    Product/company name
-                  </label>
-                  <Input
-                    id="product-name"
-                    value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
-                    placeholder="e.g., Acme Inc."
+              <label htmlFor="product-name" className="text-sm font-medium">
+                Product/company name
+              </label>
+              <Input
+                id="product-name"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="e.g., Acme Inc."
                     autoFocus
-                  />
-                </div>
-                <Button 
+              />
+            </div>
+            <Button 
                   className="w-full group" 
                   onClick={handleNext}
                   disabled={!productName.trim()}
@@ -428,12 +458,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 <Button 
                   type="button"
                   className="flex-1 group" 
-                  onClick={handleCreateWorkspace} 
-                  disabled={isCreating}
-                >
-                  {isCreating ? (
-                    <>
-                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+              onClick={handleCreateWorkspace} 
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
                       Creating...
                     </>
                   ) : (
@@ -444,10 +474,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       </span>
                     </>
                   )}
-                </Button>
+            </Button>
               </div>
-            </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </div>

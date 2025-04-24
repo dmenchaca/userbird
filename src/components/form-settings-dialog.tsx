@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, Bird } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -22,6 +22,7 @@ import { CustomEmailTab } from './custom-email-tab'
 import { CollaboratorsTab } from './collaborators-tab'
 import { AIAutomationTab } from './ai-automation-tab'
 import type { ScrapingProcess } from './ai-automation-tab'
+import { useAuth } from '@/lib/auth'
 
 // Interfaces for form settings
 interface FormSettingsDialogProps {
@@ -106,6 +107,8 @@ export function FormSettingsDialog({
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
   const [formRules, setFormRules] = useState<string | null>(null)
   const [originalRules, setOriginalRules] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const { user } = useAuth()
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -119,6 +122,35 @@ export function FormSettingsDialog({
     { id: 'image_name', label: 'Image Name' },
     { id: 'created_at', label: 'Submission Date' }
   ]
+
+  // Check if the current user is an admin for this form
+  useEffect(() => {
+    if (!formId || !user?.id) return;
+    
+    const checkAdminStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('form_collaborators')
+          .select('role')
+          .eq('form_id', formId)
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+          return;
+        }
+        
+        setIsAdmin(data?.role === 'admin');
+      } catch (error) {
+        console.error('Exception when checking admin status:', error);
+        setIsAdmin(false);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [formId, user?.id]);
 
   // Set initial values when component mounts
   useEffect(() => {
@@ -638,6 +670,12 @@ export function FormSettingsDialog({
   };
 
   const handleTabSwitch = (newTab: SettingsTab) => {
+    // If trying to switch to AI tab but not an admin, stay on current tab
+    if (newTab === 'ai-automation' && !isAdmin) {
+      console.log('Non-admin user tried to access AI Automation tab');
+      return;
+    }
+    
     setActiveTab(newTab);
     
     // If switching to AI tab, refresh the data
@@ -1179,6 +1217,14 @@ export function FormSettingsDialog({
     }
   };
 
+  // Reset active tab if user loses admin status while on AI tab
+  useEffect(() => {
+    if (activeTab === 'ai-automation' && !isAdmin) {
+      console.log('User lost admin status while on AI tab, redirecting');
+      setActiveTab('styling');
+    }
+  }, [isAdmin, activeTab]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1233,16 +1279,18 @@ export function FormSettingsDialog({
                   <Users className="w-4 h-4" />
                   Collaborators
                 </button>
-                <button
-                  onClick={() => handleTabSwitch('ai-automation')}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                    activeTab === 'ai-automation' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI Automation
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleTabSwitch('ai-automation')}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                      activeTab === 'ai-automation' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    AI Automation
+                  </button>
+                )}
                 <button
                   onClick={() => handleTabSwitch('webhooks')}
                   className={cn(
@@ -1566,7 +1614,7 @@ export function FormSettingsDialog({
                   <CollaboratorsTab formId={formId} />
                 )}
 
-                {activeTab === 'ai-automation' && (
+                {activeTab === 'ai-automation' && isAdmin && (
                   <div className="space-y-6">
                     <AIAutomationTab 
                       formId={formId} 
