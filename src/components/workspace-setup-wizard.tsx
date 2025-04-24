@@ -205,26 +205,32 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             // Don't throw here, we want to continue even if docs scraping fails
           } else {
             console.log('Docs scraping process created:', processData);
+          }
+          
+          // Call the start-crawl Netlify function directly
+          console.log('Calling start-crawl function with URL:', helpDocsUrl, 'and form ID:', formId);
+          try {
+            const startCrawlResponse = await fetch('/.netlify/functions/start-crawl', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: helpDocsUrl,
+                form_id: formId
+              }),
+            });
             
-            // Trigger the scraping via Netlify function
-            try {
-              const response = await fetch('/.netlify/functions/start-crawl', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  url: helpDocsUrl,
-                  form_id: formId
-                }),
-              });
-              
-              const responseData = await response.json();
-              console.log('Start crawl response:', responseData);
-            } catch (crawlError) {
-              console.error('Error starting crawl process:', crawlError);
-              // Don't throw here, we want to continue even if crawl fails
+            if (!startCrawlResponse.ok) {
+              const errorText = await startCrawlResponse.text();
+              console.error('Start crawl failed with status:', startCrawlResponse.status, 'Response:', errorText);
+            } else {
+              const responseData = await startCrawlResponse.json();
+              console.log('Start crawl successful. Response:', responseData);
             }
+          } catch (crawlError) {
+            console.error('Error starting crawl process:', crawlError);
+            // Don't throw here, we want to continue even if crawl fails
           }
         } catch (docsError) {
           console.error('Error in docs scraping setup:', docsError);
