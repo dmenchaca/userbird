@@ -358,6 +358,16 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               Set up your new customer support and feedback system.
             </p>
               </div>
+              
+              <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                <iframe 
+                  src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5" 
+                  frameBorder="0" 
+                  allowFullScreen 
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
+                />
+              </div>
+              
               <Button 
                 className="w-full group" 
                 onClick={handleStep1Next}
