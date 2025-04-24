@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, Bird } from 'lucide-react'
+import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
