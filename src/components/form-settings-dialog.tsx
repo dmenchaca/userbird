@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles } from 'lucide-react'
+import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, ExternalLink, Check } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -49,7 +49,51 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'styling' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation'
+type SettingsTab = 'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation'
+
+function WidgetInstallSnippet({ formId }: { formId: string }) {
+  const [copied, setCopied] = useState(false);
+  const installSnippet = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${formId}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${formId}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${formId}\";\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(installSnippet);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleEmail = () => {
+    const subject = encodeURIComponent('Userbird Feedback Widget Install Instructions');
+    const body = encodeURIComponent(`Hi,\n\nHere are the install instructions for the Userbird feedback widget.\n\n${installSnippet}\n\nLet me know if you have any questions!`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+  };
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-medium text-base">Widget Install Code</div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleCopy}>
+            {copied ? (
+              <><Check className="h-4 w-4 mr-1 text-green-600" />Copied!</>
+            ) : (
+              <><Copy className="h-4 w-4 mr-1 text-muted-foreground" />Copy</>
+            )}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleEmail}>
+            <Mail className="h-4 w-4 mr-1 text-muted-foreground" />Email to developer
+          </Button>
+        </div>
+      </div>
+      <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono select-all">
+        {installSnippet}
+      </pre>
+    </div>
+  );
+}
 
 export function FormSettingsDialog({ 
   formId, 
@@ -68,7 +112,7 @@ export function FormSettingsDialog({
   onDelete,
   children
 }: FormSettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('styling')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('workspace')
   const [originalValues, setOriginalValues] = useState({
     styling: {
       buttonColor: '',
@@ -678,7 +722,8 @@ export function FormSettingsDialog({
   const handleTabSwitch = (newTab: SettingsTab) => {
     // If trying to switch to AI tab but not an admin, stay on current tab
     if (newTab === 'ai-automation' && !isAdmin) {
-      console.log('Non-admin user tried to access AI Automation tab');
+      console.log('User lost admin status while on AI tab, redirecting');
+      setActiveTab('workspace');
       return;
     }
     
@@ -1227,7 +1272,7 @@ export function FormSettingsDialog({
   useEffect(() => {
     if (activeTab === 'ai-automation' && !isAdmin) {
       console.log('User lost admin status while on AI tab, redirecting');
-      setActiveTab('styling');
+      setActiveTab('workspace');
     }
   }, [isAdmin, activeTab]);
 
@@ -1246,14 +1291,24 @@ export function FormSettingsDialog({
             <div className="w-48 border-r border-border">
               <div className="px-4 py-4 space-y-1">
                 <button
-                  onClick={() => handleTabSwitch('styling')}
+                  onClick={() => handleTabSwitch('workspace')}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                    activeTab === 'styling' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                    activeTab === 'workspace' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
                   )}
                 >
-                  <Palette className="w-4 h-4" />
-                  Styling
+                  <LayoutGrid className="w-4 h-4" />
+                  Workspace
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('widget')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'widget' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <MessageSquareQuote className="w-4 h-4" />
+                  Widget
                 </button>
                 <button
                   onClick={() => handleTabSwitch('notifications')}
@@ -1331,8 +1386,40 @@ export function FormSettingsDialog({
             </div>
             <div className="flex-1 overflow-auto">
               <div className="p-6 h-full">
-                {activeTab === 'styling' && (
+                {activeTab === 'workspace' && (
                   <div className="space-y-8">
+                    <div className="space-y-3">
+                      <Label htmlFor="productName">Product Name</Label>
+                      <Input
+                        id="productName"
+                        value={product}
+                        onChange={(e) => setProduct(e.target.value)}
+                        onBlur={handleProductNameBlur}
+                        placeholder="My Product"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        A friendly name for your product shown in the forms dropdown
+                      </p>
+                    </div>
+                    <div className="border-t pt-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Label>Remove branding</Label>
+                          <Switch
+                            checked={removeBranding}
+                            onCheckedChange={handleRemoveBrandingChange}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Remove "We run on Userbird" branding from the widget and outbound emails
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'widget' && (
+                  <div className="space-y-8">
+                    <WidgetInstallSnippet formId={formId} />
                     <div className="space-y-3">
                       <Label htmlFor="url" className="flex items-center gap-1">
                         Restrict URL
@@ -1362,21 +1449,6 @@ export function FormSettingsDialog({
                         />
                       </div>
                     </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="productName">Product Name</Label>
-                      <Input
-                        id="productName"
-                        value={product}
-                        onChange={(e) => setProduct(e.target.value)}
-                        onBlur={handleProductNameBlur}
-                        placeholder="My Product"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        A friendly name for your product shown in the forms dropdown
-                      </p>
-                    </div>
-
                     <div className="space-y-3">
                       <Label htmlFor="buttonColor">Button Color</Label>
                       <div className="flex gap-2">
@@ -1398,22 +1470,6 @@ export function FormSettingsDialog({
                         />
                       </div>
                     </div>
-
-                    <div className="border-t pt-6">
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <Label>Remove branding</Label>
-                          <Switch
-                            checked={removeBranding}
-                            onCheckedChange={handleRemoveBrandingChange}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Remove "We run on Userbird" branding from the widget and outbound emails
-                        </p>
-                      </div>
-                    </div>
-
                     <div className="space-y-3">
                       <Label htmlFor="supportText">Support Text (optional)</Label>
                       <Input
@@ -1428,7 +1484,6 @@ export function FormSettingsDialog({
                         Add optional support text with markdown links. Example: [Link text](https://example.com)
                       </p>
                     </div>
-
                     <div className="border-t pt-6">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
@@ -1445,7 +1500,6 @@ export function FormSettingsDialog({
                                 e.preventDefault();
                                 // Ignore Backspace key
                                 if (e.key === 'Backspace') return;
-                                
                                 const keys = [];
                                 if (e.metaKey) keys.push('Meta');
                                 if (e.ctrlKey) keys.push('Control');
@@ -1479,7 +1533,6 @@ export function FormSettingsDialog({
                         </div>
                       </div>
                     </div>
-
                     <div className="border-t pt-6">
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center space-x-2">
@@ -1493,7 +1546,6 @@ export function FormSettingsDialog({
                           Play a notification sound when feedback is submitted
                         </p>
                       </div>
-
                       <div className="space-y-3">
                         <div className="flex items-center space-x-2">
                           <Label>Show GIF on success</Label>
@@ -1505,7 +1557,6 @@ export function FormSettingsDialog({
                         <p className="text-xs text-muted-foreground">
                           Display a GIF when feedback is successfully submitted
                         </p>
-                        
                         {showGifOnSuccess && (
                           <div className="mt-5 space-y-3">
                             <Label htmlFor="gifUrls">Custom GIF URLs</Label>
@@ -1526,7 +1577,6 @@ export function FormSettingsDialog({
                     </div>
                   </div>
                 )}
-
                 {activeTab === 'notifications' && (
                   <div className="space-y-6">
                     <div className="space-y-4">
