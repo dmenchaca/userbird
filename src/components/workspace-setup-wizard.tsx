@@ -458,7 +458,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
       </svg>
       
-      <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[48rem]' : 'max-w-xl'}`}>
+      <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
         {/* Userbird Feedback Button */}
         <div className="mb-4">
           <script
@@ -652,7 +652,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   <h2 className="text-2xl font-semibold text-center mb-1">How to get feedback and support tickets into Userbird</h2>
                 </div>
                 
-                <div className="my-8">
+                <div className="my-16">
                   <div className="flex flex-col md:flex-row">
                     {/* Email Support Side */}
                     <div 
@@ -678,7 +678,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                               type="text" 
                               readOnly 
                               value={formDefaultEmail || '...'}
-                              className="w-full bg-slate-50 py-2 px-3 rounded-md font-mono text-sm pr-10 focus:outline-none"
+                              className="w-full bg-slate-50 py-2 rounded-md font-mono text-sm text-left focus:outline-none"
+                              style={{ padding: '8px 12px' }}
                             />
                           </div>
                           <Button 
@@ -700,7 +701,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </div>
                     
                     {/* Vertical Divider */}
-                    <div className="hidden md:block w-px bg-slate-200 mx-6"></div>
+                    <div className="hidden md:block w-px bg-slate-200 mx-12"></div>
                     
                     {/* Feedback Button Side */}
                     <div 
@@ -845,4 +846,4 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       </div>
     </div>
   )
-} 
+}
