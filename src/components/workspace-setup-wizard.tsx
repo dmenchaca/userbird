@@ -382,6 +382,54 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
 
+  // Utility to clear onboarding state for the current user
+  function clearOnboardingState(userId: string) {
+    localStorage.removeItem(`userbird-onboarding-step-${userId}`);
+    localStorage.removeItem(`userbird-onboarding-completed-${userId}`);
+    localStorage.removeItem(`userbird-last-form-${userId}`);
+  }
+
+  // On mount, if there are no forms, clear onboarding state and reset
+  useEffect(() => {
+    if (!user?.id) return;
+    const checkUserForms = async () => {
+      const { data } = await supabase
+        .from('form_collaborators')
+        .select('form_id')
+        .eq('user_id', user.id);
+      if (!data || data.length === 0) {
+        clearOnboardingState(user.id);
+        setStep(1);
+        setCreatedFormId(null);
+        setProductName('');
+        setHelpDocsUrl('');
+      }
+    };
+    checkUserForms();
+  }, [user?.id]);
+
+  // On mount and when createdFormId changes, check if the referenced form exists
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!createdFormId) return;
+    const checkFormExists = async () => {
+      const { data } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('id', createdFormId)
+        .single();
+      if (!data) {
+        // Form no longer exists, clear onboarding state and reset
+        clearOnboardingState(user.id);
+        setStep(1);
+        setCreatedFormId(null);
+        setProductName('');
+        setHelpDocsUrl('');
+      }
+    };
+    checkFormExists();
+  }, [createdFormId, user?.id]);
+
   return (
     <div 
       id="wizard-container"

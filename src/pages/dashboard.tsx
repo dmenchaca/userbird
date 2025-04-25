@@ -267,7 +267,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           
           if (!collabError && collabData && Array.isArray(collabData) && collabData.length > 0) {
             // User has collaborative forms, set the first one
-            setSelectedFormId(collabData[0]);
+            setSelectedFormId(collabData[0] as string);
           } else {
             // No forms owned or collaborated on
             setSelectedFormId(undefined);
@@ -516,15 +516,19 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   }, [selectedFormId, formName])
 
+  function clearOnboardingState(userId: string) {
+    localStorage.removeItem(`userbird-onboarding-step-${userId}`);
+    localStorage.removeItem(`userbird-onboarding-completed-${userId}`);
+    localStorage.removeItem(`userbird-last-form-${userId}`);
+  }
+
   const handleDelete = useCallback(async () => {
     try {
       const { error: deleteError } = await supabase
         .from('forms')
         .delete()
         .eq('id', selectedFormId)
-      
       if (deleteError) throw deleteError
-      
       // After deleting, fetch the next latest form
       const { data } = await supabase
         .from('forms')
@@ -532,11 +536,18 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         .eq('owner_id', user?.id)
         .order('created_at', { ascending: false })
         .limit(1);
-      
       if (data && data.length > 0) {
         setSelectedFormId(data[0].id);
       } else {
-        setSelectedFormId(undefined);
+        // Also check for collaborator forms
+        const { data: collabData, error: collabError } = await supabase
+          .rpc('get_user_collaboration_forms', { user_id_param: user?.id });
+        if (!collabError && collabData && Array.isArray(collabData) && collabData.length > 0) {
+          setSelectedFormId(collabData[0] as string);
+        } else {
+          setSelectedFormId(undefined);
+          if (user?.id) clearOnboardingState(user.id);
+        }
       }
     } catch (error) {
       console.error('Error deleting form:', error)
