@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -32,6 +33,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
   const [installCopied, setInstallCopied] = useState(false)
   const [hoveredSection, setHoveredSection] = useState<'email' | 'feedback' | null>(null)
+  const navigate = useNavigate()
   
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
   
@@ -111,21 +113,69 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     fetchDefaultEmail();
   }, [createdFormId, step]);
 
-  // Fetch product name for step 2 if form exists
+  // --- Robust onboarding state: persist step and completion flag ---
+  useEffect(() => {
+    if (!user?.id) return;
+    const completedKey = `userbird-onboarding-completed-${user.id}`;
+    const stepKey = `userbird-onboarding-step-${user.id}`;
+    // On mount, check if onboarding is completed
+    const completed = localStorage.getItem(completedKey);
+    if (completed === 'true') {
+      // Redirect to dashboard if onboarding is completed
+      navigate('/', { replace: true });
+      return;
+    }
+    // Otherwise, restore step and formId if present
+    const saved = localStorage.getItem(stepKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          typeof parsed.step === 'number' &&
+          parsed.step >= 2 &&
+          typeof parsed.formId === 'string' &&
+          parsed.formId.length > 0
+        ) {
+          setStep(parsed.step);
+          setCreatedFormId(parsed.formId);
+        }
+      } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Persist onboarding step and formId for any step >= 2
+  useEffect(() => {
+    if (!user?.id) return;
+    const stepKey = `userbird-onboarding-step-${user.id}`;
+    if (step >= 2 && createdFormId) {
+      localStorage.setItem(
+        stepKey,
+        JSON.stringify({ step, formId: createdFormId })
+      );
+    }
+  }, [step, createdFormId, user?.id]);
+
+  // Fetch product name for any step >= 2 if form exists (including after going back from step 1)
   useEffect(() => {
     const fetchProductName = async () => {
-      if (createdFormId && step === 2) {
+      if (createdFormId && step >= 2) {
         const { data, error } = await supabase
           .from('forms')
           .select('product_name')
           .eq('id', createdFormId)
           .single();
         if (!error && data?.product_name) {
-          setProductName(data.product_name);
+          if (!productName || productName !== data.product_name) {
+            setProductName(data.product_name);
+          }
         }
       }
     };
     fetchProductName();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdFormId, step]);
 
   // HTML/JS install instructions (from InstallInstructionsModal, only HTML/JS version)
@@ -273,29 +323,16 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     handleNext();
   };
 
-  // --- New: Persist onboarding step and formId after step 2 ---
-  useEffect(() => {
+  // Onboarding completion: set completed flag and clear step state
+  const markOnboardingComplete = () => {
     if (!user?.id) return;
-    const onboardingKey = `userbird-onboarding-${user.id}`;
-    // Only persist if step >= 2 and formId exists (keep progress for step 2 and above)
-    if (step >= 2 && createdFormId) {
-      localStorage.setItem(
-        onboardingKey,
-        JSON.stringify({ step, formId: createdFormId })
-      );
-    }
-    // Do NOT clear onboarding progress when going back to step 2
-    // Only clear onboarding progress when onboarding is truly complete (see below)
-  }, [step, createdFormId, user?.id]);
-
-  // --- Clear onboarding progress when onboarding is complete ---
-  const clearOnboardingProgress = () => {
-    if (!user?.id) return;
-    const onboardingKey = `userbird-onboarding-${user.id}`;
-    localStorage.removeItem(onboardingKey);
+    const completedKey = `userbird-onboarding-completed-${user.id}`;
+    const stepKey = `userbird-onboarding-step-${user.id}`;
+    localStorage.setItem(completedKey, 'true');
+    localStorage.removeItem(stepKey);
   };
 
-  // In handleCreateWorkspace, after successful onboarding, clear progress
+  // In handleCreateWorkspace, after successful onboarding, mark as complete
   const handleCreateWorkspace = async () => {
     if (!productName.trim()) {
       toast.error('Please enter a product or company name');
@@ -323,9 +360,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             })
             .select()
             .single();
-          // Call the start-crawl Netlify function directly
           await fetch('/.netlify/functions/start-crawl', {
-              method: 'POST',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: helpDocsUrl, form_id: createdFormId })
           });
@@ -334,7 +370,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       toast.success('Workspace created successfully');
-      clearOnboardingProgress(); // <-- Clear onboarding progress only here
+      markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
       setTimeout(() => {
         window.location.href = `/forms/${createdFormId}`;
@@ -345,31 +381,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       setIsCreating(false);
     }
   };
-
-  // --- New: Onboarding localStorage resume ---
-  // Try to resume onboarding state from localStorage if available
-  useEffect(() => {
-    if (!user?.id) return;
-    const onboardingKey = `userbird-onboarding-${user.id}`;
-    const saved = localStorage.getItem(onboardingKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (
-          typeof parsed === 'object' &&
-          parsed !== null &&
-          typeof parsed.step === 'number' &&
-          parsed.step > 2 &&
-          typeof parsed.formId === 'string' &&
-          parsed.formId.length > 0
-        ) {
-          setStep(parsed.step);
-          setCreatedFormId(parsed.formId);
-          toast.info('Resumed onboarding where you left off.');
-        }
-      } catch {}
-    }
-  }, [user?.id]);
 
   return (
     <div 
@@ -516,6 +527,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           {step === 2 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div>
+                  <button 
+                    type="button"
+                    onClick={handleBack}
+                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3 mr-1" />
+                    <span>Back</span>
+                  </button>
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
                 Manage your customer support and feedback hub in a shared workspace with your team.

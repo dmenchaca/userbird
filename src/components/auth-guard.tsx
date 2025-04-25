@@ -62,9 +62,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!user || !checkCompleted) return;
 
+    // New onboarding completion and step logic
+    const completedKey = `userbird-onboarding-completed-${user.id}`;
+    const stepKey = `userbird-onboarding-step-${user.id}`;
+    const completed = localStorage.getItem(completedKey);
+    if (completed === 'true') {
+      // Onboarding is completed, never show wizard
+      if (location.pathname === '/setup-workspace') {
+        // If user somehow lands on wizard, redirect to dashboard
+        navigate('/', { replace: true });
+      }
+      return;
+    }
     // Check onboarding progress in localStorage
-    const onboardingKey = `userbird-onboarding-${user.id}`;
-    const saved = localStorage.getItem(onboardingKey);
+    const saved = localStorage.getItem(stepKey);
     let onboardingInProgress = false;
     if (saved) {
       try {
