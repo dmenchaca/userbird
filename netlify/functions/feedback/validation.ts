@@ -1,5 +1,8 @@
 export function isValidOrigin(origin: string, storedUrl: string): boolean {
   try {
+    if (!storedUrl || typeof storedUrl !== 'string' || storedUrl.trim() === '') {
+      return false;
+    }
     const originUrl = new URL(origin);
     const originHostname = originUrl.hostname;
     const originPort = originUrl.port;

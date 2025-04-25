@@ -28,6 +28,9 @@ async function validateFormId(formId: string, origin: string): Promise<boolean> 
       .single();
 
     if (!form) return false;
+    if (!form.url || typeof form.url !== 'string' || form.url.trim() === '') {
+      return true;
+    }
     return isValidOrigin(origin, form.url);
   } catch {
     return false;

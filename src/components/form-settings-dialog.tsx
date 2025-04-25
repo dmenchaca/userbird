@@ -23,6 +23,12 @@ import { CollaboratorsTab } from './collaborators-tab'
 import { AIAutomationTab } from './ai-automation-tab'
 import type { ScrapingProcess } from './ai-automation-tab'
 import { useAuth } from '@/lib/auth'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 // Interfaces for form settings
 interface FormSettingsDialogProps {
@@ -1328,7 +1334,23 @@ export function FormSettingsDialog({
                 {activeTab === 'styling' && (
                   <div className="space-y-8">
                     <div className="space-y-3">
-                      <Label htmlFor="url">Website URL</Label>
+                      <Label htmlFor="url" className="flex items-center gap-1">
+                        Restrict URL
+                        <span className="flex items-center">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="ml-1 cursor-pointer text-muted-foreground">
+                                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/><text x="12" y="16" textAnchor="middle" fontSize="12" fill="currentColor">i</text></svg>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                If set, only feedback from this domain is accepted.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </span>
+                      </Label>
                       <div className="flex gap-2">
                         <span className="flex items-center text-sm text-muted-foreground">https://</span>
                         <Input
@@ -1339,9 +1361,6 @@ export function FormSettingsDialog({
                           placeholder="app.userbird.co"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        The domain where your widget is installed
-                      </p>
                     </div>
 
                     <div className="space-y-3">
