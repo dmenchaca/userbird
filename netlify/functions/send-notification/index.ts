@@ -54,38 +54,51 @@ export const handler: Handler = async (event) => {
       };
     }
     
-    // Get form details and feedback
-    const [formResult, feedbackResult] = await Promise.all([
-      supabase
+    // Get form details (always needed)
+    const { data: form, error: formError } = await supabase
       .from('forms')
       .select('url')
       .eq('id', formId)
-      .single(),
-      supabase
-      .from('feedback')
-      .select('*')
-      .eq('form_id', formId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    ]);
+      .single();
 
-    if (formResult.error) {
-      console.error('Form query error:', formResult.error);
-      throw formResult.error;
+    if (formError) {
+      console.error('Form query error:', formError);
+      throw formError;
     }
-
-    if (feedbackResult.error) {
-      console.error('Feedback query error:', feedbackResult.error);
-      throw feedbackResult.error;
-    }
-
-    const form = formResult.data;
-    const feedback = feedbackResult.data;
 
     if (!form) {
       console.error('Form not found:', formId);
       return { statusCode: 404, body: JSON.stringify({ error: 'Form not found' }) };
+    }
+
+    // Only fetch feedback for notification types that require it
+    type FeedbackType = {
+      id: string;
+      url_path?: string;
+      message?: string;
+      user_id?: string;
+      user_email?: string;
+      user_name?: string;
+      operating_system?: string;
+      screen_category?: string;
+      image_url?: string;
+      image_name?: string;
+      created_at?: string;
+    };
+    let feedback: FeedbackType | null = null;
+    if (type !== 'crawl_complete') {
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('*')
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (feedbackError) {
+        console.error('Feedback query error:', feedbackError);
+        throw feedbackError;
+      }
+      feedback = feedbackData as FeedbackType;
     }
 
     // Query based on whether adminOnly is specified
@@ -252,46 +265,50 @@ export const handler: Handler = async (event) => {
       const emailParams: Record<string, any> = {
         formUrl: form.url,
         formId: formId,
-        url_path: feedback.url_path,
-        feedbackId: feedback.id // Add feedbackId for message ID generation
+        url_path: feedback ? feedback.url_path : undefined,
+        feedbackId: feedback ? feedback.id : undefined // Add feedbackId for message ID generation
       };
 
       // Add selected attributes to email parameters
-      selectedAttrs.forEach(attr => {
-        if (attr === 'message') {
-          emailParams.message = feedback.message;
-        } else if (attr === 'user_id') {
-          emailParams.user_id = feedback.user_id;
-        } else if (attr === 'user_email') {
-          emailParams.user_email = feedback.user_email;
-        } else if (attr === 'user_name') {
-          emailParams.user_name = feedback.user_name;
-        } else if (attr === 'operating_system') {
-          emailParams.operating_system = feedback.operating_system;
-        } else if (attr === 'screen_category') {
-          emailParams.screen_category = feedback.screen_category;
-        } else if (attr === 'image_url') {
-          emailParams.image_url = feedback.image_url;
-        } else if (attr === 'image_name') {
-          emailParams.image_name = feedback.image_name;
-        } else if (attr === 'created_at') {
-          emailParams.created_at = new Date(feedback.created_at).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        }
-      });
+      if (feedback) {
+        selectedAttrs.forEach(attr => {
+          if (attr === 'message') {
+            emailParams.message = feedback.message;
+          } else if (attr === 'user_id') {
+            emailParams.user_id = feedback.user_id;
+          } else if (attr === 'user_email') {
+            emailParams.user_email = feedback.user_email;
+          } else if (attr === 'user_name') {
+            emailParams.user_name = feedback.user_name;
+          } else if (attr === 'operating_system') {
+            emailParams.operating_system = feedback.operating_system;
+          } else if (attr === 'screen_category') {
+            emailParams.screen_category = feedback.screen_category;
+          } else if (attr === 'image_url') {
+            emailParams.image_url = feedback.image_url;
+          } else if (attr === 'image_name') {
+            emailParams.image_name = feedback.image_name;
+          } else if (attr === 'created_at') {
+            if (feedback && feedback.created_at) {
+              emailParams.created_at = new Date(feedback.created_at).toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              });
+            }
+          }
+        });
+      }
 
       const emailResult = await EmailService.sendFeedbackNotification({
         to: setting.email,
         formUrl: form.url,
         formId: formId,
-        message: feedback.message,
-        feedbackId: feedback.id,
+        message: feedback && feedback.message ? feedback.message : '',
+        feedbackId: feedback && feedback.id ? feedback.id : '',
         ...emailParams
       });
       
@@ -451,27 +468,60 @@ async function handleAssignmentNotification(params: {
       ? `${senderName} has assigned ${ticketReference} to you.` 
       : `You have been assigned ${ticketReference}.`;
     
-    // Send the assignment notification email
+    // Send email
     const emailResult = await EmailService.sendFeedbackNotification({
       to: assigneeEmail,
       formUrl: form.url,
       formId: formId,
-      message: `${assignmentMessage}\n\nTicket message: ${messagePreview}`,
+      message: assignmentMessage,
       feedbackId: feedbackId,
-      ticket_number: feedback?.ticket_number,
-      created_at: formattedDate,
-      isAssignment: true
+      customSubject: `Userbird: Assignment Notification - ${form.url}`,
+      customEmailType: 'assignment'
     });
     
+    if (emailResult.success) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          message: 'Assignment notification sent successfully'
+        })
+      };
+    } else if ('error' in emailResult && emailResult.error) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to send assignment notification',
+          details: emailResult.error
+        })
+      };
+    } else {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'Failed to send assignment notification',
+          details: 'Unknown error'
+        })
+      };
+    }
+  } catch (error) {
+    console.error('Error in assignment notification:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error && error.cause ? JSON.stringify(error.cause) : undefined
+    });
+    
+    if (error instanceof Error && error.message.includes('SendGrid')) {
+      console.error('SendGrid error details:', error);
+    }
+    
     return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        messageId: emailResult.messageId
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
       })
     };
-  } catch (error) {
-    console.error('Error processing assignment notification:', error);
-    throw error;
   }
 }
