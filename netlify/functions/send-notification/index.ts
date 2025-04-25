@@ -57,7 +57,7 @@ export const handler: Handler = async (event) => {
     // Get form details (always needed)
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('url')
+      .select('url, product_name')
       .eq('id', formId)
       .single();
 
@@ -185,13 +185,14 @@ export const handler: Handler = async (event) => {
           
           try {
             // Use the EmailService to send the notification
+            const crawlSource = form.product_name || form.url;
             const emailResult = await EmailService.sendFeedbackNotification({
               to: email,
-              formUrl: form.url,
+              formUrl: crawlSource,
               formId: formId,
-              message: message || `Documentation crawling for ${form.url} has completed successfully. Your documentation is now ready for AI to use.`,
+              message: message || `Documentation crawling for ${crawlSource} has completed successfully. Your documentation is now ready for AI to use.`,
               feedbackId: formId, // Use formId as a substitute since we don't have a feedbackId
-              customSubject: `Userbird: Documentation Crawling Complete - ${form.url}`,
+              customSubject: `Userbird: Documentation Crawling Complete - ${crawlSource}`,
               customEmailType: 'crawl_complete'
             });
             
