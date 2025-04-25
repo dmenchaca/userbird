@@ -491,32 +491,30 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   </button>
                   <h2 className="text-2xl font-semibold text-center">Manage feedback at blazing speed 🚀</h2>
                 </div>
-                
-                <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start">
-                  <Info className="h-5 w-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm mb-2 font-medium">Why connect your help docs?</p>
-                    <p className="text-sm text-muted-foreground">
-                      Connecting your documentation helps Userbird automatically suggest relevant articles to your users, reducing support volume and improving user experience.
-                    </p>
-                  </div>
-                </div>
 
                 <div className="space-y-2 mb-6 max-w-sm mx-auto">
                   <label htmlFor="help-docs-url" className="text-sm font-medium">
-                    Documentation URL
+                    {productName ? `${productName}'s help docs` : "Your product's knowledge base"}
                   </label>
                   <Input
                     id="help-docs-url"
                     value={helpDocsUrl}
                     onChange={(e) => setHelpDocsUrl(e.target.value)}
-                    placeholder="https://docs.yourapp.com"
+                    placeholder="https://help.yourapp.com"
                     disabled={isCreating}
                     autoFocus
                   />
-                  <p className="text-xs text-muted-foreground">
-                    We support most documentation platforms including Gitbook, Notion, and custom docs.
-                  </p>
+                </div>
+
+                {/* Callout below the field, as wide as the field and CTA, using mixed terminology */}
+                <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start max-w-sm mx-auto">
+                  <Info className="h-5 w-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm mb-0 font-medium">Why connect your documentation?</p>
+                    <p className="text-sm text-muted-foreground mb-0">
+                      We use your knowledge base to help you speed up support.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 max-w-sm mx-auto">
@@ -532,14 +530,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   <Button 
                     type="button"
                     className="flex-1 group" 
-                onClick={handleCreateWorkspace} 
-                disabled={isCreating}
-              >
-                {isCreating ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                  </>
+                    onClick={handleCreateWorkspace} 
+                    disabled={isCreating}
+                  >
+                    {isCreating ? (
+                      <>
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
                     ) : (
                       <>
                         Create workspace
@@ -548,10 +546,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                         </span>
                       </>
                     )}
-                </Button>
+                  </Button>
                 </div>
-            </div>
-          )}
+              </div>
+            )}
           </div>
         </div>
       </div>
