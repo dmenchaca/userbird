@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Loader, Bird, ArrowLeft, Info } from 'lucide-react'
+import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote } from 'lucide-react'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -26,6 +26,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [helpDocsUrl, setHelpDocsUrl] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const { user } = useAuth()
+  const [createdFormId, setCreatedFormId] = useState<string | null>(null)
+  const [backgroundCreating, setBackgroundCreating] = useState(false)
+  const [backgroundError, setBackgroundError] = useState<string | null>(null)
+  const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
+  const [installCopied, setInstallCopied] = useState(false)
+  const [hoveredSection, setHoveredSection] = useState<'email' | 'feedback' | null>(null)
   
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
   
@@ -88,15 +94,121 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   }, [user?.id]);
 
+  // Fetch default_email for the created form when step 3 is reached
+  useEffect(() => {
+    const fetchDefaultEmail = async () => {
+      if (createdFormId && step === 3) {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('default_email')
+          .eq('id', createdFormId)
+          .single();
+        if (!error && data?.default_email) {
+          setFormDefaultEmail(data.default_email);
+        }
+      }
+    };
+    fetchDefaultEmail();
+  }, [createdFormId, step]);
+
+  // HTML/JS install instructions (from InstallInstructionsModal, only HTML/JS version)
+  const installInstructions = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${createdFormId || 'FORM_ID'}\";\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
+
+  const handleCopyInstall = async () => {
+    try {
+      await navigator.clipboard.writeText(installInstructions)
+      setInstallCopied(true)
+      toast.success('Install instructions copied!')
+      setTimeout(() => setInstallCopied(false), 2000)
+    } catch {
+      toast.error('Failed to copy instructions')
+    }
+  }
+
+  const handleEmailInstall = () => {
+    const subject = encodeURIComponent('Userbird Feedback Button Install Instructions')
+    const body = encodeURIComponent(
+      `Hi,\n\nHere are the install instructions for the Userbird feedback button.\n\n${installInstructions}\n\nLet me know if you have any questions!`
+    )
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank')
+  }
+
+  const handleSendTestEmail = () => {
+    if (formDefaultEmail) {
+      window.open(
+        `mailto:${formDefaultEmail}?subject=Test%20support%20email%20to%20Userbird`,
+        '_blank'
+      );
+    }
+  }
+
+  // Background form creation or patch for step 2
+  const handleBackgroundFormCreationOrPatch = async (name: string) => {
+    if (backgroundCreating) return; // Prevent duplicate
+    setBackgroundCreating(true);
+    setBackgroundError(null);
+    try {
+      if (createdFormId) {
+        // Patch the existing form's name
+        const { error: updateError } = await supabase
+          .from('forms')
+          .update({ product_name: name })
+          .eq('id', createdFormId)
+          .select();
+        if (updateError) throw updateError;
+      } else {
+        // Create a new form
+        const formId = generateShortId();
+        const formData = {
+          id: formId,
+          product_name: name,
+          owner_id: user?.id
+        };
+        const insertResult = await supabase
+          .from('forms')
+          .insert(formData)
+          .select('id')
+          .single();
+        const { data, error } = insertResult;
+        if (error) throw error;
+        if (data?.id && user?.id && user?.email) {
+          await supabase
+            .from('form_collaborators')
+            .insert({
+              form_id: formId,
+              user_id: user.id,
+              role: 'admin',
+              invited_by: user.id,
+              invitation_email: user.email,
+              invitation_accepted: true
+            })
+            .select()
+            .single();
+        }
+        setCreatedFormId(data?.id);
+        if (user?.id && data?.id) {
+          localStorage.setItem(`userbird-last-form-${user.id}`, data.id);
+        }
+      }
+    } catch (err: any) {
+      setBackgroundError(err.message || 'Failed to create or update workspace');
+      if (!createdFormId) setCreatedFormId(null);
+    } finally {
+      setBackgroundCreating(false);
+    }
+  };
+
   const handleNext = () => {
     console.log('handleNext called, current step:', step);
-    // Don't proceed if product name is empty at step 2
     if (step === 2 && !productName.trim()) {
       console.log('Product name empty, showing error');
       toast.error('Please enter a product or company name');
       return;
     }
-    console.log('Moving to next step:', step + 1);
+    // On step 2, fire background creation or patch
+    if (step === 2 && productName.trim()) {
+      handleBackgroundFormCreationOrPatch(productName.trim());
+    }
     setStep(step + 1);
   };
 
@@ -123,12 +235,16 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           toast.error('Please enter a product or company name');
         }
       } else if (step === 3) {
+        // On step 3, Enter should advance to step 4, not finish the onboarding
+        console.log('Step 3 Enter key handler triggered');
+        handleNext();
+      } else if (step === 4) {
         // Only handle Enter if we're not already creating a workspace
         if (!isCreating) {
-          console.log('Step 3 Enter key handler triggered');
+          console.log('Step 4 Enter key handler triggered');
           handleCreateWorkspace();
         } else {
-          console.log('Step 3 Enter key handler not triggered (isCreating is true)');
+          console.log('Step 4 Enter key handler not triggered (isCreating is true)');
         }
       }
     }
@@ -145,156 +261,44 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       toast.error('Please enter a product or company name');
       return;
     }
-
+    // If background creation failed, try again
+    if (!createdFormId && !backgroundCreating) {
+      await handleBackgroundFormCreationOrPatch(productName.trim());
+      if (!createdFormId) {
+        toast.error(backgroundError || 'Workspace creation failed');
+        return;
+      }
+    }
     setIsCreating(true);
-    console.log('Creating workspace with:', { productName, userId: user?.id, helpDocsUrl });
-
     try {
-      // Generate a random ID in the same format as existing IDs
-      const formId = generateShortId();
-      
-      // Create the form without help_docs_url and without a dummy URL
-      const formData = {
-        id: formId,
-        product_name: productName,
-        owner_id: user?.id
-        // URL is optional, so we don't include it
-      };
-            
-      console.log('Creating form with data:', formData);
-      
-      const insertResult = await supabase
-        .from('forms')
-        .insert(formData)
-        .select('id')
-        .single();
-
-      console.log('Insert result:', insertResult);
-      
-      // Extract data and error from result
-      const { data, error } = insertResult;
-
-      if (error) {
-        console.error('Detailed error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
-      }
-
-      // Add the user as an admin collaborator to the workspace
-      if (data?.id && user?.id && user?.email) {
-        try {
-          console.log('Adding user as admin collaborator for workspace:', formId);
-          
-          const { data: collaboratorData, error: collaboratorError } = await supabase
-            .from('form_collaborators')
-            .insert({
-              form_id: formId,
-              user_id: user.id,
-              role: 'admin',
-              invited_by: user.id,
-              invitation_email: user.email,
-              invitation_accepted: true
-            })
-            .select()
-            .single();
-            
-          if (collaboratorError) {
-            console.error('Error adding user as admin collaborator:', collaboratorError);
-            // Don't throw here, we want to continue even if collaborator creation fails
-          } else {
-            console.log('User added as admin collaborator:', collaboratorData);
-          }
-        } catch (collaboratorError) {
-          console.error('Exception when adding user as collaborator:', collaboratorError);
-          // Continue anyway, the form is created successfully
-        }
-      }
-
       // If help docs URL was provided, create a scraping process
-      if (data?.id && helpDocsUrl.trim()) {
+      if (createdFormId && helpDocsUrl.trim()) {
         try {
-          console.log('Creating docs scraping process for URL:', helpDocsUrl);
-          
-          // Create a docs_scraping_process record
-          const { data: processData, error: processError } = await supabase
+          await supabase
             .from('docs_scraping_processes')
             .insert({
-              form_id: formId,
+              form_id: createdFormId,
               base_url: helpDocsUrl,
               status: 'in_progress'
             })
             .select()
             .single();
-            
-          if (processError) {
-            console.error('Error creating docs scraping process:', processError);
-            // Don't throw here, we want to continue even if docs scraping fails
-          } else {
-            console.log('Docs scraping process created:', processData);
-          }
-          
           // Call the start-crawl Netlify function directly
-          console.log('Calling start-crawl function with URL:', helpDocsUrl, 'and form ID:', formId);
-          try {
-            const startCrawlResponse = await fetch('/.netlify/functions/start-crawl', {
+          await fetch('/.netlify/functions/start-crawl', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                url: helpDocsUrl,
-                form_id: formId
-              }),
-            });
-            
-            if (!startCrawlResponse.ok) {
-              const errorText = await startCrawlResponse.text();
-              console.error('Start crawl failed with status:', startCrawlResponse.status, 'Response:', errorText);
-            } else {
-              const responseData = await startCrawlResponse.json();
-              console.log('Start crawl successful. Response:', responseData);
-            }
-          } catch (crawlError) {
-            console.error('Error starting crawl process:', crawlError);
-            // Don't throw here, we want to continue even if crawl fails
-          }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: helpDocsUrl, form_id: createdFormId })
+          });
         } catch (docsError) {
-          console.error('Error in docs scraping setup:', docsError);
-          // Continue anyway, the form is created successfully
+          // Continue anyway
         }
       }
-
-      // Navigate to the newly created form
-      if (data?.id) {
-        console.log('Form created successfully with ID:', data.id);
-        
-        // Store form ID in localStorage to remember last form
-        if (user?.id) {
-          localStorage.setItem(`userbird-last-form-${user.id}`, data.id);
-          console.log('Saved form ID to localStorage');
-        }
-        
-        // First show success message
         toast.success('Workspace created successfully');
-        
-        // Call onComplete to signal the parent component
         onComplete();
-        
-        // Use window.location for hard navigation instead of React Router
         setTimeout(() => {
-          console.log('Hard navigating to form:', data.id);
-          window.location.href = `/forms/${data.id}`;
-        }, 300); // Increased timeout to ensure toast is shown
-      } else {
-        console.error('No data returned after insert');
-        toast.error('Failed to create workspace. No ID returned.');
-      }
+        window.location.href = `/forms/${createdFormId}`;
+      }, 300);
     } catch (error: any) {
-      console.error('Error creating workspace:', error);
       toast.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
     } finally {
       setIsCreating(false);
@@ -329,7 +333,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
       </svg>
       
-      <div className="flex flex-col items-end w-full max-w-xl">
+      <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[48rem]' : 'max-w-xl'}`}>
         {/* Userbird Feedback Button */}
         <div className="mb-4">
           <script
@@ -359,7 +363,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           </button>
         </div>
         
-        <div className="bg-background rounded-lg shadow-lg border w-full max-w-xl p-8 py-10 transition-all duration-500 ease-in-out">
+        <div className="bg-background rounded-lg shadow-lg border w-full p-8 py-10 transition-all duration-500 ease-in-out">
           <div>
         {step === 1 && (
               <div 
@@ -457,7 +461,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 <Input
                   id="product-name"
                   value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
+                  onChange={(e) => {
+                    setProductName(e.target.value);
+                    setBackgroundError(null);
+                  }}
                   placeholder="e.g., Acme Inc."
                       autoFocus
                 />
@@ -466,7 +473,158 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 <Button 
                     className="w-full group" 
                     onClick={handleNext}
-                    disabled={!productName.trim()}
+                    disabled={!productName.trim() || backgroundCreating}
+                  >
+                    {backgroundCreating ? (
+                      <><Loader className="mr-2 h-4 w-4 animate-spin" />Saving...</>
+                    ) : (
+                      <>Continue
+                        <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                          Enter
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                  {backgroundError && (
+                    <div className="text-destructive text-sm mt-2">{backgroundError}</div>
+                  )}
+                </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div 
+                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+                onKeyDown={(e) => {
+                  console.log('Key pressed in step 3 specific handler:', e.key);
+                  if (e.key === 'Enter') {
+                    console.log('Enter pressed in step 3 specific handler');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleNext();
+                  }
+                }}
+                tabIndex={0} // Make div focusable to capture key events
+              >
+                <div className="mb-5">
+                  <button 
+                    type="button"
+                    onClick={handleBack}
+                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3 mr-1" />
+                    <span>Back</span>
+                  </button>
+                  <h2 className="text-2xl font-semibold text-center mb-1">How to get feedback and support tickets into Userbird</h2>
+                </div>
+                
+                <div className="my-8">
+                  <div className="flex flex-col md:flex-row">
+                    {/* Email Support Side */}
+                    <div 
+                      className={`flex-1 mb-6 md:mb-0 transition-opacity duration-200 ${
+                        hoveredSection === 'feedback' ? 'opacity-20' : hoveredSection === 'email' ? 'opacity-100' : 'opacity-100'
+                      }`}
+                      onMouseEnter={() => setHoveredSection('email')}
+                      onMouseLeave={() => setHoveredSection(null)}
+                    >
+                      <div className="flex items-center mb-5">
+                        <div className="h-8 w-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
+                          <Mail className="h-4 w-4" />
+                        </div>
+                        <h3 className="font-medium">Support via email</h3>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <label className="block text-sm text-muted-foreground mb-1.5">Your support email address:</label>
+                        <div className="flex flex-col space-y-3">
+                          <div className="w-full relative group">
+                            <div className="absolute inset-0 border rounded-md transition-colors pointer-events-none"></div>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={formDefaultEmail || '...'}
+                              className="w-full bg-slate-50 py-2 px-3 rounded-md font-mono text-sm pr-10 focus:outline-none"
+                            />
+                          </div>
+                          <Button 
+                            variant="outline"
+                            onClick={handleSendTestEmail} 
+                            disabled={!formDefaultEmail}
+                            className="whitespace-nowrap w-full h-9 px-4 py-2"
+                          >
+                            Send test email
+                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-md flex">
+                        <Info className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />
+                        <span>You can customize this email address later in your workspace settings.</span>
+                      </div>
+                    </div>
+                    
+                    {/* Vertical Divider */}
+                    <div className="hidden md:block w-px bg-slate-200 mx-6"></div>
+                    
+                    {/* Feedback Button Side */}
+                    <div 
+                      className={`flex-1 transition-opacity duration-200 ${
+                        hoveredSection === 'email' ? 'opacity-20' : hoveredSection === 'feedback' ? 'opacity-100' : 'opacity-100'
+                      }`}
+                      onMouseEnter={() => setHoveredSection('feedback')}
+                      onMouseLeave={() => setHoveredSection(null)}
+                    >
+                      <div className="flex items-center mb-5">
+                        <div className="h-8 w-8 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center mr-3">
+                          <MessageSquareQuote className="h-4 w-4" />
+                        </div>
+                        <h3 className="font-medium">Feedback button integration</h3>
+                      </div>
+                      
+                      <p className="text-sm text-slate-600 mb-5">
+                        Add a feedback button to your product so users can easily share their feedback.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 grid-rows-2 gap-3">
+                        <Button 
+                          onClick={handleCopyInstall}
+                          variant="outline"
+                          className="border-purple-200 hover:border-purple-300 bg-purple-50 hover:bg-purple-100/70"
+                        >
+                          {installCopied ? (
+                            <div className="flex items-center">
+                              <Check className="h-4 w-4 mr-2 text-green-600" />
+                              <span>Copied!</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <Copy className="h-4 w-4 mr-2 text-purple-600" />
+                              <span>Copy install code</span>
+                            </div>
+                          )}
+                        </Button>
+                        
+                        <Button 
+                          onClick={handleEmailInstall}
+                          variant="outline"
+                          className="border-slate-200"
+                        >
+                          <span>Email to developer</span>
+                          <ExternalLink className="ml-1.5 h-3.5 w-3.5 opacity-70" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center mt-10">
+                  <Button 
+                    onClick={handleNext} 
+                    className="w-full max-w-sm mx-auto group"
+                    autoFocus // Auto focus this button when step 3 renders to ensure keyboard navigation works
                   >
                     Continue
                     <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
@@ -474,11 +632,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </span>
                   </Button>
                 </div>
-                </div>
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="mb-6">
                   <button 
