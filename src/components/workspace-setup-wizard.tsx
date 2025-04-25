@@ -111,6 +111,23 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     fetchDefaultEmail();
   }, [createdFormId, step]);
 
+  // Fetch product name for step 2 if form exists
+  useEffect(() => {
+    const fetchProductName = async () => {
+      if (createdFormId && step === 2) {
+        const { data, error } = await supabase
+          .from('forms')
+          .select('product_name')
+          .eq('id', createdFormId)
+          .single();
+        if (!error && data?.product_name) {
+          setProductName(data.product_name);
+        }
+      }
+    };
+    fetchProductName();
+  }, [createdFormId, step]);
+
   // HTML/JS install instructions (from InstallInstructionsModal, only HTML/JS version)
   const installInstructions = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${createdFormId || 'FORM_ID'}\";\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
 
@@ -256,6 +273,29 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     handleNext();
   };
 
+  // --- New: Persist onboarding step and formId after step 2 ---
+  useEffect(() => {
+    if (!user?.id) return;
+    const onboardingKey = `userbird-onboarding-${user.id}`;
+    // Only persist if step >= 2 and formId exists (keep progress for step 2 and above)
+    if (step >= 2 && createdFormId) {
+      localStorage.setItem(
+        onboardingKey,
+        JSON.stringify({ step, formId: createdFormId })
+      );
+    }
+    // Do NOT clear onboarding progress when going back to step 2
+    // Only clear onboarding progress when onboarding is truly complete (see below)
+  }, [step, createdFormId, user?.id]);
+
+  // --- Clear onboarding progress when onboarding is complete ---
+  const clearOnboardingProgress = () => {
+    if (!user?.id) return;
+    const onboardingKey = `userbird-onboarding-${user.id}`;
+    localStorage.removeItem(onboardingKey);
+  };
+
+  // In handleCreateWorkspace, after successful onboarding, clear progress
   const handleCreateWorkspace = async () => {
     if (!productName.trim()) {
       toast.error('Please enter a product or company name');
@@ -293,9 +333,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           // Continue anyway
         }
       }
-        toast.success('Workspace created successfully');
-        onComplete();
-        setTimeout(() => {
+      toast.success('Workspace created successfully');
+      clearOnboardingProgress(); // <-- Clear onboarding progress only here
+      onComplete();
+      setTimeout(() => {
         window.location.href = `/forms/${createdFormId}`;
       }, 300);
     } catch (error: any) {
@@ -304,6 +345,31 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       setIsCreating(false);
     }
   };
+
+  // --- New: Onboarding localStorage resume ---
+  // Try to resume onboarding state from localStorage if available
+  useEffect(() => {
+    if (!user?.id) return;
+    const onboardingKey = `userbird-onboarding-${user.id}`;
+    const saved = localStorage.getItem(onboardingKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          typeof parsed.step === 'number' &&
+          parsed.step > 2 &&
+          typeof parsed.formId === 'string' &&
+          parsed.formId.length > 0
+        ) {
+          setStep(parsed.step);
+          setCreatedFormId(parsed.formId);
+          toast.info('Resumed onboarding where you left off.');
+        }
+      } catch {}
+    }
+  }, [user?.id]);
 
   return (
     <div 

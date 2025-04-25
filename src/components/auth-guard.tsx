@@ -58,22 +58,46 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [user]);
 
-  // Redirect to setup wizard when needed
+  // --- Onboarding resume logic ---
   useEffect(() => {
     if (!user || !checkCompleted) return;
 
+    // Check onboarding progress in localStorage
+    const onboardingKey = `userbird-onboarding-${user.id}`;
+    const saved = localStorage.getItem(onboardingKey);
+    let onboardingInProgress = false;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          typeof parsed.step === 'number' &&
+          parsed.step >= 2 &&
+          typeof parsed.formId === 'string' &&
+          parsed.formId.length > 0
+        ) {
+          onboardingInProgress = true;
+        }
+      } catch {}
+    }
+
+    // If onboarding is in progress and not already on the wizard, force redirect
+    if (onboardingInProgress && location.pathname !== '/setup-workspace') {
+      navigate('/setup-workspace', { replace: true });
+      return;
+    }
+
     // Case 1: User needs the setup wizard and isn't on it yet
-    if (needsSetupWizard === true && location.pathname !== '/setup-workspace') {
+    if (!onboardingInProgress && needsSetupWizard === true && location.pathname !== '/setup-workspace') {
       console.log('Redirecting to workspace setup wizard')
       navigate('/setup-workspace')
     } 
     // Case 2: User is on setup-workspace but doesn't need it anymore
-    else if (needsSetupWizard === false && location.pathname === '/setup-workspace') {
+    else if (!onboardingInProgress && needsSetupWizard === false && location.pathname === '/setup-workspace') {
       console.log('User no longer needs setup wizard, redirecting to dashboard')
-      
       // Try to retrieve the last form ID from localStorage
       const lastFormId = user?.id ? localStorage.getItem(`userbird-last-form-${user.id}`) : null
-      
       if (lastFormId) {
         // Redirect to the last viewed form if available
         navigate(`/forms/${lastFormId}`)
