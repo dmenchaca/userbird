@@ -1353,6 +1353,22 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   }, [needsSetupWizard])
 
+  // Early redirect for workspace setup
+  useEffect(() => {
+    if (needsSetupWizard) {
+      navigate('/setup-workspace', { replace: true })
+    }
+  }, [needsSetupWizard, navigate])
+
+  // Optional early return to delay rendering until the check is ready
+  if (needsSetupWizard === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -2298,44 +2314,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
               </div>
             )}
           </>
-        )}
-        
-        {!loading && !selectedFormId && formsChecked && (
-          <div className="container py-12 px-8 space-y-8 w-full">
-            <div className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex items-center">
-              <div className="text-center space-y-2 mb-4">
-                <h1 className="text-3xl font-semibold welcome-title">Welcome to Userbird 🎉</h1>
-                <p className="text-muted-foreground welcome-description">The easiest way to collect and manage user feedback for your product.</p>
-                <div className="mt-12 py-8 pb-12">
-                  <div className="grid grid-cols-3 gap-8">
-                    <div className="flex flex-col items-center text-center gap-4 step-1">
-                      <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">1</div>
-                      <h3 className="font-medium">Create a feedback form</h3>
-                      <p className="text-sm text-muted-foreground">Set up a feedback form for your products in seconds.</p>
-                    </div>
-                    <div className="flex flex-col items-center text-center gap-4 step-2">
-                      <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">2</div>
-                      <h3 className="font-medium">Add it to your product</h3>
-                      <p className="text-sm text-muted-foreground">Install the form with a simple React code snippet.</p>
-                    </div>
-                    <div className="flex flex-col items-center text-center gap-4 step-3">
-                      <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">3</div>
-                      <h3 className="font-medium">Start collecting feedback</h3>
-                      <p className="text-sm text-muted-foreground">Get email notifications and get feedback right into your CRM.</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-12">
-                  <Button onClick={() => setShowNewFormDialog(true)} size="lg" className="gap-2 create-button">
-                    <Plus className="w-4 h-4" />
-                    Create Your First Form
-                  </Button>
-                </div>
-              </div>
-              {/* Commented out form creator for now */}
-              {/* <FormCreator /> */}
-            </div>
-          </div>
         )}
         <NewFormDialog
           open={showNewFormDialog}
