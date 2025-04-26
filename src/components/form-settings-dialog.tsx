@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, ExternalLink, Check } from 'lucide-react'
+import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
