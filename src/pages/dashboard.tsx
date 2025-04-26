@@ -377,6 +377,21 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       initialTicketNumber
     });
     
+    // Check if we're currently navigating to a new form from the form creator
+    const navigatingToNewForm = localStorage.getItem('userbird-navigating-to-new-form');
+    const currentFormId = window.location.pathname.split('/').filter(Boolean)[1];
+    
+    // If we're navigating to a new form and it matches the current URL, skip redirection
+    if (navigatingToNewForm && currentFormId === navigatingToNewForm) {
+      console.log('Detected navigation to newly created form, skipping redirect');
+      
+      // Update selected form ID to match the new form
+      if (selectedFormId !== navigatingToNewForm) {
+        setSelectedFormId(navigatingToNewForm);
+      }
+      return;
+    }
+    
     // Don't update URL if we're still potentially loading a ticket from initialTicketNumber
     // This prevents the redirect race condition
     if (initialTicketNumber && !selectedResponse) {
@@ -2329,7 +2344,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         <NewFormDialog
           open={showNewFormDialog}
           onOpenChange={setShowNewFormDialog}
-          onFormSelect={handleFormSelect}
         />
         {selectedFormId && (
           <InstallInstructionsModal

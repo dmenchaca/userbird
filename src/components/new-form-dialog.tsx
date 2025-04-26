@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { FormCreator } from './form-creator'
-import { InstallInstructionsModal } from './install-instructions-modal'
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef } from 'react'
@@ -8,12 +7,9 @@ import { useState, useRef } from 'react'
 interface NewFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onFormSelect: (formId: string) => void
 }
 
-export function NewFormDialog({ open, onOpenChange, onFormSelect }: NewFormDialogProps) {
-  const [formId, setFormId] = useState<string | null>(null)
-  const [showInstructions, setShowInstructions] = useState(false)
+export function NewFormDialog({ open, onOpenChange }: NewFormDialogProps) {
   const [showUnsavedChanges, setShowUnsavedChanges] = useState(false)
   const hasUnsavedChangesRef = useRef(false)
   const navigate = useNavigate()
@@ -37,28 +33,35 @@ export function NewFormDialog({ open, onOpenChange, onFormSelect }: NewFormDialo
   }
 
   const handleFormCreated = (newFormId: string) => {
-    setFormId(newFormId)
-    setShowInstructions(true)
-    onFormSelect(newFormId)
-    navigate(`/forms/${newFormId}`)
-    onOpenChange(false)
-  }
-
-  const handleInstructionsClose = () => {
-    setFormId(null)
-    setShowInstructions(false)
-    onOpenChange(false)
+    console.log('NewFormDialog: handleFormCreated called with ID:', newFormId);
+    
+    // Set a flag in localStorage to indicate we're intentionally navigating to a new form
+    // This will prevent the dashboard from overriding our navigation
+    localStorage.setItem('userbird-navigating-to-new-form', newFormId);
+    
+    // Close dialog before navigation to prevent React state update issues
+    onOpenChange(false);
+    console.log('NewFormDialog: dialog closed');
+    
+    // Navigate to the new form
+    navigate(`/forms/${newFormId}`);
+    console.log('NewFormDialog: navigation triggered');
+    
+    // Clear the flag after a short timeout to allow the navigation to complete
+    setTimeout(() => {
+      localStorage.removeItem('userbird-navigating-to-new-form');
+    }, 1000);
   }
 
   return (
     <>
     <Dialog 
-      open={open && !showInstructions}
+      open={open}
       onOpenChange={handleOpenChange}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Form</DialogTitle>
+          <DialogTitle>New Workspace</DialogTitle>
         </DialogHeader>
         <FormCreator 
           onFormCreated={handleFormCreated} 
@@ -91,17 +94,7 @@ export function NewFormDialog({ open, onOpenChange, onFormSelect }: NewFormDialo
       </AlertDialogContent>
     </AlertDialog>
 
-    {formId && (
-      <InstallInstructionsModal
-        formId={formId}
-        open={showInstructions}
-        onOpenChange={(open) => {
-          if (!open) {
-            handleInstructionsClose()
-          }
-        }}
-      />
-    )}
+    {/* InstallInstructionsModal intentionally not shown automatically after form creation */}
     </>
   )
 }

@@ -86,16 +86,46 @@ export function FormCreator({ onFormCreated, onFormChange }: FormCreatorProps) {
         throw insertError;
       }
       await createDefaultTags(newFormId);
+      // Add current user as admin collaborator
+      if (user?.id && user?.email) {
+        const { error: collaboratorError } = await supabase
+          .from('form_collaborators')
+          .insert({
+            form_id: newFormId,
+            user_id: user.id,
+            role: 'admin',
+            invited_by: user.id,
+            invitation_email: user.email,
+            invitation_accepted: true
+          });
+        if (collaboratorError) {
+          console.error('Error adding user as admin collaborator:', collaboratorError);
+          // Optionally show a toast or set error
+        }
+      }
+      // Save form ID in localStorage for onboarding/quick access
+      const userId = user?.id;
+      if (userId) {
+        localStorage.setItem(`userbird-last-form-${userId}`, newFormId);
+      }
+      
       toast.success('Form created successfully')
+      
+      // First call onFormCreated callback to trigger navigation immediately
+      if (onFormCreated) {
+        console.log('Calling onFormCreated with form ID:', newFormId);
+        onFormCreated(newFormId);
+        console.log('onFormCreated callback completed');
+      } else {
+        console.log('No onFormCreated callback, navigating directly to:', `/forms/${newFormId}`);
+        navigate(`/forms/${newFormId}`);
+      }
+      
+      // Track event after navigation has been triggered
       await trackEvent('form_create', user?.id || 'anonymous', {
         form_id: newFormId,
         product_name: trimmedName
-      })
-      if (onFormCreated) {
-        onFormCreated(newFormId)
-      } else {
-        navigate(`/forms/${newFormId}`)
-      }
+      });
     } catch (error) {
       console.error('Error creating form:', error)
       setError('Failed to create form')

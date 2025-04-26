@@ -39,7 +39,7 @@ export function updateUserbirdUser(userData: { id?: string; email?: string; name
     // Try the setUserInfo method first if available
     if (typeof w.UserBird.setUserInfo === 'function') {
       w.UserBird.setUserInfo(userData);
-      console.log('Updated Userbird widget with user data using setUserInfo');
+      // console.log('Updated Userbird widget with user data using setUserInfo');
     } 
     // Fall back to directly setting the user object
     else {
@@ -48,7 +48,7 @@ export function updateUserbirdUser(userData: { id?: string; email?: string; name
         email: userData.email,
         name: userData.name
       };
-      console.log('Updated Userbird widget with user data using user object');
+      // console.log('Updated Userbird widget with user data using user object');
     }
   } catch (error) {
     console.error('Error updating Userbird user data:', error);

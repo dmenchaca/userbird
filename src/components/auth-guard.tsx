@@ -21,14 +21,14 @@ function updateUserbirdUserData(user: any) {
         email: user.email,
         name: name
       });
-      console.log('Updated Userbird widget with user data using setUserInfo');
+      // console.log('Updated Userbird widget with user data using setUserInfo');
     } 
     // Fall back to directly setting the properties
     else {
       (window.UserBird as any).email = user.email;
       (window.UserBird as any).name = name;
       (window.UserBird as any).userId = user.id;
-      console.log('Updated Userbird widget with user data directly');
+      // console.log('Updated Userbird widget with user data directly');
     }
   } catch (error) {
     console.error('Error updating Userbird user data:', error);
