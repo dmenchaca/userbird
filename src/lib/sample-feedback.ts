@@ -1,4 +1,3 @@
-import { nanoid } from 'nanoid'
 import { supabase } from './supabase'
 import { FeedbackResponse } from './types/feedback'
 
@@ -52,12 +51,19 @@ const getRandomItem = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)]
 }
 
-// Helper function to get a random date within the last 2 weeks
-const getRandomRecentDate = (): string => {
-  const now = new Date()
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-  const randomTime = twoWeeksAgo.getTime() + Math.random() * (now.getTime() - twoWeeksAgo.getTime())
-  return new Date(randomTime).toISOString()
+// Helper function to get a timestamp within a few seconds of now
+const getCurrentTimestamp = (): string => {
+  // Use current time
+  return new Date().toISOString()
+}
+
+// Generate a UUID v4 - for compatibility with database UUID fields
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
 }
 
 /**
@@ -72,10 +78,13 @@ export const createSampleFeedback = async (
   count: number = 3
 ): Promise<FeedbackResponse[]> => {
   try {
+    // Get current timestamp once for all feedback entries
+    const timestamp = getCurrentTimestamp()
+    
     // Prepare sample feedback data
     const feedbackEntries = Array.from({ length: count }).map(() => {
       return {
-        id: nanoid(), // Generate a unique ID for each feedback
+        id: generateUUID(), // Generate a proper UUID for each feedback
         form_id: formId,
         message: getRandomItem(SAMPLE_FEEDBACK_MESSAGES),
         user_name: USER_NAME,
@@ -83,7 +92,7 @@ export const createSampleFeedback = async (
         url_path: getRandomItem(SAMPLE_URL_PATHS),
         operating_system: getRandomItem(SAMPLE_OS),
         screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES),
-        created_at: getRandomRecentDate(),
+        created_at: timestamp,
         status: 'open',
         // Add tag_id and assignee_id if you want to pre-assign these
       }
