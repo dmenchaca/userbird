@@ -238,6 +238,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           .single();
         const { data, error } = insertResult;
         if (error) throw error;
+        
+        // Create default tags for the new form
+        await createDefaultTags(formId);
+        
         if (data?.id && user?.id && user?.email) {
           await supabase
             .from('form_collaborators')
@@ -262,6 +266,37 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       if (!createdFormId) setCreatedFormId(null);
     } finally {
       setBackgroundCreating(false);
+    }
+  };
+
+  // Function to create default tags for a new form
+  const createDefaultTags = async (formId: string) => {
+    try {
+      const defaultTags = [
+        { name: 'Bug', color: '#EF4444', is_favorite: true },        // Red
+        { name: 'Data loss', color: '#64748B', is_favorite: true },  // Grey
+        { name: 'Glitch', color: '#EAB308', is_favorite: true },     // Yellow
+        { name: 'New feature', color: '#10B981', is_favorite: true }, // Green
+        { name: 'Love it', color: '#EC4899', is_favorite: true }     // Pink
+      ];
+      
+      // Insert all default tags with the form_id
+      const { error } = await supabase
+        .from('feedback_tags')
+        .insert(defaultTags.map(tag => ({
+          name: tag.name,
+          color: tag.color,
+          form_id: formId,
+          is_favorite: tag.is_favorite
+        })));
+      
+      if (error) {
+        console.error('Error creating default tags:', error);
+      } else {
+        console.log('Successfully created default tags for form:', formId);
+      }
+    } catch (error) {
+      console.error('Error in createDefaultTags:', error);
     }
   };
 

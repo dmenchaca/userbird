@@ -132,11 +132,11 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
   const createDefaultTags = async (formId: string) => {
     try {
       const defaultTags = [
-        { name: '⚠️ Bug', color: '#EF4444', is_favorite: true },       // Red
-        { name: '☠️ Data loss', color: '#7C3AED', is_favorite: true }, // Purple 
-        { name: '🫤 Glitch', color: '#F59E0B', is_favorite: true },    // Amber
-        { name: '🚀 New feature', color: '#10B981', is_favorite: true }, // Emerald
-        { name: '❤️ Love it', color: '#EC4899', is_favorite: true }    // Pink
+        { name: 'Bug', color: '#EF4444', is_favorite: true },        // Red
+        { name: 'Data loss', color: '#64748B', is_favorite: true },  // Grey
+        { name: 'Glitch', color: '#EAB308', is_favorite: true },     // Yellow
+        { name: 'New feature', color: '#10B981', is_favorite: true }, // Green
+        { name: 'Love it', color: '#EC4899', is_favorite: true }     // Pink
       ]
       
       const { error } = await supabase
