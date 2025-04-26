@@ -159,7 +159,6 @@ export function FormSettingsDialog({
   const [originalRules, setOriginalRules] = useState<string | null>(null)
   const { user } = useAuth()
   const [userFirstName, setUserFirstName] = useState('')
-  const [isAdmin, setIsAdmin] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -177,49 +176,6 @@ export function FormSettingsDialog({
   // Check if the current user is an admin for this form
   useEffect(() => {
     if (!formId || !user?.id) return;
-    
-    const checkAdminStatus = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('form_collaborators')
-          .select('role')
-          .eq('form_id', formId)
-          .eq('user_id', user.id);
-          
-        if (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdmin(false);
-          return;
-        }
-        
-        // Check if we got any data
-        if (!data || data.length === 0) {
-          // No collaborator entry found, check if the user is the owner
-          const { data: formData, error: formError } = await supabase
-            .from('forms')
-            .select('owner_id')
-            .eq('id', formId)
-            .single();
-            
-          if (formError) {
-            console.error('Error checking form ownership:', formError);
-            setIsAdmin(false);
-            return;
-          }
-          
-          // If user is the owner, they're automatically an admin
-          setIsAdmin(formData?.owner_id === user.id);
-        } else {
-          // Check role from collaborator record
-          setIsAdmin(data[0]?.role === 'admin');
-        }
-      } catch (error) {
-        console.error('Exception when checking admin status:', error);
-        setIsAdmin(false);
-      }
-    };
-    
-    checkAdminStatus();
     
     // Extract first name from user's full name or email
     if (user.user_metadata?.full_name) {
