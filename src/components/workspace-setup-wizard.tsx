@@ -459,33 +459,48 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       </svg>
       
       <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
-        {/* Userbird Feedback Button */}
-        <div className="mb-4">
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(w, d, s, o) {
-                  w.UserBirdObject = o;
-                  w[o] = w[o] || function() {
-                    (w[o].q = w[o].q || []).push(arguments);
-                  };
-                  const f = d.getElementsByTagName(s)[0];
-                  const ubird = d.createElement(s);
-                  ubird.async = 1;
-                  ubird.src = 'https://cdn.userbird.co/userbird.js';
-                  f.parentNode.insertBefore(ubird, f);
-                })(window, document, 'script', 'ub');
-                ub('form', '4hNUB7DVhf');
-              `
-            }}
-          />
-          <button 
-            id="userbird-trigger-4hNUB7DVhf"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
-          >
-            <span className="pointer-events-none">Feedback</span>
-            <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
-          </button>
+        {/* Header flex container with back button and feedback button */}
+        <div className="mb-4 w-full flex justify-between items-center">
+          {/* Back button - only show on steps 2+ */}
+          {step > 1 && (
+            <button 
+              type="button"
+              onClick={handleBack}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3 mr-1" />
+              <span>Back</span>
+            </button>
+          )}
+          
+          {/* Push feedback button to the right */}
+          <div className="ml-auto">
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  (function(w, d, s, o) {
+                    w.UserBirdObject = o;
+                    w[o] = w[o] || function() {
+                      (w[o].q = w[o].q || []).push(arguments);
+                    };
+                    const f = d.getElementsByTagName(s)[0];
+                    const ubird = d.createElement(s);
+                    ubird.async = 1;
+                    ubird.src = 'https://cdn.userbird.co/userbird.js';
+                    f.parentNode.insertBefore(ubird, f);
+                  })(window, document, 'script', 'ub');
+                  ub('form', '4hNUB7DVhf');
+                `
+              }}
+            />
+            <button 
+              id="userbird-trigger-4hNUB7DVhf"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
+            >
+              <span className="pointer-events-none">Feedback</span>
+              <span className="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground pointer-events-none">F</span>
+            </button>
+          </div>
         </div>
         
         <div className="bg-background rounded-lg shadow-lg border w-full p-8 py-10 transition-all duration-500 ease-in-out">
@@ -575,14 +590,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           {step === 2 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div>
-                  <button 
-                    type="button"
-                    onClick={handleBack}
-                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
-                  >
-                    <ArrowLeft className="h-3 w-3 mr-1" />
-                    <span>Back</span>
-                  </button>
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
                 Manage your customer support and feedback hub in a shared workspace with your team.
@@ -641,14 +648,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 tabIndex={0} // Make div focusable to capture key events
               >
                 <div className="mb-5">
-                  <button 
-                    type="button"
-                    onClick={handleBack}
-                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
-                  >
-                    <ArrowLeft className="h-3 w-3 mr-1" />
-                    <span>Back</span>
-                  </button>
                   <h2 className="text-2xl font-semibold text-center mb-1">How to get feedback and support tickets into Userbird</h2>
                 </div>
                 
@@ -772,14 +771,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             {step === 4 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="mb-6">
-                  <button 
-                    type="button"
-                    onClick={handleBack}
-                    className="text-sm text-muted-foreground hover:text-foreground flex items-center mb-3 transition-colors"
-                  >
-                    <ArrowLeft className="h-3 w-3 mr-1" />
-                    <span>Back</span>
-                  </button>
                   <h2 className="text-2xl font-semibold text-center">Manage feedback at blazing speed 🚀</h2>
                 </div>
 

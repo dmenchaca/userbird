@@ -159,6 +159,7 @@ export function FormSettingsDialog({
   const [originalRules, setOriginalRules] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const { user } = useAuth()
+  const [userFirstName, setUserFirstName] = useState('')
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -200,7 +201,16 @@ export function FormSettingsDialog({
     };
     
     checkAdminStatus();
-  }, [formId, user?.id]);
+    
+    // Extract first name from user's full name or email
+    if (user.user_metadata?.full_name) {
+      const firstName = user.user_metadata.full_name.split(' ')[0];
+      setUserFirstName(firstName);
+    } else if (user.email) {
+      const emailName = user.email.split('@')[0];
+      setUserFirstName(emailName);
+    }
+  }, [formId, user?.id, user?.user_metadata, user?.email]);
 
   // Set initial values when component mounts
   useEffect(() => {
@@ -1784,6 +1794,7 @@ export function FormSettingsDialog({
           onOpenChange(false);
         }}
         productName={productName || formUrl}
+        userName={userFirstName}
       />
     </>
   )
