@@ -41,6 +41,7 @@ export function NewFormDialog({ open, onOpenChange, onFormSelect }: NewFormDialo
     setShowInstructions(true)
     onFormSelect(newFormId)
     navigate(`/forms/${newFormId}`)
+    onOpenChange(false)
   }
 
   const handleInstructionsClose = () => {
