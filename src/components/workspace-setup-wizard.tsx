@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { createSampleFeedback } from '@/lib/sample-feedback'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -404,6 +405,17 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           // Continue anyway
         }
       }
+      
+      // Create sample feedback for the new workspace
+      if (createdFormId) {
+        try {
+          await createSampleFeedback(createdFormId);
+        } catch (sampleError) {
+          console.error('Error creating sample feedback:', sampleError);
+          // Continue even if sample feedback creation fails
+        }
+      }
+      
       toast.success('Workspace created successfully');
       markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();

@@ -9,6 +9,7 @@ import { X } from 'lucide-react'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Label } from './ui/label'
+import { createSampleFeedback } from '@/lib/sample-feedback'
 
 interface WorkspaceCreatorDialogProps {
   open: boolean
@@ -213,6 +214,14 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
         if (collaboratorError) {
           console.error('Error adding user as admin collaborator:', collaboratorError)
         }
+      }
+      
+      // Create sample feedback data for this new workspace
+      try {
+        await createSampleFeedback(newFormId)
+      } catch (sampleError) {
+        console.error('Error creating sample feedback:', sampleError)
+        // Continue even if sample feedback creation fails
       }
       
       // Save form ID in localStorage for onboarding/quick access
