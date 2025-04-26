@@ -157,9 +157,9 @@ export function FormSettingsDialog({
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
   const [formRules, setFormRules] = useState<string | null>(null)
   const [originalRules, setOriginalRules] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const { user } = useAuth()
   const [userFirstName, setUserFirstName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -749,13 +749,6 @@ export function FormSettingsDialog({
   };
 
   const handleTabSwitch = (newTab: SettingsTab) => {
-    // If trying to switch to AI tab but not an admin, stay on current tab
-    if (newTab === 'ai-automation' && !isAdmin) {
-      console.log('User lost admin status while on AI tab, redirecting');
-      setActiveTab('workspace');
-      return;
-    }
-    
     setActiveTab(newTab);
     
     // If switching to AI tab, refresh the data
@@ -1297,14 +1290,6 @@ export function FormSettingsDialog({
     }
   };
 
-  // Reset active tab if user loses admin status while on AI tab
-  useEffect(() => {
-    if (activeTab === 'ai-automation' && !isAdmin) {
-      console.log('User lost admin status while on AI tab, redirecting');
-      setActiveTab('workspace');
-    }
-  }, [isAdmin, activeTab]);
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1369,18 +1354,16 @@ export function FormSettingsDialog({
                   <Users className="w-4 h-4" />
                   Collaborators
                 </button>
-                {isAdmin && (
-                  <button
-                    onClick={() => handleTabSwitch('ai-automation')}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                      activeTab === 'ai-automation' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    AI Automation
-                  </button>
-                )}
+                <button
+                  onClick={() => handleTabSwitch('ai-automation')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'ai-automation' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI Automation
+                </button>
                 <button
                   onClick={() => handleTabSwitch('webhooks')}
                   className={cn(
@@ -1712,7 +1695,7 @@ export function FormSettingsDialog({
                   <CollaboratorsTab formId={formId} />
                 )}
 
-                {activeTab === 'ai-automation' && isAdmin && (
+                {activeTab === 'ai-automation' && (
                   <div className="space-y-6">
                     <AIAutomationTab 
                       formId={formId} 
