@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, Check } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
