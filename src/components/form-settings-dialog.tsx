@@ -158,7 +158,6 @@ export function FormSettingsDialog({
   const [formRules, setFormRules] = useState<string | null>(null)
   const [originalRules, setOriginalRules] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isOwner, setIsOwner] = useState(false)
   const { user } = useAuth()
   const [userFirstName, setUserFirstName] = useState('')
 
@@ -179,85 +178,44 @@ export function FormSettingsDialog({
   useEffect(() => {
     if (!formId || !user?.id) return;
     
-    // Cache key for admin status
-    const cacheKey = `admin-status:${formId}:${user.id}`;
-    // Flag to track if a check is in progress
-    const inProgressKey = `admin-check-in-progress:${formId}:${user.id}`;
-    
-    // Check if we have a cached result
-    const cachedStatus = cache.get(cacheKey);
-    if (cachedStatus !== undefined) {
-      setIsAdmin(!!cachedStatus); // Ensure it's a boolean
-      return;
-    }
-    
-    // Check if there's already a check in progress
-    if (cache.get(inProgressKey)) {
-      console.log('Admin status check already in progress, skipping duplicate request');
-      return;
-    }
-    
     const checkAdminStatus = async () => {
       try {
-        // Mark check as in progress to prevent duplicate calls
-        cache.set(inProgressKey, true, 10); // 10 seconds max to prevent stuck states
-        
-        // First try to check if user is the form owner - this is more reliable
-        const { data: formData, error: formError } = await supabase
-          .from('forms')
-          .select('owner_id')
-          .eq('id', formId)
-          .single();
+        const { data, error } = await supabase
+          .from('form_collaborators')
+          .select('role')
+          .eq('form_id', formId)
+          .eq('user_id', user.id);
           
-        if (!formError && formData?.owner_id === user.id) {
-          // User is the owner, so they're an admin
-          setIsAdmin(true);
-          setIsOwner(true); // Also mark as owner
-          cache.set(cacheKey, true, 60 * 5); // Cache for 5 minutes
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
           return;
-        } else if (!formError && formData) {
-          // User is not the owner
-          setIsOwner(false);
         }
         
-        // If not the owner, check collaborator status
-        try {
-          const { data, error } = await supabase
-            .from('form_collaborators')
-            .select('role')
-            .eq('form_id', formId)
-            .eq('user_id', user.id);
+        // Check if we got any data
+        if (!data || data.length === 0) {
+          // No collaborator entry found, check if the user is the owner
+          const { data: formData, error: formError } = await supabase
+            .from('forms')
+            .select('owner_id')
+            .eq('id', formId)
+            .single();
             
-          if (error) {
-            console.error('Error checking admin status:', error);
-            // Don't set isAdmin to false yet, we'll retry
-          } else if (data && data.length > 0) {
-            // User is a collaborator
-            const isAdminRole = data[0]?.role === 'admin';
-            setIsAdmin(isAdminRole);
-            cache.set(cacheKey, isAdminRole, 60 * 5); // Cache for 5 minutes
+          if (formError) {
+            console.error('Error checking form ownership:', formError);
+            setIsAdmin(false);
             return;
           }
-        } catch (collaboratorError) {
-          console.error('Exception when checking collaborator status:', collaboratorError);
-          // Continue to fallback logic
-        }
-        
-        // If we reach here and formData exists but user is not owner, they're not an admin
-        if (!formError && formData) {
-          setIsAdmin(false);
-          cache.set(cacheKey, false, 60 * 5); // Cache for 5 minutes
+          
+          // If user is the owner, they're automatically an admin
+          setIsAdmin(formData?.owner_id === user.id);
         } else {
-          // If both checks failed, log the error but don't cache a negative result
-          console.error('Failed to determine admin status after checking both owner and collaborator');
-          setIsAdmin(false);
+          // Check role from collaborator record
+          setIsAdmin(data[0]?.role === 'admin');
         }
       } catch (error) {
         console.error('Exception when checking admin status:', error);
         setIsAdmin(false);
-      } finally {
-        // Clear the in-progress flag
-        cache.invalidate(inProgressKey);
       }
     };
     
@@ -684,15 +642,6 @@ export function FormSettingsDialog({
   const fetchLatestScrapingProcess = async () => {
     if (!formId) return;
     
-    // Check cache first
-    const cacheKey = `scraping-process:${formId}`;
-    const cachedProcess = cache.get<ScrapingProcess>(cacheKey);
-    if (cachedProcess) {
-      console.log('[FormSettingsDialog] Using cached scraping process');
-      setLatestScrapingProcess(cachedProcess);
-      return;
-    }
-    
     try {
       console.log('[FormSettingsDialog] Fetching latest scraping process for form ID:', formId);
       const { data, error } = await supabase
@@ -703,24 +652,15 @@ export function FormSettingsDialog({
         .limit(1)
         .single();
         
-      if (error) {
-        if (error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-          console.error('[FormSettingsDialog] Error fetching scraping process:', error);
-          
-          // Check if it's a resource error
-          if (error.message?.includes('insufficient resources')) {
-            toast.error('Unable to load AI data due to server load. Please try again later.');
-          }
-        }
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('[FormSettingsDialog] Error fetching scraping process:', error);
       } else if (data) {
         console.log('[FormSettingsDialog] Successfully fetched scraping process:', data.id);
         
         // Ensure metadata is not null
         data.metadata = data.metadata || {};
         
-        setLatestScrapingProcess(data as ScrapingProcess);
-        // Cache for 5 minutes
-        cache.set(cacheKey, data as ScrapingProcess, 60 * 5);
+        setLatestScrapingProcess(data);
       } else {
         console.log('[FormSettingsDialog] No previous scraping processes found for this form');
       }
@@ -733,16 +673,6 @@ export function FormSettingsDialog({
   const fetchFormRules = async () => {
     if (!formId) return;
     
-    // Check cache first
-    const cacheKey = `form-rules:${formId}`;
-    const cachedRules = cache.get<string | null>(cacheKey);
-    if (cachedRules !== undefined) {
-      console.log('[FormSettingsDialog] Using cached form rules');
-      setFormRules(cachedRules);
-      setOriginalRules(cachedRules);
-      return;
-    }
-    
     try {
       console.log('[FormSettingsDialog] Fetching form rules...');
       const { data, error } = await supabase
@@ -753,21 +683,12 @@ export function FormSettingsDialog({
       
       if (error) {
         console.error('[FormSettingsDialog] Error fetching form rules:', error);
-        
-        // Check if it's a resource error
-        if (error.message?.includes('insufficient resources')) {
-          toast.error('Unable to load AI rules due to server load. Please try again later.');
-        }
         return;
       }
       
       console.log('[FormSettingsDialog] Successfully fetched form rules:', data.rules);
-      const rules = data.rules as string | null;
-      setFormRules(rules);
-      setOriginalRules(rules);
-      
-      // Cache for 5 minutes
-      cache.set(cacheKey, rules, 60 * 5);
+      setFormRules(data.rules);
+      setOriginalRules(data.rules);
     } catch (error) {
       console.error('[FormSettingsDialog] Exception when fetching form rules:', error);
     }
@@ -831,15 +752,6 @@ export function FormSettingsDialog({
     // If trying to switch to AI tab but not an admin, stay on current tab
     if (newTab === 'ai-automation' && !isAdmin) {
       console.log('User lost admin status while on AI tab, redirecting');
-      toast.error('You need admin access to view AI settings');
-      setActiveTab('workspace');
-      return;
-    }
-    
-    // If trying to switch to delete tab but not the owner, stay on current tab
-    if (newTab === 'delete' && !isOwner) {
-      console.log('User is not the owner, redirecting from delete tab');
-      toast.error('Only the workspace owner can delete this workspace');
       setActiveTab('workspace');
       return;
     }
@@ -849,20 +761,8 @@ export function FormSettingsDialog({
     // If switching to AI tab, refresh the data
     if (newTab === 'ai-automation' && formId) {
       console.log('[FormSettingsDialog] Switching to AI tab, refreshing data');
-      
-      // Debounce the API calls to prevent hammering the server
-      const aiDataRefreshKey = `ai-data-refresh:${formId}`;
-      if (cache.get(aiDataRefreshKey)) {
-        console.log('[FormSettingsDialog] Skipping AI data refresh, recent refresh already performed');
-        return;
-      }
-      
-      // Set a flag to prevent excessive refreshes
-      cache.set(aiDataRefreshKey, true, 5); // 5 seconds cooldown between refreshes
-      
-      // Use a timeout to space out the API calls slightly
-      setTimeout(() => fetchLatestScrapingProcess(), 100);
-      setTimeout(() => fetchFormRules(), 300);
+      fetchLatestScrapingProcess();
+      fetchFormRules();
     }
   };
 
@@ -1405,14 +1305,6 @@ export function FormSettingsDialog({
     }
   }, [isAdmin, activeTab]);
 
-  // Reset active tab if user loses owner status while on delete tab
-  useEffect(() => {
-    if (activeTab === 'delete' && !isOwner) {
-      console.log('User lost owner status while on delete tab, redirecting');
-      setActiveTab('workspace');
-    }
-  }, [isOwner, activeTab]);
-
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1509,18 +1401,16 @@ export function FormSettingsDialog({
                   <Tag className="w-4 h-4" />
                   Tags
                 </button>
-                {isOwner && (
-                  <button
-                    onClick={() => handleTabSwitch('delete')}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                      activeTab === 'delete' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                )}
+                <button
+                  onClick={() => handleTabSwitch('delete')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'delete' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
               </div>
             </div>
             <div className="flex-1 overflow-auto">
