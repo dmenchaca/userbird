@@ -337,7 +337,7 @@ export function FormsDropdown({
             onClick={onNewFormClick}
           >
             <Plus className="mr-2 h-4 w-4" />
-            <span>Create new workspace</span>
+            <span>New workspace</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
