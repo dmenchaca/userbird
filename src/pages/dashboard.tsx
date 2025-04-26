@@ -4,7 +4,6 @@ import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, C
 import { supabase } from '@/lib/supabase'
 import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
-import { NewFormDialog } from '@/components/new-form-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +24,7 @@ import { FeedbackImage } from '../../app/components/FeedbackImage'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { assignFeedback } from '@/lib/services/feedback-assignments'
 import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
+import { WorkspaceCreatorDialog } from '@/components/workspace-creator-dialog'
 
 interface DashboardProps {
   initialFormId?: string
@@ -2341,9 +2341,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             )}
           </>
         )}
-        <NewFormDialog
+        <WorkspaceCreatorDialog
           open={showNewFormDialog}
-          onOpenChange={setShowNewFormDialog}
+          onClose={() => setShowNewFormDialog(false)}
         />
         {selectedFormId && (
           <InstallInstructionsModal
