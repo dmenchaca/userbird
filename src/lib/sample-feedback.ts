@@ -1,4 +1,3 @@
-import { supabase } from './supabase'
 import { FeedbackResponse } from './types/feedback'
 
 // Sample feedback messages with realistic content
@@ -72,21 +71,6 @@ const shuffleArray = <T>(array: T[]): T[] => {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
-}
-
-// Helper function to get a timestamp within a few seconds of now
-const getCurrentTimestamp = (): string => {
-  // Use current time
-  return new Date().toISOString()
-}
-
-// Generate a UUID v4 - for compatibility with database UUID fields
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
 }
 
 /**
