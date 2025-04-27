@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -739,6 +739,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const formatTimeAgo = (dateString: string) => {
       try {
         const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+        
+        // If less than a minute ago, show "now"
+        if (diffInSeconds < 60) {
+          return "now";
+        }
         
         if (isToday(date)) {
           return format(date, 'h:mm a') // Format as "2:04 PM"
@@ -762,10 +769,14 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       const action = reply.meta?.action || 'changed';
       const tagId = reply.meta?.tag_id;
       const oldTagId = reply.meta?.old_tag_id;
+      const source = reply.meta?.source; // 'ai' for auto-tagged
       
       // Find tag info from availableTags
       const tag = tagId ? availableTags?.find(t => t.id === tagId) : null;
       const oldTag = oldTagId ? availableTags?.find(t => t.id === oldTagId) : null;
+      
+      // Check if this is an AI-generated tag
+      const isAiTagged = reply.sender_type === 'ai' || source === 'ai';
       
       // Get sender name - same approach as in assignment
       let senderName = 'Administrator';
@@ -808,10 +819,18 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       return (
         <div key={reply.id} className="max-w-[40rem] mx-auto w-full flex items-center gap-2 py-0.5">
           <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-            <Tag className="h-3 w-3 text-muted-foreground" />
+            {isAiTagged ? (
+              <Zap className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <Tag className="h-3 w-3 text-muted-foreground" />
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
-            {action === 'removed' ? (
+            {isAiTagged ? (
+              <>
+                Auto-labelled as {renderTagBadge(tag)} {preposition} {formattedDate}
+              </>
+            ) : action === 'removed' ? (
               <>
                 <span className="font-medium">{senderName}</span> removed {renderTagBadge(oldTag)} {preposition} {formattedDate}
               </>
