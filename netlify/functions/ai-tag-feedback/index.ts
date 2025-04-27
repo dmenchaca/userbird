@@ -61,13 +61,18 @@ export const handler: Handler = async (event) => {
     const rules = formData.data?.rules;
     const tags = tagsData.data || [];
     
-    // Skip if no rules or no tags
-    if (!rules || tags.length === 0) {
-      console.log(`Skipping AI tagging: ${!rules ? 'No rules defined' : 'No tags available'} for form ${formId}`);
+    // Skip only if no tags are available
+    if (tags.length === 0) {
+      console.log(`Skipping AI tagging: No tags available for form ${formId}`);
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: 'Skipped tagging: No rules or tags available' })
+        body: JSON.stringify({ message: 'Skipped tagging: No tags available' })
       };
+    }
+    
+    // If rules are missing, log but continue with default approach
+    if (!rules) {
+      console.log(`No rules defined for form ${formId}, using default tagging approach`);
     }
     
     // Get the feedback message if not provided
@@ -124,7 +129,19 @@ IMPORTANT FORMATTING RULES:
 You are an AI assistant helping to tag feedback for a SaaS product.
 
 FEEDBACK TAGGING RULES:
-${rules}
+${rules || `Please analyze the feedback and match it to the most appropriate tag based on:
+1. The content and sentiment of the feedback
+2. Common patterns in software feedback (bugs, feature requests, usability issues, etc.)
+3. The name and purpose of the available tags
+4. The context within which the feedback was provided
+
+When matching:
+- "Bug" tags should be used for issues, errors, or unexpected behavior
+- "Feature" tags for new functionality requests
+- "UI/UX" tags for design and usability feedback
+- "Performance" tags for speed and optimization concerns
+- "Documentation" tags for help or guidance requests
+- When unsure, select the tag that best captures the main intent of the feedback`}
 
 AVAILABLE TAGS:
 ${JSON.stringify(tagOptions, null, 2)}
