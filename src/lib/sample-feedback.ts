@@ -101,44 +101,49 @@ export const createSampleFeedback = async (
   count: number = 3
 ): Promise<FeedbackResponse[]> => {
   try {
-    // Get current timestamp once for all feedback entries
-    const timestamp = getCurrentTimestamp()
-    
     // Get unique feedback messages
     const uniqueMessages = getUniqueRandomItems(SAMPLE_FEEDBACK_MESSAGES, count);
     
-    // Prepare sample feedback data
-    const feedbackEntries = uniqueMessages.map((message) => {
-      return {
-        id: generateUUID(), // Generate a proper UUID for each feedback
-        form_id: formId,
+    // Array to store the created feedback responses
+    const createdFeedback: FeedbackResponse[] = [];
+
+    // Submit each feedback item via the Netlify function
+    for (const message of uniqueMessages) {
+      const feedbackData = {
+        formId,
         message,
         user_name: USER_NAME,
         user_email: USER_EMAIL,
         url_path: getRandomItem(SAMPLE_URL_PATHS),
         operating_system: getRandomItem(SAMPLE_OS),
-        screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES),
-        created_at: timestamp,
-        status: 'open',
-        // Add tag_id and assignee_id if you want to pre-assign these
+        screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
+      };
+
+      // Call the Netlify function to process the feedback
+      const response = await fetch('/.netlify/functions/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(feedbackData)
+      });
+
+      if (!response.ok) {
+        console.error('Error submitting sample feedback:', await response.text());
+        continue;
       }
-    })
 
-    // Insert the sample feedback into the database
-    const { data, error } = await supabase
-      .from('feedback')
-      .insert(feedbackEntries)
-      .select('*')
-
-    if (error) {
-      console.error('Error creating sample feedback:', error)
-      return []
+      const result = await response.json();
+      
+      if (result.data && result.data.length > 0) {
+        createdFeedback.push(result.data[0]);
+      }
     }
 
-    console.log(`Successfully created ${data.length} sample feedback entries for form ${formId}`)
-    return data || []
+    console.log(`Successfully created ${createdFeedback.length} sample feedback entries for form ${formId}`);
+    return createdFeedback;
   } catch (error) {
-    console.error('Error in createSampleFeedback:', error)
-    return []
+    console.error('Error in createSampleFeedback:', error);
+    return [];
   }
 } 
