@@ -469,6 +469,11 @@ async function handleAssignmentNotification(params: {
       ? `${senderName} has assigned ${ticketReference} to you.` 
       : `You have been assigned ${ticketReference}.`;
     
+    // Get the ticket number for the subject line
+    const ticketNumberMatch = message.match(/Ticket #(\d+)/i);
+    const extractedTicketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
+    const displayTicketNumber = feedback?.ticket_number || extractedTicketNumber;
+    
     // Send email
     const emailResult = await EmailService.sendFeedbackNotification({
       to: assigneeEmail,
@@ -476,7 +481,9 @@ async function handleAssignmentNotification(params: {
       formId: formId,
       message: assignmentMessage,
       feedbackId: feedbackId,
-      customSubject: `Userbird: Assignment Notification - ${form.url}`,
+      customSubject: displayTicketNumber 
+        ? `Action needed: Ticket #${displayTicketNumber} is now yours` 
+        : `Action needed: You've been assigned a ticket`,
       customEmailType: 'assignment'
     });
     
