@@ -1,13 +1,15 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag } from 'lucide-react'
 import { Button } from './ui/button'
-import { FeedbackResponse, FeedbackReply, FeedbackAttachment } from '@/lib/types/feedback'
+import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
 import { TiptapEditor } from './tiptap-editor'
 import { useAuth } from '@/lib/auth'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { toast } from 'sonner'
+import { format, isToday } from 'date-fns'
+import { getTagColors } from '@/lib/utils/colors'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -24,6 +26,7 @@ interface ConversationThreadProps {
     role?: "admin" | "agent"
     invitation_accepted?: boolean
   }>
+  availableTags?: FeedbackTag[]
 }
 
 export interface ConversationThreadRef {
@@ -31,7 +34,7 @@ export interface ConversationThreadRef {
 }
 
 export const ConversationThread = forwardRef<ConversationThreadRef, ConversationThreadProps>(
-  ({ response, onStatusChange, collaborators = [] }, ref) => {
+  ({ response, onStatusChange, collaborators = [], availableTags }, ref) => {
     if (!response) return null
 
     const { user } = useAuth()
@@ -704,45 +707,135 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     }
 
-    // Near the top of the component, add a new helper function to group assignment events
-    const groupConsecutiveAssignmentEvents = (replies: FeedbackReply[]) => {
+    // Near the top of the component, update the grouping function
+    const groupConsecutiveSystemEvents = (replies: FeedbackReply[]) => {
       const groupedReplies: (FeedbackReply | FeedbackReply[])[] = [];
-      let currentAssignmentGroup: FeedbackReply[] = [];
+      let currentSystemGroup: FeedbackReply[] = [];
 
       replies.forEach((reply) => {
-        if (reply.type === 'assignment') {
-          // Add to current assignment group
-          currentAssignmentGroup.push(reply);
+        if (reply.type === 'assignment' || reply.type === 'tag_change') {
+          // Add to current system event group
+          currentSystemGroup.push(reply);
         } else {
-          // If we have assignment events in the group, add them first
-          if (currentAssignmentGroup.length > 0) {
-            groupedReplies.push([...currentAssignmentGroup]);
-            currentAssignmentGroup = [];
+          // If we have system events in the group, add them first
+          if (currentSystemGroup.length > 0) {
+            groupedReplies.push([...currentSystemGroup]);
+            currentSystemGroup = [];
           }
           // Add the regular reply
           groupedReplies.push(reply);
         }
       });
 
-      // Add any remaining assignment events
-      if (currentAssignmentGroup.length > 0) {
-        groupedReplies.push([...currentAssignmentGroup]);
+      // Add any remaining system events
+      if (currentSystemGroup.length > 0) {
+        groupedReplies.push([...currentSystemGroup]);
       }
 
       return groupedReplies;
     };
 
+    // Helper to format time ago (shorter format)
+    const formatTimeAgo = (dateString: string) => {
+      try {
+        const date = new Date(dateString);
+        
+        if (isToday(date)) {
+          return format(date, 'h:mm a') // Format as "2:04 PM"
+        } else {
+          return format(date, 'MMM d') // Format as "Mar 5"
+        }
+      } catch (error) {
+        return 'unknown date'
+      }
+    }
+
+    // Add the tag change event renderer
+    const renderTagChangeEvent = (reply: FeedbackReply) => {
+      // Format date in a readable format
+      const formattedDate = formatTimeAgo(reply.created_at);
+      
+      // Determine preposition based on whether it's today or not
+      const preposition = isToday(new Date(reply.created_at)) ? 'at' : 'on';
+      
+      // Extract tag change info from meta
+      const action = reply.meta?.action || 'changed';
+      const tagId = reply.meta?.tag_id;
+      const oldTagId = reply.meta?.old_tag_id;
+      
+      // Find tag info from availableTags
+      const tag = tagId ? availableTags?.find(t => t.id === tagId) : null;
+      const oldTag = oldTagId ? availableTags?.find(t => t.id === oldTagId) : null;
+      
+      // Get sender name - same approach as in assignment
+      let senderName = 'Administrator';
+      
+      // Current user
+      if (user && reply.sender_id === user.id) {
+        senderName = user.user_metadata?.full_name || user.email || 'Admin';
+      }
+      // Check collaborators for sender too
+      else if (reply.sender_id && collaborators.length > 0) {
+        const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
+        if (senderCollaborator) {
+          senderName = 
+            senderCollaborator.user_profile?.username || 
+            senderCollaborator.invitation_email?.split('@')[0] || 
+            'Administrator';
+        }
+      }
+
+      // Render the tag name with its color when available
+      const renderTagBadge = (tagInfo: FeedbackTag | null | undefined) => {
+        if (!tagInfo) return "a label";
+        
+        // Get tag colors using the same function as inbox
+        const colors = getTagColors(tagInfo.color);
+        
+        return (
+          <span
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium"
+            style={{ 
+              backgroundColor: colors.background,
+              color: colors.text
+            }}
+          >
+            {tagInfo.name}
+          </span>
+        );
+      };
+
+      return (
+        <div key={reply.id} className="max-w-[40rem] mx-auto w-full flex items-center gap-2 py-0.5">
+          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+            <Tag className="h-3 w-3 text-muted-foreground" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {action === 'removed' ? (
+              <>
+                <span className="font-medium">{senderName}</span> removed {renderTagBadge(oldTag)} {preposition} {formattedDate}
+              </>
+            ) : action === 'added' ? (
+              <>
+                <span className="font-medium">{senderName}</span> added {renderTagBadge(tag)} {preposition} {formattedDate}
+              </>
+            ) : (
+              <>
+                <span className="font-medium">{senderName}</span> changed label from {renderTagBadge(oldTag)} to {renderTagBadge(tag)} {preposition} {formattedDate}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     // Render assignment event
     const renderAssignmentEvent = (reply: FeedbackReply) => {
       // Format date in a readable format
-      const formattedDate = new Date(reply.created_at).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
+      const formattedDate = formatTimeAgo(reply.created_at);
+      
+      // Determine preposition based on whether it's today or not
+      const preposition = isToday(new Date(reply.created_at)) ? 'at' : 'on';
       
       // Extract assignment info
       const isUnassignment = !reply.assigned_to;
@@ -789,11 +882,11 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           <div className="text-xs text-muted-foreground">
             {isUnassignment ? (
               <>
-                <span className="font-medium">{senderName}</span> removed ticket assignment on {formattedDate}
+                <span className="font-medium">{senderName}</span> removed ticket assignment {preposition} {formattedDate}
               </>
             ) : (
               <>
-                Assigned to <span className="font-medium">{assigneeName}</span> by <span className="font-medium">{senderName}</span> on {formattedDate}
+                Assigned to <span className="font-medium">{assigneeName}</span> by <span className="font-medium">{senderName}</span> {preposition} {formattedDate}
               </>
             )}
           </div>
@@ -1189,12 +1282,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             </div>
             
             {/* Reply messages */}
-            {groupConsecutiveAssignmentEvents(replies).map((replyOrGroup, index) => {
-              // Check if this is a group of assignment events
+            {groupConsecutiveSystemEvents(replies).map((replyOrGroup, index) => {
+              // Check if this is a group of system events
               if (Array.isArray(replyOrGroup)) {
                 return (
-                  <div key={`assignment-group-${index}`} className="space-y-0 py-1 mb-4">
-                    {replyOrGroup.map((assignmentReply) => renderAssignmentEvent(assignmentReply))}
+                  <div key={`system-group-${index}`} className="space-y-0 py-1 mb-4">
+                    {replyOrGroup.map((systemReply) => 
+                      systemReply.type === 'assignment' 
+                        ? renderAssignmentEvent(systemReply)
+                        : renderTagChangeEvent(systemReply)
+                    )}
                   </div>
                 );
               }

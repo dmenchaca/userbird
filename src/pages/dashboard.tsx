@@ -25,6 +25,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { assignFeedback } from '@/lib/services/feedback-assignments'
 import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 import { WorkspaceCreatorDialog } from '@/components/workspace-creator-dialog'
+import { updateFeedbackTag } from '@/lib/services/feedback-tags'
+import { colorOptions } from '@/lib/utils/colors'
 
 interface DashboardProps {
   initialFormId?: string
@@ -136,64 +138,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       }
     }
   };
-  
-  // Color palette with explicit background and text colors for each tag
-  const colorOptions = [
-    { 
-      name: 'Gray', 
-      value: '#64748B',      // Slate
-      background: '#64748B25',
-      text: '#334155'        // Darker slate for contrast
-    },
-    { 
-      name: 'Brown', 
-      value: '#78716C',      // Stone
-      background: '#78716C25',
-      text: '#44403C'        // Darker stone for contrast
-    },
-    { 
-      name: 'Orange', 
-      value: '#F97316',      // Orange
-      background: '#F9731625',
-      text: '#C2410C'        // Darker orange for contrast
-    },
-    { 
-      name: 'Yellow', 
-      value: '#EAB308',      // Yellow
-      background: '#EAB30825',
-      text: '#854D0E'        // Darker yellow for contrast
-    },
-    { 
-      name: 'Green', 
-      value: '#10B981',      // Emerald
-      background: '#10B98125',
-      text: '#047857'        // Darker emerald for contrast
-    },
-    { 
-      name: 'Blue', 
-      value: '#3B82F6',      // Blue
-      background: '#3B82F625',
-      text: '#1D4ED8'        // Darker blue for contrast
-    },
-    { 
-      name: 'Purple', 
-      value: '#8B5CF6',      // Violet
-      background: '#8B5CF625',
-      text: '#6D28D9'        // Darker violet for contrast
-    },
-    { 
-      name: 'Pink', 
-      value: '#EC4899',      // Pink
-      background: '#EC489925',
-      text: '#BE185D'        // Darker pink for contrast
-    },
-    { 
-      name: 'Red', 
-      value: '#EF4444',      // Red
-      background: '#EF444425',
-      text: '#B91C1C'        // Darker red for contrast
-    }
-  ]
   
   // Save the selected form ID to localStorage whenever it changes
   useEffect(() => {
@@ -602,7 +546,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   };
 
-  // Helper function to get a random tag color from the color options
+  // Get random tag color for new tags
   const getRandomTagColor = () => {
     const randomIndex = Math.floor(Math.random() * colorOptions.length);
     return colorOptions[randomIndex].value;
@@ -613,13 +557,24 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     if (!ids.length) return;
     
     try {
-      // Update the tag_id for all selected items in Supabase
-      const { error } = await supabase
-        .from('feedback')
-        .update({ tag_id: tagId })
-        .in('id', ids);
+      // Process each feedback item individually to create tag change events
+      const results = await Promise.all(
+        ids.map(async (feedbackId) => {
+          return updateFeedbackTag(
+            feedbackId,
+            tagId,
+            user?.id || '',
+            { source: 'dashboard', batch: true }
+          );
+        })
+      );
       
-      if (error) throw error;
+      // Check if all operations were successful
+      const allSuccessful = results.every(result => result === true);
+      
+      if (!allSuccessful) {
+        console.warn('Some tag updates failed in batch operation');
+      }
       
       // Clear selection after batch action
       setSelectedBatchIds([]);
@@ -822,13 +777,17 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         }
       }
       
-      // Update feedback with the tag_id
-      const { error } = await supabase
-        .from('feedback')
-        .update({ tag_id: tagId })
-        .eq('id', id);
+      // Use the service function to update the tag and create a tag change event
+      const success = await updateFeedbackTag(
+        id, 
+        tagId,
+        user?.id || '',
+        { source: 'dashboard' }
+      );
       
-      if (error) throw error;
+      if (!success) {
+        throw new Error('Failed to update tag');
+      }
       
       // Update the selected response if it's the one that changed
       if (selectedResponse && selectedResponse.id === id) {
@@ -2243,6 +2202,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                           response={selectedResponse} 
                           onStatusChange={handleResponseStatusChange}
                           collaborators={collaborators}
+                          availableTags={availableTags}
                         />
                       </div>
                       

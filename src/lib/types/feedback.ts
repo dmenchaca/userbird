@@ -48,7 +48,7 @@ export interface FeedbackReply {
   message_id?: string
   in_reply_to?: string
   attachments?: FeedbackAttachment[]
-  type?: 'reply' | 'assignment' | 'note' | 'status_change'
+  type?: 'reply' | 'assignment' | 'note' | 'status_change' | 'tag_change'
   assigned_to?: string
   sender_id?: string
   meta?: Record<string, any>
