@@ -78,21 +78,18 @@ const shuffleArray = <T>(array: T[]): T[] => {
  * 
  * @param formId The ID of the form to create sample feedback for
  * @param count Number of sample feedback entries to create (default: 3)
- * @returns Promise resolving to an array of created feedback entries
+ * @returns Promise that resolves when requests are fired (not when they complete)
  */
 export const createSampleFeedback = async (
   formId: string,
   count: number = 3
-): Promise<FeedbackResponse[]> => {
+): Promise<void> => {
   try {
     // Get unique feedback messages
     const uniqueMessages = getUniqueRandomItems(SAMPLE_FEEDBACK_MESSAGES, count);
     
-    // Array to store the created feedback responses
-    const createdFeedback: FeedbackResponse[] = [];
-
-    // Submit each feedback item via the Netlify function
-    for (const message of uniqueMessages) {
+    // Submit each feedback item via the Netlify function (fire and forget)
+    uniqueMessages.forEach(message => {
       const feedbackData = {
         formId,
         message,
@@ -103,31 +100,21 @@ export const createSampleFeedback = async (
         screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
       };
 
-      // Call the Netlify function to process the feedback
-      const response = await fetch('/.netlify/functions/feedback', {
+      // Call the Netlify function without awaiting its completion
+      fetch('/.netlify/functions/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(feedbackData)
+      }).catch(error => {
+        // Just log any errors, but don't block the main flow
+        console.error('Error submitting sample feedback:', error);
       });
+    });
 
-      if (!response.ok) {
-        console.error('Error submitting sample feedback:', await response.text());
-        continue;
-      }
-
-      const result = await response.json();
-      
-      if (result.data && result.data.length > 0) {
-        createdFeedback.push(result.data[0]);
-      }
-    }
-
-    console.log(`Successfully created ${createdFeedback.length} sample feedback entries for form ${formId}`);
-    return createdFeedback;
+    console.log(`Fired ${uniqueMessages.length} sample feedback requests for form ${formId}`);
   } catch (error) {
     console.error('Error in createSampleFeedback:', error);
-    return [];
   }
 } 
