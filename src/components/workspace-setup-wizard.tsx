@@ -385,21 +385,25 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     setIsCreating(true);
     
     try {
-      // Mark onboarding complete immediately
+      // Mark onboarding complete and redirect immediately - without success toast
       markOnboardingComplete();
       onComplete();
       
       // Store the form ID for navigation
       const redirectFormId = createdFormId;
       
-      // Process help docs and sample feedback first (still non-blocking)
-      // Start these operations immediately
-      // Process help docs URL if provided (non-blocking)
-      if (redirectFormId && helpDocsUrl.trim()) {
-        try {
-          // This will run in the background
-          (async () => {
-            try {
+      // Start redirecting immediately
+      setTimeout(() => {
+        window.location.href = `/forms/${redirectFormId}`;
+      }, 100);
+      
+      // Then process help docs and sample feedback in background
+      // These operations won't block the user experience
+      setTimeout(() => {
+        // Process help docs URL if provided (non-blocking)
+        if (redirectFormId && helpDocsUrl.trim()) {
+          try {
+            (async () => {
               await supabase
                 .from('docs_scraping_processes')
                 .insert({
@@ -415,37 +419,23 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: helpDocsUrl, form_id: redirectFormId })
               });
-              console.log('Help docs crawling initiated successfully');
-            } catch (err) {
-              console.error('Background help docs processing error:', err);
-            }
-          })();
-        } catch (docsError) {
-          console.error('Error setting up help docs crawling:', docsError);
+            })().catch(err => console.error('Background help docs processing error:', err));
+          } catch (docsError) {
+            console.error('Error setting up help docs crawling:', docsError);
+          }
         }
-      }
-      
-      // Create sample feedback for the new workspace (non-blocking)
-      if (redirectFormId) {
-        try {
-          // This will run in the background
-          (async () => {
-            try {
-              await createSampleFeedback(redirectFormId);
-              console.log('Sample feedback created successfully');
-            } catch (err) {
+        
+        // Create sample feedback for the new workspace (non-blocking)
+        if (redirectFormId) {
+          try {
+            createSampleFeedback(redirectFormId).catch(err => {
               console.error('Background sample feedback creation error:', err);
-            }
-          })();
-        } catch (sampleError) {
-          console.error('Error creating sample feedback:', sampleError);
+            });
+          } catch (sampleError) {
+            console.error('Error creating sample feedback:', sampleError);
+          }
         }
-      }
-      
-      // Then redirect after giving tasks time to start
-      setTimeout(() => {
-        window.location.href = `/forms/${redirectFormId}`;
-      }, 300);
+      }, 200);
       
     } catch (error: any) {
       toast.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
