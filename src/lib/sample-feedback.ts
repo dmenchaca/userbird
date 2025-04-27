@@ -1,5 +1,3 @@
-import { FeedbackResponse } from './types/feedback'
-
 // Sample feedback messages with realistic content
 const SAMPLE_FEEDBACK_MESSAGES = [
   "Love the new dashboard design! Much easier to find what I need now.",
