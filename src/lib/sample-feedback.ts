@@ -51,6 +51,29 @@ const getRandomItem = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)]
 }
 
+// Helper function to get unique random items from an array
+const getUniqueRandomItems = <T>(array: T[], count: number): T[] => {
+  // If requested count exceeds array length, return shuffled array
+  if (count >= array.length) {
+    return shuffleArray([...array]);
+  }
+  
+  // Create a copy of the array to shuffle
+  const shuffled = shuffleArray([...array]);
+  
+  // Return the first 'count' elements
+  return shuffled.slice(0, count);
+}
+
+// Fisher-Yates shuffle algorithm
+const shuffleArray = <T>(array: T[]): T[] => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 // Helper function to get a timestamp within a few seconds of now
 const getCurrentTimestamp = (): string => {
   // Use current time
@@ -81,12 +104,15 @@ export const createSampleFeedback = async (
     // Get current timestamp once for all feedback entries
     const timestamp = getCurrentTimestamp()
     
+    // Get unique feedback messages
+    const uniqueMessages = getUniqueRandomItems(SAMPLE_FEEDBACK_MESSAGES, count);
+    
     // Prepare sample feedback data
-    const feedbackEntries = Array.from({ length: count }).map(() => {
+    const feedbackEntries = uniqueMessages.map((message) => {
       return {
         id: generateUUID(), // Generate a proper UUID for each feedback
         form_id: formId,
-        message: getRandomItem(SAMPLE_FEEDBACK_MESSAGES),
+        message,
         user_name: USER_NAME,
         user_email: USER_EMAIL,
         url_path: getRandomItem(SAMPLE_URL_PATHS),
