@@ -76,7 +76,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
  * 
  * @param formId The ID of the form to create sample feedback for
  * @param count Number of sample feedback entries to create (default: 3)
- * @returns Promise that resolves when requests are fired (not when they complete)
+ * @returns Promise that resolves when all requests are fired (not when they complete)
  */
 export const createSampleFeedback = async (
   formId: string,
@@ -86,8 +86,8 @@ export const createSampleFeedback = async (
     // Get unique feedback messages
     const uniqueMessages = getUniqueRandomItems(SAMPLE_FEEDBACK_MESSAGES, count);
     
-    // Submit each feedback item via the Netlify function (fire and forget)
-    uniqueMessages.forEach(message => {
+    // Create an array of promises that start the fetch requests
+    const requestPromises = uniqueMessages.map(message => {
       const feedbackData = {
         formId,
         message,
@@ -98,19 +98,23 @@ export const createSampleFeedback = async (
         screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
       };
 
-      // Call the Netlify function without awaiting its completion
-      fetch('/.netlify/functions/feedback', {
+      // Start the fetch request and return the promise, but don't wait for completion
+      return fetch('/.netlify/functions/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(feedbackData)
-      }).catch(error => {
+      })
+      .catch(error => {
         // Just log any errors, but don't block the main flow
         console.error('Error submitting sample feedback:', error);
       });
     });
 
+    // Wait for all requests to be fired (but not for their responses)
+    await Promise.all(requestPromises);
+    
     console.log(`Fired ${uniqueMessages.length} sample feedback requests for form ${formId}`);
   } catch (error) {
     console.error('Error in createSampleFeedback:', error);
