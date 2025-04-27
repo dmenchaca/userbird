@@ -385,7 +385,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     setIsCreating(true);
     
     try {
-      // Mark onboarding complete and redirect immediately - without success toast
+      // Mark onboarding complete and redirect immediately
+      toast.success('Workspace created successfully');
       markOnboardingComplete();
       onComplete();
       
