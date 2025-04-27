@@ -1,0 +1,11 @@
+{
+  "name": "ai-tag-feedback",
+  "version": "1.0.0",
+  "description": "Netlify function to automatically tag feedback using AI",
+  "main": "index.js",
+  "dependencies": {
+    "@netlify/functions": "^1.0.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "openai": "^3.3.0"
+  }
+} 

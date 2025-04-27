@@ -166,6 +166,36 @@ export const handler: Handler = async (event) => {
       // Don't fail feedback submission if tracking fails
     }
 
+    // Trigger AI tagging asynchronously if feedback was successfully created
+    if (feedbackData && feedbackData.length > 0) {
+      try {
+        const baseUrl = process.env.URL || 'https://userbird.co';
+        const aiTaggingUrl = `${baseUrl}/.netlify/functions/ai-tag-feedback`;
+        
+        // Fire and forget - don't await the response to avoid blocking
+        fetch(aiTaggingUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            feedbackId: feedbackData[0].id,
+            formId: formId,
+            content: message
+          })
+        }).catch(err => {
+          // Just log errors, don't fail the feedback submission
+          console.error('Error triggering AI tagging (non-blocking):', err);
+        });
+        
+        console.log('AI tagging request sent asynchronously');
+      } catch (error) {
+        console.error('Error preparing AI tagging request:', error);
+        // Don't fail the feedback submission if AI tagging fails
+      }
+    }
+
     // Trigger webhook delivery
     try {
       await fetch(`${process.env.URL}/.netlify/functions/send-webhook`, {

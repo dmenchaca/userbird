@@ -40,7 +40,7 @@ export interface FeedbackTag {
 export interface FeedbackReply {
   id: string
   feedback_id: string
-  sender_type: 'admin' | 'user'
+  sender_type: 'admin' | 'user' | 'ai'
   content?: string
   html_content?: string
   created_at: string
