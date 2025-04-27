@@ -109,7 +109,17 @@ export const handler: Handler = async (event) => {
       color: tag.color
     }));
     
-    // Create the prompt for the AI
+    // Create a clearer system prompt with explicit instructions about using IDs
+    const systemPrompt = `You are a precise feedback tagging assistant. 
+Your task is to analyze feedback and assign the most appropriate tag from a list.
+
+IMPORTANT FORMATTING RULES:
+1. Always use the exact tag ID (UUID) in your response, NEVER use the tag name.
+2. For example, use "3591240d-4ab8-4226-8681-9a95fe77fe5c", NOT "Enhancement".
+3. Return valid JSON with all required fields.
+4. Always specify the confidence as a number between 0 and 1.`;
+
+    // Create the prompt for the AI with example response format
     const prompt = `
 You are an AI assistant helping to tag feedback for a SaaS product.
 
@@ -127,20 +137,30 @@ ${feedbackMessage}
 Based on the rules and the feedback above, which tag is the most appropriate? 
 You must ONLY select from the available tags provided.
 If none of the tags match well with the feedback, say "NO_TAG".
-Return a JSON object with:
-1. "selectedTagId": The ID of the selected tag or "NO_TAG" if none apply
-2. "confidence": A number between 0 and 1 indicating your confidence
-3. "reasoning": A brief explanation of why you selected this tag
-4. "alternativeTags": An array of objects with { "tagId", "confidence", "reason" } for up to 2 alternative tags you considered
-`;
+
+EXAMPLE RESPONSE FORMAT:
+{
+  "selectedTagId": "3591240d-4ab8-4226-8681-9a95fe77fe5c",  // MUST be the exact ID from the list above, not the name
+  "confidence": 0.95,
+  "reasoning": "This feedback suggests an enhancement to existing functionality.",
+  "alternativeTags": [
+    {
+      "tagId": "b68b6d6e-d067-4371-a279-862e1c4b0663",  // MUST be the exact ID from the list above, not the name
+      "confidence": 0.7,
+      "reason": "Could also be considered a new feature."
+    }
+  ]
+}
+
+Your response (use exact tag IDs from the list above, not tag names):`;
 
     console.log('Sending request to OpenAI for tag analysis');
     
-    // Call OpenAI for analysis
+    // Call OpenAI for analysis with the enhanced prompts
     const response = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: "You are a precise feedback tagging assistant. Always return valid JSON with the required fields." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
       ],
       temperature: 0.3, // Low temperature for more deterministic results
