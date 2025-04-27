@@ -383,63 +383,48 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       }
     }
     setIsCreating(true);
-    
     try {
-      // Mark onboarding complete and redirect immediately
+      // If help docs URL was provided, create a scraping process
+      if (createdFormId && helpDocsUrl.trim()) {
+        try {
+          await supabase
+            .from('docs_scraping_processes')
+            .insert({
+              form_id: createdFormId,
+              base_url: helpDocsUrl,
+              status: 'in_progress'
+            })
+            .select()
+            .single();
+          await fetch('/.netlify/functions/start-crawl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: helpDocsUrl, form_id: createdFormId })
+          });
+        } catch (docsError) {
+          // Continue anyway
+        }
+      }
+      
+      // Create sample feedback for the new workspace
+      if (createdFormId) {
+        try {
+          await createSampleFeedback(createdFormId);
+        } catch (sampleError) {
+          console.error('Error creating sample feedback:', sampleError);
+          // Continue even if sample feedback creation fails
+        }
+      }
+      
       toast.success('Workspace created successfully');
-      markOnboardingComplete();
+      markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
-      
-      // Store the form ID for navigation
-      const redirectFormId = createdFormId;
-      
-      // Start redirecting immediately
       setTimeout(() => {
-        window.location.href = `/forms/${redirectFormId}`;
-      }, 100);
-      
-      // Then process help docs and sample feedback in background
-      // These operations won't block the user experience
-      setTimeout(() => {
-        // Process help docs URL if provided (non-blocking)
-        if (redirectFormId && helpDocsUrl.trim()) {
-          try {
-            (async () => {
-              await supabase
-                .from('docs_scraping_processes')
-                .insert({
-                  form_id: redirectFormId,
-                  base_url: helpDocsUrl,
-                  status: 'in_progress'
-                })
-                .select()
-                .single();
-                
-              await fetch('/.netlify/functions/start-crawl', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: helpDocsUrl, form_id: redirectFormId })
-              });
-            })().catch(err => console.error('Background help docs processing error:', err));
-          } catch (docsError) {
-            console.error('Error setting up help docs crawling:', docsError);
-          }
-        }
-        
-        // Create sample feedback for the new workspace (non-blocking)
-        if (redirectFormId) {
-          try {
-            createSampleFeedback(redirectFormId).catch(err => {
-              console.error('Background sample feedback creation error:', err);
-            });
-          } catch (sampleError) {
-            console.error('Error creating sample feedback:', sampleError);
-          }
-        }
-      }, 200);
-      
+        window.location.href = `/forms/${createdFormId}`;
+      }, 300);
     } catch (error: any) {
       toast.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
+    } finally {
       setIsCreating(false);
     }
   };
