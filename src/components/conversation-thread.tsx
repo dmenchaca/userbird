@@ -763,7 +763,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       const formattedDate = formatTimeAgo(reply.created_at);
       
       // Determine preposition based on whether it's today or not
-      const preposition = isToday(new Date(reply.created_at)) ? 'at' : 'on';
+      // Skip preposition entirely when date is "now"
+      const preposition = formattedDate === "now" ? '' : isToday(new Date(reply.created_at)) ? 'at' : 'on';
       
       // Extract tag change info from meta
       const action = reply.meta?.action || 'changed';
@@ -828,7 +829,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           <div className="text-xs text-muted-foreground">
             {isAiTagged ? (
               <>
-                Auto-labelled as {renderTagBadge(tag)} {preposition} {formattedDate}
+                Auto-labelled as {renderTagBadge(tag)} {preposition && <>{preposition} </>}{formattedDate}
               </>
             ) : action === 'removed' ? (
               <>
