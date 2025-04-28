@@ -8,6 +8,7 @@ import { FormView } from './pages/form-view';
 import { useWorkspaceSetupCheck } from './lib/hooks/useWorkspaceSetupCheck';
 import { WorkspaceSetupWizard } from './components/workspace-setup-wizard';
 import { useEffect } from 'react';
+import Step5Test from './pages/test-components/step5-test';
 
 export default function App() {
   const { needsSetupWizard } = useWorkspaceSetupCheck();
@@ -34,6 +35,7 @@ export default function App() {
             }} />
           </AuthGuard>
         } />
+        <Route path="/test/step5" element={<Step5Test />} />
         <Route path="/forms/:formId/ticket/:ticketNumber" element={
           <AuthGuard>
             <FormView />

@@ -43,6 +43,18 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     "Enabling AI to auto-label your feedback"
   ]
   
+  // Custom CSS for faster spinning animation (only for Step 5)
+  const fastSpinStyle = `
+    @keyframes fast-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .animate-fast-spin {
+      animation: fast-spin 0.6s linear infinite;
+    }
+  `;
+  
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
   
   // Get user's first name for the welcome message
@@ -418,7 +430,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate first step completion
       setLoadingStep(1);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Create sample feedback for the new workspace
       if (createdFormId) {
@@ -432,7 +444,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate second step completion
       setLoadingStep(2);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Mark onboarding as complete
       markOnboardingComplete();
@@ -440,7 +452,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate third step completion
       setLoadingStep(3);
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Redirect to the dashboard
       window.location.href = `/forms/${createdFormId}`;
@@ -510,6 +522,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       onKeyDown={handleKeyPress}
       tabIndex={0} // Make div focusable to capture key events
     >
+      {/* Add style tag for custom animation */}
+      <style dangerouslySetInnerHTML={{ __html: fastSpinStyle }} />
+      
       <svg
         className="absolute inset-0 h-full w-full -z-10"
         xmlns="http://www.w3.org/2000/svg"
@@ -910,9 +925,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="mb-10">
                   <h2 className="text-2xl font-semibold text-center">Setting up your workspace</h2>
-                  <p className="text-center text-muted-foreground mt-2">
-                    This will only take a moment...
-                  </p>
                 </div>
 
                 <div className="space-y-6 max-w-md mx-auto">
@@ -923,15 +935,15 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                         loadingStep < index ? 'opacity-40' : 'opacity-100'
                       }`}
                     >
-                      <div className="mr-4 h-8 w-8 flex-shrink-0">
+                      <div className="mr-4 h-6 w-6 flex-shrink-0">
                         {loadingStep > index ? (
-                          <div className="rounded-full h-8 w-8 bg-primary/10 text-primary flex items-center justify-center">
-                            <Check className="h-5 w-5" />
+                          <div className="rounded-full h-6 w-6 bg-green-500 text-white flex items-center justify-center">
+                            <Check className="h-3.5 w-3.5" />
                           </div>
                         ) : loadingStep === index ? (
-                          <div className="rounded-full h-8 w-8 border-2 border-primary/30 border-t-primary animate-[spin_0.6s_linear_infinite]"></div>
+                          <div className="rounded-full h-6 w-6 border-2 border-primary/30 border-t-primary animate-fast-spin"></div>
                         ) : (
-                          <div className="rounded-full h-8 w-8 border-2 border-muted"></div>
+                          <div className="rounded-full h-6 w-6 border-2 border-muted"></div>
                         )}
                       </div>
                       <div className="flex-1">
