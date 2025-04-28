@@ -53,7 +53,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
   const [loading, setLoading] = useState(true) // Always start with loading true
   const [formsChecked, setFormsChecked] = useState(false) // Track whether we've checked for forms
-  const [shouldShowInstructions, setShouldShowInstructions] = useState<boolean>(false)
   const showFeedbackHint = !selectedFormId
   const [feedbackCounts, setFeedbackCounts] = useState({ open: 0, closed: 0 })
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed' | { type: 'tag', id: string, name: string }>('open')
