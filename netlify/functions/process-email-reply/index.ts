@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
-import { simpleParser, ParsedMail, Attachment as MailAttachment } from 'mailparser';
+import { simpleParser } from 'mailparser';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -14,6 +14,26 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 // Use service role key for backend operations
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Define ParsedMail and Attachment interfaces since they're not exported from mailparser
+interface ParsedMail {
+  from?: { text?: string; value?: Array<{ address?: string; name?: string }> };
+  to?: { text?: string; value?: Array<{ address?: string; name?: string }> };
+  cc?: { text?: string; value?: Array<{ address?: string; name?: string }> };
+  subject?: string;
+  text?: string;
+  html?: string;
+  attachments?: Array<{
+    content?: Buffer;
+    contentType?: string;
+    contentDisposition?: string;
+    contentId?: string;
+    filename?: string;
+  }>;
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string | string[];
+}
 
 // Add interface for attachment structure
 interface EmailAttachment {
@@ -162,11 +182,13 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       const recipientEmail = recipient.address.toLowerCase();
       console.log('Checking recipient:', recipientEmail);
       
-      // Check for direct form email pattern
-      const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+      // Check for direct form email pattern - both old and new format
+      const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
+                             recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
       if (formEmailMatch) {
         // Extract form ID from original email to preserve case
-        const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+        const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
+                                   recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
         const formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
         console.log('Found form ID from email pattern:', formId);
         // Don't return here, continue looking for a feedback ID
@@ -499,7 +521,7 @@ async function storeReply(
     const messageId = parsedEmail.messageId || `reply-${crypto.randomUUID()}`;
     
     // Process in-reply-to header to ensure proper threading
-    let inReplyTo = null;
+    let inReplyTo: string | null = null;
     if (parsedEmail.inReplyTo) {
       // Store the original in-reply-to value
       inReplyTo = parsedEmail.inReplyTo;
@@ -747,11 +769,13 @@ export const handler: Handler = async (event) => {
         
         const recipientEmail = recipient.address.toLowerCase();
         
-        // Check for direct form email pattern
-        const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+        // Check for direct form email pattern - both old and new format
+        const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
+                               recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
         if (formEmailMatch) {
           // Extract form ID from original email to preserve case
-          const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i);
+          const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
+                                     recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
           formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
           console.log('Found case-sensitive form ID from email pattern:', formId);
           break;
