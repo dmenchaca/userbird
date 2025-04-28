@@ -186,10 +186,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     try {
       await navigator.clipboard.writeText(installInstructions)
       setInstallCopied(true)
-      toast.success('Install instructions copied!')
       setTimeout(() => setInstallCopied(false), 2000)
     } catch {
-      toast.error('Failed to copy instructions')
+      console.error('Failed to copy instructions')
     }
   }
 
@@ -305,7 +304,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     console.log('handleNext called, current step:', step);
     if (step === 2 && !productName.trim()) {
       console.log('Product name empty, showing error');
-      toast.error('Please enter a product or company name');
       return;
     }
     // On step 2, fire background creation or patch
@@ -335,7 +333,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           handleNext();
         } else {
           console.log('Step 2 Enter key handler triggered with empty product name');
-          toast.error('Please enter a product or company name');
         }
       } else if (step === 3) {
         // On step 3, Enter should advance to step 4, not finish the onboarding
@@ -371,14 +368,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   // In handleCreateWorkspace, after successful onboarding, mark as complete
   const handleCreateWorkspace = async () => {
     if (!productName.trim()) {
-      toast.error('Please enter a product or company name');
       return;
     }
     // If background creation failed, try again
     if (!createdFormId && !backgroundCreating) {
       await handleBackgroundFormCreationOrPatch(productName.trim());
       if (!createdFormId) {
-        toast.error(backgroundError || 'Workspace creation failed');
         return;
       }
     }
@@ -416,14 +411,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
-      toast.success('Workspace created successfully');
       markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
       setTimeout(() => {
         window.location.href = `/forms/${createdFormId}`;
       }, 300);
     } catch (error: any) {
-      toast.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
+      console.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
     } finally {
       setIsCreating(false);
     }
