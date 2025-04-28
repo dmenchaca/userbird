@@ -418,7 +418,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate first step completion
       setLoadingStep(1);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Create sample feedback for the new workspace
       if (createdFormId) {
@@ -432,7 +432,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate second step completion
       setLoadingStep(2);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Mark onboarding as complete
       markOnboardingComplete();
@@ -440,7 +440,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate third step completion
       setLoadingStep(3);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       // Redirect to the dashboard
       window.location.href = `/forms/${createdFormId}`;
@@ -929,7 +929,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                             <Check className="h-5 w-5" />
                           </div>
                         ) : loadingStep === index ? (
-                          <div className="rounded-full h-8 w-8 border-2 border-primary/30 border-t-primary animate-spin"></div>
+                          <div className="rounded-full h-8 w-8 border-2 border-primary/30 border-t-primary animate-[spin_0.6s_linear_infinite]"></div>
                         ) : (
                           <div className="rounded-full h-8 w-8 border-2 border-muted"></div>
                         )}
