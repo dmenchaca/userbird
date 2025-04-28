@@ -54,7 +54,7 @@ export const handler: Handler = async (event) => {
       };
     }
     
-    // Get form details (always needed)
+    // Get form details
     const { data: form, error: formError } = await supabase
       .from('forms')
       .select('url, product_name')
@@ -407,7 +407,7 @@ async function handleAssignmentNotification(params: {
     // Get form details
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('url')
+      .select('url, product_name')
       .eq('id', formId)
       .single();
     
