@@ -35,6 +35,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [hoveredSection, setHoveredSection] = useState<'email' | 'feedback' | null>(null)
   const navigate = useNavigate()
   
+  // Add new state variables for the loading animation steps
+  const [loadingStep, setLoadingStep] = useState(0)
+  const loadingSteps = [
+    "Creating your workspace",
+    "Loading sample support tickets",
+    "Enabling AI to auto-label your feedback"
+  ]
+  
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
   
   // Get user's first name for the welcome message
@@ -346,6 +354,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           console.log('Step 4 Enter key handler not triggered (isCreating is true)');
         }
       }
+      // No action needed for step 5 (loading animation)
     }
   };
 
@@ -364,7 +373,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     localStorage.removeItem(stepKey);
   };
 
-  // In handleCreateWorkspace, after successful onboarding, mark as complete
+  // In handleCreateWorkspace, after successful onboarding, mark as complete and move to step 5
   const handleCreateWorkspace = async () => {
     if (!productName.trim()) {
       return;
@@ -377,6 +386,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       }
     }
     setIsCreating(true);
+    
+    // Move to step 5 immediately
+    setStep(5);
+    
+    // Reset loading step counter
+    setLoadingStep(0);
+    
     try {
       // If help docs URL was provided, create a scraping process
       if (createdFormId && helpDocsUrl.trim()) {
@@ -400,6 +416,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
+      // Simulate first step completion
+      setLoadingStep(1);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       // Create sample feedback for the new workspace
       if (createdFormId) {
         try {
@@ -410,11 +430,26 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
-      markOnboardingComplete(); // <-- Mark onboarding as complete
+      // Simulate second step completion
+      setLoadingStep(2);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mark onboarding as complete
+      markOnboardingComplete();
       onComplete();
+      
+      // Simulate third step completion
+      setLoadingStep(3);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Redirect to the dashboard
       window.location.href = `/forms/${createdFormId}`;
     } catch (error: any) {
       console.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
+      // Even on error, still redirect
+      markOnboardingComplete();
+      onComplete();
+      window.location.href = `/forms/${createdFormId}`;
     } finally {
       setIsCreating(false);
     }
@@ -499,8 +534,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
         {/* Header flex container with back button and feedback button */}
         <div className="mb-4 w-full flex justify-between items-center">
-          {/* Back button - only show on steps 2+ */}
-          {step > 1 && (
+          {/* Back button - only show on steps 2, 3, 4 (not on 1 or 5) */}
+          {step > 1 && step < 5 && (
             <button 
               type="button"
               onClick={handleBack}
@@ -867,6 +902,45 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       </>
                     )}
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 5 && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="mb-10">
+                  <h2 className="text-2xl font-semibold text-center">Setting up your workspace</h2>
+                  <p className="text-center text-muted-foreground mt-2">
+                    This will only take a moment...
+                  </p>
+                </div>
+
+                <div className="space-y-6 max-w-md mx-auto">
+                  {loadingSteps.map((step, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center transition-opacity duration-300 ${
+                        loadingStep < index ? 'opacity-40' : 'opacity-100'
+                      }`}
+                    >
+                      <div className="mr-4 h-8 w-8 flex-shrink-0">
+                        {loadingStep > index ? (
+                          <div className="rounded-full h-8 w-8 bg-primary/10 text-primary flex items-center justify-center">
+                            <Check className="h-5 w-5" />
+                          </div>
+                        ) : loadingStep === index ? (
+                          <div className="rounded-full h-8 w-8 border-2 border-primary/30 border-t-primary animate-spin"></div>
+                        ) : (
+                          <div className="rounded-full h-8 w-8 border-2 border-muted"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${loadingStep >= index ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {step}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
