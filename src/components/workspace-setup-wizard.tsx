@@ -299,7 +299,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     console.log('handleNext called, current step:', step);
     if (step === 2 && !productName.trim()) {
       console.log('Product name empty, showing error');
@@ -309,18 +309,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     if (step === 2 && productName.trim()) {
       handleBackgroundFormCreationOrPatch(productName.trim());
     }
-    
-    // Create sample feedback when moving from step 3 to step 4
-    if (step === 3 && createdFormId) {
-      try {
-        // Wait for the function to initiate all requests
-        await createSampleFeedback(createdFormId, 3);
-        console.log('Sample feedback creation initiated at step 3');
-      } catch (sampleError) {
-        console.error('Error creating sample feedback at step 3:', sampleError);
-      }
-    }
-    
     setStep(step + 1);
   };
 
@@ -329,7 +317,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     setStep(step - 1);
   };
 
-  const handleKeyPress = async (e: KeyboardEvent<HTMLDivElement | HTMLFormElement>) => {
+  const handleKeyPress = (e: KeyboardEvent<HTMLDivElement | HTMLFormElement>) => {
     console.log('Key pressed in global handler:', e.key, 'Current step:', step, 'Target:', e.target);
     if (e.key === 'Enter') {
       console.log('Enter key detected in global handler');
@@ -337,18 +325,18 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       if (step === 1) {
         console.log('Step 1 Enter key handler triggered');
-        await handleNext();
+        handleNext();
       } else if (step === 2) {
         if (productName.trim()) {
           console.log('Step 2 Enter key handler triggered with valid product name');
-          await handleNext();
+          handleNext();
         } else {
           console.log('Step 2 Enter key handler triggered with empty product name');
         }
       } else if (step === 3) {
         // On step 3, Enter should advance to step 4, not finish the onboarding
         console.log('Step 3 Enter key handler triggered');
-        await handleNext();
+        handleNext();
       } else if (step === 4) {
         // Only handle Enter if we're not already creating a workspace
         if (!isCreating) {
@@ -362,9 +350,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   };
 
   // Direct click handler for first step button
-  const handleStep1Next = async () => {
+  const handleStep1Next = () => {
     console.log('handleStep1Next called directly');
-    await handleNext();
+    handleNext();
   };
 
   // Onboarding completion: set completed flag and clear step state
@@ -412,7 +400,15 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
-      // Sample feedback is now created at step 3, so we removed it from here
+      // Create sample feedback for the new workspace
+      if (createdFormId) {
+        try {
+          await createSampleFeedback(createdFormId);
+        } catch (sampleError) {
+          console.error('Error creating sample feedback:', sampleError);
+          // Continue even if sample feedback creation fails
+        }
+      }
       
       markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
@@ -558,9 +554,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     console.log('Enter pressed in step 1 specific handler');
                     e.preventDefault();
                     e.stopPropagation();
-                    (async () => {
-                      await handleNext();
-                    })();
+                    handleNext();
                   }
                 }}
               >
@@ -658,7 +652,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               <div className="max-w-sm mx-auto">
                 <Button 
                     className="w-full group" 
-                    onClick={async () => await handleNext()}
+                    onClick={handleNext}
                     disabled={!productName.trim() || backgroundCreating}
                   >
                     {backgroundCreating ? (
@@ -688,9 +682,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     console.log('Enter pressed in step 3 specific handler');
                     e.preventDefault();
                     e.stopPropagation();
-                    (async () => {
-                      await handleNext();
-                    })();
+                    handleNext();
                   }
                 }}
                 tabIndex={0} // Make div focusable to capture key events
@@ -803,7 +795,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
 
                 <div className="flex justify-center mt-10">
                   <Button 
-                    onClick={async () => await handleNext()} 
+                    onClick={handleNext} 
                     className="w-full max-w-sm mx-auto group"
                     autoFocus // Auto focus this button when step 3 renders to ensure keyboard navigation works
                   >
