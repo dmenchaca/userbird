@@ -178,6 +178,38 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     
     let formId: string | undefined;
     
+    // DEBUG: Let's directly query the database for all forms
+    const { data: allForms, error: formsError } = await supabase
+      .from('forms')
+      .select('id, default_email')
+      .limit(10);
+      
+    console.log('Database forms check:', {
+      hasError: !!formsError,
+      errorMessage: formsError?.message || 'none',
+      formsFound: allForms?.length || 0,
+      sampleForms: allForms?.slice(0, 3) || []
+    });
+    
+    // Check if recipient is in default_email
+    if (allRecipients.length > 0 && allForms && allForms.length > 0) {
+      const firstRecipient = allRecipients[0].address?.toLowerCase().trim() || '';
+      const matchingForm = allForms.find(form => 
+        form.default_email?.toLowerCase().trim() === firstRecipient
+      );
+      
+      if (matchingForm) {
+        console.log('Found direct match in database:', matchingForm);
+        formId = matchingForm.id;
+      } else {
+        console.log('No direct match found. Comparing:', {
+          recipient: firstRecipient,
+          availableEmails: allForms.map(f => f.default_email?.toLowerCase().trim())
+        });
+      }
+    }
+    
+    // Continue with the existing recipient loop
     for (const recipient of allRecipients) {
       if (!recipient.address) continue;
       
@@ -807,12 +839,47 @@ export const handler: Handler = async (event) => {
       const ccAddresses = parsedEmail.cc?.value || [];
       const allRecipients = [...toAddresses, ...ccAddresses];
       
+      console.log('All recipients:', JSON.stringify(allRecipients.map(r => r.address)));
+      
       let formId: string | undefined;
       
+      // DEBUG: Let's directly query the database for all forms
+      const { data: allForms, error: formsError } = await supabase
+        .from('forms')
+        .select('id, default_email')
+        .limit(10);
+        
+      console.log('Database forms check:', {
+        hasError: !!formsError,
+        errorMessage: formsError?.message || 'none',
+        formsFound: allForms?.length || 0,
+        sampleForms: allForms?.slice(0, 3) || []
+      });
+      
+      // Check if recipient is in default_email
+      if (allRecipients.length > 0 && allForms && allForms.length > 0) {
+        const firstRecipient = allRecipients[0].address?.toLowerCase().trim() || '';
+        const matchingForm = allForms.find(form => 
+          form.default_email?.toLowerCase().trim() === firstRecipient
+        );
+        
+        if (matchingForm) {
+          console.log('Found direct match in database:', matchingForm);
+          formId = matchingForm.id;
+        } else {
+          console.log('No direct match found. Comparing:', {
+            recipient: firstRecipient,
+            availableEmails: allForms.map(f => f.default_email?.toLowerCase().trim())
+          });
+        }
+      }
+      
+      // Continue with the existing recipient loop
       for (const recipient of allRecipients) {
         if (!recipient.address) continue;
         
         const recipientEmail = recipient.address.toLowerCase().trim();
+        console.log('Checking recipient:', recipientEmail);
         
         // Check for direct form email pattern - both old and new format
         const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
