@@ -176,6 +176,8 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     const ccAddresses = parsedEmail.cc?.value || [];
     const allRecipients = [...toAddresses, ...ccAddresses];
     
+    let formId: string | undefined;
+    
     for (const recipient of allRecipients) {
       if (!recipient.address) continue;
       
@@ -189,9 +191,36 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
         // Extract form ID from original email to preserve case
         const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
                                    recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
-        const formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
-        console.log('Found form ID from email pattern:', formId);
-        // Don't return here, continue looking for a feedback ID
+        
+        // Check if this is the old format (direct form ID) or new format (product name)
+        const extractedValue = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
+        
+        // If it's the old format (formid@userbird-mail.com), use the extracted value directly
+        if (recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i)) {
+          formId = extractedValue;
+          console.log('Found case-sensitive form ID from old email pattern:', formId);
+        } 
+        // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
+        else {
+          const incomingEmail = recipient.address.toLowerCase();
+          console.log('Looking up form by default_email:', incomingEmail);
+          
+          // Look up form ID by default_email
+          const { data: formData } = await supabase
+            .from('forms')
+            .select('id')
+            .eq('default_email', incomingEmail)
+            .single();
+            
+          if (formData) {
+            formId = formData.id;
+            console.log('Found form ID from default_email lookup:', formId);
+          } else {
+            console.log('No form found with default_email:', incomingEmail);
+          }
+        }
+        
+        if (formId) break;
       }
       
       // Check for custom domain email
@@ -776,9 +805,36 @@ export const handler: Handler = async (event) => {
           // Extract form ID from original email to preserve case
           const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
                                      recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
-          formId = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
-          console.log('Found case-sensitive form ID from email pattern:', formId);
-          break;
+          
+          // Check if this is the old format (direct form ID) or new format (product name)
+          const extractedValue = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
+          
+          // If it's the old format (formid@userbird-mail.com), use the extracted value directly
+          if (recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i)) {
+            formId = extractedValue;
+            console.log('Found case-sensitive form ID from old email pattern:', formId);
+          } 
+          // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
+          else {
+            const incomingEmail = recipient.address.toLowerCase();
+            console.log('Looking up form by default_email:', incomingEmail);
+            
+            // Look up form ID by default_email
+            const { data: formData } = await supabase
+              .from('forms')
+              .select('id')
+              .eq('default_email', incomingEmail)
+              .single();
+              
+            if (formData) {
+              formId = formData.id;
+              console.log('Found form ID from default_email lookup:', formId);
+            } else {
+              console.log('No form found with default_email:', incomingEmail);
+            }
+          }
+          
+          if (formId) break;
         }
         
         // Check for custom domain email
