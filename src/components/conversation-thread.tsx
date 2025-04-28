@@ -829,7 +829,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           <div className="text-xs text-muted-foreground">
             {isAiTagged ? (
               <>
-                Auto-labelled as {renderTagBadge(tag)} {preposition && <>{preposition} </>}{formattedDate}
+                Auto-labeled as {renderTagBadge(tag)} {preposition && <>{preposition} </>}{formattedDate}
               </>
             ) : action === 'removed' ? (
               <>
