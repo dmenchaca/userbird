@@ -231,31 +231,15 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Check if we should show instructions for this form
   useEffect(() => {
     if (selectedFormId) {
-      // Only show instructions automatically if:
-      // 1. This is the first form (no other forms exist)
-      // 2. User hasn't seen instructions for this form before
-      const showInstructions = async () => {
-        // Check if user has other forms
-        const { count } = await supabase
-          .from('forms')
-          .select('id', { count: 'exact' })
-          .eq('owner_id', user?.id);
-        
-        const isFirstForm = count === 1;
-        
-        // Check if instructions have been shown before
-        const key = `instructions-shown-${selectedFormId}`;
-        const hasShown = localStorage.getItem(key);
-        
-        if (!hasShown && isFirstForm) {
-          setShouldShowInstructions(true);
-          localStorage.setItem(key, 'true');
-        }
+      // Auto-show feature removed
+      // Just set a flag that these instructions were shown,
+      // without actually showing instructions automatically
+      const key = `instructions-shown-${selectedFormId}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, 'true');
       }
-      
-      showInstructions();
     }
-  }, [selectedFormId, user?.id])
+  }, [selectedFormId])
 
   // Fetch form name when form is selected
   useEffect(() => {
@@ -2308,10 +2292,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         {selectedFormId && (
           <InstallInstructionsModal
             formId={selectedFormId}
-            open={showInstallModal || shouldShowInstructions}
+            open={showInstallModal}
             onOpenChange={(open) => {
               setShowInstallModal(open)
-              setShouldShowInstructions(false)
             }}
           />
         )}
