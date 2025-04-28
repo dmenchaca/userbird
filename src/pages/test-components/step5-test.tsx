@@ -29,6 +29,9 @@ export default function Step5Test() {
     setIsTestRunning(true)
     setLoadingStep(0)
     
+    // Small delay to ensure UI renders with loadingStep=0
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Step 1
     await new Promise(resolve => setTimeout(resolve, 2000));
     setLoadingStep(1)

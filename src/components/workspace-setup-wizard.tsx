@@ -406,6 +406,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     setLoadingStep(0);
     
     try {
+      // Ensure there's a small delay for the UI to render with loadingStep=0
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // If help docs URL was provided, create a scraping process
       if (createdFormId && helpDocsUrl.trim()) {
         try {
