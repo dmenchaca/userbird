@@ -430,7 +430,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate first step completion
       setLoadingStep(1);
-      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Create sample feedback for the new workspace
       if (createdFormId) {
@@ -444,7 +443,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate second step completion
       setLoadingStep(2);
-      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Mark onboarding as complete
       markOnboardingComplete();
@@ -452,7 +450,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Simulate third step completion
       setLoadingStep(3);
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Redirect to the dashboard
       window.location.href = `/forms/${createdFormId}`;
