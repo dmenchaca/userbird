@@ -181,7 +181,7 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     for (const recipient of allRecipients) {
       if (!recipient.address) continue;
       
-      const recipientEmail = recipient.address.toLowerCase();
+      const recipientEmail = recipient.address.toLowerCase().trim();
       console.log('Checking recipient:', recipientEmail);
       
       // Check for direct form email pattern - both old and new format
@@ -202,21 +202,37 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
         } 
         // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
         else {
-          const incomingEmail = recipient.address.toLowerCase();
+          const incomingEmail = recipient.address.toLowerCase().trim();
           console.log('Looking up form by default_email:', incomingEmail);
           
+          // More detailed logging for debugging
+          console.log('Executing query: SELECT id FROM forms WHERE default_email = ' + incomingEmail);
+          
           // Look up form ID by default_email
-          const { data: formData } = await supabase
+          const { data: formData, error: formLookupError } = await supabase
             .from('forms')
             .select('id')
             .eq('default_email', incomingEmail)
             .single();
+            
+          if (formLookupError) {
+            console.error('Error looking up form by default_email:', formLookupError);
+          }
             
           if (formData) {
             formId = formData.id;
             console.log('Found form ID from default_email lookup:', formId);
           } else {
             console.log('No form found with default_email:', incomingEmail);
+            
+            // Additional debug query - list forms with similar emails
+            const { data: similarForms } = await supabase
+              .from('forms')
+              .select('id, default_email')
+              .like('default_email', `%${incomingEmail.split('@')[0]}%`)
+              .limit(5);
+              
+            console.log('Similar forms found:', similarForms || 'none');
           }
         }
         
@@ -796,7 +812,7 @@ export const handler: Handler = async (event) => {
       for (const recipient of allRecipients) {
         if (!recipient.address) continue;
         
-        const recipientEmail = recipient.address.toLowerCase();
+        const recipientEmail = recipient.address.toLowerCase().trim();
         
         // Check for direct form email pattern - both old and new format
         const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
@@ -816,21 +832,37 @@ export const handler: Handler = async (event) => {
           } 
           // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
           else {
-            const incomingEmail = recipient.address.toLowerCase();
+            const incomingEmail = recipient.address.toLowerCase().trim();
             console.log('Looking up form by default_email:', incomingEmail);
             
+            // More detailed logging for debugging
+            console.log('Executing query: SELECT id FROM forms WHERE default_email = ' + incomingEmail);
+            
             // Look up form ID by default_email
-            const { data: formData } = await supabase
+            const { data: formData, error: formLookupError } = await supabase
               .from('forms')
               .select('id')
               .eq('default_email', incomingEmail)
               .single();
+              
+            if (formLookupError) {
+              console.error('Error looking up form by default_email:', formLookupError);
+            }
               
             if (formData) {
               formId = formData.id;
               console.log('Found form ID from default_email lookup:', formId);
             } else {
               console.log('No form found with default_email:', incomingEmail);
+              
+              // Additional debug query - list forms with similar emails
+              const { data: similarForms } = await supabase
+                .from('forms')
+                .select('id, default_email')
+                .like('default_email', `%${incomingEmail.split('@')[0]}%`)
+                .limit(5);
+                
+              console.log('Similar forms found:', similarForms || 'none');
             }
           }
           
