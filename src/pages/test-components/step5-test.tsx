@@ -34,7 +34,6 @@ export default function Step5Test() {
     setLoadingStep(1)
     
     // Step 2
-    await new Promise(resolve => setTimeout(resolve, 1500));
     setLoadingStep(2)
     
     // Step 3
