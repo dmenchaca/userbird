@@ -309,6 +309,18 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     if (step === 2 && productName.trim()) {
       handleBackgroundFormCreationOrPatch(productName.trim());
     }
+    
+    // Create sample feedback when moving from step 3 to step 4
+    if (step === 3 && createdFormId) {
+      try {
+        // Fire and forget - we don't need to await this
+        createSampleFeedback(createdFormId);
+        console.log('Sample feedback creation initiated at step 3');
+      } catch (sampleError) {
+        console.error('Error creating sample feedback at step 3:', sampleError);
+      }
+    }
+    
     setStep(step + 1);
   };
 
@@ -400,15 +412,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
-      // Create sample feedback for the new workspace
-      if (createdFormId) {
-        try {
-          await createSampleFeedback(createdFormId);
-        } catch (sampleError) {
-          console.error('Error creating sample feedback:', sampleError);
-          // Continue even if sample feedback creation fails
-        }
-      }
+      // Sample feedback is now created at step 3, so we removed it from here
       
       markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
