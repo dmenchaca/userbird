@@ -190,6 +190,7 @@ export const handler: Handler = async (event) => {
               to: email,
               formUrl: crawlSource,
               formId: formId,
+              product_name: form.product_name,
               message: message || `Documentation crawling for ${crawlSource} has completed successfully. Your documentation is now ready for AI to use.`,
               feedbackId: formId, // Use formId as a substitute since we don't have a feedbackId
               customSubject: `Userbird: Documentation Crawling Complete - ${crawlSource}`,
@@ -308,6 +309,7 @@ export const handler: Handler = async (event) => {
         to: setting.email,
         formUrl: form.url,
         formId: formId,
+        product_name: form.product_name,
         message: feedback && feedback.message ? feedback.message : '',
         feedbackId: feedback && feedback.id ? feedback.id : '',
         ...emailParams
@@ -479,6 +481,7 @@ async function handleAssignmentNotification(params: {
       to: assigneeEmail,
       formUrl: form.url,
       formId: formId,
+      product_name: form.product_name,
       message: assignmentMessage,
       feedbackId: feedbackId,
       customSubject: displayTicketNumber 

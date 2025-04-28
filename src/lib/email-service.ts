@@ -54,6 +54,7 @@ export class EmailService {
     image_name?: string;
     created_at?: string;
     formId?: string;
+    product_name?: string;
   }) {
     const {
       to,
@@ -68,7 +69,8 @@ export class EmailService {
       image_url,
       image_name,
       created_at,
-      formId
+      formId,
+      product_name
     } = params;
 
     const showUserInfo = user_id || user_email || user_name || url_path;
@@ -173,7 +175,7 @@ ${image_url}
     const msg = {
       to,
       from,
-      subject: `New feedback received for ${formUrl}`,
+      subject: `New feedback received for ${product_name || formUrl}`,
       text: textMessage,
       html: htmlMessage,
       headers: formId ? {

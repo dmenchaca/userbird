@@ -477,25 +477,32 @@ We run on Userbird (https://app.userbird.co)
     isAssignment?: boolean;
     customSubject?: string;
     customEmailType?: 'crawl_complete' | 'feedback' | 'assignment';
+    product_name?: string;
   }) {
-    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment, customSubject, customEmailType } = params;
+    const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment, customSubject, customEmailType, product_name } = params;
 
     // Get formated date
-    const formatedDate = created_at || new Date().toLocaleString('en-US', {
+    const formattedDate = created_at ? new Date(created_at).toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
-    });
+    }) : '';
+
+    // Use custom subject if provided, otherwise construct one
+    let subject = customSubject || `New feedback received for ${product_name || formUrl}`;
+    
+    // Get the sender email
+    const sender = await getSenderEmail(formId);
 
     // Check what info is available
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
     // Always use notifications@userbird.co for new feedback notifications and assignment notifications
-    const from = formatSender({ email: 'notifications@userbird.co', name: DEFAULT_SENDER_NAME });
+    const from = formatSender(sender);
     const isNotificationsEmail = true;
 
     // Generate secure URL for image
@@ -512,15 +519,8 @@ We run on Userbird (https://app.userbird.co)
     // Determine the primary action URL and label based on notification type
     let primaryActionUrl = `https://app.userbird.co/forms/${formId}`;
     let primaryActionLabel = 'View All Responses';
-    let emailSubject = `New Feedback for ${formUrl}`;
-    let headerTitle = 'New feedback received';
     
-    if (customSubject) {
-      emailSubject = customSubject;
-    }
-
     if (customEmailType === 'crawl_complete') {
-      headerTitle = '🎉 Success! Your help docs has been processed';
       primaryActionLabel = 'Try generating a support reply now';
       primaryActionUrl = `https://app.userbird.co/forms/${formId}`;
       
@@ -584,12 +584,12 @@ Need help? Reply to this email or contact support at support@userbird.co
 `;
 
       // Custom subject for crawl completion
-      emailSubject = `🎉 Your help docs are successfully crawled and indexed`;
+      subject = `🎉 Your help docs are successfully crawled and indexed`;
       
       return this.sendEmail({
         to,
         from,
-        subject: emailSubject,
+        subject: subject,
         text: textMessage,
         html: htmlMessage,
         feedbackId
@@ -600,14 +600,6 @@ Need help? Reply to this email or contact support at support@userbird.co
       const ticketNumberMatch = message.match(/Ticket #(\d+)/i);
       const extractedTicketNumber = ticketNumberMatch ? ticketNumberMatch[1] : '';
       
-      headerTitle = 'Ticket Assignment';
-      console.log('Extracted ticket number for email subject:', {
-        message: message.substring(0, 50),
-        ticketNumberMatch,
-        extractedTicketNumber,
-        ticket_number
-      });
-      
       // For assignment notifications, link directly to the ticket
       // Use the ticket_number from the database if available, otherwise use extracted value from message
       primaryActionUrl = `https://app.userbird.co/forms/${formId}/ticket/${ticket_number || extractedTicketNumber}`;
@@ -615,10 +607,13 @@ Need help? Reply to this email or contact support at support@userbird.co
       
       // Use ticket number in subject if available, otherwise use generic subject
       const displayTicketNumber = ticket_number || extractedTicketNumber;
-      emailSubject = customSubject || (displayTicketNumber 
+      subject = customSubject || (displayTicketNumber 
         ? `Action needed: Ticket #${displayTicketNumber} is now yours` 
         : `Action needed: You've been assigned a ticket`);
     }
+
+    // Get the sender email
+    const senderDetails = await getSenderEmail(formId);
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
     const htmlMessage = `<!DOCTYPE html>
@@ -627,7 +622,7 @@ Need help? Reply to this email or contact support at support@userbird.co
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
       <div style="margin-bottom: 24px;">
         <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-          ${headerTitle} for <strong>${formUrl}</strong>
+          New feedback received for <strong>${product_name || formUrl}</strong>
         </h3>
       </div>
 
@@ -671,10 +666,10 @@ Need help? Reply to this email or contact support at support@userbird.co
         </div>
         ` : ''}
 
-        ${formatedDate ? `
+        ${formattedDate ? `
         <div>
           <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Date</h4>
-          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">${formatedDate}</p>
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0;">${formattedDate}</p>
         </div>
         ` : ''}
       </div>
@@ -691,7 +686,7 @@ Need help? Reply to this email or contact support at support@userbird.co
 
     // Create plain text version
     const textMessage = `
-${headerTitle} for ${formUrl}
+New feedback received for ${product_name || formUrl}
 
 ${message ? `${getNotificationLabel(customEmailType)}:
 ${message}
@@ -709,7 +704,7 @@ ${screen_category ? `Screen Category: ${screen_category}` : ''}
 ` : ''}${image_url ? `Screenshot:
 ${secureImageUrl}
 
-` : ''}${formatedDate ? `Received on ${formatedDate}` : ''}
+` : ''}${formattedDate ? `Received on ${formattedDate}` : ''}
 
 View Online: ${primaryActionUrl}`;
 
@@ -720,7 +715,7 @@ View Online: ${primaryActionUrl}`;
         await sgMail.send({
           to,
           from,
-          subject: emailSubject,
+          subject: subject,
           text: textMessage,
           html: htmlMessage,
           headers: {
@@ -741,7 +736,7 @@ View Online: ${primaryActionUrl}`;
       return this.sendEmail({
         to,
         from,
-        subject: emailSubject,
+        subject: subject,
         text: textMessage,
         html: htmlMessage,
         feedbackId
@@ -788,10 +783,10 @@ View Online: ${primaryActionUrl}`;
     
     // Get custom sender email for this form
     const formId = feedbackData?.form_id;
-    const senderInfo = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
+    const senderDetails = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
     
     // If this is an admin dashboard reply, get the form's product name and current user's name
-    let senderWithUserInfo = { ...senderInfo };
+    let senderWithUserInfo = { ...senderDetails };
     
     if (isAdminDashboardReply) {
       try {
@@ -828,7 +823,7 @@ View Online: ${primaryActionUrl}`;
     
     console.log('Using sender email for reply notification:', {
       formId,
-      senderEmail: senderInfo.email,
+      senderEmail: senderDetails.email,
       product_name: senderWithUserInfo.product_name,
       user_first_name: senderWithUserInfo.user_first_name,
       from
@@ -848,7 +843,7 @@ View Online: ${primaryActionUrl}`;
     const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
-To: ${senderInfo.email}
+To: ${senderDetails.email}
 Subject: Feedback submitted by ${feedback.user_email}
 
 ${feedback.message}
