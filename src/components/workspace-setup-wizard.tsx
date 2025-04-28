@@ -442,8 +442,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       
-      // Simulate second step completion
+      // Simulate second step completion with artificial delay
       setLoadingStep(2);
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Mark onboarding as complete
       markOnboardingComplete();
@@ -453,7 +454,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       setLoadingStep(3);
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Redirect to the dashboard
+      // Only redirect after all animations are complete
       window.location.href = `/forms/${createdFormId}`;
     } catch (error: any) {
       console.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
