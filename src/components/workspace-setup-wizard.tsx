@@ -438,11 +438,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       // Create sample feedback for the new workspace
       if (createdFormId) {
         try {
-          // Don't await, just fire the request in the background
-          createSampleFeedback(createdFormId).catch(sampleError => {
-            console.error('Error creating sample feedback:', sampleError);
-            // Continue even if sample feedback creation fails
-          });
+          // Wait only for the first feedback to be sent
+          await createSampleFeedback(createdFormId);
+          // The rest will be sent in the background
         } catch (sampleError) {
           console.error('Error creating sample feedback:', sampleError);
           // Continue even if sample feedback creation fails

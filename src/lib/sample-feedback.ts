@@ -76,7 +76,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
  * 
  * @param formId The ID of the form to create sample feedback for
  * @param count Number of sample feedback entries to create (default: 3)
- * @returns Promise that resolves when all requests are fired (not when they complete)
+ * @returns Promise that resolves immediately after the first request is fired
  */
 export const createSampleFeedback = async (
   formId: string,
@@ -86,36 +86,67 @@ export const createSampleFeedback = async (
     // Get unique feedback messages
     const uniqueMessages = getUniqueRandomItems(SAMPLE_FEEDBACK_MESSAGES, count);
     
-    // Create an array of promises that start the fetch requests
-    const requestPromises = uniqueMessages.map(message => {
-      const feedbackData = {
-        formId,
-        message,
-        user_name: USER_NAME,
-        user_email: USER_EMAIL,
-        url_path: getRandomItem(SAMPLE_URL_PATHS),
-        operating_system: getRandomItem(SAMPLE_OS),
-        screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
-      };
-
-      // Start the fetch request and return the promise, but don't wait for completion
-      return fetch('/.netlify/functions/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(feedbackData)
-      })
-      .catch(error => {
-        // Just log any errors, but don't block the main flow
-        console.error('Error submitting sample feedback:', error);
-      });
-    });
-
-    // Wait for all requests to be fired (but not for their responses)
-    await Promise.all(requestPromises);
+    if (uniqueMessages.length === 0) return;
     
-    console.log(`Fired ${uniqueMessages.length} sample feedback requests for form ${formId}`);
+    // Send the first feedback immediately and wait for it to be fired
+    const firstFeedbackData = {
+      formId,
+      message: uniqueMessages[0],
+      user_name: USER_NAME,
+      user_email: USER_EMAIL,
+      url_path: getRandomItem(SAMPLE_URL_PATHS),
+      operating_system: getRandomItem(SAMPLE_OS),
+      screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
+    };
+    
+    // Fire the first request and wait for it to be sent
+    await fetch('/.netlify/functions/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(firstFeedbackData)
+    }).catch(error => {
+      console.error('Error submitting first sample feedback:', error);
+    });
+    
+    // Send remaining feedback in the background without waiting
+    if (uniqueMessages.length > 1) {
+      // Fire the rest in the background
+      setTimeout(() => {
+        // Process the remaining messages
+        const remainingMessages = uniqueMessages.slice(1);
+        
+        remainingMessages.forEach((message, index) => {
+          // Add a slight delay between requests to avoid overwhelming the server
+          setTimeout(() => {
+            const feedbackData = {
+              formId,
+              message,
+              user_name: USER_NAME,
+              user_email: USER_EMAIL,
+              url_path: getRandomItem(SAMPLE_URL_PATHS),
+              operating_system: getRandomItem(SAMPLE_OS),
+              screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
+            };
+            
+            fetch('/.netlify/functions/feedback', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(feedbackData)
+            }).catch(error => {
+              console.error(`Error submitting additional sample feedback ${index + 2}:`, error);
+            });
+          }, index * 300); // 300ms between each request
+        });
+        
+        console.log(`Fired first feedback and scheduled ${remainingMessages.length} additional sample feedback requests for form ${formId}`);
+      }, 0);
+    }
+    
+    console.log(`First sample feedback sent for form ${formId}`);
   } catch (error) {
     console.error('Error in createSampleFeedback:', error);
   }
