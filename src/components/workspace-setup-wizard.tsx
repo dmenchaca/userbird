@@ -412,9 +412,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       markOnboardingComplete(); // <-- Mark onboarding as complete
       onComplete();
-      setTimeout(() => {
-        window.location.href = `/forms/${createdFormId}`;
-      }, 300);
+      window.location.href = `/forms/${createdFormId}`;
     } catch (error: any) {
       console.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
     } finally {
