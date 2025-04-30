@@ -178,34 +178,24 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
     
     let formId: string | undefined;
     
-    // DEBUG: Let's directly query the database for all forms
-    const { data: allForms, error: formsError } = await supabase
-      .from('forms')
-      .select('id, default_email')
-      .limit(10);
-      
-    console.log('Database forms check:', {
-      hasError: !!formsError,
-      errorMessage: formsError?.message || 'none',
-      formsFound: allForms?.length || 0,
-      sampleForms: allForms?.slice(0, 3) || []
-    });
-    
-    // Check if recipient is in default_email
-    if (allRecipients.length > 0 && allForms && allForms.length > 0) {
+    // Get the recipient email for direct lookup
+    if (allRecipients.length > 0) {
       const firstRecipient = allRecipients[0].address?.toLowerCase().trim() || '';
-      const matchingForm = allForms.find(form => 
-        form.default_email?.toLowerCase().trim() === firstRecipient
-      );
       
-      if (matchingForm) {
-        console.log('Found direct match in database:', matchingForm);
-        formId = matchingForm.id;
-      } else {
-        console.log('No direct match found. Comparing:', {
-          recipient: firstRecipient,
-          availableEmails: allForms.map(f => f.default_email?.toLowerCase().trim())
-        });
+      // Direct lookup by default_email - more efficient
+      console.log('Looking up form directly by default_email:', firstRecipient);
+      const { data: directMatchForm, error: directMatchError } = await supabase
+        .from('forms')
+        .select('id, default_email')
+        .eq('default_email', firstRecipient)
+        .single();
+      
+      if (directMatchForm) {
+        console.log('Found direct match in database:', directMatchForm);
+        formId = directMatchForm.id;
+      } else if (directMatchError) {
+        console.log('No direct match found for email:', firstRecipient);
+        // No fallback to fetching all forms - this would not scale with large numbers of forms
       }
     }
     
@@ -218,11 +208,13 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
       
       // Check for direct form email pattern - both old and new format
       const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
-                             recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
+                             recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
+                             recipientEmail.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
       if (formEmailMatch) {
         // Extract form ID from original email to preserve case
         const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
-                                   recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
+                                   recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
+                                   recipient.address.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
         
         // Check if this is the old format (direct form ID) or new format (product name)
         const extractedValue = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
@@ -232,7 +224,8 @@ async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | unde
           formId = extractedValue;
           console.log('Found case-sensitive form ID from old email pattern:', formId);
         } 
-        // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
+        // If it's any of the new formats (support@productname.userbird-mail.com or support-productname@userbird-mail.com), 
+        // look up the form by default_email
         else {
           const incomingEmail = recipient.address.toLowerCase().trim();
           console.log('Looking up form by default_email:', incomingEmail);
@@ -843,34 +836,24 @@ export const handler: Handler = async (event) => {
       
       let formId: string | undefined;
       
-      // DEBUG: Let's directly query the database for all forms
-      const { data: allForms, error: formsError } = await supabase
-        .from('forms')
-        .select('id, default_email')
-        .limit(10);
-        
-      console.log('Database forms check:', {
-        hasError: !!formsError,
-        errorMessage: formsError?.message || 'none',
-        formsFound: allForms?.length || 0,
-        sampleForms: allForms?.slice(0, 3) || []
-      });
-      
-      // Check if recipient is in default_email
-      if (allRecipients.length > 0 && allForms && allForms.length > 0) {
+      // Get the recipient email for direct lookup
+      if (allRecipients.length > 0) {
         const firstRecipient = allRecipients[0].address?.toLowerCase().trim() || '';
-        const matchingForm = allForms.find(form => 
-          form.default_email?.toLowerCase().trim() === firstRecipient
-        );
         
-        if (matchingForm) {
-          console.log('Found direct match in database:', matchingForm);
-          formId = matchingForm.id;
-        } else {
-          console.log('No direct match found. Comparing:', {
-            recipient: firstRecipient,
-            availableEmails: allForms.map(f => f.default_email?.toLowerCase().trim())
-          });
+        // Direct lookup by default_email - more efficient
+        console.log('Looking up form directly by default_email:', firstRecipient);
+        const { data: directMatchForm, error: directMatchError } = await supabase
+          .from('forms')
+          .select('id, default_email')
+          .eq('default_email', firstRecipient)
+          .single();
+        
+        if (directMatchForm) {
+          console.log('Found direct match in database:', directMatchForm);
+          formId = directMatchForm.id;
+        } else if (directMatchError) {
+          console.log('No direct match found for email:', firstRecipient);
+          // No fallback to fetching all forms - this would not scale with large numbers of forms
         }
       }
       
@@ -883,11 +866,13 @@ export const handler: Handler = async (event) => {
         
         // Check for direct form email pattern - both old and new format
         const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
-                               recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
+                               recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
+                               recipientEmail.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
         if (formEmailMatch) {
           // Extract form ID from original email to preserve case
           const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
-                                     recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i);
+                                     recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
+                                     recipient.address.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
           
           // Check if this is the old format (direct form ID) or new format (product name)
           const extractedValue = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
@@ -897,7 +882,8 @@ export const handler: Handler = async (event) => {
             formId = extractedValue;
             console.log('Found case-sensitive form ID from old email pattern:', formId);
           } 
-          // If it's the new format (support@productname.userbird-mail.com), look up the form by default_email
+          // If it's any of the new formats (support@productname.userbird-mail.com or support-productname@userbird-mail.com), 
+          // look up the form by default_email
           else {
             const incomingEmail = recipient.address.toLowerCase().trim();
             console.log('Looking up form by default_email:', incomingEmail);
