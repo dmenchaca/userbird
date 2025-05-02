@@ -106,11 +106,11 @@ export const handler: Handler = async (event) => {
       case 'GET':
         return await getCustomEmailSettings(formId, headers);
       case 'POST':
-        return await createCustomEmailSettings(event, formId, headers);
+        return await createCustomEmailSettings(event, formId, headers, user);
       case 'PUT':
-        return await updateCustomEmailSettings(event, formId, headers);
+        return await updateCustomEmailSettings(event, formId, headers, user);
       case 'DELETE':
-        return await deleteCustomEmailSettings(event, formId, headers);
+        return await deleteCustomEmailSettings(event, formId, headers, user);
       default:
         return {
           statusCode: 405,
@@ -168,7 +168,7 @@ async function getCustomEmailSettings(formId: string, headers: Record<string, st
   };
 }
 
-async function createCustomEmailSettings(event: any, formId: string, headers: Record<string, string>) {
+async function createCustomEmailSettings(event: any, formId: string, headers: Record<string, string>, user: any) {
   const body = JSON.parse(event.body || '{}');
   const { custom_email } = body;
 
@@ -235,7 +235,7 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
 
   if (dnsError) throw dnsError;
 
-  trackEvent('custom_email_created', {
+  trackEvent('custom_email_created', user.id, {
     form_id: formId,
     domain: newSettings.domain
   });
@@ -250,7 +250,7 @@ async function createCustomEmailSettings(event: any, formId: string, headers: Re
   };
 }
 
-async function updateCustomEmailSettings(event: any, formId: string, headers: Record<string, string>) {
+async function updateCustomEmailSettings(event: any, formId: string, headers: Record<string, string>, user: any) {
   const body = JSON.parse(event.body || '{}');
   const { id, custom_email } = body;
 
@@ -333,7 +333,7 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
 
     if (dnsError) throw dnsError;
 
-    trackEvent('custom_email_updated', {
+    trackEvent('custom_email_updated', user.id, {
       form_id: formId,
       domain: updatedSettings.domain
     });
@@ -366,7 +366,7 @@ async function updateCustomEmailSettings(event: any, formId: string, headers: Re
   };
 }
 
-async function deleteCustomEmailSettings(event: any, formId: string, headers: Record<string, string>) {
+async function deleteCustomEmailSettings(event: any, formId: string, headers: Record<string, string>, user: any) {
   const settingsId = event.queryStringParameters?.id;
 
   if (!settingsId) {
@@ -401,7 +401,7 @@ async function deleteCustomEmailSettings(event: any, formId: string, headers: Re
 
   if (deleteError) throw deleteError;
 
-  trackEvent('custom_email_deleted', {
+  trackEvent('custom_email_deleted', user.id, {
     form_id: formId,
     domain: existingSettings.domain
   });

@@ -143,8 +143,7 @@ export const handler: Handler = async (event) => {
         }
       });
 
-      await trackEvent('feedback_submit', formId, {
-        distinct_id: user_id || 'anonymous',
+      await trackEvent('feedback_submit', user_id || 'anonymous', {
         form_id: formId,
         has_user_info: !!user_id || !!user_email,
         has_image: !!image_url,

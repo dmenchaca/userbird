@@ -152,7 +152,7 @@ export const handler: Handler = async (event) => {
         .eq('id', settingsId);
 
       if (allVerified) {
-        trackEvent('custom_email_verified', {
+        trackEvent('custom_email_verified', user.id, {
           form_id: settings.form_id,
           domain: settings.domain
         });
