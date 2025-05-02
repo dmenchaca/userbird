@@ -131,24 +131,20 @@ export const handler: Handler = async (event) => {
     try {
       console.log('Attempting to track feedback event:', {
         event: 'feedback_submit',
-        distinctId: user_id || 'anonymous',
+        distinctId: 'anonymous',
         properties: {
           form_id: formId,
           has_user_info: !!user_id || !!user_email,
           has_image: !!image_url,
-          user_id,
-          user_email,
           operating_system,
           screen_category
         }
       });
 
-      await trackEvent('feedback_submit', user_id || 'anonymous', {
+      await trackEvent('feedback_submit', 'anonymous', {
         form_id: formId,
         has_user_info: !!user_id || !!user_email,
         has_image: !!image_url,
-        user_id,
-        user_email,
         operating_system,
         screen_category
       });
