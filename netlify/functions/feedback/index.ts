@@ -129,25 +129,31 @@ export const handler: Handler = async (event) => {
 
     // Track feedback submission
     try {
-      console.log('Attempting to track feedback event:', {
-        event: 'feedback_submit',
-        distinctId: 'anonymous',
-        properties: {
-          form_id: formId,
-          has_user_info: !!user_id || !!user_email,
-          has_image: !!image_url,
-          operating_system,
-          screen_category
-        }
-      });
+      // Determine the distinct ID to use for tracking
+      const distinctId = formId === '4hNUB7DVhf' && user_email ? user_email : 'anonymous';
 
-      await trackEvent('feedback_submit', 'anonymous', {
+      // Determine properties to include based on form ID
+      const eventProperties: Record<string, any> = {
         form_id: formId,
         has_user_info: !!user_id || !!user_email,
         has_image: !!image_url,
         operating_system,
         screen_category
+      };
+
+      // Only include user_id and user_email for the specific form
+      if (formId === '4hNUB7DVhf') {
+        eventProperties.user_id = user_id;
+        eventProperties.user_email = user_email;
+      }
+
+      console.log('Attempting to track feedback event:', {
+        event: 'feedback_submit',
+        distinctId,
+        properties: eventProperties
       });
+
+      await trackEvent('feedback_submit', distinctId, eventProperties);
       console.log('Successfully tracked feedback event');
 
       await shutdownPostHog();
