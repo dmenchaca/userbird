@@ -402,6 +402,21 @@ export class EmailService {
                     const actualReply = mainContent.substring(0, timestampIndex);
                     const timestampPortion = mainContent.substring(timestampIndex);
                     
+                    // =====================================================================
+                    // IMPORTANT: Email structure requirements for Gmail compatibility
+                    // =====================================================================
+                    // 1. The timestamp line (e.g., "On Apr 30, 2025, user@email.com wrote:")
+                    //    MUST be directly adjacent to the quoted content.
+                    // 2. No content should be placed between the timestamp and quoted content.
+                    // 3. This preserves Gmail's ability to add expand/collapse functionality.
+                    // 4. Any branding or other elements should be placed before the timestamp.
+                    // 5. The structure should be:
+                    //    - Main reply content
+                    //    - Branding/footer
+                    //    - Timestamp line
+                    //    - Quoted content
+                    // =====================================================================
+                    
                     // Reconstruct the HTML with branding before timestamp, but timestamp adjacent to quoted content
                     html = `
                       <div class="email-main-content">
@@ -445,6 +460,18 @@ We run on Userbird (https://app.userbird.co)
                                          text.match(/On .+? (wrote:|>)/i) ||
                                          text.match(/On .+?\n/i);
                   if (timestampMatch && timestampMatch.index !== undefined) {
+                    // =====================================================================
+                    // IMPORTANT: Plain text email structure for client compatibility
+                    // =====================================================================
+                    // 1. For plain text emails, maintain the same structure as HTML:
+                    //    - Main reply content
+                    //    - Branding/footer
+                    //    - Timestamp line
+                    //    - Quoted content
+                    // 2. This ensures consistent rendering across email clients
+                    // 3. Do not insert content between timestamp and quoted content
+                    // =====================================================================
+                    
                     // Insert branding before the timestamp, not interrupting timestamp and quoted content
                     const contentBeforeTimestamp = text.substring(0, timestampMatch.index).trim();
                     const contentFromTimestampOn = text.substring(timestampMatch.index);
