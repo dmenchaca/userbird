@@ -870,6 +870,17 @@ View Online: ${primaryActionUrl}`;
       productName
     } = params;
 
+    console.log('Processing reply notification with details:', {
+      feedbackId,
+      replyId,
+      isFirstReply,
+      isDashboardReply,
+      includeQuotedContent: isFirstReply && isDashboardReply,
+      originalMessageLength: feedback.message?.length || 0,
+      replyContentLength: replyContent?.length || 0,
+      htmlReplyContentProvided: !!htmlReplyContent
+    });
+
     // Get the form ID from the feedback
     const { data: feedbackData } = await supabase
       .from('feedback')
@@ -954,6 +965,8 @@ View Online: ${primaryActionUrl}`;
           timeZone: 'UTC',
           timeZoneName: 'short'
         })}\n`;
+      
+      console.log('Including quoted content in plain text (first reply from dashboard)');
     } else {
       // Standard format for non-dashboard or non-first replies
       plainTextMessage = `${replyContent}\n\n\n${isFirstReply && !isDashboardReply ? `--------------- Original Message ---------------
@@ -965,6 +978,12 @@ Subject: Feedback submitted by ${feedback.user_email}
 ${feedback.message}
 
 ` : ''}`;
+      
+      if (isFirstReply && !isDashboardReply) {
+        console.log('Including quoted content in plain text (first reply from non-dashboard source)');
+      } else {
+        console.log('No quoted content included in plain text (not first reply or not from dashboard)');
+      }
     }
 
     // Use minimal template for dashboard replies
@@ -992,9 +1011,12 @@ ${feedback.message}
 
         // Add the original message to the HTML content
         htmlMessage = (htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`) + originalMessageHtml;
+        console.log('Including quoted content in HTML (first reply from dashboard)');
+        console.log('HTML content preview:', EmailService.previewHtml(htmlMessage));
       } else {
         // For subsequent replies, use the standard format without quoted content
         htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+        console.log('No quoted content included in HTML (not first reply from dashboard)');
       }
     } else {
       // For automated replies, use full styling
@@ -1046,6 +1068,14 @@ ${feedback.message}
         "References": `<feedback-notification-${feedbackId}@userbird.co>`
       }
     });
+  }
+
+  // Debug helper to safely preview HTML content
+  private static previewHtml(html: string): string {
+    if (!html) return '';
+    const maxLength = 500;
+    const preview = html.substring(0, maxLength);
+    return preview + (html.length > maxLength ? '... [truncated]' : '');
   }
 }
 

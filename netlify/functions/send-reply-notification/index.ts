@@ -110,7 +110,7 @@ export const handler: Handler = async (event) => {
     // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
       .from('feedback_replies')
-      .select('id, message_id, in_reply_to')
+      .select('id, message_id, in_reply_to, sender_type, created_at')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false });
 
@@ -133,7 +133,12 @@ export const handler: Handler = async (event) => {
       replyCount: existingReplies?.length || 0,
       hasLastMessageId: !!lastMessageId,
       lastMessageId,
-      inReplyTo
+      inReplyTo,
+      existingReplyIds: isFirstReply ? [] : existingReplies?.map(reply => ({
+        id: reply.id,
+        created_at: reply.created_at,
+        sender_type: reply.sender_type
+      }))
     });
 
     if (!feedback.user_email) {
