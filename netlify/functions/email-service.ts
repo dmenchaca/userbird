@@ -402,15 +402,15 @@ export class EmailService {
                     const actualReply = mainContent.substring(0, timestampIndex);
                     const timestampPortion = mainContent.substring(timestampIndex);
                     
-                    // Reconstruct the HTML with branding between reply and timestamp
+                    // Reconstruct the HTML with branding before timestamp, but timestamp adjacent to quoted content
                     html = `
                       <div class="email-main-content">
                         ${actualReply}
-                        <div class="email-branding-footer">
-                          ${brandingFooter}
-                        </div>
-                        ${timestampPortion}
                       </div>
+                      <div class="email-branding-footer">
+                        ${brandingFooter}
+                      </div>
+                      ${timestampPortion}
                       ${quotedContent ? `<div class="email-quoted-content">${quotedContent}</div>` : ''}
                     `;
                   } else {
@@ -445,10 +445,12 @@ We run on Userbird (https://app.userbird.co)
                                          text.match(/On .+? (wrote:|>)/i) ||
                                          text.match(/On .+?\n/i);
                   if (timestampMatch && timestampMatch.index !== undefined) {
-                    // Insert branding before the timestamp
-                    text = text.substring(0, timestampMatch.index) + 
-                           plainTextFooter + 
-                           text.substring(timestampMatch.index);
+                    // Insert branding before the timestamp, not interrupting timestamp and quoted content
+                    const contentBeforeTimestamp = text.substring(0, timestampMatch.index).trim();
+                    const contentFromTimestampOn = text.substring(timestampMatch.index);
+                    
+                    // Reconstruct with branding between main content and timestamp
+                    text = contentBeforeTimestamp + plainTextFooter + "\n" + contentFromTimestampOn;
                   } else {
                     // If no timestamp found, try the original approach with thread separator
                     const threadStartIndex = text.indexOf('\n\n\n');
