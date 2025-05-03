@@ -292,14 +292,8 @@ export const handler: Handler = async (event) => {
             emailParams.image_name = feedback.image_name;
           } else if (attr === 'created_at') {
             if (feedback && feedback.created_at) {
-              emailParams.created_at = new Date(feedback.created_at).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              });
+              // Pass the raw timestamp, let email-service handle formatting
+              emailParams.created_at = feedback.created_at;
             }
           }
         });
