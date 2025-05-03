@@ -502,7 +502,7 @@ We run on Userbird (https://app.userbird.co)
     const showSystemInfo = operating_system || screen_category;
 
     // Always use notifications@userbird.co for new feedback notifications and assignment notifications
-    const from = formatSender(sender);
+    const from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
     const isNotificationsEmail = true;
 
     // Generate secure URL for image

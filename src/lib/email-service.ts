@@ -219,7 +219,7 @@ ${image_url}
     } = params;
     
     // Get form's default email address if we have form_id
-    let from = `${DEFAULT_SENDER_NAME} <support@userbird.co>`;
+    let from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
     
     if (feedback.form_id) {
       try {
