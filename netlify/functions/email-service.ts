@@ -482,14 +482,16 @@ We run on Userbird (https://app.userbird.co)
     const { to, formUrl, formId, message, user_id, user_email, user_name, operating_system, screen_category, image_url, image_name, created_at, url_path, feedbackId, ticket_number, isAssignment, customSubject, customEmailType, product_name } = params;
 
     // Get formated date
-    const formattedDate = created_at ? new Date(created_at).toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    }) : '';
+    const formattedDate = created_at ? 
+      (isNaN(new Date(created_at).getTime()) ? '' : 
+        new Date(created_at).toLocaleString('en-US', {
+          month: '2-digit',
+          day: '2-digit',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })) : '';
 
     // Use custom subject if provided, otherwise construct one
     let subject = customSubject || `New feedback received for ${product_name || formUrl}`;
