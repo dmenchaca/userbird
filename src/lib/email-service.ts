@@ -263,7 +263,28 @@ ${feedback.message}
     
     if (isDashboardReply) {
       // For dashboard replies, use minimal styling
-      htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      if (isFirstReply) {
+        // For the first reply, include the original message details using the same format
+        const originalMessageHtml = `
+<div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 10px; color: #6b7280; font-size: 14px;">
+  <div><strong>Email:</strong> ${feedback.user_email}</div>
+  <div><strong>Message:</strong> ${feedback.message}</div>
+  <div><strong>Date:</strong> ${new Date(feedback.created_at).toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })}</div>
+</div>`;
+
+        // Add the original message to the HTML content
+        htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>${originalMessageHtml}`;
+      } else {
+        // For subsequent replies, use the standard format without quoted content
+        htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      }
     } else {
       // For automated replies, use full styling
       htmlMessage = `
