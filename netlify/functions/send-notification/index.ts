@@ -2,6 +2,15 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { EmailService } from '../email-service';
 
+/**
+ * DATE HANDLING RULES:
+ * 1. IMPORTANT: Always pass raw timestamps to the email service
+ * 2. Never pre-format dates before passing to EmailService - let it handle all formatting
+ * 3. Always pass created_at as a raw timestamp from the database
+ * 4. For cases like timestamp handling in this file, use timestamp directly without pre-formatting
+ * 5. Look for the comment "// Pass the raw timestamp, let email-service handle formatting" as a guide
+ */
+
 // Log environment variables at startup with more details for debugging
 console.log('Notification function environment:', {
   hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
@@ -432,22 +441,8 @@ async function handleAssignmentNotification(params: {
     
     // Build email content
     const formattedDate = timestamp 
-      ? new Date(timestamp).toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
-      : new Date().toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        });
+      ? new Date(timestamp).toISOString()  // Pass raw timestamp for consistency
+      : new Date().toISOString();          // Use ISO format for new timestamps
     
     // Prepare ticket number display
     const ticketReference = feedback?.ticket_number 

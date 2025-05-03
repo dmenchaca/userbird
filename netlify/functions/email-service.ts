@@ -3,6 +3,15 @@ import { Handler } from '@netlify/functions';
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 
+/**
+ * DATE HANDLING RULES:
+ * 1. IMPORTANT: Only format dates in this file, NOT in calling functions
+ * 2. Always expect raw timestamp strings from the database (e.g. "2025-05-03 06:06:09.176114+00")
+ * 3. Use the pattern: created_at ? new Date(created_at).toLocaleString(...) : ''
+ * 4. Keep formatting consistent with the standard: month: 'long', day: 'numeric', year: 'numeric'
+ * 5. Never pass pre-formatted date strings between functions
+ */
+
 // Initialize Supabase client for database access
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -483,13 +492,16 @@ We run on Userbird (https://app.userbird.co)
 
     // Get formated date
     const formattedDate = created_at ? 
+      // Format date in user-friendly format with explicit UTC indication
       new Date(created_at).toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: 'UTC',
+        timeZoneName: 'short'
       }) : '';
 
     // Use custom subject if provided, otherwise construct one
