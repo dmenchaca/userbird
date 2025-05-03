@@ -373,16 +373,58 @@ export class EmailService {
                     mainContent = html;
                   }
                   
-                  // Reconstruct the HTML with proper structure, ensuring footer is after main content but before quoted content
-                  html = `
-                    <div class="email-main-content">
-                      ${mainContent}
-                    </div>
-                    <div class="email-branding-footer">
-                      ${brandingFooter}
-                    </div>
-                    ${quotedContent ? `<div class="email-quoted-content">${quotedContent}</div>` : ''}
-                  `;
+                  // Look for timestamp pattern in main content
+                  const timestampPatterns = [
+                    /<div>On .+?wrote:<br><\/div>/i,
+                    /<div>On .+?wrote:<\/div>/i,
+                    /<div><div>On .+?wrote:<br><\/div><\/div>/i,
+                    /<div><div>On .+?wrote:<\/div><\/div>/i,
+                    /<div>On .+?<\/div>/i,
+                    /<p>On .+?wrote:<\/p>/i
+                  ];
+                  
+                  let timestampMatch: RegExpMatchArray | null = null;
+                  let timestampIndex = -1;
+                  
+                  // Find timestamp in main content
+                  for (const pattern of timestampPatterns) {
+                    const match = mainContent.match(pattern);
+                    if (match && match.index !== undefined) {
+                      if (timestampIndex === -1 || match.index < timestampIndex) {
+                        timestampMatch = match;
+                        timestampIndex = match.index;
+                      }
+                    }
+                  }
+                  
+                  if (timestampIndex !== -1) {
+                    // Split main content into actual reply and timestamp portion
+                    const actualReply = mainContent.substring(0, timestampIndex);
+                    const timestampPortion = mainContent.substring(timestampIndex);
+                    
+                    // Reconstruct the HTML with branding between reply and timestamp
+                    html = `
+                      <div class="email-main-content">
+                        ${actualReply}
+                        <div class="email-branding-footer">
+                          ${brandingFooter}
+                        </div>
+                        ${timestampPortion}
+                      </div>
+                      ${quotedContent ? `<div class="email-quoted-content">${quotedContent}</div>` : ''}
+                    `;
+                  } else {
+                    // If timestamp not found, use the original structure
+                    html = `
+                      <div class="email-main-content">
+                        ${mainContent}
+                      </div>
+                      <div class="email-branding-footer">
+                        ${brandingFooter}
+                      </div>
+                      ${quotedContent ? `<div class="email-quoted-content">${quotedContent}</div>` : ''}
+                    `;
+                  }
                 } else {
                   // For system-generated emails, simply append the footer at the end
                   html += brandingFooter;
@@ -398,11 +440,23 @@ We run on Userbird (https://app.userbird.co)
                 // Append the plain text footer
                 // For admin dashboard replies, look for the line break that separates reply from thread
                 if (params.isAdminDashboardReply) {
-                  const threadStartIndex = text.indexOf('\n\n\n');
-                  if (threadStartIndex !== -1) {
-                    text = text.substring(0, threadStartIndex) + plainTextFooter + text.substring(threadStartIndex);
+                  // Try to find a timestamp line in the plain text
+                  const timestampMatch = text.match(/On .+?,.+?(wrote:|>)/i) || 
+                                         text.match(/On .+? (wrote:|>)/i) ||
+                                         text.match(/On .+?\n/i);
+                  if (timestampMatch && timestampMatch.index !== undefined) {
+                    // Insert branding before the timestamp
+                    text = text.substring(0, timestampMatch.index) + 
+                           plainTextFooter + 
+                           text.substring(timestampMatch.index);
                   } else {
-                    text += plainTextFooter;
+                    // If no timestamp found, try the original approach with thread separator
+                    const threadStartIndex = text.indexOf('\n\n\n');
+                    if (threadStartIndex !== -1) {
+                      text = text.substring(0, threadStartIndex) + plainTextFooter + text.substring(threadStartIndex);
+                    } else {
+                      text += plainTextFooter;
+                    }
                   }
                 } else {
                   text += plainTextFooter;
