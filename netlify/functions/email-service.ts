@@ -936,7 +936,14 @@ View Online: ${primaryActionUrl}`;
     });
 
     // Create plain text version
-    const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
+    let plainTextMessage;
+    
+    if (isAdminDashboardReply && isFirstReply) {
+      // Format first replies to include the original message in a way consistent with the HTML version
+      plainTextMessage = `${replyContent}\n\nOn ${compactDate}, ${feedback.user_email} wrote:\n> ${feedback.message.replace(/\n/g, '\n> ')}`;
+    } else {
+      // Use the regular format for subsequent replies
+      plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
 To: ${senderDetails.email}
@@ -945,13 +952,26 @@ Subject: Feedback submitted by ${feedback.user_email}
 ${feedback.message}
 
 ` : ''}`;
+    }
 
     // Use minimal template for admin dashboard replies
     let htmlMessage;
     
     if (isAdminDashboardReply) {
       // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      if (isFirstReply) {
+        // For first replies, include the original feedback message in the quoted content
+        htmlMessage = `
+          <div style="white-space: pre-wrap;">${htmlReplyContent || replyContent}</div>
+          <div>On ${compactDate}, &lt;${feedback.user_email}&gt; wrote:<br></div>
+          <blockquote>
+            <div>${feedback.message}</div>
+          </blockquote>
+        `;
+      } else {
+        // For subsequent replies, use the regular format
+        htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      }
     } else {
       // For automated replies, use full styling
       htmlMessage = `
