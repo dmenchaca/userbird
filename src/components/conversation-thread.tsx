@@ -365,56 +365,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         // Get the message ID to respond to (for email threading)
         let lastReplyMessageId: string | null = null;
         
-        // Determine if this is the first reply to the feedback
-        const isFirstReply = replies.length === 0;
-        
-        // Extract plain text from HTML for the content field
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = replyContent;
-        let plainTextContent = tempDiv.textContent || tempDiv.innerText || '';
-        
-        // If this is the first reply, add quoted original message with timestamp
-        if (isFirstReply) {
-          // Format original message date in email client style
-          const originalMessageDate = new Date(response.created_at).toLocaleString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-            timeZone: 'UTC',
-            timeZoneName: 'short'
-          });
-          
-          // Create timestamp and quoted content for HTML according to Gmail compatibility
-          const timestampHtml = `<div class="email-timestamp" style="color: #666; margin-top: 10px;">On ${originalMessageDate}, ${response.user_email} wrote:</div>`;
-          const quotedContentHtml = `<blockquote class="email-quoted-content" style="margin: 0 0 0 0.8ex; border-left: 1px solid rgb(204,204,204); padding-left: 1ex">
-            ${response.message}
-          </blockquote>`;
-          
-          // Add branding, timestamp, and quoted content to HTML
-          // Structure follows Gmail compatibility requirements
-          htmlContent = `
-            <div class="email-main-content">
-              ${htmlContent}
-            </div>
-            <div class="email-branding-footer" style="font-size: 12px; color: #666; margin-top: 10px;">
-              We run on <a href="https://app.userbird.co" style="color: #000;" target="_blank" rel="noopener noreferrer">Userbird</a>
-            </div>
-            ${timestampHtml}
-            ${quotedContentHtml}
-          `;
-          
-          // Create plain text version with the same structure
-          const plainTextTimestamp = `On ${originalMessageDate}, ${response.user_email} wrote:`;
-          const quotedPlainText = response.message.split('\n').map(line => `> ${line}`).join('\n');
-          
-          // Add timestamp and quoted content to plain text
-          plainTextContent = `${plainTextContent}\n\nWe run on Userbird (https://app.userbird.co)\n\n${plainTextTimestamp}\n${quotedPlainText}`;
-        } else if (replies.length > 0) {
-          // If this is a reply to another message, append the previous message as blockquote
+        // If this is a reply to another message, append the previous message as blockquote
+        if (replies.length > 0) {
           // Get the most recent message to quote
           const lastReply = replies[replies.length - 1]; // Use the last reply for quoting
           // Store the message ID of the last reply (for email threading)
@@ -442,6 +394,28 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               ${quotedMainContent}
             </blockquote></div>
           `;
+        }
+        
+        // Extract plain text from HTML for the content field
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = replyContent;
+        let plainTextContent = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // If we added quoted content to the HTML, append a simplified version to plainTextContent too
+        if (replies.length > 0) {
+          const lastReply = replies[replies.length - 1];
+          const senderEmail = lastReply.sender_type === 'user' ? response.user_email : supportEmail;
+          const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+          
+          // Get only the main content from the previous message to avoid nested quotes
+          const { mainContent: quotedMainContent } = processHtmlContent(lastReply.html_content || lastReply.content);
           
           // Extract plain text from the quoted content
           const tempQuoteDiv = document.createElement('div');
@@ -484,9 +458,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               replyContent: plainTextContent.trim(),
               replyId: data?.[0]?.id,
               htmlContent: htmlContent,
-              isDashboardReply: true,
-              productName: productName,
-              isFirstReply: isFirstReply
+              isAdminDashboardReply: true,
+              productName: productName
             }),
           })
 

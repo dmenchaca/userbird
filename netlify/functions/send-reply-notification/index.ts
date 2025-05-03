@@ -52,14 +52,13 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { feedbackId, replyContent, replyId, htmlContent, isDashboardReply, productName, isFirstReply: frontendIsFirstReply } = JSON.parse(event.body || '{}');
+    const { feedbackId, replyContent, replyId, htmlContent, isAdminDashboardReply, productName } = JSON.parse(event.body || '{}');
     console.log('Parsed request:', { 
       hasFeedbackId: !!feedbackId, 
       replyContentLength: replyContent?.length,
       hasReplyId: !!replyId,
       hasHtmlContent: !!htmlContent,
-      isDashboardReply: !!isDashboardReply,
-      frontendIsFirstReply: !!frontendIsFirstReply,
+      isAdminDashboardReply: !!isAdminDashboardReply,
       productName
     });
     
@@ -111,12 +110,11 @@ export const handler: Handler = async (event) => {
     // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
       .from('feedback_replies')
-      .select('id, message_id, in_reply_to, sender_type, created_at')
+      .select('id, message_id, in_reply_to')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false });
 
-    // Determine if this is the first reply - use the value from frontend if available
-    const isFirstReply = frontendIsFirstReply !== undefined ? frontendIsFirstReply : !existingReplies?.length;
+    const isFirstReply = !existingReplies?.length;
     
     // Find the latest message ID from any reply to use for threading
     const lastMessageId = existingReplies?.find(reply => reply.message_id)?.message_id;
@@ -132,17 +130,10 @@ export const handler: Handler = async (event) => {
 
     console.log('Reply context:', {
       isFirstReply,
-      frontendIsFirstReply: !!frontendIsFirstReply,
-      backendIsFirstReply: !existingReplies?.length,
       replyCount: existingReplies?.length || 0,
       hasLastMessageId: !!lastMessageId,
       lastMessageId,
-      inReplyTo,
-      existingReplyIds: isFirstReply ? [] : existingReplies?.map(reply => ({
-        id: reply.id,
-        created_at: reply.created_at,
-        sender_type: reply.sender_type
-      }))
+      inReplyTo
     });
 
     if (!feedback.user_email) {
@@ -175,7 +166,7 @@ export const handler: Handler = async (event) => {
       feedbackId,
       replyId,
       lastMessageId: inReplyTo || undefined, // Convert null to undefined if needed
-      isDashboardReply,
+      isAdminDashboardReply,
       productName
     });
 
