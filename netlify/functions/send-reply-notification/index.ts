@@ -52,13 +52,13 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { feedbackId, replyContent, replyId, htmlContent, isAdminDashboardReply, productName } = JSON.parse(event.body || '{}');
+    const { feedbackId, replyContent, replyId, htmlContent, isDashboardReply, productName } = JSON.parse(event.body || '{}');
     console.log('Parsed request:', { 
       hasFeedbackId: !!feedbackId, 
       replyContentLength: replyContent?.length,
       hasReplyId: !!replyId,
       hasHtmlContent: !!htmlContent,
-      isAdminDashboardReply: !!isAdminDashboardReply,
+      isDashboardReply: !!isDashboardReply,
       productName
     });
     
@@ -166,7 +166,7 @@ export const handler: Handler = async (event) => {
       feedbackId,
       replyId,
       lastMessageId: inReplyTo || undefined, // Convert null to undefined if needed
-      isAdminDashboardReply,
+      isDashboardReply,
       productName
     });
 

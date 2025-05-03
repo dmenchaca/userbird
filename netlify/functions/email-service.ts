@@ -135,7 +135,7 @@ export interface EmailParams {
   headers?: Record<string, string>;
   feedbackId?: string;
   inReplyTo?: string;
-  isAdminDashboardReply?: boolean;
+  isDashboardReply?: boolean;
 }
 
 /**
@@ -332,8 +332,8 @@ export class EmailService {
                 `;
                 
                 // Use a more structural approach to organize the email content
-                if (params.isAdminDashboardReply) {
-                  // For admin dashboard replies, identify quoted content (if any)
+                if (params.isDashboardReply) {
+                  // For dashboard replies, identify quoted content (if any)
                   const quotePatterns = ['<blockquote', '<div class="gmail_quote', '<div class="outlook_quote', '<div class="email-quoted-content"'];
                   let quotedContentIndex = -1;
                   
@@ -453,8 +453,8 @@ export class EmailService {
 We run on Userbird (https://app.userbird.co)
 `;
                 // Append the plain text footer
-                // For admin dashboard replies, look for the line break that separates reply from thread
-                if (params.isAdminDashboardReply) {
+                // For dashboard replies, look for the line break that separates reply from thread
+                if (params.isDashboardReply) {
                   // Try to find a timestamp line in the plain text
                   const timestampMatch = text.match(/On .+?,.+?(wrote:|>)/i) || 
                                          text.match(/On .+? (wrote:|>)/i) ||
@@ -854,7 +854,7 @@ View Online: ${primaryActionUrl}`;
     feedbackId: string;
     replyId: string;
     lastMessageId?: string;
-    isAdminDashboardReply?: boolean;
+    isDashboardReply?: boolean;
     productName?: string;
   }) {
     const {
@@ -866,7 +866,7 @@ View Online: ${primaryActionUrl}`;
       feedbackId,
       replyId,
       lastMessageId,
-      isAdminDashboardReply = false,
+      isDashboardReply = false,
       productName
     } = params;
 
@@ -881,10 +881,10 @@ View Online: ${primaryActionUrl}`;
     const formId = feedbackData?.form_id;
     const senderDetails = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
     
-    // If this is an admin dashboard reply, get the form's product name and current user's name
+    // If this is a dashboard reply, get the form's product name and current user's name
     let senderWithUserInfo = { ...senderDetails };
     
-    if (isAdminDashboardReply) {
+    if (isDashboardReply) {
       try {
         // Add the product name if provided
         if (productName) {
@@ -935,8 +935,28 @@ View Online: ${primaryActionUrl}`;
       hour12: true
     });
 
-    // Create plain text version
-    const plainTextMessage = `${replyContent}\n\n\n${isFirstReply ? `--------------- Original Message ---------------
+    // Create plain text version with different format for dashboard replies
+    let plainTextMessage;
+    
+    if (isDashboardReply && isFirstReply) {
+      // For dashboard first replies, include a compact format at the end
+      plainTextMessage = `${replyContent}\n\n\n` +
+        `--------------------\n` +
+        `Email: ${feedback.user_email}\n` +
+        `Message: ${feedback.message}\n` +
+        `Date: ${new Date(feedback.created_at).toLocaleString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: 'UTC',
+          timeZoneName: 'short'
+        })}\n`;
+    } else {
+      // Standard format for non-dashboard or non-first replies
+      plainTextMessage = `${replyContent}\n\n\n${isFirstReply && !isDashboardReply ? `--------------- Original Message ---------------
 From: [${feedback.user_email}]
 Sent: ${compactDate}
 To: ${senderDetails.email}
@@ -945,13 +965,37 @@ Subject: Feedback submitted by ${feedback.user_email}
 ${feedback.message}
 
 ` : ''}`;
+    }
 
-    // Use minimal template for admin dashboard replies
+    // Use minimal template for dashboard replies
     let htmlMessage;
     
-    if (isAdminDashboardReply) {
-      // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+    if (isDashboardReply) {
+      // For dashboard replies, use minimal styling and preserve HTML exactly as-is
+      if (isFirstReply) {
+        // For the first reply, include the original message details using the requested format
+        const originalMessageHtml = `
+<div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 10px; color: #6b7280; font-size: 14px;">
+  <div><strong>Email:</strong> ${feedback.user_email}</div>
+  <div><strong>Message:</strong> ${feedback.message}</div>
+  <div><strong>Date:</strong> ${new Date(feedback.created_at).toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC',
+    timeZoneName: 'short'
+  })}</div>
+</div>`;
+
+        // Add the original message to the HTML content
+        htmlMessage = (htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`) + originalMessageHtml;
+      } else {
+        // For subsequent replies, use the standard format without quoted content
+        htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      }
     } else {
       // For automated replies, use full styling
       htmlMessage = `
@@ -993,7 +1037,7 @@ ${feedback.message}
       html: htmlMessage,
       feedbackId,
       inReplyTo: lastMessageId,
-      isAdminDashboardReply,
+      isDashboardReply,
       headers: lastMessageId ? {
         "In-Reply-To": lastMessageId,
         "References": lastMessageId

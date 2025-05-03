@@ -206,7 +206,7 @@ ${image_url}
     isFirstReply: boolean;
     feedbackId: string;
     replyId: string;
-    isAdminDashboardReply?: boolean;
+    isDashboardReply?: boolean;
   }) {
     const {
       to,
@@ -215,7 +215,7 @@ ${image_url}
       isFirstReply,
       feedbackId,
       replyId,
-      isAdminDashboardReply = false
+      isDashboardReply = false
     } = params;
     
     // Get form's default email address if we have form_id
@@ -261,8 +261,8 @@ ${feedback.message}
     // Use minimal template for admin dashboard replies
     let htmlMessage;
     
-    if (isAdminDashboardReply) {
-      // For admin dashboard replies, use minimal styling
+    if (isDashboardReply) {
+      // For dashboard replies, use minimal styling
       htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>`;
     } else {
       // For automated replies, use full styling

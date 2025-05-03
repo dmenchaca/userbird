@@ -458,7 +458,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
               replyContent: plainTextContent.trim(),
               replyId: data?.[0]?.id,
               htmlContent: htmlContent,
-              isAdminDashboardReply: true,
+              isDashboardReply: true,
               productName: productName
             }),
           })
