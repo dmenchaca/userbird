@@ -287,7 +287,10 @@ export class EmailService {
       }
       
       // Skip sanitization for notifications@userbird.co emails to preserve styling
-      if (params.from !== 'notifications@userbird.co' && !params.from?.includes('notifications@userbird.co')) {
+      // Also skip sanitization when the content is from dashboard replies (they're already formatted)
+      if (params.from !== 'notifications@userbird.co' && 
+          !params.from?.includes('notifications@userbird.co') &&
+          !params.isDashboardReply) {
         // Sanitize HTML content to prevent security issues
         html = sanitizeHtml(html);
       }
@@ -301,7 +304,8 @@ export class EmailService {
       
       // Add branded footer to outbound emails if branding is not disabled
       // Only add to admin/agent replies from the dashboard (not for system notifications)
-      if (params.feedbackId && params.from && !params.from.includes('notifications@userbird.co')) {
+      // Skip adding footer for dashboard replies since it's already embedded in the content
+      if (params.feedbackId && params.from && !params.from.includes('notifications@userbird.co') && !params.isDashboardReply) {
         // Extract form_id from the feedbackId
         const { data: feedbackData } = await supabase
           .from('feedback')
@@ -875,22 +879,14 @@ View Online: ${primaryActionUrl}`;
       replyId,
       isFirstReply,
       isDashboardReply,
-      includeQuotedContent: isFirstReply && isDashboardReply,
-      originalMessageLength: feedback.message?.length || 0,
-      replyContentLength: replyContent?.length || 0,
+      includeQuotedContent: isFirstReply && !isDashboardReply, // Only backend adds quotes for non-dashboard replies
+      originalMessageLength: feedback?.message?.length,
+      replyContentLength: replyContent?.length,
       htmlReplyContentProvided: !!htmlReplyContent
     });
 
-    // Get the form ID from the feedback
-    const { data: feedbackData } = await supabase
-      .from('feedback')
-      .select('form_id')
-      .eq('id', feedbackId)
-      .single();
-    
-    // Get custom sender email for this form
-    const formId = feedbackData?.form_id;
-    const senderDetails = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
+    // Get sender details (where the message appears to come from)
+    const { senderDetails, formId } = await this.getSenderEmailFromFeedback(feedback.id);
     
     // If this is a dashboard reply, get the form's product name and current user's name
     let senderWithUserInfo = { ...senderDetails };
@@ -935,120 +931,63 @@ View Online: ${primaryActionUrl}`;
       user_first_name: senderWithUserInfo.user_first_name,
       from
     });
-
-    // Format date for original message
+    
+    // Format date
     const compactDate = new Date(feedback.created_at).toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit', 
+      month: 'short',
+      day: 'numeric', 
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
-
-    // Create plain text version with different format for dashboard replies
-    let plainTextMessage;
     
-    if (isDashboardReply && isFirstReply) {
-      // For dashboard first replies, include a compact format at the end
-      plainTextMessage = `${replyContent}\n\n\n` +
-        `--------------------\n` +
-        `Email: ${feedback.user_email}\n` +
-        `Message: ${feedback.message}\n` +
-        `Date: ${new Date(feedback.created_at).toLocaleString('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-          timeZone: 'UTC',
-          timeZoneName: 'short'
-        })}\n`;
+    // For dashboard replies, we'll preserve the HTML content as-is since it's already formatted
+    // with timestamps and quoted content when needed
+    let plainTextMessage, htmlMessage;
+    if (isDashboardReply) {
+      // For dashboard replies, use the provided content directly
+      plainTextMessage = replyContent;
+      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
       
-      console.log('Including quoted content in plain text (first reply from dashboard)');
+      // Log what we're actually doing
+      console.log(isFirstReply 
+        ? 'Using pre-formatted content with quoted material (first reply from dashboard)' 
+        : 'Using standard formatted content (not first reply or quotes already included)');
+      
+      if (isFirstReply) {
+        console.log('HTML content preview:', EmailService.previewHtml(htmlMessage));
+      }
     } else {
-      // Standard format for non-dashboard or non-first replies
-      plainTextMessage = `${replyContent}\n\n\n${isFirstReply && !isDashboardReply ? `--------------- Original Message ---------------
-From: [${feedback.user_email}]
-Sent: ${compactDate}
-To: ${senderDetails.email}
-Subject: Feedback submitted by ${feedback.user_email}
-
-${feedback.message}
-
-` : ''}`;
+      // For non-dashboard replies (system generated), create both formats with standard formatting
       
-      if (isFirstReply && !isDashboardReply) {
-        console.log('Including quoted content in plain text (first reply from non-dashboard source)');
+      // Create plain text version with the original message quoted if it's the first reply
+      if (isFirstReply) {
+        // Include the original message details in plain text
+        plainTextMessage = `${replyContent}\n\n\n--------------- Original Message ---------------\nFrom: [${feedback.user_email}]\nSent: ${compactDate}\nTo: ${senderDetails.email}\nSubject: Feedback submitted by ${feedback.user_email}\n\n${feedback.message}\n\n`;
+        console.log('Including quoted content in plain text (first reply from system)');
       } else {
+        // Standard format without quoting for subsequent replies
+        plainTextMessage = replyContent;
         console.log('No quoted content included in plain text (not first reply or not from dashboard)');
       }
-    }
-
-    // Use minimal template for dashboard replies
-    let htmlMessage;
-    
-    if (isDashboardReply) {
-      // For dashboard replies, use minimal styling and preserve HTML exactly as-is
+      
+      // Create HTML version (mimics Gmail quote style for first reply)
       if (isFirstReply) {
-        // For the first reply, include the original message details using the requested format
-        const originalMessageHtml = `
-<div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 10px; color: #6b7280; font-size: 14px;">
-  <div><strong>Email:</strong> ${feedback.user_email}</div>
-  <div><strong>Message:</strong> ${feedback.message}</div>
-  <div><strong>Date:</strong> ${new Date(feedback.created_at).toLocaleString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'UTC',
-    timeZoneName: 'short'
-  })}</div>
-</div>`;
-
-        // Add the original message to the HTML content
-        htmlMessage = (htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`) + originalMessageHtml;
-        console.log('Including quoted content in HTML (first reply from dashboard)');
-        console.log('HTML content preview:', EmailService.previewHtml(htmlMessage));
+        // For first reply, include the original message in a blockquote
+        htmlMessage = `<div style="font-family: Arial, sans-serif;">${htmlReplyContent || replyContent.replace(/\n/g, '<br>')}</div>
+          <div style="padding: 10px 0; border-top: 1px solid #ccc; margin-top: 10px; color: #666;">
+            <p>On ${compactDate}, ${feedback.user_email} wrote:</p>
+            <blockquote style="margin: 0 0 0 0.8ex; padding-left: 1ex; border-left: 1px solid #ccc;">
+              ${feedback.message.replace(/\n/g, '<br>')}
+            </blockquote>
+          </div>`;
+        console.log('Including quoted content in HTML (first reply from system)');
       } else {
-        // For subsequent replies, use the standard format without quoted content
-        htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
-        console.log('No quoted content included in HTML (not first reply from dashboard)');
+        // For subsequent replies, no quoting
+        htmlMessage = htmlReplyContent || `<div style="font-family: Arial, sans-serif;">${replyContent.replace(/\n/g, '<br>')}</div>`;
+        console.log('No quoted content included in HTML (not first reply or not from system)');
       }
-    } else {
-      // For automated replies, use full styling
-      htmlMessage = `
-        <div style="font-family: 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0 auto; padding: 20px; background: #f3f4f6;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-            <div style="margin-bottom: 24px;">
-              <h3 style="color: #1f2937; font-size: 16px; font-weight: 500; margin: 0 0 8px;">
-                You received a reply to your feedback
-              </h3>
-            </div>
-
-            <div style="margin-bottom: 24px;">
-              ${isFirstReply ? `
-              <div style="margin-bottom: 16px;">
-                <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Your original message</h4>
-                <p style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; background: #f3f4f6; padding: 12px; border-radius: 6px; margin-top: 8px;">${feedback.message}</p>
-              </div>
-              ` : ''}
-
-              <div style="margin-top: 24px; margin-bottom: 16px;">
-                <h4 style="color: #6b7280; font-size: 14px; font-weight: 500; margin: 0;">Reply from admin</h4>
-                <div style="color: #1f2937; font-size: 14px; line-height: 1.6; margin: 0; background: #e6f7ff; padding: 12px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #0284c7;">${htmlReplyContent || replyContent}</div>
-              </div>
-            </div>
-
-            <div style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 24px;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px; text-align: center;">You can reply to this email to continue the conversation.</p>
-            </div>
-          </div>
-        </div>
-      `;
     }
 
     return this.sendEmail({
@@ -1070,12 +1009,28 @@ ${feedback.message}
     });
   }
 
+  // Add this function to the EmailService class
+  private static async getSenderEmailFromFeedback(feedbackId: string) {
+    // Get the form ID from the feedback
+    const { data: feedbackData } = await supabase
+      .from('feedback')
+      .select('form_id')
+      .eq('id', feedbackId)
+      .single();
+    
+    // Get custom sender email for this form
+    const formId = feedbackData?.form_id;
+    const senderDetails = formId ? await getSenderEmail(formId) : { email: DEFAULT_SENDER, name: DEFAULT_SENDER_NAME };
+    
+    return { senderDetails, formId };
+  }
+
   // Debug helper to safely preview HTML content
   private static previewHtml(html: string): string {
     if (!html) return '';
     const maxLength = 500;
     const preview = html.substring(0, maxLength);
-    return preview + (html.length > maxLength ? '... [truncated]' : '');
+    return preview.length < html.length ? `${preview}...(truncated)` : preview;
   }
 }
 

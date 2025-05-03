@@ -52,13 +52,14 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { feedbackId, replyContent, replyId, htmlContent, isDashboardReply, productName } = JSON.parse(event.body || '{}');
+    const { feedbackId, replyContent, replyId, htmlContent, isDashboardReply, productName, isFirstReply: frontendIsFirstReply } = JSON.parse(event.body || '{}');
     console.log('Parsed request:', { 
       hasFeedbackId: !!feedbackId, 
       replyContentLength: replyContent?.length,
       hasReplyId: !!replyId,
       hasHtmlContent: !!htmlContent,
       isDashboardReply: !!isDashboardReply,
+      frontendIsFirstReply: !!frontendIsFirstReply,
       productName
     });
     
@@ -114,7 +115,8 @@ export const handler: Handler = async (event) => {
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false });
 
-    const isFirstReply = !existingReplies?.length;
+    // Determine if this is the first reply - use the value from frontend if available
+    const isFirstReply = frontendIsFirstReply !== undefined ? frontendIsFirstReply : !existingReplies?.length;
     
     // Find the latest message ID from any reply to use for threading
     const lastMessageId = existingReplies?.find(reply => reply.message_id)?.message_id;
@@ -130,6 +132,8 @@ export const handler: Handler = async (event) => {
 
     console.log('Reply context:', {
       isFirstReply,
+      frontendIsFirstReply: !!frontendIsFirstReply,
+      backendIsFirstReply: !existingReplies?.length,
       replyCount: existingReplies?.length || 0,
       hasLastMessageId: !!lastMessageId,
       lastMessageId,
