@@ -123,7 +123,7 @@ export const handler: Handler = async (event) => {
     // Get form name for message context
     const { data: form, error: formError } = await supabase
       .from('forms')
-      .select('name, url')
+      .select('product_name, url')
       .eq('id', formId)
       .single();
 
@@ -136,7 +136,7 @@ export const handler: Handler = async (event) => {
     const formattedMessage = sanitizeForSlack(feedback.message);
     const userInfo = feedback.user_name || feedback.user_email || 'Anonymous';
     const ticketNumber = feedback.ticket_number || 'N/A';
-    const formName = form?.name || 'your form';
+    const formName = form?.product_name || 'your form';
     const formUrl = form?.url || '';
     const createdDate = formatDate(feedback.created_at);
     
@@ -239,6 +239,8 @@ export const handler: Handler = async (event) => {
     };
 
     // Send message to Slack
+    // Note: If you encounter a "not_in_channel" error, make sure to invite the Slack bot
+    // to the selected channel first. In Slack, type: /invite @YourAppName in the channel
     const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {

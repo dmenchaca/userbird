@@ -243,6 +243,9 @@ export function SlackIntegrationTab({
                 Please select a channel to receive feedback notifications
               </p>
             )}
+            <p className="text-xs text-slate-500 mt-1">
+              <strong>Note:</strong> Remember to invite the Userbird bot to your selected channel by typing <code className="bg-slate-100 px-1 rounded">/invite @Userbird</code> in the channel.
+            </p>
           </div>
         </div>
       )}
