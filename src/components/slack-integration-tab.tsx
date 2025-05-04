@@ -121,7 +121,7 @@ export function SlackIntegrationTab({
       authUrl.searchParams.append('scope', scopes.join(' '));
       authUrl.searchParams.append('redirect_uri', redirectUri);
       authUrl.searchParams.append('state', state);
-      authUrl.searchParams.append('team_optional', 'true');
+      authUrl.searchParams.append('team', '');
 
       window.location.href = authUrl.toString();
     } catch (error) {
