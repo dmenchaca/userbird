@@ -19,7 +19,6 @@ interface SlackIntegrationTabProps {
   formId: string;
   workspaceName?: string;
   channelName?: string;
-  onEnabledBlur: () => void;
   channels: SlackChannel[];
   selectedChannelId?: string;
   isLoadingChannels: boolean;
@@ -32,7 +31,6 @@ export function SlackIntegrationTab({
   formId,
   workspaceName,
   channelName,
-  onEnabledBlur,
   channels,
   selectedChannelId,
   isLoadingChannels,
