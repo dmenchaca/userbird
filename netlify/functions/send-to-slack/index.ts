@@ -48,7 +48,7 @@ const sanitizeForSlack = (text: string): string => {
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
-    return format(date, 'MMM d, yyyy h:mm a');
+    return format(date, "MMM d, yyyy h:mm a 'UTC'");
   } catch (error) {
     return dateString || 'Unknown date';
   }
@@ -152,6 +152,13 @@ export const handler: Handler = async (event) => {
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*Message:*\n${formattedMessage}`
+        }
+      },
+      {
+        type: "section",
         fields: [
           {
             type: "mrkdwn",
@@ -162,13 +169,6 @@ export const handler: Handler = async (event) => {
             text: `*Received:*\n${createdDate}`
           }
         ]
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*Message:*\n${formattedMessage}`
-        }
       }
     ];
 
