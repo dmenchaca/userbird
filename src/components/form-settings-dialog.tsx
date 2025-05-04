@@ -1444,13 +1444,7 @@ export function FormSettingsDialog({
     try {
       const { error } = await supabase
         .from('slack_integrations')
-        .update({ 
-          enabled: false,
-          channel_id: null,
-          channel_name: null,
-          bot_token: null,
-          updated_at: new Date().toISOString()
-        })
+        .delete()
         .eq('form_id', formId);
 
       if (error) throw error;
@@ -1459,10 +1453,11 @@ export function FormSettingsDialog({
       setSlackEnabled(false);
       setSlackChannelName(undefined);
       setSelectedChannelId(undefined);
+      setSlackWorkspaceName(undefined);
       setSlackChannels([]);
       setOriginalSlackValues({
         enabled: false,
-        workspaceName: slackWorkspaceName || '',
+        workspaceName: '',
         channelName: '',
         channelId: ''
       });
