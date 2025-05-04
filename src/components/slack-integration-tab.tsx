@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Check, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, Loader2, ChevronDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SlackChannel {
   id: string;
@@ -200,31 +199,34 @@ export function SlackIntegrationTab({
           <div className="space-y-2">
             <Label htmlFor="slack-channel">Select a channel for notifications</Label>
             <div className="flex gap-2">
-              <Select
-                value={selectedChannelId}
-                onValueChange={onChannelSelect}
-                disabled={isLoadingChannels || channels.length === 0}
-              >
-                <SelectTrigger 
-                  id="slack-channel" 
-                  className={`w-[180px] border-slate-200 border-opacity-50 shadow-sm ${
-                    selectedChannelId ? 'border border-slate-300' : 'border-slate-100'
-                  } focus:border-slate-300 data-[state=open]:border-0 data-[state=open]:ring-0 data-[state=open]:ring-offset-0 data-[state=open]:shadow-none hover:border-slate-200`}
-                >
-                  <SelectValue placeholder="Select a channel" />
-                </SelectTrigger>
-                <SelectContent>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-[180px] justify-between"
+                    disabled={isLoadingChannels || channels.length === 0}
+                  >
+                    {selectedChannelId ? 
+                      `#${channels.find(c => c.id === selectedChannelId)?.name || ''}` : 
+                      "Select channel"}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
                   {channels.map((channel) => (
-                    <SelectItem 
-                      key={channel.id} 
-                      value={channel.id}
-                      className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    <DropdownMenuItem 
+                      key={channel.id}
+                      onClick={() => onChannelSelect && onChannelSelect(channel.id)}
+                      className="cursor-pointer"
                     >
+                      {selectedChannelId === channel.id && (
+                        <Check className="h-4 w-4 mr-1" />
+                      )}
                       #{channel.name}
-                    </SelectItem>
+                    </DropdownMenuItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button 
                 variant="outline" 
                 size="icon"
