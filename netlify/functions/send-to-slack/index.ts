@@ -107,12 +107,7 @@ export const handler: Handler = async (event) => {
         url_path, 
         operating_system, 
         screen_category,
-        ticket_number,
-        tags (
-          id,
-          name,
-          color
-        )
+        ticket_number
       `)
       .eq('id', feedbackId)
       .single();
