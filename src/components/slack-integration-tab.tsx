@@ -160,20 +160,38 @@ export function SlackIntegrationTab({
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label htmlFor="slack-integration">Enable Slack integration</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="slack-integration" className="text-sm font-medium">Slack integration</Label>
+            {isConnected && channelName && (
+              <span className="inline-flex h-5 items-center rounded-full border border-transparent bg-green-50 px-2 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                Connected
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             {isConnected 
               ? 'Receive feedback notifications in your Slack channel'
               : 'Connect your Slack workspace to receive feedback notifications'}
           </p>
         </div>
-        <Switch
-          id="slack-integration"
-          checked={enabled}
-          onCheckedChange={handleToggleChange}
-          onBlur={onEnabledBlur}
-          disabled={!isConnected || !channelName}
-        />
+        {isConnected ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={disconnectFromSlack}
+            className="h-8 text-xs bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-800"
+          >
+            Disconnect
+          </Button>
+        ) : (
+          <Switch
+            id="slack-integration"
+            checked={enabled}
+            onCheckedChange={handleToggleChange}
+            onBlur={onEnabledBlur}
+            disabled={!isConnected || !channelName}
+          />
+        )}
       </div>
 
       <div>
@@ -202,29 +220,52 @@ export function SlackIntegrationTab({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
-                    variant="outline" 
-                    className="w-[180px] justify-between"
+                    variant="ghost" 
+                    className="h-9 w-[240px] px-2 justify-between whitespace-nowrap rounded-md py-2 text-sm bg-transparent data-[placeholder]:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 border border-input"
                     disabled={isLoadingChannels || channels.length === 0}
                   >
-                    {selectedChannelId ? 
-                      `#${channels.find(c => c.id === selectedChannelId)?.name || ''}` : 
-                      "Select channel"}
+                    <span style={{ pointerEvents: 'none' }}>
+                      {selectedChannelId ? (
+                        <span>#{channels.find(c => c.id === selectedChannelId)?.name || ''}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Select channel</span>
+                      )}
+                    </span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {channels.map((channel) => (
-                    <DropdownMenuItem 
-                      key={channel.id}
-                      onClick={() => onChannelSelect && onChannelSelect(channel.id)}
-                      className="cursor-pointer"
-                    >
-                      {selectedChannelId === channel.id && (
-                        <Check className="h-4 w-4 mr-1" />
-                      )}
-                      #{channel.name}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent 
+                  className="w-[240px]" 
+                  style={{
+                    outline: "none",
+                    pointerEvents: "auto"
+                  }}
+                  align="start"
+                >
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {channels.length > 0 ? (
+                      channels.map((channel) => (
+                        <DropdownMenuItem
+                          key={channel.id}
+                          className={`cursor-pointer flex justify-between group hover:bg-accent`}
+                          onClick={() => onChannelSelect && onChannelSelect(channel.id)}
+                        >
+                          <span className="truncate max-w-[180px]">
+                            #{channel.name}
+                          </span>
+                          <div className="flex items-center">
+                            {selectedChannelId === channel.id && (
+                              <Check className="h-4 w-4 ml-1 shrink-0" />
+                            )}
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                        No channels available. Try refreshing or check your Slack workspace.
+                      </div>
+                    )}
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button 
@@ -232,6 +273,7 @@ export function SlackIntegrationTab({
                 size="icon"
                 onClick={onRefreshChannels}
                 disabled={isLoadingChannels}
+                className="h-9 w-9"
               >
                 {isLoadingChannels ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -249,9 +291,17 @@ export function SlackIntegrationTab({
               <p className="text-xs text-muted-foreground">Loading channels...</p>
             )}
             {!channelName && !isLoadingChannels && (
-              <p className="text-xs text-orange-500">
-                Please select a channel to receive feedback notifications
-              </p>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">
+                    Important: Select Slack channel
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Selecting a channel is required to enable Slack notifications.
+                  </p>
+                </div>
+              </div>
             )}
             <p className="text-xs text-slate-500 mt-1">
               <strong>Note:</strong> For private channels, you'll need to invite the Userbird bot by typing <code className="bg-slate-100 px-1 rounded">/invite @Userbird</code> in the channel. Public channels should work automatically.
