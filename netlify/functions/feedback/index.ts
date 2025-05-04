@@ -215,6 +215,26 @@ export const handler: Handler = async (event) => {
       // Don't fail the feedback submission if webhook fails
     }
 
+    // Trigger Slack notification
+    try {
+      console.log('Triggering Slack notification for form:', formId);
+      await fetch(`${process.env.URL}/.netlify/functions/send-to-slack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          formId, 
+          feedbackId: feedbackData?.[0]?.id 
+        })
+      });
+      console.log('Slack notification request sent successfully');
+    } catch (error) {
+      console.error('Error triggering Slack notification:', error);
+      // Don't fail the feedback submission if Slack notification fails
+    }
+
     // Send notification
     try {
       const notificationResponse = await fetch(`${process.env.URL}/.netlify/functions/send-notification`, {

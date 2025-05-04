@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check } from 'lucide-react'
+import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check, MessageCircleCode, Slack } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -29,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { SlackIntegrationTab } from './slack-integration-tab'
 
 // Interfaces for form settings
 interface FormSettingsDialogProps {
@@ -49,7 +50,7 @@ interface FormSettingsDialogProps {
   children?: React.ReactNode
 }
 
-type SettingsTab = 'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation'
+type SettingsTab = 'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation' | 'integrations'
 
 function WidgetInstallSnippet({ formId }: { formId: string }) {
   const [copied, setCopied] = useState(false);
@@ -133,6 +134,11 @@ export function FormSettingsDialog({
     webhooks: {
       enabled: false,
       url: ''
+    },
+    slack: {
+      enabled: false,
+      workspaceName: '',
+      channelName: ''
     }
   })
   const [color, setColor] = useState(buttonColor)
@@ -159,6 +165,9 @@ export function FormSettingsDialog({
   const [originalRules, setOriginalRules] = useState<string | null>(null)
   const { user } = useAuth()
   const [userFirstName, setUserFirstName] = useState('')
+  const [slackEnabled, setSlackEnabled] = useState(false)
+  const [slackWorkspaceName, setSlackWorkspaceName] = useState<string | undefined>(undefined)
+  const [slackChannelName, setSlackChannelName] = useState<string | undefined>(undefined)
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -1246,6 +1255,96 @@ export function FormSettingsDialog({
     }
   };
 
+  // Add useEffect to fetch Slack integration settings
+  useEffect(() => {
+    let mounted = true;
+
+    if (open && formId) {
+      const fetchSlackSettings = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('slack_integrations')
+            .select('enabled, workspace_name, channel_name')
+            .eq('form_id', formId)
+            .single();
+
+          if (!mounted) return;
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching Slack integration settings:', error);
+            return;
+          }
+
+          if (data) {
+            setSlackEnabled(data.enabled);
+            setSlackWorkspaceName(data.workspace_name);
+            setSlackChannelName(data.channel_name);
+            setOriginalValues(current => ({
+              ...current,
+              slack: {
+                enabled: data.enabled,
+                workspaceName: data.workspace_name,
+                channelName: data.channel_name
+              }
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching Slack integration settings:', error);
+        }
+      };
+
+      fetchSlackSettings();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, formId]);
+
+  // Add handlers for Slack integration settings
+  const handleSlackEnabledChange = (enabled: boolean) => {
+    setSlackEnabled(enabled);
+  };
+
+  const handleSlackEnabledBlur = async () => {
+    // Skip if unchanged
+    if (slackEnabled === originalValues.slack.enabled) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('slack_integrations')
+        .upsert({
+          form_id: formId,
+          enabled: slackEnabled,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'form_id'
+        });
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        slack: {
+          ...current.slack,
+          enabled: slackEnabled
+        }
+      }));
+
+      toast.success(
+        slackEnabled 
+          ? 'Slack integration enabled' 
+          : 'Slack integration disabled'
+      );
+    } catch (error) {
+      console.error('Error updating Slack integration settings:', error);
+      setSlackEnabled(originalValues.slack.enabled);
+      toast.error('Failed to update Slack integration settings');
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogClose}>
@@ -1319,6 +1418,16 @@ export function FormSettingsDialog({
                 >
                   <Sparkles className="w-4 h-4" />
                   AI Automation
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('integrations')}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                    activeTab === 'integrations' ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Slack className="w-4 h-4" />
+                  Slack
                 </button>
                 <button
                   onClick={() => handleTabSwitch('webhooks')}
@@ -1659,6 +1768,19 @@ export function FormSettingsDialog({
                       formRules={formRules}
                       onRulesChange={handleRulesChange}
                       onRulesBlur={handleRulesBlur}
+                    />
+                  </div>
+                )}
+
+                {activeTab === 'integrations' && (
+                  <div className="space-y-6">
+                    <SlackIntegrationTab
+                      formId={formId}
+                      enabled={slackEnabled}
+                      workspaceName={slackWorkspaceName}
+                      channelName={slackChannelName}
+                      onEnabledChange={handleSlackEnabledChange}
+                      onEnabledBlur={handleSlackEnabledBlur}
                     />
                   </div>
                 )}
