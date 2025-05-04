@@ -252,7 +252,7 @@ export function SlackIntegrationTab({
               </p>
             )}
             <p className="text-xs text-slate-500 mt-1">
-              <strong>Note:</strong> Remember to invite the Userbird bot to your selected channel by typing <code className="bg-slate-100 px-1 rounded">/invite @Userbird</code> in the channel.
+              <strong>Note:</strong> For private channels, you'll need to invite the Userbird bot by typing <code className="bg-slate-100 px-1 rounded">/invite @Userbird</code> in the channel. Public channels should work automatically.
             </p>
           </div>
         </div>

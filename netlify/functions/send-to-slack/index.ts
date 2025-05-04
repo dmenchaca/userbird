@@ -238,6 +238,28 @@ export const handler: Handler = async (event) => {
       blocks
     };
 
+    // First, try to join the channel if it's public (using channels:join permission)
+    try {
+      const joinResponse = await fetch('https://slack.com/api/conversations.join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${slackIntegration.bot_token}`
+        },
+        body: JSON.stringify({ channel: slackIntegration.channel_id })
+      });
+      
+      const joinResult = await joinResponse.json() as any;
+      
+      // If there's an error that's not "already_in_channel", log it but continue
+      if (!joinResult.ok && joinResult.error !== 'already_in_channel') {
+        console.log(`Note: Could not auto-join channel: ${joinResult.error}`);
+      }
+    } catch (joinError) {
+      // Just log the error but continue - the bot might already be in the channel
+      console.log('Error joining channel:', joinError);
+    }
+
     // Send message to Slack
     // Note: If you encounter a "not_in_channel" error, make sure to invite the Slack bot
     // to the selected channel first. In Slack, type: /invite @YourAppName in the channel
