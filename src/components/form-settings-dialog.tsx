@@ -43,10 +43,12 @@ interface FormSettingsDialogProps {
   showGifOnSuccess: boolean
   removeBranding: boolean
   initialGifUrls?: string[]
+  initialTab?: SettingsTab
   open: boolean
   onOpenChange: (open: boolean) => void
   onSettingsSaved: () => void
   onDelete: () => void
+  onTabChange?: (tab: SettingsTab) => void
   children?: React.ReactNode
 }
 
@@ -107,13 +109,15 @@ export function FormSettingsDialog({
   showGifOnSuccess: initialShowGifOnSuccess,
   removeBranding: initialRemoveBranding,
   initialGifUrls = [],
+  initialTab,
   open, 
   onOpenChange,
   onSettingsSaved,
   onDelete,
+  onTabChange,
   children
 }: FormSettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('workspace')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'workspace')
   const [originalValues, setOriginalValues] = useState({
     styling: {
       buttonColor: '',
@@ -730,6 +734,10 @@ export function FormSettingsDialog({
       console.log('[FormSettingsDialog] Switching to AI tab, refreshing data');
       fetchLatestScrapingProcess();
       fetchFormRules();
+    }
+
+    if (onTabChange) {
+      onTabChange(newTab);
     }
   };
 

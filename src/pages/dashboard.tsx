@@ -102,6 +102,55 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     return savedState === 'true'
   })
   
+  // Add a new state variable for the settings tab
+  const [settingsActiveTab, setSettingsActiveTab] = useState<'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation' | 'integrations'>('workspace')
+  
+  // Add an effect to read URL parameters for dialog control
+  useEffect(() => {
+    if (!selectedFormId) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const settingsParam = params.get('settings');
+    
+    if (settingsParam) {
+      // Valid tabs that can be specified in the URL
+      const validTabs = ['workspace', 'widget', 'notifications', 'webhooks', 'tags', 'delete', 'emails', 'collaborators', 'ai-automation', 'integrations', 'slack'];
+      
+      // Set the active tab if valid, otherwise default to 'workspace'
+      if (validTabs.includes(settingsParam)) {
+        // Map 'slack' to 'integrations' since that's the actual tab name
+        const mappedTab = settingsParam === 'slack' ? 'integrations' : settingsParam;
+        setSettingsActiveTab(mappedTab as any);
+      }
+      
+      // Open the settings dialog
+      setShowSettingsDialog(true);
+    }
+  }, [selectedFormId]);
+  
+  // Update URL when settings dialog is opened/closed or tab is changed
+  useEffect(() => {
+    if (!selectedFormId) return;
+    
+    const url = new URL(window.location.href);
+    
+    if (showSettingsDialog) {
+      // Always map 'integrations' tab to 'slack' in the URL for better UX
+      const urlParam = settingsActiveTab === 'integrations' ? 'slack' : settingsActiveTab;
+      url.searchParams.set('settings', urlParam);
+    } else {
+      url.searchParams.delete('settings');
+    }
+    
+    // Replace the current URL without adding a new history entry
+    window.history.replaceState({}, '', url.toString());
+  }, [showSettingsDialog, settingsActiveTab, selectedFormId]);
+  
+  // Handle settings tab change
+  const handleSettingsTabChange = (tab: typeof settingsActiveTab) => {
+    setSettingsActiveTab(tab);
+  };
+  
   // Function to navigate to the next/previous response
   const navigateToResponse = (direction: 'next' | 'prev') => {
     if (!selectedResponse || !inboxRef.current) return;
@@ -2309,8 +2358,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             showGifOnSuccess={showGifOnSuccess}
             removeBranding={removeBranding}
             initialGifUrls={gifUrls}
+            initialTab={settingsActiveTab}
             open={showSettingsDialog}
             onOpenChange={setShowSettingsDialog}
+            onTabChange={handleSettingsTabChange}
             onSettingsSaved={() => {
               // Refetch form data using the same approach that handles both owners and collaborators
               const refetchFormDetails = async () => {
