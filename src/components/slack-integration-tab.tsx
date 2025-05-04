@@ -137,13 +137,6 @@ export function SlackIntegrationTab({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Slack Integration</h3>
-        <p className="text-sm text-muted-foreground">
-          Send new feedback to Slack and reply directly from your Slack channels.
-        </p>
-      </div>
-
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -159,20 +152,35 @@ export function SlackIntegrationTab({
       )}
 
       <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="slack-integration" className="text-sm font-medium">Slack integration</Label>
-            {isConnected && channelName && (
-              <span className="inline-flex h-5 items-center rounded-full border border-transparent bg-green-50 px-2 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                Connected
-              </span>
-            )}
+        <div className="flex items-center gap-4">
+          <div className="p-3 w-[50px] h-[50px] flex items-center justify-center bg-slate-50 border border-slate-200 rounded-md">
+            <svg width="100%" height="100%" viewBox="0 0 127 127" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_15950_529)">
+                <path d="M27.2 80C27.2 87.3 21.3 93.2 14 93.2C6.69999 93.2 0.799988 87.3 0.799988 80C0.799988 72.7 6.69999 66.8 14 66.8H27.2V80ZM33.8 80C33.8 72.7 39.7 66.8 47 66.8C54.3 66.8 60.2 72.7 60.2 80V113C60.2 120.3 54.3 126.2 47 126.2C39.7 126.2 33.8 120.3 33.8 113V80Z" fill="#E01E5A"/>
+                <path d="M47 27.0001C39.7 27.0001 33.8 21.1001 33.8 13.8001C33.8 6.5001 39.7 0.600098 47 0.600098C54.3 0.600098 60.2 6.5001 60.2 13.8001V27.0001H47ZM47 33.7001C54.3 33.7001 60.2 39.6001 60.2 46.9001C60.2 54.2001 54.3 60.1001 47 60.1001H13.9C6.60001 60.1001 0.700012 54.2001 0.700012 46.9001C0.700012 39.6001 6.60001 33.7001 13.9 33.7001H47Z" fill="#36C5F0"/>
+                <path d="M99.9 46.9001C99.9 39.6001 105.8 33.7001 113.1 33.7001C120.4 33.7001 126.3 39.6001 126.3 46.9001C126.3 54.2001 120.4 60.1001 113.1 60.1001H99.9V46.9001ZM93.3 46.9001C93.3 54.2001 87.4 60.1001 80.1 60.1001C72.8 60.1001 66.9 54.2001 66.9 46.9001V13.8001C66.9 6.5001 72.8 0.600098 80.1 0.600098C87.4 0.600098 93.3 6.5001 93.3 13.8001V46.9001Z" fill="#2EB67D"/>
+                <path d="M80.1 99.8C87.4 99.8 93.3 105.7 93.3 113C93.3 120.3 87.4 126.2 80.1 126.2C72.8 126.2 66.9 120.3 66.9 113V99.8H80.1ZM80.1 93.2C72.8 93.2 66.9 87.3 66.9 80C66.9 72.7 72.8 66.8 80.1 66.8H113.2C120.5 66.8 126.4 72.7 126.4 80C126.4 87.3 120.5 93.2 113.2 93.2H80.1Z" fill="#ECB22E"/>
+              </g>
+              <defs>
+                <clipPath id="clip0_15950_529">
+                  <rect width="127" height="127" fill="white"/>
+                </clipPath>
+              </defs>
+            </svg>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {isConnected 
-              ? 'Receive feedback notifications in your Slack channel'
-              : 'Connect your Slack workspace to receive feedback notifications'}
-          </p>
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="slack-integration" className="text-base font-medium leading-6">Slack integration</Label>
+              {isConnected && (
+                <span className="inline-flex h-6 items-center rounded-full border border-transparent bg-green-50 px-3 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                  Connected
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Manage support tickets and user feedback directly in Slack.
+            </p>
+          </div>
         </div>
         {isConnected ? (
           <Button
@@ -184,31 +192,13 @@ export function SlackIntegrationTab({
             Disconnect
           </Button>
         ) : (
-          <Switch
-            id="slack-integration"
-            checked={enabled}
-            onCheckedChange={handleToggleChange}
-            onBlur={onEnabledBlur}
-            disabled={!isConnected || !channelName}
-          />
-        )}
-      </div>
-
-      <div>
-        <Button
-          onClick={isConnected ? disconnectFromSlack : connectToSlack}
-          variant={isConnected ? "outline" : "default"}
-          disabled={isConnecting}
-          className={isConnected ? "bg-slate-100" : ""}
-        >
-          {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isConnected ? "Disconnect from Slack" : "Connect to Slack"}
-        </Button>
-
-        {isConnected && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {buttonText}
-          </p>
+          <Button
+            onClick={connectToSlack}
+            disabled={isConnecting}
+          >
+            {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Connect to Slack
+          </Button>
         )}
       </div>
 
