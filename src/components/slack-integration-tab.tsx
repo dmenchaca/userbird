@@ -197,12 +197,16 @@ export function SlackIntegrationTab({
                 onValueChange={onChannelSelect}
                 disabled={isLoadingChannels || channels.length === 0}
               >
-                <SelectTrigger id="slack-channel" className="w-full">
+                <SelectTrigger id="slack-channel" className="w-[180px]">
                   <SelectValue placeholder="Select a channel" />
                 </SelectTrigger>
                 <SelectContent>
                   {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
+                    <SelectItem 
+                      key={channel.id} 
+                      value={channel.id}
+                      className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    >
                       #{channel.name}
                     </SelectItem>
                   ))}
