@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Check, Loader2, ChevronDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -18,10 +17,8 @@ interface SlackChannel {
 
 interface SlackIntegrationTabProps {
   formId: string;
-  enabled: boolean;
   workspaceName?: string;
   channelName?: string;
-  onEnabledChange: (enabled: boolean) => void;
   onEnabledBlur: () => void;
   channels: SlackChannel[];
   selectedChannelId?: string;
@@ -33,10 +30,8 @@ interface SlackIntegrationTabProps {
 
 export function SlackIntegrationTab({
   formId,
-  enabled,
   workspaceName,
   channelName,
-  onEnabledChange,
   onEnabledBlur,
   channels,
   selectedChannelId,
@@ -78,18 +73,7 @@ export function SlackIntegrationTab({
     }
   }, [onRefreshChannels]);
 
-  const handleToggleChange = (checked: boolean) => {
-    onEnabledChange(checked);
-    
-    if (!checked) {
-      onEnabledBlur();
-    }
-  };
-
   const isConnected = !!workspaceName;
-  const buttonText = isConnected 
-    ? `Connected to ${workspaceName}${channelName ? ` (#${channelName})` : ''}`
-    : 'Connect to Slack';
 
   const connectToSlack = () => {
     setIsConnecting(true);
