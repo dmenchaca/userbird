@@ -106,7 +106,15 @@ export function SlackIntegrationTab({
       
       const state = formId;
 
-      const scopes = ['chat:write', 'channels:read'];
+      const scopes = [
+        'chat:write', 
+        'channels:read',
+        'channels:history',
+        'channels:join',
+        'groups:read',
+        'groups:write',
+        'team:read'
+      ];
 
       const authUrl = new URL('https://slack.com/oauth/v2/authorize');
       authUrl.searchParams.append('client_id', slackClientId);
@@ -201,7 +209,7 @@ export function SlackIntegrationTab({
                   id="slack-channel" 
                   className={`w-[180px] border-slate-200 border-opacity-50 shadow-sm ${
                     selectedChannelId ? 'border border-slate-300' : 'border-slate-100'
-                  } focus:border-slate-300 data-[state=open]:border-0 hover:border-slate-200`}
+                  } focus:border-slate-300 data-[state=open]:border-0 data-[state=open]:ring-0 data-[state=open]:ring-offset-0 data-[state=open]:shadow-none hover:border-slate-200`}
                 >
                   <SelectValue placeholder="Select a channel" />
                 </SelectTrigger>
