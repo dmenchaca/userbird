@@ -94,7 +94,12 @@ export function SlackIntegrationTab({
         'channels:join',
         'groups:read',
         'groups:write',
-        'team:read'
+        'team:read',
+        'reactions:read',
+        'reactions:write',
+        'chat:write.customize',
+        'incoming-webhook',
+        'usergroups:read'
       ];
 
       const authUrl = new URL('https://slack.com/oauth/v2/authorize');
