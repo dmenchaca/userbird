@@ -107,7 +107,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
         }
         
         // Check if message mentions @Userbird
-        const mentionsUserbird = await checkIfMentionsUserbird(slackEvent.text, payload.team_id);
+        const mentionsUserbird = await checkIfMentionsUserbird(slackEvent.text, payload.team_id, slackEvent.thread_ts);
         
         if (mentionsUserbird) {
           console.log('Message mentions @Userbird, processing as reply');
@@ -144,7 +144,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
 };
 
 // Check if a message mentions @Userbird
-async function checkIfMentionsUserbird(text: string, teamId: string): Promise<boolean> {
+async function checkIfMentionsUserbird(text: string, teamId: string, threadTs?: string): Promise<boolean> {
   // First, check for the basic mention format
   const hasMention = text.includes('<@') && text.includes('>');
   
@@ -153,12 +153,46 @@ async function checkIfMentionsUserbird(text: string, teamId: string): Promise<bo
   }
   
   try {
+    // If we have a thread_ts, try to get the form_id for more specific lookup
+    let formId: string | null = null;
+    
+    if (threadTs) {
+      // Get feedback information from thread_ts
+      const { data: feedbackReplies } = await supabase
+        .from('feedback_replies')
+        .select('feedback_id')
+        .eq('meta->slack_thread_ts', threadTs)
+        .order('created_at', { ascending: true })
+        .limit(1);
+      
+      if (feedbackReplies && feedbackReplies.length > 0) {
+        // Get the form_id from the feedback
+        const { data: feedback } = await supabase
+          .from('feedback')
+          .select('form_id')
+          .eq('id', feedbackReplies[0].feedback_id)
+          .single();
+        
+        if (feedback?.form_id) {
+          formId = feedback.form_id;
+        }
+      }
+    }
+    
     // Get the bot user ID for this workspace
-    const { data: integration } = await supabase
+    let query = supabase
       .from('slack_integrations')
-      .select('bot_user_id, workspace_id')
-      .eq('workspace_id', teamId)
-      .maybeSingle();
+      .select('bot_user_id, workspace_id');
+    
+    // Apply workspace filter
+    query = query.eq('workspace_id', teamId);
+    
+    // If we have a form_id, add it to the query for more specific lookup
+    if (formId) {
+      query = query.eq('form_id', formId);
+    }
+    
+    const { data: integration } = await query.maybeSingle();
     
     if (!integration?.bot_user_id) {
       // If we don't have the bot user ID stored, try to fetch it from Slack
@@ -166,10 +200,17 @@ async function checkIfMentionsUserbird(text: string, teamId: string): Promise<bo
       
       if (botUserId) {
         // Store the bot user ID for future use
-        await supabase
+        let updateQuery = supabase
           .from('slack_integrations')
           .update({ bot_user_id: botUserId, metadata: { last_updated: new Date().toISOString() } })
           .eq('workspace_id', teamId);
+        
+        // If we have a form_id, add it to the update query
+        if (formId) {
+          updateQuery = updateQuery.eq('form_id', formId);
+        }
+        
+        await updateQuery;
         
         return text.includes(`<@${botUserId}>`);
       }
@@ -189,7 +230,9 @@ async function checkIfMentionsUserbird(text: string, teamId: string): Promise<bo
 // Fetch the bot user ID from Slack if we don't have it stored
 async function fetchBotUserIdFromSlack(teamId: string): Promise<string | null> {
   try {
-    // Get the bot token for this workspace
+    // First, we need to find the form_id associated with this workspace through thread_ts
+    // However, since we don't have thread_ts available in this function context,
+    // we'll just get the bot token for the workspace
     const { data: integration } = await supabase
       .from('slack_integrations')
       .select('bot_token')
@@ -280,10 +323,11 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       .from('slack_integrations')
       .select('bot_token')
       .eq('workspace_id', teamId)
+      .eq('form_id', formId)
       .maybeSingle();
     
     if (!integration?.bot_token) {
-      throw new Error(`No bot token found for workspace: ${teamId}`);
+      throw new Error(`No bot token found for workspace: ${teamId} and form: ${formId}`);
     }
     
     // Call Slack API to get user's email
@@ -408,15 +452,40 @@ async function sendSlackConfirmation(
   usedExistingMapping: boolean
 ) {
   try {
+    // Get the form_id from the reply
+    const { data: reply } = await supabase
+      .from('feedback_replies')
+      .select('feedback_id')
+      .eq('id', replyId)
+      .single();
+    
+    if (!reply?.feedback_id) {
+      throw new Error(`Could not find feedback for reply: ${replyId}`);
+    }
+    
+    // Get the form_id from the feedback
+    const { data: feedback } = await supabase
+      .from('feedback')
+      .select('form_id')
+      .eq('id', reply.feedback_id)
+      .single();
+    
+    if (!feedback?.form_id) {
+      throw new Error(`Could not find form_id for feedback: ${reply.feedback_id}`);
+    }
+    
+    const formId = feedback.form_id;
+    
     // Get the slack integration details
     const { data: integration } = await supabase
       .from('slack_integrations')
       .select('bot_token')
       .eq('workspace_id', teamId)
+      .eq('form_id', formId)
       .maybeSingle();
     
     if (!integration?.bot_token) {
-      throw new Error(`No bot token found for workspace: ${teamId}`);
+      throw new Error(`No bot token found for workspace: ${teamId} and form: ${formId}`);
     }
     
     // Prepare the message text
