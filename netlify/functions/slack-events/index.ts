@@ -269,178 +269,257 @@ async function fetchBotUserIdFromSlack(teamId: string): Promise<string | null> {
 
 // Process a reply from Slack
 async function processSlackReply(slackEvent: any, teamId: string) {
-  // 1. Find the original message using thread_ts to get feedback information
+  // 1. First, try to find the original message in the thread to extract the ticket number
   console.log(`Processing reply in thread: ${slackEvent.thread_ts}`);
   
-  // Get feedback information by looking at the metadata in previous feedback_replies
-  const { data: feedbackReplies } = await supabase
-    .from('feedback_replies')
-    .select('feedback_id, id')
-    .eq('meta->slack_thread_ts', slackEvent.thread_ts)
-    .order('created_at', { ascending: true })
-    .limit(1);
-  
-  if (!feedbackReplies || feedbackReplies.length === 0) {
-    throw new Error(`Could not find feedback for thread: ${slackEvent.thread_ts}`);
-  }
-  
-  const feedbackId = feedbackReplies[0].feedback_id;
-  console.log(`Found feedback ID: ${feedbackId}`);
-  
-  // 2. Get the form_id from the feedback
-  const { data: feedback } = await supabase
-    .from('feedback')
-    .select('form_id')
-    .eq('id', feedbackId)
-    .single();
-  
-  if (!feedback?.form_id) {
-    throw new Error(`Could not find form_id for feedback: ${feedbackId}`);
-  }
-  
-  const formId = feedback.form_id;
-  
-  // 3. Try to map the Slack user to a Userbird user
-  let userbirdUserId: string | null = null;
-  
-  // First check if there's already a mapping
-  const { data: existingMapping } = await supabase
-    .from('slack_user_mappings')
-    .select('user_id')
-    .eq('slack_workspace_id', teamId)
-    .eq('slack_user_id', slackEvent.user)
-    .maybeSingle();
-  
-  if (existingMapping?.user_id) {
-    userbirdUserId = existingMapping.user_id;
-    console.log(`Found existing user mapping for Slack user ${slackEvent.user}: ${userbirdUserId}`);
-  } else {
-    // No mapping exists, try to match by email
-    console.log('No existing mapping found, attempting to match by email');
-    
-    // Get the Slack integration details to get the bot token
-    const { data: integration } = await supabase
+  try {
+    // Get the form_id associated with this workspace
+    const { data: slackIntegration } = await supabase
       .from('slack_integrations')
-      .select('bot_token')
+      .select('bot_token, form_id')
       .eq('workspace_id', teamId)
-      .eq('form_id', formId)
+      .limit(1)
       .maybeSingle();
     
-    if (!integration?.bot_token) {
-      throw new Error(`No bot token found for workspace: ${teamId} and form: ${formId}`);
+    if (!slackIntegration?.bot_token || !slackIntegration?.form_id) {
+      throw new Error(`Could not find Slack integration for workspace: ${teamId}`);
     }
     
-    // Call Slack API to get user's email
-    const slackUserResponse = await fetch(`https://slack.com/api/users.info?user=${slackEvent.user}`, {
-      headers: {
-        'Authorization': `Bearer ${integration.bot_token}`
+    // Fetch the thread's parent message to extract the ticket number
+    const threadResponse = await fetch(
+      `https://slack.com/api/conversations.replies?channel=${slackEvent.channel}&ts=${slackEvent.thread_ts}&limit=1`, 
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${slackIntegration.bot_token}`,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
     
-    const slackUserData = await slackUserResponse.json();
+    const threadData = await threadResponse.json();
     
-    if (!slackUserData.ok || !slackUserData.user?.profile?.email) {
-      console.log('Could not get email for Slack user:', slackUserData.error || 'No email in profile');
-      throw new Error('Could not get email for Slack user');
+    if (!threadData.ok || !threadData.messages || threadData.messages.length === 0) {
+      throw new Error(`Could not fetch thread messages: ${threadData.error || 'No messages found'}`);
     }
     
-    const slackUserEmail = slackUserData.user.profile.email;
-    console.log(`Found email for Slack user: ${slackUserEmail}`);
+    // Get the parent message (first message in the thread)
+    const parentMessage = threadData.messages[0];
+    const parentMessageText = parentMessage.text || '';
     
-    // Find a Userbird user with matching email
-    const { data: matchingUsers } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', slackUserEmail)
-      .maybeSingle();
+    // Extract ticket number from parent message using regex
+    // The format in our messages is *Ticket:*\n#123
+    const ticketRegex = /\*Ticket:\*\s*\n\s*#(\d+)/;
+    const ticketMatch = parentMessageText.match(ticketRegex);
     
-    if (matchingUsers?.id) {
-      userbirdUserId = matchingUsers.id;
-      console.log(`Found matching Userbird user by email: ${userbirdUserId}`);
-      
-      // Create the mapping for future use
-      await supabase.from('slack_user_mappings').insert({
-        user_id: userbirdUserId,
-        slack_workspace_id: teamId,
-        slack_user_id: slackEvent.user,
-        slack_user_name: slackUserData.user.real_name || slackUserData.user.name
-      });
-      
-      console.log('Created new user mapping');
-    } else {
-      console.log('No matching Userbird user found by email');
-      
-      // Fall back to form owner
-      const { data: form } = await supabase
-        .from('forms')
-        .select('owner_id')
-        .eq('id', formId)
-        .single();
-      
-      if (!form?.owner_id) {
-        throw new Error(`Could not find owner for form: ${formId}`);
-      }
-      
-      userbirdUserId = form.owner_id;
-      console.log(`Using form owner as fallback: ${userbirdUserId}`);
-      
-      // Let's also store this information for the confirmation message
-      await supabase.from('slack_integrations')
-        .update({
-          metadata: {
-            last_unmapped_slack_user: {
-              slack_user_id: slackEvent.user,
-              slack_user_email: slackUserEmail,
-              slack_user_name: slackUserData.user.real_name || slackUserData.user.name,
-              timestamp: new Date().toISOString()
+    let ticketNumber: string | null = null;
+    
+    if (!ticketMatch || !ticketMatch[1]) {
+      // Try with blocks - sometimes the text is in the blocks
+      if (parentMessage.blocks) {
+        for (const block of parentMessage.blocks) {
+          if (block.type === 'section' && block.fields) {
+            for (const field of block.fields) {
+              if (field.text && field.text.includes('*Ticket:*')) {
+                const fieldMatch = field.text.match(/\*Ticket:\*\s*\n\s*#(\d+)/);
+                if (fieldMatch && fieldMatch[1]) {
+                  ticketNumber = fieldMatch[1];
+                  break;
+                }
+              }
             }
           }
-        })
-        .eq('workspace_id', teamId)
-        .eq('form_id', formId);
-    }
-  }
-  
-  // 4. Clean up the message text (remove @Userbird mention)
-  const cleanText = slackEvent.text.replace(/<@[A-Z0-9]+>/g, '').trim();
-  
-  // 5. Create the feedback reply
-  const { data: newReply, error: replyError } = await supabase
-    .from('feedback_replies')
-    .insert({
-      feedback_id: feedbackId,
-      sender_id: userbirdUserId,
-      sender_type: 'admin',
-      type: 'reply',
-      content: cleanText,
-      meta: {
-        source: 'slack',
-        slack_user_id: slackEvent.user,
-        slack_channel_id: slackEvent.channel,
-        slack_thread_ts: slackEvent.thread_ts,
-        slack_ts: slackEvent.ts
+        }
       }
-    })
-    .select()
-    .single();
-  
-  if (replyError) {
-    console.error('Error creating feedback reply:', replyError);
-    throw new Error(`Failed to create feedback reply: ${replyError.message}`);
+      
+      if (!ticketNumber) {
+        throw new Error('Could not extract ticket number from thread parent message');
+      }
+    } else {
+      ticketNumber = ticketMatch[1];
+    }
+    
+    console.log(`Extracted ticket number: ${ticketNumber}`);
+    
+    // Find the feedback by ticket number and form_id
+    const { data: feedback } = await supabase
+      .from('feedback')
+      .select('id, form_id')
+      .eq('form_id', slackIntegration.form_id)
+      .eq('ticket_number', ticketNumber)
+      .single();
+    
+    if (!feedback) {
+      throw new Error(`Could not find feedback with ticket number ${ticketNumber} for form ${slackIntegration.form_id}`);
+    }
+    
+    const feedbackId = feedback.id;
+    const formId = feedback.form_id;
+    
+    console.log(`Found feedback ID: ${feedbackId} for ticket #${ticketNumber}`);
+    
+    // 3. Try to map the Slack user to a Userbird user
+    let userbirdUserId: string | null = null;
+    
+    // First check if there's already a mapping
+    const { data: existingMapping } = await supabase
+      .from('slack_user_mappings')
+      .select('user_id')
+      .eq('slack_workspace_id', teamId)
+      .eq('slack_user_id', slackEvent.user)
+      .maybeSingle();
+    
+    if (existingMapping?.user_id) {
+      userbirdUserId = existingMapping.user_id;
+      console.log(`Found existing user mapping for Slack user ${slackEvent.user}: ${userbirdUserId}`);
+    } else {
+      // No mapping exists, try to match by email
+      console.log('No existing mapping found, attempting to match by email');
+      
+      // Call Slack API to get user's email
+      const slackUserResponse = await fetch(`https://slack.com/api/users.info?user=${slackEvent.user}`, {
+        headers: {
+          'Authorization': `Bearer ${slackIntegration.bot_token}`
+        }
+      });
+      
+      const slackUserData = await slackUserResponse.json();
+      
+      if (!slackUserData.ok || !slackUserData.user?.profile?.email) {
+        console.log('Could not get email for Slack user:', slackUserData.error || 'No email in profile');
+        throw new Error('Could not get email for Slack user');
+      }
+      
+      const slackUserEmail = slackUserData.user.profile.email;
+      console.log(`Found email for Slack user: ${slackUserEmail}`);
+      
+      // Find a Userbird user with matching email
+      const { data: matchingUsers } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', slackUserEmail)
+        .maybeSingle();
+      
+      if (matchingUsers?.id) {
+        userbirdUserId = matchingUsers.id;
+        console.log(`Found matching Userbird user by email: ${userbirdUserId}`);
+        
+        // Create the mapping for future use
+        await supabase.from('slack_user_mappings').insert({
+          user_id: userbirdUserId,
+          slack_workspace_id: teamId,
+          slack_user_id: slackEvent.user,
+          slack_user_name: slackUserData.user.real_name || slackUserData.user.name
+        });
+        
+        console.log('Created new user mapping');
+      } else {
+        console.log('No matching Userbird user found by email');
+        
+        // Fall back to form owner
+        const { data: form } = await supabase
+          .from('forms')
+          .select('owner_id')
+          .eq('id', formId)
+          .single();
+        
+        if (!form?.owner_id) {
+          throw new Error(`Could not find owner for form: ${formId}`);
+        }
+        
+        userbirdUserId = form.owner_id;
+        console.log(`Using form owner as fallback: ${userbirdUserId}`);
+        
+        // Let's also store this information for the confirmation message
+        await supabase.from('slack_integrations')
+          .update({
+            metadata: {
+              last_unmapped_slack_user: {
+                slack_user_id: slackEvent.user,
+                slack_user_email: slackUserEmail,
+                slack_user_name: slackUserData.user.real_name || slackUserData.user.name,
+                timestamp: new Date().toISOString()
+              }
+            }
+          })
+          .eq('workspace_id', teamId)
+          .eq('form_id', formId);
+      }
+    }
+    
+    // 4. Clean up the message text (remove @Userbird mention)
+    const cleanText = slackEvent.text.replace(/<@[A-Z0-9]+>/g, '').trim();
+    
+    // 5. Create the feedback reply
+    const { data: newReply, error: replyError } = await supabase
+      .from('feedback_replies')
+      .insert({
+        feedback_id: feedbackId,
+        sender_id: userbirdUserId,
+        sender_type: 'admin',
+        type: 'reply',
+        content: cleanText,
+        meta: {
+          source: 'slack',
+          slack_user_id: slackEvent.user,
+          slack_channel_id: slackEvent.channel,
+          slack_thread_ts: slackEvent.thread_ts,
+          slack_ts: slackEvent.ts
+        }
+      })
+      .select()
+      .single();
+    
+    if (replyError) {
+      console.error('Error creating feedback reply:', replyError);
+      throw new Error(`Failed to create feedback reply: ${replyError.message}`);
+    }
+    
+    console.log(`Created feedback reply with ID: ${newReply.id}`);
+    
+    // 6. Send confirmation back to Slack
+    await sendSlackConfirmation(
+      slackEvent.channel, 
+      slackEvent.thread_ts, 
+      teamId, 
+      newReply.id,
+      !!existingMapping?.user_id // indicate if we used an existing mapping
+    );
+    
+    return newReply.id;
+  } catch (error) {
+    console.error('Error in processSlackReply:', error);
+    
+    // Send a message to the thread to inform the user
+    try {
+      // Find any integration for this workspace to get a token
+      const { data: integration } = await supabase
+        .from('slack_integrations')
+        .select('bot_token')
+        .eq('workspace_id', teamId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (integration?.bot_token) {
+        await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${integration.bot_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel: slackEvent.channel,
+            thread_ts: slackEvent.thread_ts,
+            text: "❌ Sorry, I couldn't process your reply. Please make sure you're replying to a feedback notification thread."
+          })
+        });
+      }
+    } catch (msgError) {
+      console.error('Error sending error message to Slack:', msgError);
+    }
+    
+    throw error;
   }
-  
-  console.log(`Created feedback reply with ID: ${newReply.id}`);
-  
-  // 6. Send confirmation back to Slack
-  await sendSlackConfirmation(
-    slackEvent.channel, 
-    slackEvent.thread_ts, 
-    teamId, 
-    newReply.id,
-    !!existingMapping?.user_id // indicate if we used an existing mapping
-  );
-  
-  return newReply.id;
 }
 
 // Send a confirmation message back to Slack
@@ -452,40 +531,16 @@ async function sendSlackConfirmation(
   usedExistingMapping: boolean
 ) {
   try {
-    // Get the form_id from the reply
-    const { data: reply } = await supabase
-      .from('feedback_replies')
-      .select('feedback_id')
-      .eq('id', replyId)
-      .single();
-    
-    if (!reply?.feedback_id) {
-      throw new Error(`Could not find feedback for reply: ${replyId}`);
-    }
-    
-    // Get the form_id from the feedback
-    const { data: feedback } = await supabase
-      .from('feedback')
-      .select('form_id')
-      .eq('id', reply.feedback_id)
-      .single();
-    
-    if (!feedback?.form_id) {
-      throw new Error(`Could not find form_id for feedback: ${reply.feedback_id}`);
-    }
-    
-    const formId = feedback.form_id;
-    
     // Get the slack integration details
     const { data: integration } = await supabase
       .from('slack_integrations')
       .select('bot_token')
       .eq('workspace_id', teamId)
-      .eq('form_id', formId)
+      .limit(1)
       .maybeSingle();
     
     if (!integration?.bot_token) {
-      throw new Error(`No bot token found for workspace: ${teamId} and form: ${formId}`);
+      throw new Error(`No bot token found for workspace: ${teamId}`);
     }
     
     // Prepare the message text

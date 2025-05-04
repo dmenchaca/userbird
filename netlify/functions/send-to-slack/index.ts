@@ -296,7 +296,9 @@ export const handler: Handler = async (event) => {
     // Store the thread_ts in a feedback_reply for future correlation
     if (slackResult.ts) {
       try {
-        await supabase.from('feedback_replies').insert({
+        console.log(`Storing Slack thread reference with ts: ${slackResult.ts} for feedback: ${feedbackId}`);
+        
+        const { data: insertResult, error: insertError } = await supabase.from('feedback_replies').insert({
           feedback_id: feedbackId,
           sender_type: 'system',
           type: 'notification',
@@ -309,11 +311,19 @@ export const handler: Handler = async (event) => {
             is_slack_reference: true,
             notification_type: 'slack'
           }
-        });
+        }).select();
+        
+        if (insertError) {
+          console.error('Error storing Slack thread reference:', insertError);
+        } else {
+          console.log(`Successfully stored Slack thread reference, record ID: ${insertResult?.[0]?.id}`);
+        }
       } catch (error) {
-        console.error('Error storing Slack thread reference:', error);
+        console.error('Exception storing Slack thread reference:', error);
         // Continue anyway as the message was sent successfully
       }
+    } else {
+      console.warn('No ts value in Slack response, cannot store thread reference');
     }
 
     // Return success response
