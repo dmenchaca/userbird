@@ -169,17 +169,15 @@ export function FormSettingsDialog({
   const [originalRules, setOriginalRules] = useState<string | null>(null)
   const { user } = useAuth()
   const [userFirstName, setUserFirstName] = useState('')
-  const [slackEnabled, setSlackEnabled] = useState(false)
   const [slackWorkspaceName, setSlackWorkspaceName] = useState<string | undefined>(undefined)
   const [slackChannelName, setSlackChannelName] = useState<string | undefined>(undefined)
   const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string }>>([])
   const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined)
   const [isLoadingChannels, setIsLoadingChannels] = useState(false)
   const [originalSlackValues, setOriginalSlackValues] = useState({
-    enabled: false,
-    workspaceName: '',
-    channelName: '',
-    channelId: ''
+    workspaceName: undefined as string | undefined,
+    channelName: undefined as string | undefined,
+    channelId: undefined as string | undefined
   })
 
   const NOTIFICATION_ATTRIBUTES = [
@@ -1281,7 +1279,7 @@ export function FormSettingsDialog({
         try {
           const { data, error } = await supabase
             .from('slack_integrations')
-            .select('enabled, workspace_name, channel_name, channel_id')
+            .select('workspace_name, channel_name, channel_id')
             .eq('form_id', formId)
             .single();
 
@@ -1293,12 +1291,10 @@ export function FormSettingsDialog({
           }
 
           if (data) {
-            setSlackEnabled(data.enabled);
             setSlackWorkspaceName(data.workspace_name);
             setSlackChannelName(data.channel_name);
             setSelectedChannelId(data.channel_id);
             setOriginalSlackValues({
-              enabled: data.enabled,
               workspaceName: data.workspace_name || '',
               channelName: data.channel_name || '',
               channelId: data.channel_id || ''
@@ -1321,47 +1317,6 @@ export function FormSettingsDialog({
       mounted = false;
     };
   }, [open, formId]);
-
-  // Add handlers for Slack integration settings
-  const handleSlackEnabledChange = (enabled: boolean) => {
-    setSlackEnabled(enabled);
-  };
-
-  const handleSlackEnabledBlur = async () => {
-    // Skip if unchanged
-    if (slackEnabled === originalSlackValues.enabled) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('slack_integrations')
-        .upsert({
-          form_id: formId,
-          enabled: slackEnabled,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'form_id'
-        });
-
-      if (error) throw error;
-
-      setOriginalSlackValues(current => ({
-        ...current,
-        enabled: slackEnabled
-      }));
-
-      toast.success(
-        slackEnabled 
-          ? 'Slack integration enabled' 
-          : 'Slack integration disabled'
-      );
-    } catch (error) {
-      console.error('Error updating Slack integration settings:', error);
-      setSlackEnabled(originalSlackValues.enabled);
-      toast.error('Failed to update Slack integration settings');
-    }
-  };
 
   // Add this function to fetch Slack channels
   const fetchSlackChannels = async () => {
@@ -1458,16 +1413,14 @@ export function FormSettingsDialog({
       if (error) throw error;
 
       // Update state
-      setSlackEnabled(false);
+      setSlackWorkspaceName(undefined);
       setSlackChannelName(undefined);
       setSelectedChannelId(undefined);
-      setSlackWorkspaceName(undefined);
       setSlackChannels([]);
       setOriginalSlackValues({
-        enabled: false,
-        workspaceName: '',
-        channelName: '',
-        channelId: ''
+        workspaceName: undefined,
+        channelName: undefined,
+        channelId: undefined
       });
 
       toast.success('Slack integration disconnected');
@@ -1908,11 +1861,8 @@ export function FormSettingsDialog({
                   <div className="space-y-6">
                     <SlackIntegrationTab
                       formId={formId}
-                      enabled={slackEnabled}
                       workspaceName={slackWorkspaceName}
                       channelName={slackChannelName}
-                      onEnabledChange={handleSlackEnabledChange}
-                      onEnabledBlur={handleSlackEnabledBlur}
                       channels={slackChannels}
                       selectedChannelId={selectedChannelId}
                       isLoadingChannels={isLoadingChannels}
