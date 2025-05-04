@@ -231,6 +231,17 @@ export const handler: Handler = async (event) => {
       }
     );
 
+    // Add reply instructions
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "Replies here will be sent to the user if you mention @Userbird."
+        }
+      ]
+    });
+
     // Create the complete Slack message payload
     const slackMessage = {
       channel: slackIntegration.channel_id,
@@ -280,6 +291,29 @@ export const handler: Handler = async (event) => {
         statusCode: 500,
         body: JSON.stringify({ error: 'Failed to send message to Slack', details: slackResult.error })
       };
+    }
+
+    // Store the thread_ts in a feedback_reply for future correlation
+    if (slackResult.ts) {
+      try {
+        await supabase.from('feedback_replies').insert({
+          feedback_id: feedbackId,
+          sender_type: 'system',
+          type: 'notification',
+          content: 'Notification sent to Slack',
+          meta: {
+            source: 'slack',
+            slack_channel_id: slackIntegration.channel_id,
+            slack_thread_ts: slackResult.ts,
+            slack_ts: slackResult.ts,
+            is_slack_reference: true,
+            notification_type: 'slack'
+          }
+        });
+      } catch (error) {
+        console.error('Error storing Slack thread reference:', error);
+        // Continue anyway as the message was sent successfully
+      }
     }
 
     // Return success response
