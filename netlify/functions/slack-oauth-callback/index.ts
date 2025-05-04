@@ -37,7 +37,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `/forms/${formId}/settings?tab=integrations&error=${encodeURIComponent(error)}`
+        Location: `/forms/${formId}?settings=slack&error=${encodeURIComponent(error)}`
       }
     };
   }
@@ -48,7 +48,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `/forms/${formId || ''}/settings?tab=integrations&error=${encodeURIComponent('Missing required parameters')}`
+        Location: `/forms/${formId || ''}?settings=slack&error=${encodeURIComponent('Missing required parameters')}`
       }
     };
   }
@@ -74,7 +74,7 @@ export const handler: Handler = async (event) => {
       return {
         statusCode: 302,
         headers: {
-          Location: `/forms/${formId}/settings?tab=integrations&error=${encodeURIComponent(data.error || 'Slack API error')}`
+          Location: `/forms/${formId}?settings=slack&error=${encodeURIComponent(data.error || 'Slack API error')}`
         }
       };
     }
@@ -104,7 +104,7 @@ export const handler: Handler = async (event) => {
       return {
         statusCode: 302,
         headers: {
-          Location: `/forms/${formId}/settings?tab=integrations&error=${encodeURIComponent('Failed to save integration settings')}`
+          Location: `/forms/${formId}?settings=slack&error=${encodeURIComponent('Failed to save integration settings')}`
         }
       };
     }
@@ -113,7 +113,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `/forms/${formId}/settings?tab=integrations&success=true`
+        Location: `/forms/${formId}?settings=slack&success=true`
       }
     };
   } catch (error) {
@@ -121,7 +121,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: `/forms/${formId}/settings?tab=integrations&error=${encodeURIComponent('An error occurred during the Slack integration setup')}`
+        Location: `/forms/${formId}?settings=slack&error=${encodeURIComponent('An error occurred during the Slack integration setup')}`
       }
     };
   }
