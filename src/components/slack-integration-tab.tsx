@@ -4,8 +4,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Check, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
 import {
   Select,
   SelectContent,
@@ -21,208 +19,101 @@ interface SlackChannel {
 
 interface SlackIntegrationTabProps {
   formId: string;
-  enabled?: boolean;
+  enabled: boolean;
   workspaceName?: string;
   channelName?: string;
-  onEnabledChange?: (enabled: boolean) => void;
-  onEnabledBlur?: () => void;
+  onEnabledChange: (enabled: boolean) => void;
+  onEnabledBlur: () => void;
+  channels: SlackChannel[];
+  selectedChannelId?: string;
+  isLoadingChannels: boolean;
+  onChannelSelect?: (channelId: string) => void;
+  onRefreshChannels?: () => void;
+  onDisconnect?: () => void;
 }
 
 export function SlackIntegrationTab({
   formId,
-  enabled = false,
+  enabled,
   workspaceName,
   channelName,
   onEnabledChange,
-  onEnabledBlur
+  onEnabledBlur,
+  channels,
+  selectedChannelId,
+  isLoadingChannels,
+  onChannelSelect,
+  onRefreshChannels,
+  onDisconnect
 }: SlackIntegrationTabProps) {
-  // Local state fallback if parent doesn't control
-  const [localEnabled, setLocalEnabled] = useState(enabled);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
-  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
-  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined);
-
-  // Update local state when props change
-  useEffect(() => {
-    setLocalEnabled(enabled);
-  }, [enabled]);
-
-  // Check URL for success or error params (after OAuth redirect)
+  
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     const successParam = params.get('success');
     const errorParam = params.get('error');
 
-    // Only process if we're on the integrations tab
     if (tabParam === 'integrations') {
       if (successParam === 'true') {
         setSuccessMessage('Slack connected successfully!');
-        // Clear the success parameter from URL
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('success');
         window.history.replaceState({}, '', newUrl);
 
-        // Auto-dismiss success message after 5 seconds
         setTimeout(() => {
           setSuccessMessage(null);
         }, 5000);
         
-        // Fetch available channels after successful connection
-        fetchSlackChannels();
+        if (onRefreshChannels) {
+          onRefreshChannels();
+        }
       } else if (errorParam) {
         setError(`Failed to connect to Slack: ${decodeURIComponent(errorParam)}`);
-        // Clear the error parameter from URL
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('error');
         window.history.replaceState({}, '', newUrl);
       }
     }
-  }, []);
-  
-  // Fetch Slack channels
-  const fetchSlackChannels = async () => {
-    setIsLoadingChannels(true);
-    setError(null);
-    
-    try {
-      const response = await fetch('/.netlify/functions/fetch-slack-channels', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          formId,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch Slack channels');
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.channels) {
-        setAvailableChannels(data.channels);
-      } else {
-        throw new Error(data.error || 'Failed to load channels');
-      }
-    } catch (error) {
-      console.error('Error fetching Slack channels:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load Slack channels');
-    } finally {
-      setIsLoadingChannels(false);
-    }
-  };
-  
-  // Handle channel selection
-  const handleChannelSelect = async (channelId: string) => {
-    setSelectedChannelId(channelId);
-    
-    // Find the channel name from the available channels
-    const channel = availableChannels.find(ch => ch.id === channelId);
-    if (!channel) return;
-    
-    try {
-      const { error } = await supabase
-        .from('slack_integrations')
-        .update({
-          channel_id: channelId,
-          channel_name: channel.name,
-          updated_at: new Date().toISOString()
-        })
-        .eq('form_id', formId);
-        
-      if (error) throw error;
-      
-      toast.success(`Channel updated to #${channel.name}`);
-    } catch (error) {
-      console.error('Error updating channel:', error);
-      toast.error('Failed to update channel');
-    }
-  };
+  }, [onRefreshChannels]);
 
-  // Handle toggle change
   const handleToggleChange = (checked: boolean) => {
-    if (onEnabledChange) {
-      // Parent controls state
-      onEnabledChange(checked);
-    } else {
-      // Local state
-      setLocalEnabled(checked);
-    }
-
-    // If turning off, update immediately
+    onEnabledChange(checked);
+    
     if (!checked) {
-      handleToggleBlur();
-    }
-  };
-
-  // Handle toggle blur (save)
-  const handleToggleBlur = () => {
-    if (onEnabledBlur) {
-      // Parent handles saving
       onEnabledBlur();
-    } else {
-      // Local saving logic
-      saveSlackSettings();
     }
   };
 
-  // Local save function (only used if parent doesn't control)
-  const saveSlackSettings = async () => {
-    try {
-      const { error } = await supabase
-        .from('slack_integrations')
-        .upsert({
-          form_id: formId,
-          enabled: localEnabled,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'form_id'
-        });
+  const isConnected = !!workspaceName;
+  const buttonText = isConnected 
+    ? `Connected to ${workspaceName}${channelName ? ` (#${channelName})` : ''}`
+    : 'Connect to Slack';
 
-      if (error) throw error;
-      toast.success(localEnabled ? 'Slack integration enabled' : 'Slack integration disabled');
-    } catch (error) {
-      console.error('Error saving Slack settings:', error);
-      setLocalEnabled(!localEnabled); // Revert on error
-      toast.error('Failed to update Slack integration settings');
-    }
-  };
-
-  // Connect to Slack
   const connectToSlack = () => {
     setIsConnecting(true);
     setError(null);
 
     try {
-      // Create the Slack authorization URL
       const slackClientId = import.meta.env.VITE_SLACK_CLIENT_ID;
       if (!slackClientId) {
         throw new Error('Slack client ID not configured');
       }
 
-      // Use the current hostname for the redirect URI
       const redirectUri = `${window.location.origin}/.netlify/functions/slack-oauth-callback`;
       
-      // Use the form ID as the state parameter for tracking
       const state = formId;
 
-      // Scopes needed for the integration
       const scopes = ['chat:write', 'channels:read'];
 
-      // Build the authorization URL
       const authUrl = new URL('https://slack.com/oauth/v2/authorize');
       authUrl.searchParams.append('client_id', slackClientId);
       authUrl.searchParams.append('scope', scopes.join(' '));
       authUrl.searchParams.append('redirect_uri', redirectUri);
       authUrl.searchParams.append('state', state);
 
-      // Redirect to Slack authorization page
       window.location.href = authUrl.toString();
     } catch (error) {
       console.error('Error connecting to Slack:', error);
@@ -231,60 +122,11 @@ export function SlackIntegrationTab({
     }
   };
 
-  // Disconnect from Slack
-  const disconnectFromSlack = async () => {
-    try {
-      const { error } = await supabase
-        .from('slack_integrations')
-        .update({ 
-          enabled: false,
-          channel_id: null,
-          channel_name: null,
-          bot_token: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('form_id', formId);
-
-      if (error) throw error;
-
-      // Update local state
-      if (onEnabledChange) {
-        onEnabledChange(false);
-      } else {
-        setLocalEnabled(false);
-      }
-      
-      // Clear available channels
-      setAvailableChannels([]);
-      setSelectedChannelId(undefined);
-
-      toast.success('Slack integration disconnected');
-    } catch (error) {
-      console.error('Error disconnecting from Slack:', error);
-      toast.error('Failed to disconnect Slack integration');
+  const disconnectFromSlack = () => {
+    if (onDisconnect) {
+      onDisconnect();
     }
   };
-  
-  // Refresh Slack channels list
-  const refreshChannels = () => {
-    fetchSlackChannels();
-  };
-
-  // Determine connection status and button text
-  const isConnected = !!workspaceName;
-  const buttonText = isConnected 
-    ? `Connected to ${workspaceName}${channelName ? ` (#${channelName})` : ''}`
-    : 'Connect to Slack';
-
-  // Set selected channel ID when channelName props changes
-  useEffect(() => {
-    if (channelName && availableChannels.length > 0) {
-      const channel = availableChannels.find(ch => ch.name === channelName);
-      if (channel) {
-        setSelectedChannelId(channel.id);
-      }
-    }
-  }, [channelName, availableChannels]);
 
   return (
     <div className="space-y-6">
@@ -320,9 +162,9 @@ export function SlackIntegrationTab({
         </div>
         <Switch
           id="slack-integration"
-          checked={onEnabledChange ? enabled : localEnabled}
+          checked={enabled}
           onCheckedChange={handleToggleChange}
-          onBlur={handleToggleBlur}
+          onBlur={onEnabledBlur}
           disabled={!isConnected || !channelName}
         />
       </div>
@@ -352,14 +194,14 @@ export function SlackIntegrationTab({
             <div className="flex gap-2">
               <Select
                 value={selectedChannelId}
-                onValueChange={handleChannelSelect}
-                disabled={isLoadingChannels || availableChannels.length === 0}
+                onValueChange={onChannelSelect}
+                disabled={isLoadingChannels || channels.length === 0}
               >
                 <SelectTrigger id="slack-channel" className="w-full">
                   <SelectValue placeholder="Select a channel" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableChannels.map((channel) => (
+                  {channels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
                       #{channel.name}
                     </SelectItem>
@@ -369,7 +211,7 @@ export function SlackIntegrationTab({
               <Button 
                 variant="outline" 
                 size="icon"
-                onClick={refreshChannels}
+                onClick={onRefreshChannels}
                 disabled={isLoadingChannels}
               >
                 {isLoadingChannels ? (

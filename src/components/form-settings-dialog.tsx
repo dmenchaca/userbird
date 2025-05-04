@@ -168,6 +168,15 @@ export function FormSettingsDialog({
   const [slackEnabled, setSlackEnabled] = useState(false)
   const [slackWorkspaceName, setSlackWorkspaceName] = useState<string | undefined>(undefined)
   const [slackChannelName, setSlackChannelName] = useState<string | undefined>(undefined)
+  const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined)
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false)
+  const [originalSlackValues, setOriginalSlackValues] = useState({
+    enabled: false,
+    workspaceName: '',
+    channelName: '',
+    channelId: ''
+  })
 
   const NOTIFICATION_ATTRIBUTES = [
     { id: 'message', label: 'Message' },
@@ -1264,7 +1273,7 @@ export function FormSettingsDialog({
         try {
           const { data, error } = await supabase
             .from('slack_integrations')
-            .select('enabled, workspace_name, channel_name')
+            .select('enabled, workspace_name, channel_name, channel_id')
             .eq('form_id', formId)
             .single();
 
@@ -1279,14 +1288,18 @@ export function FormSettingsDialog({
             setSlackEnabled(data.enabled);
             setSlackWorkspaceName(data.workspace_name);
             setSlackChannelName(data.channel_name);
-            setOriginalValues(current => ({
-              ...current,
-              slack: {
-                enabled: data.enabled,
-                workspaceName: data.workspace_name,
-                channelName: data.channel_name
-              }
-            }));
+            setSelectedChannelId(data.channel_id);
+            setOriginalSlackValues({
+              enabled: data.enabled,
+              workspaceName: data.workspace_name || '',
+              channelName: data.channel_name || '',
+              channelId: data.channel_id || ''
+            });
+            
+            // If we're connected to Slack, fetch channels
+            if (data.workspace_name) {
+              fetchSlackChannels();
+            }
           }
         } catch (error) {
           console.error('Error fetching Slack integration settings:', error);
@@ -1308,7 +1321,7 @@ export function FormSettingsDialog({
 
   const handleSlackEnabledBlur = async () => {
     // Skip if unchanged
-    if (slackEnabled === originalValues.slack.enabled) {
+    if (slackEnabled === originalSlackValues.enabled) {
       return;
     }
 
@@ -1325,12 +1338,9 @@ export function FormSettingsDialog({
 
       if (error) throw error;
 
-      setOriginalValues(current => ({
+      setOriginalSlackValues(current => ({
         ...current,
-        slack: {
-          ...current.slack,
-          enabled: slackEnabled
-        }
+        enabled: slackEnabled
       }));
 
       toast.success(
@@ -1340,8 +1350,127 @@ export function FormSettingsDialog({
       );
     } catch (error) {
       console.error('Error updating Slack integration settings:', error);
-      setSlackEnabled(originalValues.slack.enabled);
+      setSlackEnabled(originalSlackValues.enabled);
       toast.error('Failed to update Slack integration settings');
+    }
+  };
+
+  // Add this function to fetch Slack channels
+  const fetchSlackChannels = async () => {
+    if (!formId) return;
+    
+    setIsLoadingChannels(true);
+    
+    try {
+      const response = await fetch('/.netlify/functions/fetch-slack-channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formId,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch Slack channels');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.channels) {
+        setSlackChannels(data.channels);
+        
+        // If we have a channel name but no ID, try to find the ID
+        if (slackChannelName && !selectedChannelId) {
+          const channel = data.channels.find((ch: { name: string }) => ch.name === slackChannelName);
+          if (channel) {
+            setSelectedChannelId(channel.id);
+          }
+        }
+      } else {
+        throw new Error(data.error || 'Failed to load channels');
+      }
+    } catch (error) {
+      console.error('Error fetching Slack channels:', error);
+      toast.error('Failed to load Slack channels');
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+
+  // Add this handler for channel selection
+  const handleChannelSelect = async (channelId: string) => {
+    if (!formId) return;
+    
+    setSelectedChannelId(channelId);
+    
+    // Find the channel name from the available channels
+    const channel = slackChannels.find(ch => ch.id === channelId);
+    if (!channel) return;
+    
+    try {
+      const { error } = await supabase
+        .from('slack_integrations')
+        .update({
+          channel_id: channelId,
+          channel_name: channel.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('form_id', formId);
+        
+      if (error) throw error;
+      
+      // Update state
+      setSlackChannelName(channel.name);
+      setOriginalSlackValues(current => ({
+        ...current,
+        channelId,
+        channelName: channel.name
+      }));
+      
+      toast.success(`Channel updated to #${channel.name}`);
+    } catch (error) {
+      console.error('Error updating channel:', error);
+      setSelectedChannelId(originalSlackValues.channelId); // Revert on error
+      toast.error('Failed to update channel');
+    }
+  };
+
+  // Add the disconnect function to the FormSettingsDialog component
+  const disconnectSlack = async () => {
+    if (!formId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('slack_integrations')
+        .update({ 
+          enabled: false,
+          channel_id: null,
+          channel_name: null,
+          bot_token: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('form_id', formId);
+
+      if (error) throw error;
+
+      // Update state
+      setSlackEnabled(false);
+      setSlackChannelName(undefined);
+      setSelectedChannelId(undefined);
+      setSlackChannels([]);
+      setOriginalSlackValues({
+        enabled: false,
+        workspaceName: slackWorkspaceName || '',
+        channelName: '',
+        channelId: ''
+      });
+
+      toast.success('Slack integration disconnected');
+    } catch (error) {
+      console.error('Error disconnecting from Slack:', error);
+      toast.error('Failed to disconnect Slack integration');
     }
   };
 
@@ -1781,6 +1910,12 @@ export function FormSettingsDialog({
                       channelName={slackChannelName}
                       onEnabledChange={handleSlackEnabledChange}
                       onEnabledBlur={handleSlackEnabledBlur}
+                      channels={slackChannels}
+                      selectedChannelId={selectedChannelId}
+                      isLoadingChannels={isLoadingChannels}
+                      onChannelSelect={handleChannelSelect}
+                      onRefreshChannels={fetchSlackChannels}
+                      onDisconnect={disconnectSlack}
                     />
                   </div>
                 )}
