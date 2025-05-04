@@ -2,10 +2,22 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Check, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, Loader2, ChevronDown } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface SlackChannel {
+  id: string;
+  name: string;
+}
 
 interface SlackIntegrationTabProps {
   formId: string;
@@ -29,6 +41,9 @@ export function SlackIntegrationTab({
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined);
 
   // Update local state when props change
   useEffect(() => {
@@ -55,6 +70,9 @@ export function SlackIntegrationTab({
         setTimeout(() => {
           setSuccessMessage(null);
         }, 5000);
+        
+        // Fetch available channels after successful connection
+        fetchSlackChannels();
       } else if (errorParam) {
         setError(`Failed to connect to Slack: ${decodeURIComponent(errorParam)}`);
         // Clear the error parameter from URL
@@ -64,6 +82,68 @@ export function SlackIntegrationTab({
       }
     }
   }, []);
+  
+  // Fetch Slack channels
+  const fetchSlackChannels = async () => {
+    setIsLoadingChannels(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/.netlify/functions/fetch-slack-channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formId,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch Slack channels');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.channels) {
+        setAvailableChannels(data.channels);
+      } else {
+        throw new Error(data.error || 'Failed to load channels');
+      }
+    } catch (error) {
+      console.error('Error fetching Slack channels:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load Slack channels');
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+  
+  // Handle channel selection
+  const handleChannelSelect = async (channelId: string) => {
+    setSelectedChannelId(channelId);
+    
+    // Find the channel name from the available channels
+    const channel = availableChannels.find(ch => ch.id === channelId);
+    if (!channel) return;
+    
+    try {
+      const { error } = await supabase
+        .from('slack_integrations')
+        .update({
+          channel_id: channelId,
+          channel_name: channel.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('form_id', formId);
+        
+      if (error) throw error;
+      
+      toast.success(`Channel updated to #${channel.name}`);
+    } catch (error) {
+      console.error('Error updating channel:', error);
+      toast.error('Failed to update channel');
+    }
+  };
 
   // Handle toggle change
   const handleToggleChange = (checked: boolean) => {
@@ -173,6 +253,10 @@ export function SlackIntegrationTab({
       } else {
         setLocalEnabled(false);
       }
+      
+      // Clear available channels
+      setAvailableChannels([]);
+      setSelectedChannelId(undefined);
 
       toast.success('Slack integration disconnected');
     } catch (error) {
@@ -180,12 +264,27 @@ export function SlackIntegrationTab({
       toast.error('Failed to disconnect Slack integration');
     }
   };
+  
+  // Refresh Slack channels list
+  const refreshChannels = () => {
+    fetchSlackChannels();
+  };
 
   // Determine connection status and button text
   const isConnected = !!workspaceName;
   const buttonText = isConnected 
     ? `Connected to ${workspaceName}${channelName ? ` (#${channelName})` : ''}`
     : 'Connect to Slack';
+
+  // Set selected channel ID when channelName props changes
+  useEffect(() => {
+    if (channelName && availableChannels.length > 0) {
+      const channel = availableChannels.find(ch => ch.name === channelName);
+      if (channel) {
+        setSelectedChannelId(channel.id);
+      }
+    }
+  }, [channelName, availableChannels]);
 
   return (
     <div className="space-y-6">
@@ -224,7 +323,7 @@ export function SlackIntegrationTab({
           checked={onEnabledChange ? enabled : localEnabled}
           onCheckedChange={handleToggleChange}
           onBlur={handleToggleBlur}
-          disabled={!isConnected}
+          disabled={!isConnected || !channelName}
         />
       </div>
 
@@ -246,13 +345,55 @@ export function SlackIntegrationTab({
         )}
       </div>
 
-      {isConnected && !channelName && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Please configure a channel to receive feedback notifications.
-          </AlertDescription>
-        </Alert>
+      {isConnected && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="slack-channel">Select a channel for notifications</Label>
+            <div className="flex gap-2">
+              <Select
+                value={selectedChannelId}
+                onValueChange={handleChannelSelect}
+                disabled={isLoadingChannels || availableChannels.length === 0}
+              >
+                <SelectTrigger id="slack-channel" className="w-full">
+                  <SelectValue placeholder="Select a channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableChannels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      #{channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={refreshChannels}
+                disabled={isLoadingChannels}
+              >
+                {isLoadingChannels ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-refresh-cw">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                    <path d="M21 3v5h-5" />
+                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                    <path d="M3 21v-5h5" />
+                  </svg>
+                )}
+              </Button>
+            </div>
+            {isLoadingChannels && (
+              <p className="text-xs text-muted-foreground">Loading channels...</p>
+            )}
+            {!channelName && !isLoadingChannels && (
+              <p className="text-xs text-orange-500">
+                Please select a channel to receive feedback notifications
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

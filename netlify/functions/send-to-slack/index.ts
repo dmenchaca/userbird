@@ -75,18 +75,21 @@ export const handler: Handler = async (event) => {
     }
 
     // Check if Slack integration is enabled for this form
-    const { data: slackIntegration, error: integrationError } = await supabase
+    const { data: slackIntegration, error: slackError } = await supabase
       .from('slack_integrations')
-      .select('*')
+      .select('bot_token, enabled, channel_id')
       .eq('form_id', formId)
       .eq('enabled', true)
       .single();
 
-    if (integrationError || !slackIntegration) {
-      console.log('Slack integration not enabled for this form');
+    if (slackError || !slackIntegration || !slackIntegration.bot_token || !slackIntegration.channel_id) {
+      console.log(`Slack integration not available for form ${formId} or missing channel configuration`);
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: false, message: 'Slack integration not enabled' })
+        body: JSON.stringify({
+          success: false,
+          message: 'Slack integration not configured properly'
+        })
       };
     }
 
