@@ -828,10 +828,6 @@ async function sendSlackConfirmation(
     // Prepare the message text
     let messageText = "✅ Reply sent to user";
     
-    if (!usedExistingMapping) {
-      messageText += " (Note: Used email matching to link your account)";
-    }
-    
     // Send the message
     const response = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
