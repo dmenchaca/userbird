@@ -3,7 +3,7 @@
   
   This script:
   - Restricts custom_email_settings access to form owners and admin collaborators only
-  - Agents cannot access or modify email settings at all
+  - Agents can only view but not modify email settings
 */
 
 -- First, ensure RLS is enabled
@@ -37,7 +37,19 @@ USING (
   )
 );
 
--- No policies for agents, which means they have no access at all
+-- Create policy for agents to have read-only access to email settings
+CREATE POLICY "Agents can view email settings"
+ON custom_email_settings
+FOR SELECT
+TO authenticated
+USING (
+  form_id IN (
+    SELECT form_id FROM form_collaborators
+    WHERE user_id = auth.uid()
+    AND invitation_accepted = true
+    AND role = 'agent'
+  )
+);
 
 -- Grant permissions to authenticated users (but policies will restrict based on roles)
 GRANT ALL ON custom_email_settings TO authenticated; 
