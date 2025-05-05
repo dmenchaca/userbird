@@ -83,6 +83,26 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
   try {
     const payload = JSON.parse(body);
     
+    // Add detailed logging of the full payload structure
+    console.log('SLACK_EVENT_RECEIVED', {
+      timestamp: new Date().toISOString(),
+      event_id: payload.event_id,
+      payload_type: payload.type,
+      team_id: payload.team_id,
+      api_app_id: payload.api_app_id,
+      event_context: payload.event_context,
+      event_time: payload.event_time,
+      event_type: payload.event?.type,
+      event_subtype: payload.event?.subtype,
+      channel_type: payload.event?.channel_type,
+      has_thread_ts: !!payload.event?.thread_ts,
+      thread_ts: payload.event?.thread_ts,
+      message_ts: payload.event?.ts,
+      has_bot_id: !!payload.event?.bot_id,
+      user_id: payload.event?.user,
+      authorization_identity: payload.authorizations?.[0]?.user_id
+    });
+    
     // Handle Slack URL verification challenge
     if (payload.type === 'url_verification') {
       return {
@@ -98,8 +118,27 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       
       // Only process message events that are in threads
       if (slackEvent.type === 'message' && slackEvent.thread_ts) {
+        // Log detailed message event information
+        console.log('SLACK_THREAD_MESSAGE', {
+          event_id: payload.event_id,
+          ts: slackEvent.ts,
+          thread_ts: slackEvent.thread_ts,
+          channel: slackEvent.channel,
+          user: slackEvent.user,
+          has_bot_id: !!slackEvent.bot_id,
+          subtype: slackEvent.subtype,
+          text_length: slackEvent.text?.length,
+          text_preview: slackEvent.text?.substring(0, 30)
+        });
+        
         // Skip messages from bots or message_changed events (edits)
         if (slackEvent.bot_id || slackEvent.subtype === 'message_changed') {
+          console.log('SLACK_SKIPPING_BOT_OR_EDIT', {
+            event_id: payload.event_id,
+            is_bot: !!slackEvent.bot_id,
+            subtype: slackEvent.subtype,
+            ts: slackEvent.ts
+          });
           return {
             statusCode: 200,
             body: JSON.stringify({ status: 'ignored bot message or edit' })
@@ -109,17 +148,68 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
         // Check if message mentions @Userbird
         const mentionsUserbird = await checkIfMentionsUserbird(slackEvent.text, payload.team_id, slackEvent.thread_ts);
         
+        console.log('SLACK_MENTION_CHECK', {
+          event_id: payload.event_id,
+          mentions_userbird: mentionsUserbird,
+          ts: slackEvent.ts,
+          user: slackEvent.user
+        });
+        
         if (mentionsUserbird) {
-          console.log('Message mentions @Userbird, processing as reply');
+          console.log('SLACK_PROCESSING_REPLY', {
+            event_id: payload.event_id,
+            ts: slackEvent.ts,
+            thread_ts: slackEvent.thread_ts,
+            text_length: slackEvent.text?.length
+          });
           
           try {
+            // Check if a reply with this slack_ts already exists in the database
+            const { data: existingReplies, error: checkError } = await supabase
+              .from('feedback_replies')
+              .select('id, created_at')
+              .eq('meta->slack_ts', slackEvent.ts)
+              .limit(1);
+              
+            if (checkError) {
+              console.error('SLACK_DB_CHECK_ERROR', {
+                event_id: payload.event_id,
+                error: checkError.message,
+                ts: slackEvent.ts
+              });
+            } else {
+              console.log('SLACK_EXISTING_REPLY_CHECK', {
+                event_id: payload.event_id,
+                ts: slackEvent.ts,
+                found_existing_replies: existingReplies?.length > 0,
+                existing_reply_id: existingReplies?.[0]?.id,
+                existing_reply_created_at: existingReplies?.[0]?.created_at
+              });
+            }
+            
             await processSlackReply(slackEvent, payload.team_id);
+            
+            console.log('SLACK_REPLY_PROCESSED', {
+              event_id: payload.event_id,
+              ts: slackEvent.ts,
+              thread_ts: slackEvent.thread_ts,
+              process_time: new Date().toISOString()
+            });
+            
             return {
               statusCode: 200,
-              body: JSON.stringify({ status: 'reply processed' })
+              body: JSON.stringify({ 
+                status: 'reply processed',
+                event_id: payload.event_id,
+                ts: slackEvent.ts
+              })
             };
           } catch (error) {
-            console.error('Error processing reply:', error);
+            console.error('SLACK_PROCESSING_ERROR', {
+              event_id: payload.event_id,
+              ts: slackEvent.ts,
+              error: error instanceof Error ? error.message : String(error)
+            });
             return {
               statusCode: 500,
               body: JSON.stringify({ error: 'Failed to process reply' })
@@ -132,10 +222,16 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Default response for other events
     return {
       statusCode: 200,
-      body: JSON.stringify({ status: 'event received' })
+      body: JSON.stringify({ 
+        status: 'event received',
+        event_id: payload.event_id
+      })
     };
   } catch (error) {
-    console.error('Error processing Slack event:', error);
+    console.error('SLACK_PARSE_ERROR', {
+      error: error instanceof Error ? error.message : String(error),
+      body_preview: body.substring(0, 100)
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' })
@@ -298,7 +394,12 @@ function convertSlackToHtml(text: string): string {
 // Process a reply from Slack
 async function processSlackReply(slackEvent: any, teamId: string) {
   // 1. First, try to find the original message in the thread to extract the ticket number
-  console.log(`Processing reply in thread: ${slackEvent.thread_ts}`);
+  console.log('SLACK_PROCESS_REPLY_START', {
+    ts: slackEvent.ts,
+    thread_ts: slackEvent.thread_ts,
+    channel: slackEvent.channel,
+    user: slackEvent.user
+  });
   
   try {
     // Get the form_id associated with this workspace
@@ -590,6 +691,14 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       replyData.in_reply_to = lastReplyMessageId;
     }
     
+    console.log('SLACK_CREATING_REPLY', {
+      ts: slackEvent.ts,
+      feedback_id: feedbackId,
+      user_id: userbirdUserId,
+      has_in_reply_to: !!lastReplyMessageId,
+      content_length: plainTextContent.length
+    });
+    
     const { data: newReply, error: replyError } = await supabase
       .from('feedback_replies')
       .insert(replyData)
@@ -597,11 +706,20 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       .single();
     
     if (replyError) {
-      console.error('Error creating feedback reply:', replyError);
+      console.error('SLACK_DB_INSERT_ERROR', {
+        ts: slackEvent.ts,
+        feedback_id: feedbackId,
+        error: replyError.message
+      });
       throw new Error(`Failed to create feedback reply: ${replyError.message}`);
     }
     
-    console.log(`Created feedback reply with ID: ${newReply.id}`);
+    console.log('SLACK_REPLY_CREATED', {
+      ts: slackEvent.ts,
+      feedback_id: feedbackId,
+      reply_id: newReply.id,
+      created_at: newReply.created_at
+    });
     
     // 6. Trigger email notification to the end user
     try {
@@ -652,7 +770,13 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     
     return newReply.id;
   } catch (error) {
-    console.error('Error in processSlackReply:', error);
+    console.error('SLACK_PROCESS_REPLY_ERROR', {
+      ts: slackEvent.ts,
+      thread_ts: slackEvent.thread_ts,
+      error: error instanceof Error ? error.message : String(error),
+      error_type: error instanceof Error ? error.constructor.name : typeof error,
+      error_stack: error instanceof Error ? error.stack : undefined
+    });
     
     // Send a message to the thread to inform the user
     try {

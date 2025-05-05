@@ -41,10 +41,16 @@ function plainTextToHtml(content: string): string {
 }
 
 export const handler: Handler = async (event) => {
-  console.log('Reply notification function triggered:', {
+  // Generate a unique trace ID for this request for easier correlation in logs
+  const requestId = Math.random().toString(36).substring(2, 15);
+  
+  console.log(`[${requestId}] REPLY_NOTIFICATION_START`, {
+    timestamp: new Date().toISOString(),
     method: event.httpMethod,
     hasBody: !!event.body,
-    bodyLength: event.body?.length
+    bodyLength: event.body?.length,
+    requestPath: event.path,
+    headers: Object.keys(event.headers || {})
   });
 
   if (event.httpMethod !== 'POST') {
@@ -53,16 +59,22 @@ export const handler: Handler = async (event) => {
 
   try {
     const { feedbackId, replyContent, replyId, htmlContent, isAdminDashboardReply, productName } = JSON.parse(event.body || '{}');
-    console.log('Parsed request:', { 
+    console.log(`[${requestId}] REPLY_NOTIFICATION_REQUEST`, { 
       hasFeedbackId: !!feedbackId, 
+      feedbackId,
+      replyId,
       replyContentLength: replyContent?.length,
+      replyContentPreview: replyContent?.substring(0, 50),
       hasReplyId: !!replyId,
       hasHtmlContent: !!htmlContent,
+      htmlContentLength: htmlContent?.length,
       isAdminDashboardReply: !!isAdminDashboardReply,
-      productName
+      productName,
+      source: JSON.parse(event.body || '{}')?.source || 'unknown'
     });
     
     if (!feedbackId || !replyContent) {
+      console.log(`[${requestId}] REPLY_NOTIFICATION_MISSING_FIELDS`);
       return { 
         statusCode: 400, 
         body: JSON.stringify({ error: 'Missing required fields' }) 
@@ -77,13 +89,45 @@ export const handler: Handler = async (event) => {
       .single();
 
     if (feedbackError) {
-      console.error('Feedback query error:', feedbackError);
+      console.error(`[${requestId}] REPLY_NOTIFICATION_FEEDBACK_ERROR`, {
+        feedbackId,
+        error: feedbackError.message,
+        code: feedbackError.code
+      });
       throw feedbackError;
     }
 
     if (!feedback) {
-      console.error('Feedback not found:', feedbackId);
+      console.error(`[${requestId}] REPLY_NOTIFICATION_FEEDBACK_NOT_FOUND`, { feedbackId });
       return { statusCode: 404, body: JSON.stringify({ error: 'Feedback not found' }) };
+    }
+    
+    // Check if replyId already has an associated message_id, which would indicate 
+    // this reply has already been processed
+    if (replyId) {
+      const { data: existingReply } = await supabase
+        .from('feedback_replies')
+        .select('message_id, created_at, meta')
+        .eq('id', replyId)
+        .single();
+        
+      if (existingReply?.message_id) {
+        console.log(`[${requestId}] REPLY_NOTIFICATION_ALREADY_SENT`, {
+          replyId,
+          existingMessageId: existingReply.message_id,
+          createdAt: existingReply.created_at,
+          meta: existingReply.meta
+        });
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            success: true,
+            alreadyProcessed: true,
+            messageId: existingReply.message_id
+          })
+        };
+      }
     }
     
     // If replyId is provided, fetch the html_content from the database
@@ -91,12 +135,15 @@ export const handler: Handler = async (event) => {
     if (replyId) {
       const { data: replyData } = await supabase
         .from('feedback_replies')
-        .select('html_content')
+        .select('html_content, meta')
         .eq('id', replyId)
         .single();
         
       if (replyData?.html_content) {
-        console.log('Using html_content from database');
+        console.log(`[${requestId}] REPLY_NOTIFICATION_USING_HTML_CONTENT`, {
+          replyId,
+          source: replyData.meta?.source || 'unknown'
+        });
         processedHtmlContent = replyData.html_content;
       }
     }
@@ -110,7 +157,7 @@ export const handler: Handler = async (event) => {
     // Check if this is the first reply and find the last message ID for threading
     const { data: existingReplies } = await supabase
       .from('feedback_replies')
-      .select('id, message_id, in_reply_to')
+      .select('id, message_id, in_reply_to, created_at')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false });
 
@@ -128,16 +175,21 @@ export const handler: Handler = async (event) => {
       inReplyTo = lastMessageId;
     }
 
-    console.log('Reply context:', {
+    console.log(`[${requestId}] REPLY_NOTIFICATION_CONTEXT`, {
       isFirstReply,
       replyCount: existingReplies?.length || 0,
       hasLastMessageId: !!lastMessageId,
       lastMessageId,
-      inReplyTo
+      inReplyTo,
+      recentReplies: existingReplies?.slice(0, 3).map(reply => ({ 
+        id: reply.id, 
+        message_id: reply.message_id,
+        created_at: reply.created_at
+      }))
     });
 
     if (!feedback.user_email) {
-      console.log('No user email to send notification to', { feedbackId });
+      console.log(`[${requestId}] REPLY_NOTIFICATION_NO_EMAIL`, { feedbackId });
       return { 
         statusCode: 200, 
         body: JSON.stringify({ 
@@ -149,7 +201,11 @@ export const handler: Handler = async (event) => {
 
     const userEmail = feedback.user_email;
     
-    console.log('Sending reply notification email to:', userEmail);
+    console.log(`[${requestId}] REPLY_NOTIFICATION_SENDING`, {
+      to: userEmail,
+      replyId,
+      feedbackId
+    });
 
     // EmailService now directly supports custom emails
     const emailResult = await EmailService.sendReplyNotification({
@@ -170,9 +226,20 @@ export const handler: Handler = async (event) => {
       productName
     });
 
+    console.log(`[${requestId}] REPLY_NOTIFICATION_EMAIL_SENT`, {
+      replyId,
+      feedbackId,
+      messageId: emailResult.messageId,
+      inReplyTo: inReplyTo || undefined
+    });
+
     // Store the message ID in the database and update in_reply_to field
     if (emailResult.messageId && replyId) {
-      console.log('Updating reply with message ID:', emailResult.messageId);
+      console.log(`[${requestId}] REPLY_NOTIFICATION_UPDATING_REPLY`, { 
+        replyId,
+        messageId: emailResult.messageId,
+        inReplyTo: inReplyTo || undefined
+      });
       
       const updateData: any = { message_id: emailResult.messageId };
       
@@ -187,29 +254,43 @@ export const handler: Handler = async (event) => {
         .eq('id', replyId);
       
       if (updateError) {
-        console.error('Error updating reply with message ID:', updateError);
+        console.error(`[${requestId}] REPLY_NOTIFICATION_UPDATE_ERROR`, {
+          replyId,
+          error: updateError.message
+        });
       } else {
-        console.log('Successfully updated reply with message ID and in_reply_to reference');
+        console.log(`[${requestId}] REPLY_NOTIFICATION_UPDATE_SUCCESS`, {
+          replyId,
+          messageId: emailResult.messageId,
+          inReplyTo: inReplyTo || undefined
+        });
       }
     }
+
+    console.log(`[${requestId}] REPLY_NOTIFICATION_COMPLETE`, {
+      replyId,
+      feedbackId,
+      success: true
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true,
-        messageId: emailResult.messageId
+        messageId: emailResult.messageId,
+        requestId
       })
     };
 
   } catch (error) {
-    console.error('Error in reply notification function:', {
+    console.error(`[${requestId}] REPLY_NOTIFICATION_ERROR`, {
       error: error instanceof Error ? error.message : 'Unknown error',
       type: error instanceof Error ? error.constructor.name : typeof error,
       stack: error instanceof Error ? error.stack : undefined
     });
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ error: 'Internal server error', requestId })
     };
   }
 }; 
