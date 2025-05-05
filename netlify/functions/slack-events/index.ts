@@ -657,42 +657,18 @@ async function processSlackReply(slackEvent: any, teamId: string) {
             });
             
             console.log('Created mapping using auth user');
-            return;
+          } else {
+            // No user found with matching email - throw an error instead of falling back to form owner
+            throw new Error(`No Userbird user found with matching email: ${slackUserEmail}`);
           }
         } catch (authError) {
           console.error('DEBUG_AUTH_LOOKUP_ERROR', {
             message: authError instanceof Error ? authError.message : String(authError)
           });
+          
+          // Don't fall back to form owner, propagate the error
+          throw new Error(`Failed to find user for Slack email: ${slackUserEmail}`);
         }
-        
-        // Fall back to form owner
-        const { data: form } = await supabase
-          .from('forms')
-          .select('owner_id')
-          .eq('id', formId)
-          .single();
-        
-        if (!form?.owner_id) {
-          throw new Error(`Could not find owner for form: ${formId}`);
-        }
-        
-        userbirdUserId = form.owner_id;
-        console.log(`Using form owner as fallback: ${userbirdUserId}`);
-        
-        // Let's also store this information for the confirmation message
-        await supabase.from('slack_integrations')
-          .update({
-            metadata: {
-              last_unmapped_slack_user: {
-                slack_user_id: slackEvent.user,
-                slack_user_email: slackUserEmail,
-                slack_user_name: slackUserData.user.real_name || slackUserData.user.name,
-                timestamp: new Date().toISOString()
-              }
-            }
-          })
-          .eq('workspace_id', teamId)
-          .eq('form_id', formId);
       }
     }
     
