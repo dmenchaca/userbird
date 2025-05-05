@@ -263,7 +263,7 @@ ${feedback.message}
     
     if (isAdminDashboardReply) {
       // For admin dashboard replies, use minimal styling
-      htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div><br>`;
     } else {
       // For automated replies, use full styling
       htmlMessage = `
