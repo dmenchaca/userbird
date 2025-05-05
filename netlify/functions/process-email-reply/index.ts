@@ -568,6 +568,149 @@ function replaceCidWithUrls(
   return result;
 }
 
+// Convert HTML to Slack's mrkdwn format
+function convertHtmlToSlack(html: string): string {
+  if (!html) return '';
+  
+  let slackText = html
+    // Remove most HTML tags, keep their content
+    .replace(/<(?!\/?(strong|b|em|i|del|s|pre|code|a)(?=>|\s[^>]*>))([^>])*>/gi, '')
+    
+    // Convert paragraph and line breaks to newlines
+    .replace(/<\/p>\s*<p[^>]*>|<br\s*\/?>/gi, '\n')
+    
+    // Convert bold
+    .replace(/<(strong|b)>(.*?)<\/(strong|b)>/gi, '*$2*')
+    
+    // Convert italic
+    .replace(/<(em|i)>(.*?)<\/(em|i)>/gi, '_$2_')
+    
+    // Convert strikethrough
+    .replace(/<(del|s)>(.*?)<\/(del|s)>/gi, '~$2~')
+    
+    // Convert code blocks
+    .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/gi, '```$1```')
+    
+    // Convert inline code
+    .replace(/<code>(.*?)<\/code>/gi, '`$1`')
+    
+    // Convert links - handle both <a href="url">text</a> and <a href="url" target="_blank">text</a>
+    .replace(/<a[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>/gi, '<$1|$2>')
+    
+    // Remove any remaining HTML tags
+    .replace(/<[^>]*>/g, '')
+    
+    // Replace HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+  
+  // Limit length to avoid Slack message limits
+  const maxLength = 3000;
+  if (slackText.length > maxLength) {
+    slackText = slackText.substring(0, maxLength) + '... (message truncated)';
+  }
+  
+  return slackText;
+}
+
+// Helper function to send reply to Slack thread
+async function sendReplyToSlackThread(
+  feedbackId: string,
+  replyContent: string,
+  senderName: string
+): Promise<boolean> {
+  try {
+    console.log(`Checking if feedback ${feedbackId} has an associated Slack thread`);
+    
+    // First, get the form_id for this feedback
+    const { data: feedback, error: feedbackError } = await supabase
+      .from('feedback')
+      .select('form_id')
+      .eq('id', feedbackId)
+      .single();
+    
+    if (feedbackError || !feedback) {
+      console.error('Error finding feedback:', feedbackError);
+      return false;
+    }
+    
+    // Look for a feedback_reply with Slack thread reference
+    const { data: threadRefs, error: threadError } = await supabase
+      .from('feedback_replies')
+      .select('meta')
+      .eq('feedback_id', feedbackId)
+      .eq('meta->is_slack_reference', true)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    
+    if (threadError) {
+      console.error('Error finding Slack thread reference:', threadError);
+      return false;
+    }
+    
+    // No thread reference found, can't append to Slack
+    if (!threadRefs || threadRefs.length === 0 || !threadRefs[0].meta) {
+      console.log('No Slack thread found for this feedback');
+      return false;
+    }
+    
+    const meta = threadRefs[0].meta as any;
+    if (!meta.slack_thread_ts || !meta.slack_channel_id) {
+      console.log('Incomplete Slack thread reference:', meta);
+      return false;
+    }
+    
+    // Get the Slack integration for this form
+    const { data: slackIntegration, error: slackError } = await supabase
+      .from('slack_integrations')
+      .select('bot_token')
+      .eq('form_id', feedback.form_id)
+      .eq('enabled', true)
+      .single();
+    
+    if (slackError || !slackIntegration?.bot_token) {
+      console.error('Error finding Slack integration:', slackError);
+      return false;
+    }
+    
+    // Format the message
+    const slackMessage = `*${senderName} replied:*\n${replyContent}`;
+    
+    // Send the reply to the Slack thread
+    const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${slackIntegration.bot_token}`
+      },
+      body: JSON.stringify({
+        channel: meta.slack_channel_id,
+        thread_ts: meta.slack_thread_ts,
+        text: slackMessage,
+        mrkdwn: true
+      })
+    });
+    
+    const slackResult = await slackResponse.json() as any;
+    
+    if (!slackResult.ok) {
+      console.error('Error sending reply to Slack thread:', slackResult.error);
+      return false;
+    }
+    
+    console.log(`Successfully appended reply to Slack thread in channel ${meta.slack_channel_id}`);
+    return true;
+  } catch (error) {
+    console.error('Error in sendReplyToSlackThread:', error);
+    return false;
+  }
+}
+
 // Store the reply in the database
 async function storeReply(
   parsedEmail: ParsedMail, 
@@ -701,6 +844,48 @@ async function storeReply(
       }
     } catch (updateErr) {
       console.log('Error updating feedback record, but reply was stored successfully');
+    }
+    
+    // Try to send the reply to Slack if there's an existing thread
+    try {
+      // First check if there's a Slack thread for this feedback to avoid unnecessary processing
+      const { data: threadRefs } = await supabase
+        .from('feedback_replies')
+        .select('meta')
+        .eq('feedback_id', feedbackId)
+        .eq('meta->is_slack_reference', true)
+        .order('created_at', { ascending: true })
+        .limit(1);
+      
+      // Only proceed if there's a thread reference
+      if (threadRefs && threadRefs.length > 0 && threadRefs[0].meta) {
+        // Get sender name from email - prefer display name, then email address
+        const fromValue = parsedEmail.from?.value?.[0];
+        let senderName = '';
+        
+        if (fromValue?.name && fromValue.name.trim()) {
+          // Use display name if available
+          senderName = fromValue.name.trim();
+        } else if (fromValue?.address) {
+          // Fall back to email address
+          senderName = fromValue.address;
+        } else {
+          // Last resort
+          senderName = 'User';
+        }
+        
+        // Convert HTML content to Slack format
+        const slackContent = convertHtmlToSlack(parsedEmail.html || parsedEmail.text || '');
+        
+        // Send to Slack thread
+        const slackSent = await sendReplyToSlackThread(feedbackId, slackContent, senderName);
+        console.log(`Slack thread reply ${slackSent ? 'sent' : 'error sending'}`);
+      } else {
+        console.log('No Slack thread found for this feedback, skipping Slack notification');
+      }
+    } catch (slackError) {
+      console.error('Error checking/sending to Slack thread, but reply was saved successfully:', slackError);
+      // Continue anyway since the reply is already saved
     }
     
     return reply.id;
