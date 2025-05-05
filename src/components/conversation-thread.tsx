@@ -347,8 +347,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
             .replace(/>/g, '&gt;');
             
           // Use a single div with <br> tags for newlines instead of multiple divs
-          // This preserves the line breaks in a visually consistent way
-          htmlContent = `<div>${htmlContent.replace(/\n/g, '<br>')}</div>`;
+          // This preserves the line breaks in a visually consistent way, and add an extra <br> for spacing
+          htmlContent = `<div>${htmlContent.replace(/\n/g, '<br>')}</div><br>`;
         } else {
           // For HTML content, ensure we're using <br> tags for line breaks rather than separate divs
           // This ensures consistent rendering in email clients
@@ -360,6 +360,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
           if (!htmlContent.startsWith('<div>')) {
             htmlContent = `<div>${htmlContent}</div>`;
           }
+          
+          // Add an extra <br> after the content for spacing in emails
+          htmlContent = `${htmlContent}<br>`;
         }
         
         // Get the message ID to respond to (for email threading)
