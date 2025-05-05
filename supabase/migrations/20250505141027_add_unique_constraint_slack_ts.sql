@@ -1,6 +1,39 @@
--- Add unique constraint to slack_ts in meta field
+-- Add unique constraint to slack_ts in meta field for FUTURE insertions
 -- This prevents duplicate processing of the same Slack event
 
+-- First, create a function to check if slack_ts already exists before insertion
+CREATE OR REPLACE FUNCTION prevent_duplicate_slack_ts()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Using FOR UPDATE SKIP LOCKED to handle concurrent inserts
+  PERFORM 1 FROM feedback_replies 
+  WHERE meta->>'slack_ts' = NEW.meta->>'slack_ts'
+  AND meta->>'slack_ts' IS NOT NULL
+  FOR UPDATE SKIP LOCKED;
+  
+  IF FOUND THEN
+    RAISE EXCEPTION 'Duplicate slack_ts value: %', NEW.meta->>'slack_ts';
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Clean up any existing trigger with the same name
+DROP TRIGGER IF EXISTS prevent_duplicate_slack_ts_trigger ON feedback_replies;
+
+-- Create the trigger to enforce uniqueness
+CREATE TRIGGER prevent_duplicate_slack_ts_trigger
+BEFORE INSERT ON feedback_replies
+FOR EACH ROW
+WHEN (NEW.meta->>'slack_ts' IS NOT NULL)
+EXECUTE FUNCTION prevent_duplicate_slack_ts();
+
+-- Add comment explaining what this trigger does
+COMMENT ON TRIGGER prevent_duplicate_slack_ts_trigger ON feedback_replies 
+IS 'Prevents inserting duplicate slack_ts values by using row-level locking';
+
+-- Also add a backup index-based constraint if possible
 -- First check if any duplicates currently exist
 DO $$
 DECLARE
@@ -16,14 +49,9 @@ BEGIN
         HAVING COUNT(*) > 1
     ) AS duplicates;
 
-    -- Raise notice with count of duplicates if any exist
-    IF duplicate_count > 0 THEN
-        RAISE NOTICE 'Found % duplicate slack_ts values. You need to clean these up before adding the constraint.', duplicate_count;
-    ELSE
-        -- Create expression index for the JSONB path if no duplicates exist
-        EXECUTE 'CREATE UNIQUE INDEX feedback_replies_meta_slack_ts_idx ON feedback_replies ((meta->>''slack_ts'')) WHERE meta->>''slack_ts'' IS NOT NULL';
-        
-        -- Add comment explaining the purpose of the constraint (only if index was created)
-        EXECUTE 'COMMENT ON INDEX feedback_replies_meta_slack_ts_idx IS ''Ensures each Slack message is only processed once by the slack-events function''';
+    -- Only create index if no duplicates exist
+    IF duplicate_count = 0 THEN
+        -- Try to create a unique index as additional protection
+        EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS feedback_replies_meta_slack_ts_idx ON feedback_replies ((meta->>''slack_ts'')) WHERE meta->>''slack_ts'' IS NOT NULL';
     END IF;
 END $$; 
