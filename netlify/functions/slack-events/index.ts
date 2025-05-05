@@ -535,160 +535,46 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       const slackUserEmail = slackUserData.user.profile.email;
       console.log(`Found email for Slack user: ${slackUserEmail}`);
       
-      // Add detailed debugging logs
-      console.log('DEBUG_USER_LOOKUP', {
-        email: slackUserEmail,
-        lookup_table: 'users'
+      // Look up user directly by email using RPC - this is the only method that works
+      console.log('DEBUG_RPC_ATTEMPT', {
+        message: 'Attempting to query auth.users via RPC',
+        email: slackUserEmail
       });
       
-      // Find a Userbird user with matching email
-      const { data: matchingUsers, error: userLookupError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', slackUserEmail)
-        .maybeSingle();
-      
-      // Log the results of the query
-      console.log('DEBUG_USER_LOOKUP_RESULT', {
-        found: !!matchingUsers?.id,
-        user_id: matchingUsers?.id,
-        error: userLookupError?.message
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_by_email', {
+        p_email: slackUserEmail
       });
       
-      if (matchingUsers?.id) {
-        userbirdUserId = matchingUsers.id;
-        console.log(`Found matching Userbird user by email: ${userbirdUserId}`);
-        
-        // Create the mapping for future use
-        await supabase.from('slack_user_mappings').insert({
-          user_id: userbirdUserId,
-          slack_workspace_id: teamId,
-          slack_user_id: slackEvent.user,
-          slack_user_name: slackUserData.user.real_name || slackUserData.user.name
-        });
-        
-        console.log('Created new user mapping');
-      } else {
-        console.log('No matching Userbird user found by email');
-        
-        // Try direct auth lookup
-        console.log('DEBUG_AUTH_LOOKUP', { email: slackUserEmail });
-        
+      console.log('DEBUG_RPC_RESULT', {
+        success: !rpcError,
+        found: !!rpcData,
+        error: rpcError ? rpcError.message : null,
+        data: rpcData ? JSON.stringify(rpcData) : null
+      });
+      
+      // Check if the RPC returned successful data
+      if (!rpcError && rpcData) {
         try {
-          // Try direct SQL query to auth.users table to see if it works
-          console.log('DEBUG_DIRECT_AUTH_QUERY_ATTEMPT', { 
-            message: 'Attempting direct query to auth.users table',
-            email: slackUserEmail
-          });
+          // Parse the RPC result (which is a JSON string array)
+          let parsedData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
           
-          const { data: directAuthUser, error: directAuthError } = await supabase
-            .from('auth.users')
-            .select('id, email')
-            .eq('email', slackUserEmail)
-            .maybeSingle();
-          
-          console.log('DEBUG_DIRECT_AUTH_QUERY_RESULT', {
-            success: !directAuthError,
-            found: !!directAuthUser?.id,
-            error: directAuthError ? directAuthError.message : null,
-            user_id: directAuthUser?.id,
-            error_details: directAuthError ? JSON.stringify(directAuthError) : null
-          });
-          
-          // Try with the auth admin API
-          console.log('DEBUG_AUTH_ADMIN_API_ATTEMPT', { 
-            message: 'Attempting to use auth.admin API',
-            email: slackUserEmail
-          });
-          
-          // Try to list all users with the admin API
-          const { data: adminData, error: adminError } = await supabase.auth.admin.listUsers();
-          
-          // Look for the user with matching email
-          const matchingAuthUser = adminData?.users?.find(user => 
-            user.email?.toLowerCase() === slackUserEmail.toLowerCase()
-          );
-          
-          console.log('DEBUG_AUTH_ADMIN_RESULT', {
-            found: !!matchingAuthUser?.id,
-            user_id: matchingAuthUser?.id,
-            error: adminError?.message,
-            total_users: adminData?.users?.length || 0,
-            email_lowercase: slackUserEmail.toLowerCase(),
-            // Log a sample of the first user's structure if available
-            sample_user: adminData?.users && adminData.users.length > 0 
-              ? JSON.stringify({id: adminData.users[0].id, email: adminData.users[0].email})
-              : 'no users found'
-          });
-          
-          // Attempt to directly query auth.users with RPC - another approach
-          console.log('DEBUG_RPC_ATTEMPT', {
-            message: 'Attempting to query auth.users via RPC',
-            email: slackUserEmail
-          });
-          
-          const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_by_email', {
-            p_email: slackUserEmail
-          });
-          
-          console.log('DEBUG_RPC_RESULT', {
-            success: !rpcError,
-            found: !!rpcData,
-            error: rpcError ? rpcError.message : null,
-            data: rpcData ? JSON.stringify(rpcData) : null
-          });
-          
-          // Check if the RPC returned successful data
-          if (!rpcError && rpcData) {
-            try {
-              // Parse the RPC result (which is a JSON string array)
-              let parsedData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
-              
-              // If it's not an array already, try to parse it
-              if (!Array.isArray(parsedData) && typeof parsedData === 'string') {
-                parsedData = JSON.parse(parsedData);
-              }
-              
-              // Check if we have valid user data
-              if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].id) {
-                const authUser = parsedData[0];
-                
-                console.log('DEBUG_RPC_USER_FOUND', {
-                  id: authUser.id,
-                  email: authUser.email
-                });
-                
-                // Use the user from RPC result
-                userbirdUserId = authUser.id;
-                console.log(`Using auth user from RPC: ${userbirdUserId}`);
-                
-                // Create the mapping for future use
-                await supabase.from('slack_user_mappings').insert({
-                  user_id: userbirdUserId,
-                  slack_workspace_id: teamId,
-                  slack_user_id: slackEvent.user,
-                  slack_user_name: slackUserData.user.real_name || slackUserData.user.name
-                });
-                
-                console.log('Created mapping using auth user from RPC');
-              }
-            } catch (parseError) {
-              console.error('DEBUG_RPC_PARSE_ERROR', {
-                error: parseError instanceof Error ? parseError.message : String(parseError),
-                rpcData
-              });
-            }
+          // If it's not an array already, try to parse it
+          if (!Array.isArray(parsedData) && typeof parsedData === 'string') {
+            parsedData = JSON.parse(parsedData);
           }
           
-          if (matchingAuthUser?.id) {
-            console.log('DEBUG_AUTH_FOUND_USER', {
-              id: matchingAuthUser.id,
-              email: matchingAuthUser.email
+          // Check if we have valid user data
+          if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].id) {
+            const authUser = parsedData[0];
+            
+            console.log('DEBUG_RPC_USER_FOUND', {
+              id: authUser.id,
+              email: authUser.email
             });
             
-            // Use the auth user as the sender
-            userbirdUserId = matchingAuthUser.id;
-            console.log(`Using auth user as sender: ${userbirdUserId}`);
+            // Use the user from RPC result
+            userbirdUserId = authUser.id;
+            console.log(`Using auth user from RPC: ${userbirdUserId}`);
             
             // Create the mapping for future use
             await supabase.from('slack_user_mappings').insert({
@@ -698,19 +584,19 @@ async function processSlackReply(slackEvent: any, teamId: string) {
               slack_user_name: slackUserData.user.real_name || slackUserData.user.name
             });
             
-            console.log('Created mapping using auth user');
-          } else {
-            // No user found with matching email - throw an error instead of falling back to form owner
-            throw new Error(`No Userbird user found with matching email: ${slackUserEmail}`);
+            console.log('Created mapping using auth user from RPC');
           }
-        } catch (authError) {
-          console.error('DEBUG_AUTH_LOOKUP_ERROR', {
-            message: authError instanceof Error ? authError.message : String(authError)
+        } catch (parseError) {
+          console.error('DEBUG_RPC_PARSE_ERROR', {
+            error: parseError instanceof Error ? parseError.message : String(parseError),
+            rpcData
           });
-          
-          // Don't fall back to form owner, propagate the error
-          throw new Error(`Failed to find user for Slack email: ${slackUserEmail}`);
         }
+      }
+      
+      // If we still don't have a user ID, throw an error
+      if (!userbirdUserId) {
+        throw new Error(`No Userbird user found with matching email: ${slackUserEmail}`);
       }
     }
     
