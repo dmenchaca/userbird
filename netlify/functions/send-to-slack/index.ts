@@ -293,7 +293,6 @@ export const handler: Handler = async (event) => {
           feedback_id: feedbackId,
           sender_type: 'system',
           type: 'notification',
-          content: 'Notification sent to Slack',
           meta: {
             source: 'slack',
             slack_channel_id: slackIntegration.channel_id,
