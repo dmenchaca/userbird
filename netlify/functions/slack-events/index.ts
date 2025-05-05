@@ -535,12 +535,25 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       const slackUserEmail = slackUserData.user.profile.email;
       console.log(`Found email for Slack user: ${slackUserEmail}`);
       
+      // Add detailed debugging logs
+      console.log('DEBUG_USER_LOOKUP', {
+        email: slackUserEmail,
+        lookup_table: 'users'
+      });
+      
       // Find a Userbird user with matching email
-      const { data: matchingUsers } = await supabase
+      const { data: matchingUsers, error: userLookupError } = await supabase
         .from('users')
         .select('id')
         .eq('email', slackUserEmail)
         .maybeSingle();
+      
+      // Log the results of the query
+      console.log('DEBUG_USER_LOOKUP_RESULT', {
+        found: !!matchingUsers?.id,
+        user_id: matchingUsers?.id,
+        error: userLookupError?.message
+      });
       
       if (matchingUsers?.id) {
         userbirdUserId = matchingUsers.id;
@@ -557,6 +570,59 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         console.log('Created new user mapping');
       } else {
         console.log('No matching Userbird user found by email');
+        
+        // Try direct auth lookup
+        console.log('DEBUG_AUTH_LOOKUP', {
+          email: slackUserEmail
+        });
+        
+        try {
+          // Try to list all users with the admin API
+          const { data: adminData, error: adminError } = await supabase.auth.admin.listUsers();
+          
+          // Look for the user with matching email
+          const matchingAuthUser = adminData?.users?.find(user => 
+            user.email?.toLowerCase() === slackUserEmail.toLowerCase()
+          );
+          
+          console.log('DEBUG_AUTH_ADMIN_RESULT', {
+            found: !!matchingAuthUser?.id,
+            user_id: matchingAuthUser?.id,
+            error: adminError?.message,
+            total_users: adminData?.users?.length || 0,
+            email_lowercase: slackUserEmail.toLowerCase(),
+            // Log a sample of the first user's structure if available
+            sample_user: adminData?.users && adminData.users.length > 0 
+              ? JSON.stringify({id: adminData.users[0].id, email: adminData.users[0].email})
+              : 'no users found'
+          });
+          
+          if (matchingAuthUser?.id) {
+            console.log('DEBUG_AUTH_FOUND_USER', {
+              id: matchingAuthUser.id,
+              email: matchingAuthUser.email
+            });
+            
+            // Use the auth user as the sender
+            userbirdUserId = matchingAuthUser.id;
+            console.log(`Using auth user as sender: ${userbirdUserId}`);
+            
+            // Create the mapping for future use
+            await supabase.from('slack_user_mappings').insert({
+              user_id: userbirdUserId,
+              slack_workspace_id: teamId,
+              slack_user_id: slackEvent.user,
+              slack_user_name: slackUserData.user.real_name || slackUserData.user.name
+            });
+            
+            console.log('Created mapping using auth user');
+            return;
+          }
+        } catch (authError) {
+          console.error('DEBUG_AUTH_LOOKUP_ERROR', {
+            message: authError instanceof Error ? authError.message : String(authError)
+          });
+        }
         
         // Fall back to form owner
         const { data: form } = await supabase
