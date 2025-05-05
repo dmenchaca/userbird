@@ -772,32 +772,34 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       error_stack: error instanceof Error ? error.stack : undefined
     });
     
-    // Send a message to the thread to inform the user
-    try {
-      // Find any integration for this workspace to get a token
-      const { data: integration } = await supabase
-        .from('slack_integrations')
-        .select('bot_token')
-        .eq('workspace_id', teamId)
-        .limit(1)
-        .maybeSingle();
-      
-      if (integration?.bot_token) {
-        await fetch('https://slack.com/api/chat.postMessage', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${integration.bot_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            channel: slackEvent.channel,
-            thread_ts: slackEvent.thread_ts,
-            text: "❌ Sorry, I couldn't process your reply. Please make sure you're replying to a feedback notification thread."
-          })
-        });
+    // Only send error message to the thread if it's not a duplicate message error
+    if (!(error instanceof Error) || !error.message.includes('Duplicate slack_ts value')) {
+      try {
+        // Find any integration for this workspace to get a token
+        const { data: integration } = await supabase
+          .from('slack_integrations')
+          .select('bot_token')
+          .eq('workspace_id', teamId)
+          .limit(1)
+          .maybeSingle();
+        
+        if (integration?.bot_token) {
+          await fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${integration.bot_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              channel: slackEvent.channel,
+              thread_ts: slackEvent.thread_ts,
+              text: "❌ Sorry, I couldn't process your reply. Please make sure you're replying to a feedback notification thread."
+            })
+          });
+        }
+      } catch (msgError) {
+        console.error('Error sending error message to Slack:', msgError);
       }
-    } catch (msgError) {
-      console.error('Error sending error message to Slack:', msgError);
     }
     
     throw error;
