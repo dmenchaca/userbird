@@ -83,6 +83,11 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
   try {
     const payload = JSON.parse(body);
     
+    // Log basic payload information for debugging duplicate events
+    if (payload.event_id) {
+      console.log(`Processing Slack payload: event_id=${payload.event_id}, team_id=${payload.team_id}, api_app_id=${payload.api_app_id}`);
+    }
+    
     // Handle Slack URL verification challenge
     if (payload.type === 'url_verification') {
       return {
@@ -95,6 +100,9 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Process actual events
     if (payload.type === 'event_callback') {
       const slackEvent = payload.event;
+      
+      // Add detailed logging for event tracking
+      console.log(`Received Slack event: type=${slackEvent.type}, ts=${slackEvent.ts}, event_id=${payload.event_id}`);
       
       // Only process message events that are in threads
       if (slackEvent.type === 'message' && slackEvent.thread_ts) {
@@ -301,6 +309,34 @@ async function processSlackReply(slackEvent: any, teamId: string) {
   console.log(`Processing reply in thread: ${slackEvent.thread_ts}`);
   
   try {
+    // Check if this message has already been processed (deduplication)
+    const { data: existingReplies } = await supabase
+      .from('feedback_replies')
+      .select('id')
+      .eq('meta->slack_ts', slackEvent.ts)
+      .maybeSingle();
+    
+    if (existingReplies?.id) {
+      console.log(`Skipping duplicate message with slack_ts: ${slackEvent.ts}, already processed as reply: ${existingReplies.id}`);
+      
+      // Still send a confirmation message to Slack so the user knows their reply was received
+      try {
+        await sendSlackConfirmation(
+          slackEvent.channel,
+          slackEvent.thread_ts,
+          teamId,
+          existingReplies.id,
+          true, // Assume we used existing mapping since we're skipping processing
+          true  // Indicate this is a duplicate message
+        );
+      } catch (confirmError) {
+        console.error('Error sending duplicate confirmation to Slack:', confirmError);
+        // Continue anyway since we're just skipping a duplicate
+      }
+      
+      return existingReplies.id;
+    }
+    
     // Get the form_id associated with this workspace
     const { data: slackIntegration } = await supabase
       .from('slack_integrations')
@@ -647,7 +683,8 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       slackEvent.thread_ts, 
       teamId, 
       newReply.id,
-      !!existingMapping?.user_id // indicate if we used an existing mapping
+      !!existingMapping?.user_id, // indicate if we used an existing mapping
+      false // not a duplicate
     );
     
     return newReply.id;
@@ -692,7 +729,8 @@ async function sendSlackConfirmation(
   threadTs: string, 
   teamId: string, 
   replyId: string,
-  usedExistingMapping: boolean
+  usedExistingMapping: boolean,
+  isDuplicate: boolean = false
 ) {
   try {
     // Get the slack integration details
@@ -712,6 +750,10 @@ async function sendSlackConfirmation(
     
     if (!usedExistingMapping) {
       messageText += " (Note: Used email matching to link your account)";
+    }
+    
+    if (isDuplicate) {
+      messageText = "✅ Reply already processed (duplicate message)";
     }
     
     // Send the message
