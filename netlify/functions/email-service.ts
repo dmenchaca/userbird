@@ -951,7 +951,7 @@ ${feedback.message}
     
     if (isAdminDashboardReply) {
       // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div>`;
+      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div><br>`;
     } else {
       // For automated replies, use full styling
       htmlMessage = `
