@@ -267,6 +267,34 @@ async function fetchBotUserIdFromSlack(teamId: string): Promise<string | null> {
   }
 }
 
+// Helper function to convert Slack formatting to HTML
+function convertSlackToHtml(text: string): string {
+  if (!text) return '';
+  
+  // Convert Slack-style links <https://example.com|text> to HTML links
+  text = text.replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>');
+  
+  // Convert regular URLs that aren't already in the Slack format
+  text = text.replace(/(?<!["|'])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  
+  // Convert bold (*text*) - ensure it doesn't match within URLs
+  text = text.replace(/(?<!\w)\*([^\*\n]+)\*(?!\w)/g, '<strong>$1</strong>');
+  
+  // Convert italic (_text_) - ensure it doesn't match within URLs
+  text = text.replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '<em>$1</em>');
+  
+  // Convert strikethrough (~text~)
+  text = text.replace(/(?<!\w)~([^~\n]+)~(?!\w)/g, '<del>$1</del>');
+  
+  // Convert backticks (`code`) for code styling
+  text = text.replace(/(?<!\\)`([^`\n]+)`/g, '<code>$1</code>');
+  
+  // Convert line breaks
+  text = text.replace(/\n/g, '<br>');
+  
+  return text;
+}
+
 // Process a reply from Slack
 async function processSlackReply(slackEvent: any, teamId: string) {
   // 1. First, try to find the original message in the thread to extract the ticket number
@@ -450,8 +478,8 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // 4. Clean up the message text (remove @Userbird mention)
     const cleanText = slackEvent.text.replace(/<@[A-Z0-9]+>/g, '').trim();
     
-    // Create HTML version of the content (basic formatting)
-    let htmlContent = `<div>${cleanText.replace(/\n/g, '<br>')}</div>`;
+    // Create HTML version of the content with Slack formatting converted to HTML
+    let htmlContent = `<div>${convertSlackToHtml(cleanText)}</div>`;
     let plainTextContent = cleanText;
     
     // Check if we should add threading information
@@ -460,7 +488,7 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // If this is a reply to another message, check for previous message ID for email threading
     const { data: lastReplies } = await supabase
       .from('feedback_replies')
-      .select('message_id, created_at, content, html_content, sender_type')
+      .select('message_id, created_at, content, html_content, sender_type, meta')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -499,15 +527,24 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         const senderEmail = lastReply.sender_type === 'user' ? 
           userEmail : 'support@userbird.co';
         
+        // Also append to plain text content
+        const quotedPlainText = lastReply.content || '';
+        
+        // For HTML quoted content, apply our Slack formatting converter if it's a Slack-sourced reply
+        let formattedQuotedContent = quotedContent;
+        if (lastReply.meta && typeof lastReply.meta === 'object' && lastReply.meta.source === 'slack') {
+          // If this is quoting a Slack message that might have formatting, convert it now
+          formattedQuotedContent = convertSlackToHtml(quotedContent);
+        }
+        
         // Add the attribution line and blockquote formatting with Gmail's structure
         htmlContent += `
           <div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-            ${quotedContent}
+            ${formattedQuotedContent}
           </blockquote></div>
         `;
         
         // Also append to plain text content
-        const quotedPlainText = lastReply.content || '';
         plainTextContent += `\n\nOn ${replyDate}, ${senderEmail} wrote:\n\n${quotedPlainText.split('\n').map(line => `> ${line}`).join('\n')}`;
       }
     }
