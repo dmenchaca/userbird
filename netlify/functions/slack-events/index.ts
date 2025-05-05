@@ -450,23 +450,93 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // 4. Clean up the message text (remove @Userbird mention)
     const cleanText = slackEvent.text.replace(/<@[A-Z0-9]+>/g, '').trim();
     
-    // 5. Create the feedback reply
+    // Create HTML version of the content (basic formatting)
+    let htmlContent = `<div>${cleanText.replace(/\n/g, '<br>')}</div>`;
+    let plainTextContent = cleanText;
+    
+    // Check if we should add threading information
+    let lastReplyMessageId: string | null = null;
+    
+    // If this is a reply to another message, check for previous message ID for email threading
+    const { data: lastReplies } = await supabase
+      .from('feedback_replies')
+      .select('message_id, created_at, content, html_content, sender_type')
+      .eq('feedback_id', feedbackId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    // Get user email for quoting
+    const { data: feedbackDetails } = await supabase
+      .from('feedback')
+      .select('user_email')
+      .eq('id', feedbackId)
+      .single();
+      
+    const userEmail = feedbackDetails?.user_email || 'user@example.com';
+    
+    if (lastReplies && lastReplies.length > 0) {
+      const lastReply = lastReplies[0];
+      // Store the message ID of the last reply (for email threading)
+      lastReplyMessageId = lastReply.message_id || null;
+      
+      // Add quoted content if there's a previous reply
+      if (lastReply.content || lastReply.html_content) {
+        // Format date in email client style
+        const replyDate = new Date(lastReply.created_at).toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        // Determine quoted content based on what's available
+        const quotedContent = lastReply.html_content || lastReply.content || '';
+        
+        // Determine sender email for attribution
+        const senderEmail = lastReply.sender_type === 'user' ? 
+          userEmail : 'support@userbird.co';
+        
+        // Add the attribution line and blockquote formatting with Gmail's structure
+        htmlContent += `
+          <div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+            ${quotedContent}
+          </blockquote></div>
+        `;
+        
+        // Also append to plain text content
+        const quotedPlainText = lastReply.content || '';
+        plainTextContent += `\n\nOn ${replyDate}, ${senderEmail} wrote:\n\n${quotedPlainText.split('\n').map(line => `> ${line}`).join('\n')}`;
+      }
+    }
+    
+    // 5. Create the feedback reply with complete information
+    const replyData: any = {
+      feedback_id: feedbackId,
+      sender_id: userbirdUserId,
+      sender_type: 'admin',
+      type: 'reply',
+      content: plainTextContent,
+      html_content: htmlContent,
+      meta: {
+        source: 'slack',
+        slack_user_id: slackEvent.user,
+        slack_channel_id: slackEvent.channel,
+        slack_thread_ts: slackEvent.thread_ts,
+        slack_ts: slackEvent.ts
+      }
+    };
+    
+    // Add in_reply_to if we have a last reply message ID
+    if (lastReplyMessageId) {
+      replyData.in_reply_to = lastReplyMessageId;
+    }
+    
     const { data: newReply, error: replyError } = await supabase
       .from('feedback_replies')
-      .insert({
-        feedback_id: feedbackId,
-        sender_id: userbirdUserId,
-        sender_type: 'admin',
-        type: 'reply',
-        content: cleanText,
-        meta: {
-          source: 'slack',
-          slack_user_id: slackEvent.user,
-          slack_channel_id: slackEvent.channel,
-          slack_thread_ts: slackEvent.thread_ts,
-          slack_ts: slackEvent.ts
-        }
-      })
+      .insert(replyData)
       .select()
       .single();
     
@@ -480,6 +550,16 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // 6. Trigger email notification to the end user
     try {
       console.log('Triggering reply notification email');
+      
+      // Get the form's product name for the email
+      const { data: formData } = await supabase
+        .from('forms')
+        .select('product_name')
+        .eq('id', formId)
+        .single();
+        
+      const productName = formData?.product_name || 'Userbird';
+      
       const notificationResponse = await fetch('https://app.userbird.co/.netlify/functions/send-reply-notification', {
         method: 'POST',
         headers: {
@@ -488,8 +568,10 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         body: JSON.stringify({
           feedbackId: feedbackId,
           replyId: newReply.id,
-          replyContent: cleanText,
-          isAdminDashboardReply: true
+          replyContent: plainTextContent,
+          htmlContent: htmlContent,
+          isAdminDashboardReply: true,
+          productName: productName
         })
       });
       
