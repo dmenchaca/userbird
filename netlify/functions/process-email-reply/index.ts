@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
 import { simpleParser } from 'mailparser';
+import fetch from 'node-fetch';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -101,6 +102,7 @@ async function createFeedbackFromEmail(
       userName: fromName,
       contentLength: content.length
     });
+
     return feedback.id;
   } catch (error) {
     console.error('Error in createFeedbackFromEmail:', error);
@@ -942,6 +944,31 @@ export const handler: Handler = async (event) => {
         
         if (newFeedbackId) {
           console.log(`Created new feedback with ID: ${newFeedbackId}`);
+          // Now send this feedback to Slack if integration exists
+          try {
+            console.log(`Attempting to send feedback ${newFeedbackId} to Slack...`);
+            
+            const slackResponse = await fetch('https://app.userbird.co/.netlify/functions/send-to-slack', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                feedbackId: newFeedbackId,
+                formId: formId
+              })
+            });
+            
+            if (slackResponse.ok) {
+              console.log(`Successfully sent feedback ${newFeedbackId} to Slack (${slackResponse.status})`);
+            } else {
+              const errorText = await slackResponse.text();
+              console.error(`Error response from Slack notification: ${slackResponse.status} - ${errorText}`);
+            }
+          } catch (error) {
+            console.error(`Exception sending feedback to Slack: ${error instanceof Error ? error.message : String(error)}`);
+            // Continue processing - Slack notification is non-critical
+          }
           // Return success without creating a reply since this is a new feedback
           return { 
             statusCode: 200, 
