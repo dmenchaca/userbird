@@ -372,13 +372,32 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // Find the feedback by ticket number and form_id
     const { data: feedback } = await supabase
       .from('feedback')
-      .select('id, form_id')
+      .select('id, form_id, user_email, user_name')
       .eq('form_id', slackIntegration.form_id)
       .eq('ticket_number', ticketNumber)
       .single();
     
     if (!feedback) {
       throw new Error(`Could not find feedback with ticket number ${ticketNumber} for form ${slackIntegration.form_id}`);
+    }
+    
+    // Check if the feedback was submitted anonymously
+    if (!feedback.user_email) {
+      // Send a message to the thread explaining that replies aren't possible for anonymous feedback
+      await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${slackIntegration.bot_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          channel: slackEvent.channel,
+          thread_ts: slackEvent.thread_ts,
+          text: "❌ This feedback was submitted anonymously. Replies via Slack are not possible."
+        })
+      });
+      
+      throw new Error('Cannot reply to anonymous feedback');
     }
     
     const feedbackId = feedback.id;

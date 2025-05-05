@@ -231,17 +231,8 @@ export const handler: Handler = async (event) => {
       }
     );
 
-    // Add reply instructions
-    blocks.push({
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "Replies here will be sent to the user if you mention @Userbird."
-        }
-      ]
-    });
-
+    // Remove reply instructions from the initial message - we'll send these as a separate message
+    
     // Create the complete Slack message payload
     const slackMessage = {
       channel: slackIntegration.channel_id,
@@ -292,7 +283,7 @@ export const handler: Handler = async (event) => {
         body: JSON.stringify({ error: 'Failed to send message to Slack', details: slackResult.error })
       };
     }
-
+    
     // Store the thread_ts in a feedback_reply for future correlation
     if (slackResult.ts) {
       try {
@@ -324,6 +315,48 @@ export const handler: Handler = async (event) => {
       }
     } else {
       console.warn('No ts value in Slack response, cannot store thread reference');
+    }
+    
+    // Send a follow-up message with reply instructions
+    if (slackResult.ts) {
+      try {
+        // Prepare instructions text based on whether the feedback is anonymous
+        let instructionsText;
+        if (feedback.user_email) {
+          // We have user info, include name and email for clarity
+          const userName = feedback.user_name || feedback.user_email;
+          instructionsText = `Replies here will be sent to ${userName} (${feedback.user_email}) if you mention @Userbird.`;
+        } else {
+          // Anonymous feedback - let them know replies aren't possible
+          instructionsText = "This feedback was submitted anonymously. Replies via Slack are not possible.";
+        }
+        
+        // Send instructions as a separate message in the thread
+        const instructionsResponse = await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${slackIntegration.bot_token}`
+          },
+          body: JSON.stringify({
+            channel: slackIntegration.channel_id,
+            thread_ts: slackResult.ts,
+            text: instructionsText,
+            // Make it appear with the same app branding
+            username: "Userbird",
+            icon_url: "https://app.userbird.co/Userbird-icon.png"
+          })
+        });
+        
+        const instructionsResult = await instructionsResponse.json() as any;
+        
+        if (!instructionsResult.ok) {
+          console.error('Error sending instructions message to Slack:', instructionsResult.error);
+        }
+      } catch (error) {
+        console.error('Error sending instructions message:', error);
+        // Continue anyway as the main message was sent successfully
+      }
     }
 
     // Return success response
