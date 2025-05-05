@@ -671,7 +671,6 @@ async function processSlackReply(slackEvent: any, teamId: string) {
                 });
                 
                 console.log('Created mapping using auth user from RPC');
-                return;
               }
             } catch (parseError) {
               console.error('DEBUG_RPC_PARSE_ERROR', {
