@@ -663,10 +663,14 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         }
         
         // Add the attribution line and blockquote formatting with Gmail's structure
-        htmlContent += `<br>
-          <div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-            ${formattedQuotedContent}
-          </blockquote></div>
+        // Using consistent Gmail quote structure without extra breaks
+        htmlContent += `
+          <div class="gmail_quote">
+            <div dir="ltr" class="gmail_attr">On ${replyDate}, &lt;${senderEmail}&gt; wrote:</div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+              ${formattedQuotedContent}
+            </blockquote>
+          </div>
         `;
         
         // Also append to plain text content
