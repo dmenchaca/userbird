@@ -572,11 +572,35 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         console.log('No matching Userbird user found by email');
         
         // Try direct auth lookup
-        console.log('DEBUG_AUTH_LOOKUP', {
-          email: slackUserEmail
-        });
+        console.log('DEBUG_AUTH_LOOKUP', { email: slackUserEmail });
         
         try {
+          // Try direct SQL query to auth.users table to see if it works
+          console.log('DEBUG_DIRECT_AUTH_QUERY_ATTEMPT', { 
+            message: 'Attempting direct query to auth.users table',
+            email: slackUserEmail
+          });
+          
+          const { data: directAuthUser, error: directAuthError } = await supabase
+            .from('auth.users')
+            .select('id, email')
+            .eq('email', slackUserEmail)
+            .maybeSingle();
+          
+          console.log('DEBUG_DIRECT_AUTH_QUERY_RESULT', {
+            success: !directAuthError,
+            found: !!directAuthUser?.id,
+            error: directAuthError ? directAuthError.message : null,
+            user_id: directAuthUser?.id,
+            error_details: directAuthError ? JSON.stringify(directAuthError) : null
+          });
+          
+          // Try with the auth admin API
+          console.log('DEBUG_AUTH_ADMIN_API_ATTEMPT', { 
+            message: 'Attempting to use auth.admin API',
+            email: slackUserEmail
+          });
+          
           // Try to list all users with the admin API
           const { data: adminData, error: adminError } = await supabase.auth.admin.listUsers();
           
@@ -595,6 +619,23 @@ async function processSlackReply(slackEvent: any, teamId: string) {
             sample_user: adminData?.users && adminData.users.length > 0 
               ? JSON.stringify({id: adminData.users[0].id, email: adminData.users[0].email})
               : 'no users found'
+          });
+          
+          // Attempt to directly query auth.users with RPC - another approach
+          console.log('DEBUG_RPC_ATTEMPT', {
+            message: 'Attempting to query auth.users via RPC',
+            email: slackUserEmail
+          });
+          
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_by_email', {
+            p_email: slackUserEmail
+          });
+          
+          console.log('DEBUG_RPC_RESULT', {
+            success: !rpcError,
+            found: !!rpcData,
+            error: rpcError ? rpcError.message : null,
+            data: rpcData ? JSON.stringify(rpcData) : null
           });
           
           if (matchingAuthUser?.id) {
