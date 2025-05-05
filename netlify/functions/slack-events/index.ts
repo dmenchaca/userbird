@@ -638,6 +638,49 @@ async function processSlackReply(slackEvent: any, teamId: string) {
             data: rpcData ? JSON.stringify(rpcData) : null
           });
           
+          // Check if the RPC returned successful data
+          if (!rpcError && rpcData) {
+            try {
+              // Parse the RPC result (which is a JSON string array)
+              let parsedData = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
+              
+              // If it's not an array already, try to parse it
+              if (!Array.isArray(parsedData) && typeof parsedData === 'string') {
+                parsedData = JSON.parse(parsedData);
+              }
+              
+              // Check if we have valid user data
+              if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].id) {
+                const authUser = parsedData[0];
+                
+                console.log('DEBUG_RPC_USER_FOUND', {
+                  id: authUser.id,
+                  email: authUser.email
+                });
+                
+                // Use the user from RPC result
+                userbirdUserId = authUser.id;
+                console.log(`Using auth user from RPC: ${userbirdUserId}`);
+                
+                // Create the mapping for future use
+                await supabase.from('slack_user_mappings').insert({
+                  user_id: userbirdUserId,
+                  slack_workspace_id: teamId,
+                  slack_user_id: slackEvent.user,
+                  slack_user_name: slackUserData.user.real_name || slackUserData.user.name
+                });
+                
+                console.log('Created mapping using auth user from RPC');
+                return;
+              }
+            } catch (parseError) {
+              console.error('DEBUG_RPC_PARSE_ERROR', {
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+                rpcData
+              });
+            }
+          }
+          
           if (matchingAuthUser?.id) {
             console.log('DEBUG_AUTH_FOUND_USER', {
               id: matchingAuthUser.id,
