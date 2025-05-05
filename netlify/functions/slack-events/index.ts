@@ -116,10 +116,20 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     if (payload.type === 'event_callback') {
       const slackEvent = payload.event;
       
-      // Only process message events that are in threads
-      if (slackEvent.type === 'message' && slackEvent.thread_ts) {
+      // Log detailed event information
+      console.log('SLACK_EVENT_TYPE_CHECK', {
+        event_id: payload.event_id,
+        event_type: slackEvent.type,
+        ts: slackEvent.ts,
+        thread_ts: slackEvent.thread_ts,
+        text_preview: slackEvent.text?.substring(0, 30)
+      });
+      
+      // IMPORTANT: Only process app_mention events, ignore regular message events to prevent duplication
+      // This is because Slack sends both message and app_mention events for the same message when a user mentions @Userbird
+      if (slackEvent.type === 'app_mention' && slackEvent.thread_ts) {
         // Log detailed message event information
-        console.log('SLACK_THREAD_MESSAGE', {
+        console.log('SLACK_THREAD_APP_MENTION', {
           event_id: payload.event_id,
           ts: slackEvent.ts,
           thread_ts: slackEvent.thread_ts,
@@ -131,91 +141,75 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
           text_preview: slackEvent.text?.substring(0, 30)
         });
         
-        // Skip messages from bots or message_changed events (edits)
-        if (slackEvent.bot_id || slackEvent.subtype === 'message_changed') {
-          console.log('SLACK_SKIPPING_BOT_OR_EDIT', {
+        // Skip messages from bots
+        if (slackEvent.bot_id) {
+          console.log('SLACK_SKIPPING_BOT', {
             event_id: payload.event_id,
-            is_bot: !!slackEvent.bot_id,
-            subtype: slackEvent.subtype,
+            is_bot: true,
             ts: slackEvent.ts
           });
           return {
             statusCode: 200,
-            body: JSON.stringify({ status: 'ignored bot message or edit' })
+            body: JSON.stringify({ status: 'ignored bot message' })
           };
         }
         
-        // Check if message mentions @Userbird
-        const mentionsUserbird = await checkIfMentionsUserbird(slackEvent.text, payload.team_id, slackEvent.thread_ts);
-        
-        console.log('SLACK_MENTION_CHECK', {
+        console.log('SLACK_PROCESSING_APP_MENTION', {
           event_id: payload.event_id,
-          mentions_userbird: mentionsUserbird,
           ts: slackEvent.ts,
-          user: slackEvent.user
+          thread_ts: slackEvent.thread_ts,
+          text_length: slackEvent.text?.length
         });
         
-        if (mentionsUserbird) {
-          console.log('SLACK_PROCESSING_REPLY', {
+        try {
+          await processSlackReply(slackEvent, payload.team_id);
+          
+          console.log('SLACK_REPLY_PROCESSED', {
             event_id: payload.event_id,
             ts: slackEvent.ts,
             thread_ts: slackEvent.thread_ts,
-            text_length: slackEvent.text?.length
+            process_time: new Date().toISOString()
           });
           
-          try {
-            // Check if a reply with this slack_ts already exists in the database
-            const { data: existingReplies, error: checkError } = await supabase
-              .from('feedback_replies')
-              .select('id, created_at')
-              .eq('meta->slack_ts', slackEvent.ts)
-              .limit(1);
-              
-            if (checkError) {
-              console.error('SLACK_DB_CHECK_ERROR', {
-                event_id: payload.event_id,
-                error: checkError.message,
-                ts: slackEvent.ts
-              });
-            } else {
-              console.log('SLACK_EXISTING_REPLY_CHECK', {
-                event_id: payload.event_id,
-                ts: slackEvent.ts,
-                found_existing_replies: existingReplies?.length > 0,
-                existing_reply_id: existingReplies?.[0]?.id,
-                existing_reply_created_at: existingReplies?.[0]?.created_at
-              });
-            }
-            
-            await processSlackReply(slackEvent, payload.team_id);
-            
-            console.log('SLACK_REPLY_PROCESSED', {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ 
+              status: 'reply processed',
               event_id: payload.event_id,
-              ts: slackEvent.ts,
-              thread_ts: slackEvent.thread_ts,
-              process_time: new Date().toISOString()
-            });
-            
-            return {
-              statusCode: 200,
-              body: JSON.stringify({ 
-                status: 'reply processed',
-                event_id: payload.event_id,
-                ts: slackEvent.ts
-              })
-            };
-          } catch (error) {
-            console.error('SLACK_PROCESSING_ERROR', {
-              event_id: payload.event_id,
-              ts: slackEvent.ts,
-              error: error instanceof Error ? error.message : String(error)
-            });
-            return {
-              statusCode: 500,
-              body: JSON.stringify({ error: 'Failed to process reply' })
-            };
-          }
+              ts: slackEvent.ts
+            })
+          };
+        } catch (error) {
+          console.error('SLACK_PROCESSING_ERROR', {
+            event_id: payload.event_id,
+            ts: slackEvent.ts,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Failed to process reply' })
+          };
         }
+      } 
+      // Handle regular message events in threads - we'll ignore these for now to prevent duplication
+      else if (slackEvent.type === 'message' && slackEvent.thread_ts) {
+        // Log that we're skipping this message event
+        console.log('SLACK_SKIPPING_MESSAGE_EVENT', {
+          event_id: payload.event_id,
+          ts: slackEvent.ts,
+          thread_ts: slackEvent.thread_ts,
+          text_preview: slackEvent.text?.substring(0, 30),
+          reason: 'Only processing app_mention events to prevent duplication'
+        });
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            status: 'event skipped - only processing app_mention events',
+            event_id: payload.event_id,
+            event_type: slackEvent.type
+          })
+        };
       }
     }
     
