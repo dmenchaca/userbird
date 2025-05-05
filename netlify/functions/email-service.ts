@@ -951,7 +951,31 @@ ${feedback.message}
     
     if (isAdminDashboardReply) {
       // For admin dashboard replies, use minimal styling and preserve HTML exactly as-is
-      htmlMessage = htmlReplyContent || `<div style="white-space: pre-wrap;">${replyContent}</div><br>`;
+      // Ensure we add a <br> after the content regardless of whether we're using htmlReplyContent
+      if (htmlReplyContent) {
+        // Check if htmlReplyContent already contains timestamp/quote markup
+        const hasQuoteMarkup = htmlReplyContent.includes('<blockquote') || 
+                               htmlReplyContent.includes('class="gmail_quote"') || 
+                               htmlReplyContent.includes('On ') && htmlReplyContent.includes('wrote:');
+        
+        if (hasQuoteMarkup) {
+          // If it contains quote markup, just use it as is with added <br>
+          const contentParts = htmlReplyContent.split(/(<div><div>On |<div>On |<blockquote)/i);
+          if (contentParts.length > 1) {
+            // Add the <br> between the main content and the timestamp
+            htmlMessage = contentParts[0] + '<br>' + '<' + contentParts.slice(1).join('<');
+          } else {
+            // Fallback if we can't split properly
+            htmlMessage = htmlReplyContent;
+          }
+        } else {
+          // If it doesn't have quote markup, just add a <br> at the end
+          htmlMessage = htmlReplyContent + '<br>';
+        }
+      } else {
+        // No HTML content, use our enhanced template with <br>
+        htmlMessage = `<div style="white-space: pre-wrap;">${replyContent}</div><br>`;
+      }
     } else {
       // For automated replies, use full styling
       htmlMessage = `
