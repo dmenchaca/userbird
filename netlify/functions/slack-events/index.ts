@@ -477,7 +477,33 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     
     console.log(`Created feedback reply with ID: ${newReply.id}`);
     
-    // 6. Send confirmation back to Slack
+    // 6. Trigger email notification to the end user
+    try {
+      console.log('Triggering reply notification email');
+      const notificationResponse = await fetch('https://app.userbird.co/.netlify/functions/send-reply-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          feedbackId: feedbackId,
+          replyId: newReply.id,
+          replyContent: cleanText,
+          isAdminDashboardReply: true
+        })
+      });
+      
+      if (!notificationResponse.ok) {
+        console.error('Failed to send reply notification email:', await notificationResponse.text());
+      } else {
+        console.log('Reply notification email sent successfully');
+      }
+    } catch (emailError) {
+      console.error('Error sending reply notification email:', emailError);
+      // Continue anyway as the reply was saved successfully
+    }
+    
+    // 7. Send confirmation back to Slack
     await sendSlackConfirmation(
       slackEvent.channel, 
       slackEvent.thread_ts, 
