@@ -203,8 +203,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         
         if (repliesError) throw repliesError;
         
+        // Filter out system entries - we don't want to display those in the conversation
+        // These are typically used for storing references to external systems like Slack threads
+        // and shouldn't appear in the user interface
+        const filteredReplies = repliesData ? repliesData.filter(reply => reply.sender_type !== 'system') : [];
+        
         // Reverse to get chronological order (oldest first)
-        const chronologicalReplies = repliesData ? [...repliesData].reverse() : [];
+        const chronologicalReplies = filteredReplies ? [...filteredReplies].reverse() : [];
         
         // Get unique sender_ids for fetching profiles
         const senderIds = chronologicalReplies
@@ -716,6 +721,8 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       let currentSystemGroup: FeedbackReply[] = [];
 
       replies.forEach((reply) => {
+        // We only consider assignment and tag_change as system events for grouping
+        // (system sender_type entries are already filtered out)
         if (reply.type === 'assignment' || reply.type === 'tag_change') {
           // Add to current system event group
           currentSystemGroup.push(reply);
