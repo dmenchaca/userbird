@@ -111,397 +111,122 @@ async function createFeedbackFromEmail(
   }
 }
 
-// Helper function to find feedback ID from message ID
-async function findFeedbackIdFromMessageId(messageId: string): Promise<string | undefined> {
+// Store the reply in the database
+async function storeReply(
+  parsedEmail: ParsedMail, 
+  feedbackId: string,
+  attachments: EmailAttachment[],
+  cidToUrlMap: Record<string, string>
+): Promise<string> {
   try {
-    // Extract feedback ID from our notification format: <feedback-notification-UUID@userbird.co>
-    const feedbackNotificationMatch = messageId.match(/<feedback-notification-([a-f0-9-]+)@userbird\.co>/i);
-    if (feedbackNotificationMatch) {
-      const feedbackId = feedbackNotificationMatch[1];
-      console.log('Found feedback ID in notification message ID:', feedbackId);
-      return feedbackId;
+    // Extract content from the parsed email
+    let htmlContent = parsedEmail.html || null;
+    let textContent = parsedEmail.text || null;
+    
+    console.log(`Content extraction from parser: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
+    
+    // If we have HTML content and CID mappings, replace CID references
+    if (htmlContent && Object.keys(cidToUrlMap).length > 0) {
+      console.log('Replacing CID references in HTML content');
+      htmlContent = replaceCidWithUrls(htmlContent, cidToUrlMap, attachments);
     }
     
-    // Extract feedback ID from our reply format: <reply-replyId-feedbackId@userbird.co>
-    const replyMatch = messageId.match(/<reply-[a-f0-9-]+-([a-f0-9-]+)@userbird\.co>/i);
-    if (replyMatch) {
-      const feedbackId = replyMatch[1];
-      console.log('Found feedback ID in reply message ID:', feedbackId);
-      return feedbackId;
-    }
+    // Generate a UUID for the reply
+    const replyId = crypto.randomUUID();
+    const messageId = parsedEmail.messageId || `reply-${crypto.randomUUID()}`;
     
-    // Also check direct feedback reference format: <feedback-UUID@userbird.co>
-    const feedbackDirectMatch = messageId.match(/<feedback-([a-f0-9-]+)@userbird\.co>/i);
-    if (feedbackDirectMatch) {
-      const feedbackId = feedbackDirectMatch[1];
-      console.log('Found feedback ID in direct feedback message ID:', feedbackId);
-      return feedbackId;
-    }
-    
-    return undefined;
-  } catch (error) {
-    console.error('Error finding feedback ID from message ID:', error);
-    return undefined;
-  }
-}
-
-// Helper function to extract feedback ID from email
-async function extractFeedbackId(parsedEmail: ParsedMail): Promise<string | undefined> {
-  try {
-    // Check In-Reply-To header first - most reliable indicator of a reply
+    // Process in-reply-to header to ensure proper threading
+    let inReplyTo: string | null = null;
     if (parsedEmail.inReplyTo) {
-      console.log('Found In-Reply-To header:', parsedEmail.inReplyTo);
-      const feedbackId = await findFeedbackIdFromMessageId(parsedEmail.inReplyTo);
-      if (feedbackId) {
-        console.log('Found feedback ID from In-Reply-To:', feedbackId);
-        return feedbackId;
-      }
-    }
-
-    // Check References header - second most reliable
-    if (parsedEmail.references) {
-      console.log('Found References header:', parsedEmail.references);
-      const references = Array.isArray(parsedEmail.references) 
+      // Store the original in-reply-to value
+      inReplyTo = parsedEmail.inReplyTo;
+      console.log('Using in-reply-to header for threading:', inReplyTo);
+    } else if (parsedEmail.references && parsedEmail.references.length > 0) {
+      // If no in-reply-to but we have references, use the last reference as in-reply-to
+      // This helps maintain thread continuity
+      const refs = Array.isArray(parsedEmail.references) 
         ? parsedEmail.references 
         : [parsedEmail.references];
       
-      for (const ref of references) {
-        const feedbackId = await findFeedbackIdFromMessageId(ref);
-        if (feedbackId) {
-          console.log('Found feedback ID from References:', feedbackId);
-          return feedbackId;
-        }
-      }
-    }
-
-    // Check recipient email addresses for form ID
-    const toAddresses = parsedEmail.to?.value || [];
-    const ccAddresses = parsedEmail.cc?.value || [];
-    const allRecipients = [...toAddresses, ...ccAddresses];
-    
-    let formId: string | undefined;
-    
-    // Get the recipient email for direct lookup
-    if (allRecipients.length > 0) {
-      const firstRecipient = allRecipients[0].address?.toLowerCase().trim() || '';
-      
-      // Direct lookup by default_email - more efficient
-      console.log('Looking up form directly by default_email:', firstRecipient);
-      const { data: directMatchForm, error: directMatchError } = await supabase
-        .from('forms')
-        .select('id, default_email')
-        .eq('default_email', firstRecipient)
-        .single();
-      
-      if (directMatchForm) {
-        console.log('Found direct match in database:', directMatchForm);
-        formId = directMatchForm.id;
-      } else if (directMatchError) {
-        console.log('No direct match found for email:', firstRecipient);
-        // No fallback to fetching all forms - this would not scale with large numbers of forms
+      if (refs.length > 0) {
+        inReplyTo = refs[refs.length - 1]; // Use the last reference
+        console.log('Using last reference as in-reply-to for threading:', inReplyTo);
       }
     }
     
-    // Continue with the existing recipient loop
-    for (const recipient of allRecipients) {
-      if (!recipient.address) continue;
-      
-      const recipientEmail = recipient.address.toLowerCase().trim();
-      console.log('Checking recipient:', recipientEmail);
-      
-      // Check for direct form email pattern - both old and new format
-      const formEmailMatch = recipientEmail.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) || 
-                             recipientEmail.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
-                             recipientEmail.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
-      if (formEmailMatch) {
-        // Extract form ID from original email to preserve case
-        const originalFormIdMatch = recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i) ||
-                                   recipient.address.match(/^support@([a-zA-Z0-9]+)\.userbird-mail\.com$/i) ||
-                                   recipient.address.match(/^support-([a-zA-Z0-9]+)@userbird-mail\.com$/i);
-        
-        // Check if this is the old format (direct form ID) or new format (product name)
-        const extractedValue = originalFormIdMatch ? originalFormIdMatch[1] : formEmailMatch[1];
-        
-        // If it's the old format (formid@userbird-mail.com), use the extracted value directly
-        if (recipient.address.match(/^([a-zA-Z0-9]+)@userbird-mail\.com$/i)) {
-          formId = extractedValue;
-          console.log('Found case-sensitive form ID from old email pattern:', formId);
-        } 
-        // If it's any of the new formats (support@productname.userbird-mail.com or support-productname@userbird-mail.com), 
-        // look up the form by default_email
-        else {
-          const incomingEmail = recipient.address.toLowerCase().trim();
-          console.log('Looking up form by default_email:', incomingEmail);
-          
-          // More detailed logging for debugging
-          console.log('Executing query: SELECT id FROM forms WHERE default_email = ' + incomingEmail);
-          
-          // Look up form ID by default_email
-          const { data: formData, error: formLookupError } = await supabase
-            .from('forms')
-            .select('id')
-            .eq('default_email', incomingEmail)
-            .single();
-            
-          if (formLookupError) {
-            console.error('Error looking up form by default_email:', formLookupError);
-          }
-            
-          if (formData) {
-            formId = formData.id;
-            console.log('Found form ID from default_email lookup:', formId);
-          } else {
-            console.log('No form found with default_email:', incomingEmail);
-            
-            // Additional debug query - list forms with similar emails
-            const { data: similarForms } = await supabase
-              .from('forms')
-              .select('id, default_email')
-              .like('default_email', `%${incomingEmail.split('@')[0]}%`)
-              .limit(5);
-              
-            console.log('Similar forms found:', similarForms || 'none');
-          }
-        }
-        
-        if (formId) break;
-      }
-      
-      // Check for custom domain email
-      const { data: customEmailSettings } = await supabase
-        .from('custom_email_settings')
-        .select('form_id')
-        .eq('custom_email', recipientEmail)
-        .eq('verified', true)
-        .single();
-      
-      if (customEmailSettings) {
-        console.log('Found matching custom email setting:', customEmailSettings);
-        // Don't return here, continue looking for a feedback ID
-      }
+    // Use HTML content when available, and text content only as a fallback
+    const finalContent = htmlContent ? '' : (textContent || '');
+    
+    // Create reply data object
+    const replyData: any = {
+      id: replyId,
+      feedback_id: feedbackId,
+      content: finalContent,
+      html_content: htmlContent,
+      message_id: messageId,
+      in_reply_to: inReplyTo,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add sender info if available from parsed email
+    if (parsedEmail.from?.value?.length) {
+      replyData.sender_type = 'user';
     }
-
-    // Check email body for thread identifier - less reliable but still useful
-    const text = parsedEmail.text || '';
-    const threadMatch = text.match(/\[Thread: ([a-f0-9-]+)\]/i);
-    if (threadMatch) {
-      const threadId = threadMatch[1];
-      console.log('Found thread ID in email body:', threadId);
-      
-      // Look up feedback ID from thread ID
-      const { data: feedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('thread_id', threadId)
-        .single();
-        
-      if (feedback) {
-        console.log('Found feedback ID from thread ID:', feedback.id);
-        return feedback.id;
-      }
+    
+    // Log the data we're about to insert
+    console.log('Inserting reply with data:', Object.keys(replyData));
+    
+    // Insert the reply
+    const { data: reply, error } = await supabase
+      .from('feedback_replies')
+      .insert(replyData)
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('Error storing reply:', error);
+      throw new Error(`Failed to store reply: ${error.message}`);
     }
-
-    // Check email body for UUID pattern - least reliable
-    const uuidMatch = text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
-    if (uuidMatch) {
-      const potentialId = uuidMatch[0];
-      console.log('Found potential UUID in email body:', potentialId);
-      
-      // Verify this is a valid feedback ID
-      const { data: feedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('id', potentialId)
-        .single();
-        
-      if (feedback) {
-        console.log('Found valid feedback ID from UUID:', feedback.id);
-        return feedback.id;
-      }
+    
+    if (!reply) {
+      throw new Error('No reply data returned after insert');
     }
-
-    // Check email subject for UUID pattern - least reliable
-    const subject = parsedEmail.subject || '';
-    const subjectUuidMatch = subject.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
-    if (subjectUuidMatch) {
-      const potentialId = subjectUuidMatch[0];
-      console.log('Found potential UUID in subject:', potentialId);
-      
-      // Verify this is a valid feedback ID
-      const { data: feedback } = await supabase
-        .from('feedback')
-        .select('id')
-        .eq('id', potentialId)
-        .single();
-        
-      if (feedback) {
-        console.log('Found valid feedback ID from subject UUID:', feedback.id);
-        return feedback.id;
-      }
-    }
-
-    console.log('No feedback ID found in email');
-    return undefined;
+    
+    console.log(`Reply stored with ID: ${reply.id}`);
+    
+    return reply.id;
   } catch (error) {
-    console.error('Error extracting feedback ID:', error);
-    return undefined;
+    console.error('Error in storeReply:', error);
+    throw error;
   }
 }
 
-// Process and store parsed email attachments
-async function processAttachments(
-  parsedEmail: ParsedMail,
-  feedbackId: string,
-  replyId?: string
-): Promise<{ attachments: EmailAttachment[], cidToUrlMap: Record<string, string> }> {
-  const attachments: EmailAttachment[] = [];
-  const cidToUrlMap: Record<string, string> = {};
+// Helper function to convert Slack formatting to HTML
+function convertSlackToHtml(text: string): string {
+  if (!text) return '';
   
-  if (parsedEmail.attachments && parsedEmail.attachments.length > 0) {
-    console.log(`Processing ${parsedEmail.attachments.length} attachments`);
-    
-    for (const attachment of parsedEmail.attachments) {
-      const filename = attachment.filename || `attachment-${Date.now()}.${attachment.contentType?.split('/')[1] || 'bin'}`;
-      const contentId = attachment.contentId ? attachment.contentId.replace(/[<>]/g, '') : undefined;
-      const isInline = !!contentId || attachment.contentDisposition === 'inline';
-      
-      if (attachment.content) {
-        try {
-          // Create our attachment structure
-          const emailAttachment: EmailAttachment = {
-            filename,
-            contentType: attachment.contentType || 'application/octet-stream',
-            data: attachment.content,
-            isInline,
-          };
-          
-          if (contentId) {
-            emailAttachment.contentId = contentId;
-          }
-          
-          attachments.push(emailAttachment);
-          console.log(`Processed attachment: ${filename}, size: ${attachment.content.length} bytes, isInline: ${isInline}`);
-        } catch (error) {
-          console.error(`Error processing attachment ${filename}:`, error);
-        }
-      }
-    }
-  }
+  // Convert Slack-style links <https://example.com|text> to HTML links
+  text = text.replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>');
   
-  // Upload attachments to Supabase Storage and create mapping
-  for (const attachment of attachments) {
-    const shouldProcess = attachment.isInline || attachment.contentType.startsWith('image/');
-    
-    if (shouldProcess) {
-      try {
-        const filename = `${feedbackId}_${attachment.filename}`;
-        const storagePath = `feedback-replies/${feedbackId}/${filename}`;
-        
-        // Check if storage bucket exists
-        const { data: buckets, error: bucketsError } = await supabase
-          .storage
-          .listBuckets();
-        
-        const bucketName = 'userbird-attachments';
-        const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-        
-        if (!bucketExists) {
-          console.log(`Creating storage bucket: ${bucketName}`);
-          // Create the bucket if it doesn't exist
-          const { error: createBucketError } = await supabase
-            .storage
-            .createBucket(bucketName, {
-              public: true // Make bucket publicly accessible
-            });
-          
-          if (createBucketError) {
-            console.error(`Error creating storage bucket: ${bucketName}`, createBucketError);
-            continue;
-          }
-        }
-        
-        // Upload to Supabase Storage
-        const { data, error } = await supabase
-          .storage
-          .from(bucketName)
-          .upload(storagePath, attachment.data, {
-            contentType: attachment.contentType,
-            upsert: true
-          });
-        
-        if (error) {
-          console.error('Error uploading attachment to storage:', error);
-          continue;
-        }
-        
-        // Get public URL
-        const { data: urlData } = supabase
-          .storage
-          .from(bucketName)
-          .getPublicUrl(storagePath);
-        
-        if (urlData && urlData.publicUrl) {
-          // Store URL and handle content ID
-          if (attachment.contentId) {
-            console.log(`Generated public URL for ${attachment.contentId}: ${urlData.publicUrl}`);
-            cidToUrlMap[attachment.contentId] = urlData.publicUrl;
-          } else {
-            // For attachments without content ID
-            const cidKey = `generated-${attachment.filename}-${Date.now()}`;
-            console.log(`Generated key ${cidKey} for attachment without content ID: ${urlData.publicUrl}`);
-            cidToUrlMap[cidKey] = urlData.publicUrl;
-          }
-          
-          // Set URL in the attachment object
-          attachment.url = urlData.publicUrl;
-          
-          // Store attachment metadata if we have a valid replyId
-          if (feedbackAttachmentsTableExists && replyId) {
-            try {
-              const attachmentId = crypto.randomUUID();
-              
-              // Prepare attachment data
-              const attachmentData: any = {
-                id: attachmentId,
-                reply_id: replyId,
-                filename: attachment.filename,
-                url: urlData.publicUrl,
-                is_inline: attachment.isInline
-              };
-              
-              // Add optional fields if they exist
-              if (attachment.contentId) {
-                attachmentData.content_id = attachment.contentId;
-              }
-              if (attachment.contentType) {
-                attachmentData.content_type = attachment.contentType;
-              }
-              
-              const { error: insertError } = await supabase
-                .from('feedback_attachments')
-                .insert(attachmentData);
-              
-              if (insertError) {
-                console.error('Error storing attachment metadata:', insertError);
-              } else {
-                console.log(`Successfully stored attachment metadata with ID: ${attachmentId}`);
-              }
-            } catch (insertErr) {
-              console.error('Exception while inserting attachment metadata:', insertErr);
-            }
-          } else {
-            console.log('Skipping attachment metadata storage because replyId is not available yet');
-          }
-        }
-      } catch (error) {
-        console.error('Error processing attachment:', error);
-      }
-    }
-  }
+  // Convert regular URLs that aren't already in the Slack format
+  text = text.replace(/(?<!["|'])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   
-  console.log(`Found ${Object.keys(cidToUrlMap).length} CID mappings from attachments`);
+  // Convert bold (*text*) - ensure it doesn't match within URLs
+  text = text.replace(/(?<!\w)\*([^\*\n]+)\*(?!\w)/g, '<strong>$1</strong>');
   
-  return { attachments, cidToUrlMap };
+  // Convert italic (_text_) - ensure it doesn't match within URLs
+  text = text.replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '<em>$1</em>');
+  
+  // Convert strikethrough (~text~)
+  text = text.replace(/(?<!\w)~([^~\n]+)~(?!\w)/g, '<del>$1</del>');
+  
+  // Convert backticks (`code`) for code styling
+  text = text.replace(/(?<!\\)`([^`\n]+)`/g, '<code>$1</code>');
+  
+  // Convert line breaks
+  text = text.replace(/\n/g, '<br>');
+  
+  return text;
 }
 
 // Replace CID references in HTML with public URLs
@@ -569,175 +294,147 @@ function replaceCidWithUrls(
   return result;
 }
 
-// Convert HTML to Slack's mrkdwn format
-function convertHtmlToSlack(html: string): string {
-  if (!html) return '';
-  
-  let slackText = html
-    // Remove most HTML tags, keep their content
-    .replace(/<(?!\/?(strong|b|em|i|del|s|pre|code|a)(?=>|\s[^>]*>))([^>])*>/gi, '')
-    
-    // Convert paragraph and line breaks to newlines
-    .replace(/<\/p>\s*<p[^>]*>|<br\s*\/?>/gi, '\n')
-    
-    // Convert bold
-    .replace(/<(strong|b)>(.*?)<\/(strong|b)>/gi, '*$2*')
-    
-    // Convert italic
-    .replace(/<(em|i)>(.*?)<\/(em|i)>/gi, '_$2_')
-    
-    // Convert strikethrough
-    .replace(/<(del|s)>(.*?)<\/(del|s)>/gi, '~$2~')
-    
-    // Convert code blocks
-    .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/gi, '```$1```')
-    
-    // Convert inline code
-    .replace(/<code>(.*?)<\/code>/gi, '`$1`')
-    
-    // Convert links - handle both <a href="url">text</a> and <a href="url" target="_blank">text</a>
-    .replace(/<a[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>/gi, '<$1|$2>')
-    
-    // Remove any remaining HTML tags
-    .replace(/<[^>]*>/g, '')
-    
-    // Replace HTML entities
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
-  
-  // Limit length to avoid Slack message limits
-  const maxLength = 3000;
-  if (slackText.length > maxLength) {
-    slackText = slackText.substring(0, maxLength) + '... (message truncated)';
+export const handler: Handler = async (event) => {
+  console.log('Process email reply function triggered:', {
+    method: event.httpMethod,
+    hasBody: !!event.body,
+    bodyLength: event.body?.length,
+    path: event.path,
+    headers: event.headers,
+    contentType: event.headers['content-type'] || event.headers['Content-Type']
+  });
+
+  // Check for feedback_attachments table
+  try {
+    const { error } = await supabase.from('feedback_attachments').select('id').limit(1);
+    if (error && error.code === '42P01') { // Table does not exist
+      feedbackAttachmentsTableExists = false;
+      console.log('The feedback_attachments table does not exist');
+    }
+  } catch (e) {
+    feedbackAttachmentsTableExists = false;
+    console.error('Error checking for feedback_attachments table:', e);
+  }
+
+  // Allow GET requests for testing
+  if (event.httpMethod === 'GET') {
+    return { 
+      statusCode: 200, 
+      body: JSON.stringify({ 
+        message: 'Email reply processing endpoint is active',
+        timestamp: new Date().toISOString()
+      }) 
+    };
   }
   
-  return slackText;
-}
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
 
-// Helper function to send reply to Slack thread
-async function sendReplyToSlackThread(
-  feedbackId: string,
-  replyContent: string,
-  senderName: string
-): Promise<boolean> {
   try {
-    console.log(`Checking if feedback ${feedbackId} has an associated Slack thread`);
+    // Parse the email data from the request
+    let rawEmailData: any = {};
+    let emailText: string = '';
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
     
-    // First, get the form_id for this feedback
-    const { data: feedback, error: feedbackError } = await supabase
-      .from('feedback')
-      .select('form_id')
-      .eq('id', feedbackId)
-      .single();
-    
-    if (feedbackError || !feedback) {
-      console.error('Error finding feedback:', feedbackError);
-      return false;
+    // Handle multipart/form-data
+    if (contentType.includes('multipart/form-data')) {
+      console.log('Parsing multipart/form-data');
+      
+      // Extract boundary from content type
+      const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+      const boundary = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2]) : '';
+      
+      if (boundary && event.body) {
+        try {
+          // Convert body to buffer if it's a string
+          const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+          const parts = multipart.parse(bodyBuffer, boundary);
+          
+          // Process parts into emailData
+          for (const part of parts) {
+            const fieldName = part.name || '';
+            const value = part.data.toString();
+            rawEmailData[fieldName] = value;
+          }
+          
+          console.log('Parsed form data fields:', Object.keys(rawEmailData));
+          
+          // For SendGrid, the raw email is in the 'email' field
+          if (rawEmailData.email) {
+            emailText = rawEmailData.email;
+          } else if (rawEmailData.text) {
+            emailText = rawEmailData.text;
+          }
+        } catch (parseError) {
+          console.error('Error parsing multipart data:', parseError);
+        }
+      }
+    } else {
+      // Try to parse as JSON if not multipart
+      try {
+        rawEmailData = JSON.parse(event.body || '{}');
+        
+        // Extract raw email content
+        if (rawEmailData.email) {
+          emailText = rawEmailData.email;
+        } else if (rawEmailData.text) {
+          emailText = rawEmailData.text;
+        } else {
+          emailText = event.body || '';
+        }
+      } catch (e) {
+        // If not JSON, use raw body as text
+        console.log('Not JSON, using raw body as text');
+        emailText = event.body || '';
+      }
     }
     
-    // Look for a feedback_reply with Slack thread reference
-    const { data: threadRefs, error: threadError } = await supabase
-      .from('feedback_replies')
-      .select('meta')
-      .eq('feedback_id', feedbackId)
-      .eq('meta->is_slack_reference', true)
-      .order('created_at', { ascending: true })
-      .limit(1);
-    
-    if (threadError) {
-      console.error('Error finding Slack thread reference:', threadError);
-      return false;
-    }
-    
-    // No thread reference found, can't append to Slack
-    if (!threadRefs || threadRefs.length === 0 || !threadRefs[0].meta) {
-      console.log('No Slack thread found for this feedback');
-      return false;
-    }
-    
-    const meta = threadRefs[0].meta as any;
-    if (!meta.slack_thread_ts || !meta.slack_channel_id) {
-      console.log('Incomplete Slack thread reference:', meta);
-      return false;
-    }
-    
-    // Get the Slack integration for this form
-    const { data: slackIntegration, error: slackError } = await supabase
-      .from('slack_integrations')
-      .select('bot_token, bot_token_id')
-      .eq('form_id', feedback.form_id)
-      .eq('enabled', true)
-      .single();
-    
-    if (slackError || !slackIntegration) {
-      console.error('Error finding Slack integration:', slackError);
-      return false;
-    }
-    
-    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
-    let botToken: string | null = null;
-    
-    if (slackIntegration.bot_token_id) {
-      // Retrieve from Vault
-      botToken = await getSecretFromVault(slackIntegration.bot_token_id);
-    } else if (slackIntegration.bot_token) {
-      // Fallback to plain text token if available
-      botToken = slackIntegration.bot_token;
-    }
-    
-    if (!botToken) {
-      console.error(`Could not retrieve bot token for integration (form_id: ${feedback.form_id})`);
-      return false;
-    }
-    
-    // Format the message
-    const slackMessage = `*${senderName} replied:*\n${replyContent}`;
-    
-    // Send the reply to the Slack thread
-    const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${botToken}`
-      },
-      body: JSON.stringify({
-        channel: meta.slack_channel_id,
-        thread_ts: meta.slack_thread_ts,
-        text: slackMessage,
-        mrkdwn: true
-      })
+    // Parse the email with mailparser
+    const parsedEmail = await simpleParser(emailText);
+    console.log('Email parsed successfully:', {
+      from: parsedEmail.from?.text,
+      to: parsedEmail.to?.value?.map((v: any) => v.address),
+      cc: parsedEmail.cc?.value?.map((v: any) => v.address),
+      subject: parsedEmail.subject,
+      hasText: !!parsedEmail.text,
+      hasHtml: !!parsedEmail.html,
+      hasAttachments: !!parsedEmail.attachments?.length,
+      messageId: parsedEmail.messageId,
+      inReplyTo: parsedEmail.inReplyTo,
+      references: parsedEmail.references
     });
-    
-    const slackResult = await slackResponse.json() as any;
-    
-    if (!slackResult.ok) {
-      console.error('Error sending reply to Slack thread:', slackResult.error);
-      return false;
-    }
-    
-    console.log(`Successfully appended reply to Slack thread in channel ${meta.slack_channel_id}`);
-    return true;
-  } catch (error) {
-    console.error('Error in sendReplyToSlackThread:', error);
-    return false;
-  }
-}
 
-// Store the reply in the database
-async function storeReply(
-  parsedEmail: ParsedMail, 
-  feedbackId: string,
-  attachments: EmailAttachment[],
-  cidToUrlMap: Record<string, string>
-): Promise<string> {
-  try {
+    // Step 1: Try to extract feedback ID
+    console.log('Trying to determine if this is a reply or a new feedback');
+
+    // Step 2: Store the reply
+    const { attachments, cidToUrlMap } = await processAttachments(parsedEmail, "unused");
+
     // Extract content from the parsed email
     let htmlContent = parsedEmail.html || null;
     let textContent = parsedEmail.text || null;
     
-    console.log(`
+    console.log(`Content extraction from parser: hasHTML=${!!htmlContent}, hasText=${!!textContent}`);
+    
+    // Return success response
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        message: 'Email processed successfully',
+        email_id: parsedEmail.messageId
+      })
+    };
+  } catch (error) {
+    console.error('Error processing email reply:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+}; 
