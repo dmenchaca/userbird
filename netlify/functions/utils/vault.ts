@@ -8,19 +8,22 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
  * Store a secret in Supabase Vault
- * @param secret The secret value to store
- * @param name Optional name for the secret
+ * @param secretValue The actual secret value to encrypt and store securely
+ * @param secretName Optional descriptive name for the secret (not the secret itself)
  * @returns The UUID of the stored secret or null if operation failed
  */
-export async function storeSecretInVault(secret: string, name?: string): Promise<string | null> {
+export async function storeSecretInVault(secretValue: string, secretName?: string): Promise<string | null> {
   try {
-    // Generate a unique default name if none provided
-    const secretName = name || `secret-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    // Generate a descriptive name if none provided - this appears in the name column
+    // and should NOT contain sensitive information
+    const descriptiveName = secretName || `secret-descriptor-${Date.now()}`;
     
-    // Using Postgres function to store in vault
+    console.log(`Storing secret with descriptor: ${descriptiveName}`);
+    
+    // Using Postgres function to store in vault - ensure parameters are in correct order
     const { data, error } = await supabase.rpc('create_secret', {
-      secret_name: secretName,
-      secret_value: secret
+      secret_name: descriptiveName,    // This is just a label/descriptor
+      secret_value: secretValue         // This is the actual sensitive value to encrypt
     });
 
     if (error) {
@@ -37,12 +40,12 @@ export async function storeSecretInVault(secret: string, name?: string): Promise
 
 /**
  * Retrieve a secret from Supabase Vault
- * @param secretId The UUID of the secret to retrieve
- * @returns The secret value or null if retrieval failed
+ * @param secretId The UUID of the stored secret to retrieve
+ * @returns The decrypted secret value or null if retrieval failed
  */
 export async function getSecretFromVault(secretId: string): Promise<string | null> {
   try {
-    // Using Postgres function to retrieve from vault
+    // Using Postgres function to retrieve decrypted secret from vault
     const { data, error } = await supabase.rpc('get_secret', {
       secret_id: secretId
     });
@@ -52,14 +55,6 @@ export async function getSecretFromVault(secretId: string): Promise<string | nul
       return null;
     }
 
-    // If the secret has our prefix format (prefix-timestamp-random:actualToken), extract the actual token
-    if (data && typeof data === 'string' && data.includes('prefix-') && data.includes(':')) {
-      const parts = data.split(':');
-      // Return everything after the first colon (in case the token itself contains colons)
-      return parts.slice(1).join(':');
-    }
-
-    // Otherwise return the data as is (for backward compatibility)
     return data;
   } catch (error) {
     console.error('Exception retrieving secret from vault:', error);

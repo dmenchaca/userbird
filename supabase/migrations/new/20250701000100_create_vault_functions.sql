@@ -11,7 +11,8 @@ DECLARE
   new_secret_id UUID;
 BEGIN
   -- Insert secret into vault and return the ID
-  SELECT vault.create_secret(secret_name, secret_value) INTO new_secret_id;
+  -- The vault.create_secret function takes parameters as (value, name) not (name, value)
+  SELECT vault.create_secret(secret_value, secret_name) INTO new_secret_id;
   RETURN new_secret_id;
 EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Error storing secret in vault: %', SQLERRM;
