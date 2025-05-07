@@ -87,14 +87,11 @@ export const handler: Handler = async (event) => {
       team: { id: workspaceId, name: workspaceName }
     } = data;
 
-    // Generate a truly unique secret name with timestamp and UUID to ensure a new secret is created each time
-    const uniqueId = randomUUID();
-    const uniqueSecretName = `slack-bot-token-${workspaceId}-${formId}-${Date.now()}-${uniqueId}`;
+    console.log('Storing Slack bot token in Vault without a specific name to avoid collision');
     
-    console.log(`Creating new Vault secret with unique name for Slack integration: ${uniqueSecretName}`);
-    
-    // Store the bot token in Vault with the unique name
-    const secretId = await storeSecretInVault(botToken, uniqueSecretName);
+    // Store the bot token in Vault without passing a name
+    // Let the Vault extension handle name generation to avoid collisions
+    const secretId = await storeSecretInVault(botToken);
     
     if (!secretId) {
       console.error('Failed to store token in Vault');

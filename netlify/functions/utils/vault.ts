@@ -14,9 +14,12 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 export async function storeSecretInVault(secret: string, name?: string): Promise<string | null> {
   try {
+    // Generate a unique default name if none provided
+    const secretName = name || `secret-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    
     // Using Postgres function to store in vault
     const { data, error } = await supabase.rpc('create_secret', {
-      secret_name: name || 'slack-bot-token',
+      secret_name: secretName,
       secret_value: secret
     });
 
