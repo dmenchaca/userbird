@@ -10,9 +10,23 @@ AS $$
 DECLARE
   new_secret_id UUID;
 BEGIN
+  -- Check if vault extension is available
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_extension WHERE extname = 'vault'
+  ) THEN
+    RAISE EXCEPTION 'Vault extension is not enabled. Please enable it via Supabase dashboard.';
+  END IF;
+
   -- Insert secret into vault and return the ID
-  -- The vault.create_secret function takes parameters as (value, name) not (name, value)
-  SELECT vault.create_secret(secret_value, secret_name) INTO new_secret_id;
+  -- Vault function may be vault.create_secret or pgvault.create_secret depending on version
+  BEGIN
+    -- Try vault schema first (newer versions)
+    SELECT vault.create_secret(secret_value, secret_name) INTO new_secret_id;
+  EXCEPTION WHEN undefined_function THEN
+    -- Fall back to pgvault schema (older versions)
+    SELECT pgvault.create_secret(secret_value, secret_name) INTO new_secret_id;
+  END;
+  
   RETURN new_secret_id;
 EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Error storing secret in vault: %', SQLERRM;
@@ -29,8 +43,23 @@ AS $$
 DECLARE
   secret_value TEXT;
 BEGIN
-  -- Get secret from vault by ID
-  SELECT vault.get_secret(secret_id) INTO secret_value;
+  -- Check if vault extension is available
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_extension WHERE extname = 'vault'
+  ) THEN
+    RAISE EXCEPTION 'Vault extension is not enabled. Please enable it via Supabase dashboard.';
+  END IF;
+  
+  -- Retrieve secret from vault
+  -- Vault function may be vault.get_secret or pgvault.get_secret depending on version
+  BEGIN
+    -- Try vault schema first (newer versions)
+    SELECT vault.get_secret(secret_id) INTO secret_value;
+  EXCEPTION WHEN undefined_function THEN
+    -- Fall back to pgvault schema (older versions)
+    SELECT pgvault.get_secret(secret_id) INTO secret_value;
+  END;
+  
   RETURN secret_value;
 EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Error retrieving secret from vault: %', SQLERRM;
