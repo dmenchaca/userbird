@@ -52,6 +52,14 @@ export async function getSecretFromVault(secretId: string): Promise<string | nul
       return null;
     }
 
+    // If the secret has our prefix format (prefix-timestamp-random:actualToken), extract the actual token
+    if (data && typeof data === 'string' && data.includes('prefix-') && data.includes(':')) {
+      const parts = data.split(':');
+      // Return everything after the first colon (in case the token itself contains colons)
+      return parts.slice(1).join(':');
+    }
+
+    // Otherwise return the data as is (for backward compatibility)
     return data;
   } catch (error) {
     console.error('Exception retrieving secret from vault:', error);
