@@ -50,6 +50,107 @@ interface EmailAttachment {
 // Add a global flag for table existence
 let feedbackAttachmentsTableExists = true;
 
+// Helper function to process email attachments
+async function processAttachments(
+  parsedEmail: ParsedMail,
+  feedbackId: string
+): Promise<{ attachments: EmailAttachment[], cidToUrlMap: Record<string, string> }> {
+  const attachments: EmailAttachment[] = [];
+  const cidToUrlMap: Record<string, string> = {};
+  
+  if (!parsedEmail.attachments || parsedEmail.attachments.length === 0) {
+    return { attachments, cidToUrlMap };
+  }
+  
+  console.log(`Processing ${parsedEmail.attachments.length} attachments`);
+  
+  for (const attachment of parsedEmail.attachments) {
+    if (!attachment.content) {
+      console.warn('Skipping attachment with no content');
+      continue;
+    }
+    
+    const filename = attachment.filename || 'unnamed-attachment';
+    const contentType = attachment.contentType || 'application/octet-stream';
+    const contentId = attachment.contentId ? 
+      attachment.contentId.replace(/[<>]/g, '') : undefined;
+    const isInline = attachment.contentDisposition === 'inline';
+    
+    const emailAttachment: EmailAttachment = {
+      filename,
+      contentType,
+      contentId,
+      data: attachment.content,
+      isInline
+    };
+    
+    attachments.push(emailAttachment);
+    
+    // Only store attachments in the database if the table exists
+    if (feedbackAttachmentsTableExists && feedbackId) {
+      try {
+        // Generate a unique path for the attachment
+        const timestamp = Date.now();
+        const safeName = filename.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+        const path = `attachments/${feedbackId}/${timestamp}-${safeName}`;
+        
+        // Store attachment in Supabase Storage
+        const { data: storageData, error: storageError } = await supabase
+          .storage
+          .from('feedback')
+          .upload(path, attachment.content, {
+            contentType,
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (storageError) {
+          console.error('Error storing attachment:', storageError);
+          continue;
+        }
+        
+        // Get a public URL for the attachment
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('feedback')
+          .getPublicUrl(path);
+        
+        const publicUrl = publicUrlData?.publicUrl;
+        
+        if (publicUrl) {
+          emailAttachment.url = publicUrl;
+          
+          // Map contentId to URL for inline images
+          if (contentId) {
+            cidToUrlMap[contentId] = publicUrl;
+          }
+          
+          // Record attachment in database
+          const { error: dbError } = await supabase
+            .from('feedback_attachments')
+            .insert({
+              feedback_id: feedbackId,
+              file_path: path,
+              file_name: filename,
+              content_type: contentType,
+              is_inline: isInline,
+              content_id: contentId,
+              public_url: publicUrl
+            });
+          
+          if (dbError) {
+            console.error('Error recording attachment in database:', dbError);
+          }
+        }
+      } catch (err) {
+        console.error('Exception processing attachment:', err);
+      }
+    }
+  }
+  
+  return { attachments, cidToUrlMap };
+}
+
 // Helper function to create new feedback from an email
 async function createFeedbackFromEmail(
   parsedEmail: ParsedMail, 
