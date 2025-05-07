@@ -54,34 +54,4 @@ export async function getSecretFromVault(secretId: string): Promise<string | nul
     console.error('Exception retrieving secret from vault:', error);
     return null;
   }
-}
-
-/**
- * Delete a secret from Supabase Vault
- * @param secretId The UUID of the secret to delete
- * @returns True if the secret was successfully deleted, false otherwise
- */
-export async function deleteSecretFromVault(secretId: string): Promise<boolean> {
-  try {
-    // Skip if no secretId provided
-    if (!secretId) {
-      console.warn('No secretId provided for deletion');
-      return false;
-    }
-
-    // Using Postgres function to delete from vault
-    const { data, error } = await supabase.rpc('delete_secret', {
-      secret_id: secretId
-    });
-
-    if (error) {
-      console.error('Error deleting secret from vault:', error);
-      return false;
-    }
-
-    return data === true;
-  } catch (error) {
-    console.error('Exception deleting secret from vault:', error);
-    return false;
-  }
 } 

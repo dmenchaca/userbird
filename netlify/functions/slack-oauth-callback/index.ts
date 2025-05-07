@@ -86,8 +86,13 @@ export const handler: Handler = async (event) => {
       team: { id: workspaceId, name: workspaceName }
     } = data;
 
-    // Store the bot token in Vault
-    const secretId = await storeSecretInVault(botToken, `slack-bot-token-${workspaceId}-${formId}`);
+    // Generate a unique secret name with timestamp to ensure a new secret is created each time
+    const uniqueSecretName = `slack-bot-token-${workspaceId}-${formId}-${Date.now()}`;
+    
+    console.log(`Creating new Vault secret with unique name for Slack integration: ${uniqueSecretName}`);
+    
+    // Store the bot token in Vault with the unique name
+    const secretId = await storeSecretInVault(botToken, uniqueSecretName);
     
     if (!secretId) {
       console.error('Failed to store token in Vault');
@@ -107,7 +112,7 @@ export const handler: Handler = async (event) => {
         enabled: true,
         workspace_id: workspaceId,
         workspace_name: workspaceName,
-        bot_token_id: secretId, // Store Vault reference ID instead of plain token
+        bot_token_id: secretId, // Store new Vault reference ID
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'form_id'
@@ -122,6 +127,8 @@ export const handler: Handler = async (event) => {
         }
       };
     }
+
+    console.log(`Updated Slack integration for form ${formId} with new Vault secret ID: ${secretId}`);
 
     // Redirect back to the form settings page with success message
     return {
