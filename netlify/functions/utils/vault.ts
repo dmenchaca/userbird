@@ -20,10 +20,11 @@ export async function storeSecretInVault(secretValue: string, secretName?: strin
     
     console.log(`Storing secret with descriptor: ${descriptiveName}`);
     
-    // Using Postgres function to store in vault - ensure parameters are in correct order
+    // Using Postgres function to store in vault
+    // Based on docs: vault.create_secret(secret_value, [unique_name], [description])
     const { data, error } = await supabase.rpc('create_secret', {
-      secret_name: descriptiveName,    // This is just a label/descriptor
-      secret_value: secretValue         // This is the actual sensitive value to encrypt
+      secret_value: secretValue,      // First parameter is the secret value
+      secret_name: descriptiveName    // Second parameter is the optional name
     });
 
     if (error) {

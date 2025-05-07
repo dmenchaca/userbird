@@ -1,7 +1,11 @@
 -- Create functions for storing and retrieving secrets from Vault
 
+-- Drop existing functions first
+DROP FUNCTION IF EXISTS create_secret(TEXT, TEXT);
+DROP FUNCTION IF EXISTS get_secret(UUID);
+
 -- Function to store a secret in Vault
-CREATE OR REPLACE FUNCTION create_secret(secret_name TEXT, secret_value TEXT)
+CREATE OR REPLACE FUNCTION create_secret(secret_value TEXT, secret_name TEXT DEFAULT NULL)
 RETURNS UUID
 SECURITY DEFINER
 SET search_path = public
@@ -10,22 +14,19 @@ AS $$
 DECLARE
   new_secret_id UUID;
 BEGIN
-  -- Check if vault extension is available
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_extension WHERE extname = 'vault'
-  ) THEN
-    RAISE EXCEPTION 'Vault extension is not enabled. Please enable it via Supabase dashboard.';
-  END IF;
-
-  -- Insert secret into vault and return the ID
-  -- Vault function may be vault.create_secret or pgvault.create_secret depending on version
-  BEGIN
-    -- Try vault schema first (newer versions)
+  -- According to Supabase documentation, vault.create_secret() takes:
+  -- 1. secret_value as first parameter (required)
+  -- 2. unique_name as second parameter (optional)
+  -- 3. description as third parameter (optional)
+  
+  -- Store the secret using the documented API
+  IF secret_name IS NULL THEN
+    -- Just the secret value
+    SELECT vault.create_secret(secret_value) INTO new_secret_id;
+  ELSE
+    -- Secret value with name
     SELECT vault.create_secret(secret_value, secret_name) INTO new_secret_id;
-  EXCEPTION WHEN undefined_function THEN
-    -- Fall back to pgvault schema (older versions)
-    SELECT pgvault.create_secret(secret_value, secret_name) INTO new_secret_id;
-  END;
+  END IF;
   
   RETURN new_secret_id;
 EXCEPTION WHEN OTHERS THEN
@@ -41,26 +42,19 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  secret_value TEXT;
+  decrypted_secret_value TEXT;
 BEGIN
-  -- Check if vault extension is available
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_extension WHERE extname = 'vault'
-  ) THEN
-    RAISE EXCEPTION 'Vault extension is not enabled. Please enable it via Supabase dashboard.';
+  -- According to Supabase documentation, there's no get_secret function
+  -- Instead, we query the vault.decrypted_secrets view
+  SELECT decrypted_secret INTO decrypted_secret_value
+  FROM vault.decrypted_secrets
+  WHERE id = secret_id;
+  
+  IF decrypted_secret_value IS NULL THEN
+    RAISE EXCEPTION 'Secret not found with ID: %', secret_id;
   END IF;
   
-  -- Retrieve secret from vault
-  -- Vault function may be vault.get_secret or pgvault.get_secret depending on version
-  BEGIN
-    -- Try vault schema first (newer versions)
-    SELECT vault.get_secret(secret_id) INTO secret_value;
-  EXCEPTION WHEN undefined_function THEN
-    -- Fall back to pgvault schema (older versions)
-    SELECT pgvault.get_secret(secret_id) INTO secret_value;
-  END;
-  
-  RETURN secret_value;
+  RETURN decrypted_secret_value;
 EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Error retrieving secret from vault: %', SQLERRM;
 END;
