@@ -2,6 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 import { storeSecretInVault } from '../utils/vault';
+import { randomUUID } from 'crypto';
 
 // Initialize Supabase client for database access
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
@@ -86,8 +87,9 @@ export const handler: Handler = async (event) => {
       team: { id: workspaceId, name: workspaceName }
     } = data;
 
-    // Generate a unique secret name with timestamp to ensure a new secret is created each time
-    const uniqueSecretName = `slack-bot-token-${workspaceId}-${formId}-${Date.now()}`;
+    // Generate a truly unique secret name with timestamp and UUID to ensure a new secret is created each time
+    const uniqueId = randomUUID();
+    const uniqueSecretName = `slack-bot-token-${workspaceId}-${formId}-${Date.now()}-${uniqueId}`;
     
     console.log(`Creating new Vault secret with unique name for Slack integration: ${uniqueSecretName}`);
     
