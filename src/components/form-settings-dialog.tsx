@@ -1405,6 +1405,31 @@ export function FormSettingsDialog({
     if (!formId) return;
     
     try {
+      // First, fetch the integration to get the bot_token_id
+      const { data: integration, error: fetchError } = await supabase
+        .from('slack_integrations')
+        .select('bot_token_id')
+        .eq('form_id', formId)
+        .single();
+      
+      if (fetchError) {
+        console.error('Error fetching Slack integration:', fetchError);
+      }
+      
+      // If we have a bot_token_id, delete the secret from the vault
+      if (integration?.bot_token_id) {
+        // Import dynamically to avoid server-side issues
+        const { deleteSecretFromVault } = await import('../utils/vault');
+        const deletionSuccess = await deleteSecretFromVault(integration.bot_token_id);
+        
+        if (deletionSuccess) {
+          console.log('Successfully deleted Slack token from vault');
+        } else {
+          console.warn('Failed to delete Slack token from vault');
+        }
+      }
+
+      // Now delete the integration record
       const { error } = await supabase
         .from('slack_integrations')
         .delete()
