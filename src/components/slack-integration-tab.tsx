@@ -98,7 +98,6 @@ export function SlackIntegrationTab({
         'reactions:read',
         'reactions:write',
         'chat:write.customize',
-        'incoming-webhook',
         'usergroups:read'
       ];
 
