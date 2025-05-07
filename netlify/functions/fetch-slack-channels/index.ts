@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { getSecretFromVault } from '../utils/vault';
 
 // Initialize Supabase client for database access
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
@@ -49,11 +50,11 @@ export const handler: Handler = async (event) => {
     // Fetch the Slack integration details for this form
     const { data: integration, error: integrationError } = await supabase
       .from('slack_integrations')
-      .select('workspace_id, bot_token')
+      .select('workspace_id, bot_token, bot_token_id')
       .eq('form_id', formId)
       .single();
 
-    if (integrationError || !integration || !integration.bot_token) {
+    if (integrationError || !integration) {
       console.error('Error fetching integration:', integrationError || 'No integration found');
       return {
         statusCode: 404,
@@ -65,12 +66,35 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (integration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(integration.bot_token_id);
+    } else if (integration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = integration.bot_token;
+    }
+    
+    if (!botToken) {
+      console.error(`Could not retrieve bot token for integration (form_id: ${formId})`);
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Could not retrieve Slack bot token' 
+        })
+      };
+    }
+
     // Fetch channels from Slack API
     const response = await fetch('https://slack.com/api/conversations.list', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${integration.bot_token}`
+        'Authorization': `Bearer ${botToken}`
       },
       body: JSON.stringify({
         types: 'public_channel,private_channel',

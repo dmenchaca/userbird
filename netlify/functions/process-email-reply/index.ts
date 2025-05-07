@@ -4,6 +4,7 @@ import * as multipart from 'parse-multipart-data';
 import crypto from 'crypto';
 import { simpleParser } from 'mailparser';
 import fetch from 'node-fetch';
+import { getSecretFromVault } from '../utils/vault';
 
 // Log environment variables at startup
 console.log('Process email reply function environment:', {
@@ -668,13 +669,29 @@ async function sendReplyToSlackThread(
     // Get the Slack integration for this form
     const { data: slackIntegration, error: slackError } = await supabase
       .from('slack_integrations')
-      .select('bot_token')
+      .select('bot_token, bot_token_id')
       .eq('form_id', feedback.form_id)
       .eq('enabled', true)
       .single();
     
-    if (slackError || !slackIntegration?.bot_token) {
+    if (slackError || !slackIntegration) {
       console.error('Error finding Slack integration:', slackError);
+      return false;
+    }
+    
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (slackIntegration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(slackIntegration.bot_token_id);
+    } else if (slackIntegration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = slackIntegration.bot_token;
+    }
+    
+    if (!botToken) {
+      console.error(`Could not retrieve bot token for integration (form_id: ${feedback.form_id})`);
       return false;
     }
     
@@ -686,7 +703,7 @@ async function sendReplyToSlackThread(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${slackIntegration.bot_token}`
+        'Authorization': `Bearer ${botToken}`
       },
       body: JSON.stringify({
         channel: meta.slack_channel_id,

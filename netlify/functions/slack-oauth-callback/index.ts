@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
+import { storeSecretInVault } from '../utils/vault';
 
 // Initialize Supabase client for database access
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
@@ -85,7 +86,20 @@ export const handler: Handler = async (event) => {
       team: { id: workspaceId, name: workspaceName }
     } = data;
 
-    // Store integration data in the database
+    // Store the bot token in Vault
+    const secretId = await storeSecretInVault(botToken, `slack-bot-token-${workspaceId}-${formId}`);
+    
+    if (!secretId) {
+      console.error('Failed to store token in Vault');
+      return {
+        statusCode: 302,
+        headers: {
+          Location: `/forms/${formId}?settings=slack&error=${encodeURIComponent('Failed to securely store token')}`
+        }
+      };
+    }
+
+    // Store integration data in the database with Vault reference
     const { error: dbError } = await supabase
       .from('slack_integrations')
       .upsert({
@@ -93,7 +107,7 @@ export const handler: Handler = async (event) => {
         enabled: true,
         workspace_id: workspaceId,
         workspace_name: workspaceName,
-        bot_token: botToken,
+        bot_token_id: secretId, // Store Vault reference ID instead of plain token
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'form_id'

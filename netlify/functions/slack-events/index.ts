@@ -1,6 +1,7 @@
 import { Handler, HandlerEvent, HandlerResponse } from '@netlify/functions';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { getSecretFromVault } from '../utils/vault';
 
 // Initialize Supabase client for server-side operations
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
@@ -325,12 +326,28 @@ async function fetchBotUserIdFromSlack(teamId: string): Promise<string | null> {
     // we'll just get the bot token for the workspace
     const { data: integration } = await supabase
       .from('slack_integrations')
-      .select('bot_token')
+      .select('bot_token, bot_token_id')
       .eq('workspace_id', teamId)
       .maybeSingle();
     
-    if (!integration?.bot_token) {
-      console.error('No bot token found for workspace:', teamId);
+    if (!integration) {
+      console.error('No integration found for workspace:', teamId);
+      return null;
+    }
+    
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (integration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(integration.bot_token_id);
+    } else if (integration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = integration.bot_token;
+    }
+    
+    if (!botToken) {
+      console.error(`Could not retrieve bot token for workspace ${teamId}`);
       return null;
     }
     
@@ -338,7 +355,7 @@ async function fetchBotUserIdFromSlack(teamId: string): Promise<string | null> {
     const response = await fetch('https://slack.com/api/auth.test', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${integration.bot_token}`,
+        'Authorization': `Bearer ${botToken}`,
         'Content-Type': 'application/json'
       }
     });
@@ -399,13 +416,28 @@ async function processSlackReply(slackEvent: any, teamId: string) {
     // Get the form_id associated with this workspace
     const { data: slackIntegration } = await supabase
       .from('slack_integrations')
-      .select('bot_token, form_id')
+      .select('bot_token, bot_token_id, form_id')
       .eq('workspace_id', teamId)
       .limit(1)
       .maybeSingle();
     
-    if (!slackIntegration?.bot_token || !slackIntegration?.form_id) {
+    if (!slackIntegration?.form_id) {
       throw new Error(`Could not find Slack integration for workspace: ${teamId}`);
+    }
+    
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (slackIntegration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(slackIntegration.bot_token_id);
+    } else if (slackIntegration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = slackIntegration.bot_token;
+    }
+    
+    if (!botToken) {
+      throw new Error(`Could not retrieve bot token for workspace ${teamId}`);
     }
     
     // Fetch the thread's parent message to extract the ticket number
@@ -414,7 +446,7 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${slackIntegration.bot_token}`,
+          'Authorization': `Bearer ${botToken}`,
           'Content-Type': 'application/json'
         }
       }
@@ -482,7 +514,7 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${slackIntegration.bot_token}`,
+          'Authorization': `Bearer ${botToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -521,7 +553,7 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       // Call Slack API to get user's email
       const slackUserResponse = await fetch(`https://slack.com/api/users.info?user=${slackEvent.user}`, {
         headers: {
-          'Authorization': `Bearer ${slackIntegration.bot_token}`
+          'Authorization': `Bearer ${botToken}`
         }
       });
       
@@ -789,24 +821,37 @@ async function processSlackReply(slackEvent: any, teamId: string) {
         // Find any integration for this workspace to get a token
         const { data: integration } = await supabase
           .from('slack_integrations')
-          .select('bot_token')
+          .select('bot_token, bot_token_id')
           .eq('workspace_id', teamId)
           .limit(1)
           .maybeSingle();
         
-        if (integration?.bot_token) {
-          await fetch('https://slack.com/api/chat.postMessage', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${integration.bot_token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              channel: slackEvent.channel,
-              thread_ts: slackEvent.thread_ts,
-              text: "❌ Sorry, I couldn't process your reply. Please make sure you're replying to a feedback notification thread."
-            })
-          });
+        if (integration) {
+          // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+          let botToken: string | null = null;
+          
+          if (integration.bot_token_id) {
+            // Retrieve from Vault
+            botToken = await getSecretFromVault(integration.bot_token_id);
+          } else if (integration.bot_token) {
+            // Fallback to plain text token if available
+            botToken = integration.bot_token;
+          }
+          
+          if (botToken) {
+            await fetch('https://slack.com/api/chat.postMessage', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${botToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                channel: slackEvent.channel,
+                thread_ts: slackEvent.thread_ts,
+                text: "❌ Sorry, I couldn't process your reply. Please make sure you're replying to a feedback notification thread."
+              })
+            });
+          }
         }
       } catch (msgError) {
         console.error('Error sending error message to Slack:', msgError);
@@ -829,12 +874,27 @@ async function sendSlackConfirmation(
     // Get the slack integration details
     const { data: integration } = await supabase
       .from('slack_integrations')
-      .select('bot_token')
+      .select('bot_token, bot_token_id')
       .eq('workspace_id', teamId)
       .limit(1)
       .maybeSingle();
     
-    if (!integration?.bot_token) {
+    if (!integration) {
+      throw new Error(`No integration found for workspace: ${teamId}`);
+    }
+    
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (integration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(integration.bot_token_id);
+    } else if (integration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = integration.bot_token;
+    }
+    
+    if (!botToken) {
       throw new Error(`No bot token found for workspace: ${teamId}`);
     }
     
@@ -845,7 +905,7 @@ async function sendSlackConfirmation(
     const response = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${integration.bot_token}`,
+        'Authorization': `Bearer ${botToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

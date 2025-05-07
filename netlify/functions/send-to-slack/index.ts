@@ -2,6 +2,7 @@ import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 import { format } from 'date-fns';
+import { getSecretFromVault } from '../utils/vault';
 
 // Initialize Supabase client for database access
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
@@ -77,18 +78,41 @@ export const handler: Handler = async (event) => {
     // Check if Slack integration is enabled for this form
     const { data: slackIntegration, error: slackError } = await supabase
       .from('slack_integrations')
-      .select('bot_token, enabled, channel_id')
+      .select('bot_token, bot_token_id, enabled, channel_id')
       .eq('form_id', formId)
       .eq('enabled', true)
       .single();
 
-    if (slackError || !slackIntegration || !slackIntegration.bot_token || !slackIntegration.channel_id) {
+    // Check if we have a valid integration
+    if (slackError || !slackIntegration || !slackIntegration.channel_id) {
       console.log(`Slack integration not available for form ${formId} or missing channel configuration`);
       return {
         statusCode: 200,
         body: JSON.stringify({
           success: false,
           message: 'Slack integration not configured properly'
+        })
+      };
+    }
+
+    // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
+    let botToken: string | null = null;
+    
+    if (slackIntegration.bot_token_id) {
+      // Retrieve from Vault
+      botToken = await getSecretFromVault(slackIntegration.bot_token_id);
+    } else if (slackIntegration.bot_token) {
+      // Fallback to plain text token if available
+      botToken = slackIntegration.bot_token;
+    }
+    
+    if (!botToken) {
+      console.error(`Could not retrieve bot token for integration (form_id: ${formId})`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: false,
+          message: 'Could not retrieve Slack bot token'
         })
       };
     }
@@ -246,7 +270,7 @@ export const handler: Handler = async (event) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${slackIntegration.bot_token}`
+          'Authorization': `Bearer ${botToken}`
         },
         body: JSON.stringify({ channel: slackIntegration.channel_id })
       });
@@ -269,7 +293,7 @@ export const handler: Handler = async (event) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${slackIntegration.bot_token}`
+        'Authorization': `Bearer ${botToken}`
       },
       body: JSON.stringify(slackMessage)
     });
@@ -335,7 +359,7 @@ export const handler: Handler = async (event) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${slackIntegration.bot_token}`
+            'Authorization': `Bearer ${botToken}`
           },
           body: JSON.stringify({
             channel: slackIntegration.channel_id,
