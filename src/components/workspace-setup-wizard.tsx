@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote, Box, BarChart3, MessageSquare, Slack, Rocket } from 'lucide-react'
+import { Loader, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { createSampleFeedback } from '@/lib/sample-feedback'
 
@@ -675,7 +675,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-sm">Easily install feedback widget</p>
-                      <p className="text-sm text-muted-foreground">Simple one-line code integration.</p>
                     </div>
                   </div>
                   
@@ -684,8 +683,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       <Rocket className="h-4 w-4" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-sm">3x the amount of user feedback you are getting</p>
-                      <p className="text-sm text-muted-foreground">Lightning fast feedback via keyboard shortcut.</p>
+                      <p className="font-medium text-sm">Get more user feedback within a day or I'll pay you $20</p>
                     </div>
                   </div>
                   
@@ -695,7 +693,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-sm">Manage feedback directly from Slack</p>
-                      <p className="text-sm text-muted-foreground">Works with your existing tools.</p>
                     </div>
                   </div>
                 </div>
