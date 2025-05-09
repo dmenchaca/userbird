@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote } from 'lucide-react'
+import { Loader, Bird, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote, Box, BarChart3, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { createSampleFeedback } from '@/lib/sample-feedback'
 
@@ -596,7 +596,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           </div>
         </div>
         
-        <div className="bg-background rounded-lg shadow-lg border w-full p-8 py-10 transition-all duration-500 ease-in-out">
+        <div className="bg-background rounded-lg shadow-lg border w-full transition-all duration-500 ease-in-out" style={{ paddingTop: "28px", paddingBottom: "36px", paddingLeft: "2rem", paddingRight: "2rem" }}>
           <div>
         {step === 1 && (
               <div 
@@ -611,19 +611,19 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   }
                 }}
               >
-            <div className="flex justify-center pb-4">
+            {/* <div className="flex justify-center pb-4">
               <a href="/" className="flex items-center gap-2 font-medium">
                 <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <Bird className="h-4 w-4" />
                 </div>
                 Userbird
               </a>
-            </div>
-                <div className="space-y-2 mb-6">
-            <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
-            <p className="text-muted-foreground">
-              Set up your new customer support and feedback system.
-            </p>
+            </div> */}
+                <div className="space-y-2 mb-5">
+              <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
+              {/* <p className="text-muted-foreground">
+                Set up your new customer support and feedback system.
+              </p> */}
                 </div>
                 
                 <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, backgroundColor: "#f5f5f5", borderRadius: "8px" }}>
@@ -665,6 +665,39 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
                     loading="lazy"
                   />
+                </div>
+                
+                {/* New section with three rows */}
+                <div className="mb-6 space-y-4">
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
+                      <MessageSquare className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-sm">Easily install feedback widget</p>
+                      <p className="text-sm text-muted-foreground">Simple one-line code integration.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 rounded-md bg-green-50 text-green-600 flex items-center justify-center mr-3">
+                      <Rocket className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-sm">3x the amount of user feedback you are getting</p>
+                      <p className="text-sm text-muted-foreground">Lightning fast feedback via keyboard shortcut.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center mr-3">
+                      <Slack className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-sm">Manage feedback directly from Slack</p>
+                      <p className="text-sm text-muted-foreground">Works with your existing tools.</p>
+                    </div>
+                  </div>
                 </div>
                 
                 <Button 
