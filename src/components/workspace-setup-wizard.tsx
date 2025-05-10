@@ -362,13 +362,78 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       // Create or update the form
       await handleBackgroundFormCreationOrPatch(productName.trim());
       
+      // Wait a bit for the form ID to be properly set
+      if (!createdFormId) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      const formIdToUse = createdFormId;
+      
+      if (!formIdToUse) {
+        console.error('No form ID available after creation');
+        setBackgroundError('Failed to create workspace. Please try again.');
+        setIsCreating(false);
+        return;
+      }
+      
       // Create sample feedback directly - make sure we create 3 items
       try {
-        if (createdFormId) {
-          // Explicitly set count to 3 to ensure we get 3 sample feedback items
-          await createSampleFeedback(createdFormId, 3);
-          console.log('Created 3 sample feedback items for new workspace');
-        }
+        // Send direct request to feedback endpoint like the dialog does
+        console.log(`Creating sample feedback for form: ${formIdToUse}`);
+        await fetch('/.netlify/functions/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            formId: formIdToUse,
+            message: "I found a bug where the data doesn't save if I accidentally refresh the page. I lost my entire document :(",
+            user_name: "Diego Menchaca",
+            user_email: "hi@diego.bio",
+            url_path: "/dashboard",
+            operating_system: "macOS 14.0",
+            screen_category: "Desktop"
+          })
+        });
+        
+        // Add a brief delay before sending the next ones
+        setTimeout(() => {
+          // Second feedback
+          fetch('/.netlify/functions/feedback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              formId: formIdToUse,
+              message: "Having trouble with the export feature. It keeps timing out when I try to export large reports.",
+              user_name: "Diego Menchaca",
+              user_email: "hi@diego.bio",
+              url_path: "/settings",
+              operating_system: "Windows 11",
+              screen_category: "Desktop"
+            })
+          }).catch(e => console.error('Error sending second sample feedback:', e));
+          
+          // Third feedback
+          fetch('/.netlify/functions/feedback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              formId: formIdToUse,
+              message: "Could we get a dark mode option? My eyes get strained when using the app at night.",
+              user_name: "Diego Menchaca",
+              user_email: "hi@diego.bio",
+              url_path: "/projects/active",
+              operating_system: "iOS 17.2",
+              screen_category: "Mobile"
+            })
+          }).catch(e => console.error('Error sending third sample feedback:', e));
+        }, 200);
+        
+        console.log('Created sample feedback items for new workspace');
       } catch (err) {
         console.error('Error creating sample feedback:', err);
         // Continue anyway
@@ -378,13 +443,24 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       markOnboardingComplete();
       onComplete();
       
-      // Redirect immediately instead of with window.location for faster navigation
-      if (createdFormId) {
-        navigate(`/forms/${createdFormId}`);
-      } else {
-        setBackgroundError('Failed to create workspace. Please try again.');
-        setIsCreating(false);
+      // Save form ID in localStorage for quick access
+      if (user?.id && formIdToUse) {
+        localStorage.setItem(`userbird-last-form-${user.id}`, formIdToUse);
       }
+      
+      // Set a flag in localStorage to indicate intentional navigation (like the dialog does)
+      localStorage.setItem('userbird-navigating-to-new-form', formIdToUse);
+      
+      // Add a small delay to ensure feedback creation requests are sent before navigating
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Redirect immediately instead of with window.location for faster navigation
+      navigate(`/forms/${formIdToUse}`);
+      
+      // Clear the navigation flag after 1 second like the dialog does
+      setTimeout(() => {
+        localStorage.removeItem('userbird-navigating-to-new-form');
+      }, 1000);
     } catch (err) {
       console.error('Error in workspace creation:', err);
       setBackgroundError('Failed to create workspace. Please try again.');
