@@ -1,12 +1,12 @@
 // Sample feedback messages with realistic content
 const SAMPLE_FEEDBACK_MESSAGES = [
-  "I found a bug where the data doesn't save if I accidentally refresh the page. I lost my entire document :(",
-  "Having trouble with the export feature. It keeps timing out when I try to export large reports.",
-  "Could we get a dark mode option? My eyes get strained when using the app at night.",
-  "Would you consider adding integration with Zapier? This would be a game-changer for our workflow.",
-  "Seeing an error when trying to upload images on Safari. Works fine on Chrome though.",
-  "Would be great to have keyboard shortcuts for common actions.",
-  "Please implement a way to customize the notification settings? Getting too many emails.",
+  "-- This is a sample ticket --\n\nI found a bug where the data doesn't save if I accidentally refresh the page. I lost my entire document :(",
+  "-- This is a sample ticket --\n\nHaving trouble with the export feature. It keeps timing out when I try to export large reports.",
+  "-- This is a sample ticket --\n\nCould we get a dark mode option? My eyes get strained when using the app at night.",
+  "-- This is a sample ticket --\n\nWould you consider adding integration with Zapier? This would be a game-changer for our workflow.",
+  "-- This is a sample ticket --\n\nSeeing an error when trying to upload images on Safari. Works fine on Chrome though.",
+  "-- This is a sample ticket --\n\nWould be great to have keyboard shortcuts for common actions.",
+  "-- This is a sample ticket --\n\nPlease implement a way to customize the notification settings? Getting too many emails.",
 ]
 
 // Using Diego's information for all sample feedback
