@@ -265,7 +265,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           ]
         };
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('forms')
           .insert(formData)
           .select('id')
