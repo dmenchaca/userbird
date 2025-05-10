@@ -348,6 +348,23 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
   
+  // Direct click handler for second step button
+  const handleStep2Submit = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    console.log('handleStep2Submit called directly');
+    if (productName.trim() && !backgroundCreating && !isCreating) {
+      handleNext();
+    } else {
+      console.log('Submit blocked: Empty name or already creating', {
+        nameEmpty: !productName.trim(),
+        backgroundCreating,
+        isCreating
+      });
+    }
+  };
+  
   // New function to create sample feedback and redirect after step 2
   const createWorkspaceAndRedirect = async () => {
     if (!createdFormId) return;
@@ -387,39 +404,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
 
   const handleKeyPress = (e: KeyboardEvent<HTMLDivElement | HTMLFormElement>) => {
     console.log('Key pressed in global handler:', e.key, 'Current step:', step, 'Target:', e.target);
-    if (e.key === 'Enter') {
-      console.log('Enter key detected in global handler');
+    // Only handle Enter key for step 1, since step 2 uses form submission
+    if (e.key === 'Enter' && step === 1) {
+      console.log('Enter key detected in global handler for step 1');
       e.preventDefault();
-      
-      if (step === 1) {
-        console.log('Step 1 Enter key handler triggered');
-        handleNext();
-      } else if (step === 2) {
-        if (productName.trim()) {
-          console.log('Step 2 Enter key handler triggered with valid product name');
-          handleNext();
-        } else {
-          console.log('Step 2 Enter key handler triggered with empty product name');
-        }
-      }
-      // Comment out handling for steps 3+ since we're removing those steps
-      /*
-      else if (step === 3) {
-        // On step 3, Enter should advance to step 4, not finish the onboarding
-        console.log('Step 3 Enter key handler triggered');
-        handleNext();
-      } else if (step === 4) {
-        // Only handle Enter if we're not already creating a workspace
-        if (!isCreating) {
-          console.log('Step 4 Enter key handler triggered');
-          handleCreateWorkspace();
-        } else {
-          console.log('Step 4 Enter key handler not triggered (isCreating is true)');
-        }
-      }
-      // No action needed for step 5 (loading animation)
-      */
+      handleStep1Next();
     }
+    // All other key handlers removed to prevent conflicts
   };
 
   // Direct click handler for first step button
@@ -764,47 +755,131 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
 
           {step === 2 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div>
+                <form 
+                  onSubmit={handleStep2Submit}
+                  id="workspace-form"
+                >
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
-                Manage your customer support and feedback hub in a shared workspace with your team.
-              </p>
+                    Manage your customer support and feedback hub in a shared workspace with your team.
+                  </p>
                   <div className="space-y-2 mb-6 max-w-sm mx-auto">
-                <label htmlFor="product-name" className="text-sm font-medium">
-                  Product/company name
-                </label>
-                <Input
-                  id="product-name"
-                  value={productName}
-                  onChange={(e) => {
-                    setProductName(e.target.value);
-                    setBackgroundError(null);
-                  }}
-                  placeholder="e.g., Acme Inc."
+                    <label htmlFor="product-name" className="text-sm font-medium">
+                      Product/company name
+                    </label>
+                    <Input
+                      id="product-name"
+                      value={productName}
+                      onChange={(e) => {
+                        setProductName(e.target.value);
+                        setBackgroundError(null);
+                      }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation(); // Prevent other handlers from capturing this
+                          console.log('Enter key pressed directly on input');
+                          
+                          if (productName.trim() && !backgroundCreating && !isCreating) {
+                            // Show loading state immediately
+                            setIsCreating(true);
+                            
+                            try {
+                              // Create or update the form
+                              await handleBackgroundFormCreationOrPatch(productName.trim());
+                              
+                              // Create sample feedback directly
+                              try {
+                                if (createdFormId) {
+                                  await createSampleFeedback(createdFormId);
+                                }
+                              } catch (err) {
+                                console.error('Error creating sample feedback:', err);
+                                // Continue anyway
+                              }
+                              
+                              // Mark onboarding as complete
+                              markOnboardingComplete();
+                              onComplete();
+                              
+                              // Redirect to the new workspace
+                              if (createdFormId) {
+                                window.location.href = `/forms/${createdFormId}`;
+                              } else {
+                                setBackgroundError('Failed to create workspace. Please try again.');
+                                setIsCreating(false);
+                              }
+                            } catch (err) {
+                              console.error('Error in workspace creation:', err);
+                              setBackgroundError('Failed to create workspace. Please try again.');
+                              setIsCreating(false);
+                            }
+                          }
+                        }
+                      }}
+                      placeholder="e.g., Acme Inc."
                       autoFocus
-                />
-              </div>
-              <div className="max-w-sm mx-auto">
-                <Button 
-                    className="w-full group" 
-                    onClick={handleNext}
-                    disabled={!productName.trim() || backgroundCreating || isCreating}
-                  >
-                    {backgroundCreating || isCreating ? (
-                      <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>
-                    ) : (
-                      <>Create workspace
-                        <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                          Enter
-                        </span>
-                      </>
+                    />
+                  </div>
+                  <div className="max-w-sm mx-auto">
+                    <Button 
+                      type="button"
+                      form="workspace-form"
+                      className="w-full group" 
+                      disabled={!productName.trim() || backgroundCreating || isCreating}
+                      onClick={async () => {
+                        if (productName.trim() && !backgroundCreating && !isCreating) {
+                          // Show loading state immediately
+                          setIsCreating(true);
+                          
+                          try {
+                            // Create or update the form
+                            await handleBackgroundFormCreationOrPatch(productName.trim());
+                            
+                            // Create sample feedback directly
+                            try {
+                              if (createdFormId) {
+                                await createSampleFeedback(createdFormId);
+                              }
+                            } catch (err) {
+                              console.error('Error creating sample feedback:', err);
+                              // Continue anyway
+                            }
+                            
+                            // Mark onboarding as complete
+                            markOnboardingComplete();
+                            onComplete();
+                            
+                            // Redirect to the new workspace
+                            if (createdFormId) {
+                              window.location.href = `/forms/${createdFormId}`;
+                            } else {
+                              setBackgroundError('Failed to create workspace. Please try again.');
+                              setIsCreating(false);
+                            }
+                          } catch (err) {
+                            console.error('Error in workspace creation:', err);
+                            setBackgroundError('Failed to create workspace. Please try again.');
+                            setIsCreating(false);
+                          }
+                        }
+                      }}
+                    >
+                      {backgroundCreating || isCreating ? (
+                        <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>
+                      ) : (
+                        <>Create workspace
+                          <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                            Enter
+                          </span>
+                        </>
+                      )}
+                    </Button>
+                    {backgroundError && (
+                      <div className="text-destructive text-sm mt-2">{backgroundError}</div>
                     )}
-                  </Button>
-                  {backgroundError && (
-                    <div className="text-destructive text-sm mt-2">{backgroundError}</div>
-                  )}
-                </div>
-                </div>
+                  </div>
+                </form>
               </div>
             )}
 
