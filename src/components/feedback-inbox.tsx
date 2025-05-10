@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader, X } from 'lucide-react'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
@@ -128,8 +128,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     }
   };
 
-  // Function to fetch form's default email
-  const fetchFormDefaultEmail = async () => {
+  // Function to fetch form's default email - memoize with useCallback
+  const fetchFormDefaultEmail = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('forms')
@@ -148,7 +148,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     } catch (error) {
       console.error('Error fetching form default email:', error)
     }
-  }
+  }, [formId])
   
   // Check if callout was previously dismissed
   useEffect(() => {
@@ -158,7 +158,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     
     // Fetch form's default email
     fetchFormDefaultEmail()
-  }, [formId])
+  }, [formId, fetchFormDefaultEmail])
   
   // Handle callout dismissal
   const handleDismissCallout = () => {
@@ -363,7 +363,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [formId, selectedIds, activeResponseId, currentStatusFilter]);
+  }, [formId, selectedIds, currentStatusFilter]);
 
   // Reset search when filter changes
   useEffect(() => {
