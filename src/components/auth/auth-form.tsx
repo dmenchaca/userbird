@@ -101,18 +101,23 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
-        <h1 className="text-3xl font-semibold tracking-tight relative">
+        <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2.5rem] w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
             <>
-              The <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">fastest</span> way to get user feedback
+              You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">blind spots.</span>
             </>
           )}
         </h1>
         {mode === 'login' && (
           <p className="text-base text-muted-foreground m-4">
-            Try Userbird today, no credit card required.
+            Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
+        <div className="flex justify-center my-2">
+          <div className="inline-block py-2 px-4 rounded-full bg-muted text-center text-foreground">
+            Beta test for free until June 1st 🚀
+          </div>
+        </div>
       </div>
       <div className="grid gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
@@ -233,7 +238,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             </>
           )}
         </div>
-        <p className="px-8 text-center text-sm text-muted-foreground">
+        {/* Terms of service and privacy policy - temporarily hidden
+        <p className="px-8 text-center text-sm text-muted-foreground w-[372px] mx-auto">
           By clicking continue, you agree to our{" "}
           <a href="#" className="underline underline-offset-4 hover:text-primary">
             Terms of Service
@@ -243,6 +249,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             Privacy Policy
           </a>
         </p>
+        */}
       </div>
     </div>
   )
