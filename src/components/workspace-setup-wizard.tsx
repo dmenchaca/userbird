@@ -328,22 +328,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
     // On step 2, fire background creation or patch
     if (step === 2 && productName.trim()) {
-      handleBackgroundFormCreationOrPatch(productName.trim());
-      // After successful form creation in step 2, create sample feedback and redirect
-      if (createdFormId) {
-        createWorkspaceAndRedirect();
-      } else {
-        // If form isn't created yet, set up a listener for when createdFormId changes
-        const checkFormCreation = setInterval(() => {
-          if (createdFormId) {
-            clearInterval(checkFormCreation);
-            createWorkspaceAndRedirect();
-          }
-        }, 500);
-        
-        // Clear interval after 5 seconds to prevent endless checking
-        setTimeout(() => clearInterval(checkFormCreation), 5000);
-      }
+      handleWorkspaceCreation();
     } else {
       setStep(step + 1);
     }
@@ -385,15 +370,54 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       markOnboardingComplete();
       onComplete();
       
-      // Redirect to the new workspace
-      window.location.href = `/forms/${createdFormId}`;
+      // Redirect to the new workspace immediately
+      navigate(`/forms/${createdFormId}`);
     } catch (error: any) {
       console.error(`Failed to complete onboarding: ${error.message || 'Please try again'}`);
       // Even on error, still redirect
       markOnboardingComplete();
       onComplete();
-      window.location.href = `/forms/${createdFormId}`;
+      navigate(`/forms/${createdFormId}`);
     } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Input keydown and button click handlers
+  const handleWorkspaceCreation = async () => {
+    if (!productName.trim() || backgroundCreating || isCreating) return;
+    
+    // Show loading state immediately
+    setIsCreating(true);
+    
+    try {
+      // Create or update the form
+      await handleBackgroundFormCreationOrPatch(productName.trim());
+      
+      // Create sample feedback directly
+      try {
+        if (createdFormId) {
+          await createSampleFeedback(createdFormId);
+        }
+      } catch (err) {
+        console.error('Error creating sample feedback:', err);
+        // Continue anyway
+      }
+      
+      // Mark onboarding as complete
+      markOnboardingComplete();
+      onComplete();
+      
+      // Redirect immediately instead of with window.location for faster navigation
+      if (createdFormId) {
+        navigate(`/forms/${createdFormId}`);
+      } else {
+        setBackgroundError('Failed to create workspace. Please try again.');
+        setIsCreating(false);
+      }
+    } catch (err) {
+      console.error('Error in workspace creation:', err);
+      setBackgroundError('Failed to create workspace. Please try again.');
       setIsCreating(false);
     }
   };
@@ -803,39 +827,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                           console.log('Enter key pressed directly on input');
                           
                           if (productName.trim() && !backgroundCreating && !isCreating) {
-                            // Show loading state immediately
-                            setIsCreating(true);
-                            
-                            try {
-                              // Create or update the form
-                              await handleBackgroundFormCreationOrPatch(productName.trim());
-                              
-                              // Create sample feedback directly
-                              try {
-                                if (createdFormId) {
-                                  await createSampleFeedback(createdFormId);
-                                }
-                              } catch (err) {
-                                console.error('Error creating sample feedback:', err);
-                                // Continue anyway
-                              }
-                              
-                              // Mark onboarding as complete
-                              markOnboardingComplete();
-                              onComplete();
-                              
-                              // Redirect to the new workspace
-                              if (createdFormId) {
-                                window.location.href = `/forms/${createdFormId}`;
-                              } else {
-                                setBackgroundError('Failed to create workspace. Please try again.');
-                                setIsCreating(false);
-                              }
-                            } catch (err) {
-                              console.error('Error in workspace creation:', err);
-                              setBackgroundError('Failed to create workspace. Please try again.');
-                              setIsCreating(false);
-                            }
+                            handleWorkspaceCreation();
                           }
                         }
                       }}
@@ -849,43 +841,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       form="workspace-form"
                       className="w-full group" 
                       disabled={!productName.trim() || backgroundCreating || isCreating}
-                      onClick={async () => {
-                        if (productName.trim() && !backgroundCreating && !isCreating) {
-                          // Show loading state immediately
-                          setIsCreating(true);
-                          
-                          try {
-                            // Create or update the form
-                            await handleBackgroundFormCreationOrPatch(productName.trim());
-                            
-                            // Create sample feedback directly
-                            try {
-                              if (createdFormId) {
-                                await createSampleFeedback(createdFormId);
-                              }
-                            } catch (err) {
-                              console.error('Error creating sample feedback:', err);
-                              // Continue anyway
-                            }
-                            
-                            // Mark onboarding as complete
-                            markOnboardingComplete();
-                            onComplete();
-                            
-                            // Redirect to the new workspace
-                            if (createdFormId) {
-                              window.location.href = `/forms/${createdFormId}`;
-                            } else {
-                              setBackgroundError('Failed to create workspace. Please try again.');
-                              setIsCreating(false);
-                            }
-                          } catch (err) {
-                            console.error('Error in workspace creation:', err);
-                            setBackgroundError('Failed to create workspace. Please try again.');
-                            setIsCreating(false);
-                          }
-                        }
-                      }}
+                      onClick={() => handleWorkspaceCreation()}
                     >
                       {backgroundCreating || isCreating ? (
                         <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>
@@ -1084,7 +1040,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   <Button 
                     type="button"
                     className="flex-1 group" 
-                    onClick={handleCreateWorkspace} 
+                    onClick={handleWorkspaceCreation} 
                     disabled={isCreating}
                   >
                     {isCreating ? (
