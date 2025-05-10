@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Loader, ArrowLeft, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { createSampleFeedback } from '@/lib/sample-feedback'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -32,66 +31,11 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [hoveredFeature, setHoveredFeature] = useState<'widget' | 'guarantee' | 'slack' | null>(null)
   const navigate = useNavigate()
   
-  console.log('Rendering WorkspaceSetupWizard, current step:', step);
-  
   // Get user's first name for the welcome message
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 
                    user?.user_metadata?.name?.split(' ')[0] || 
                    user?.email?.split('@')[0] || 
                    'there'
-
-  useEffect(() => {
-    // Focus the container on mount to ensure it can receive keyboard events
-    console.log('Setting up initial focus');
-    const container = document.getElementById('wizard-container');
-    if (container) {
-      container.focus();
-      console.log('Focused wizard container');
-    }
-  }, []);
-
-  // Check if URL is actually optional in the database schema
-  useEffect(() => {
-    const checkDatabaseSchema = async () => {
-      try {
-        // Skip the debug_table_schema call as it's causing errors
-        console.log('Skipping schema check and trying direct test insert');
-
-        // Fallback method - try a simple insert without URL
-        const testData = {
-          id: generateShortId(), // Generate a random ID similar to existing format
-          product_name: 'Test Product',
-          owner_id: user?.id
-        };
-        
-        console.log('Testing insert without URL:', testData);
-        
-        const { data: testInsert, error: insertError } = await supabase
-          .from('forms')
-          .insert(testData)
-          .select()
-          .single();
-          
-        console.log('Test insert result:', { data: testInsert, error: insertError });
-        
-        // Clean up test data
-        if (testInsert) {
-          const { error: deleteError } = await supabase
-            .from('forms')
-            .delete()
-            .eq('id', testInsert.id);
-            
-          console.log('Test data cleanup:', { error: deleteError });
-        }
-      } catch (e) {
-        console.error('Schema check failed:', e);
-      }
-    };
-
-    if (user?.id) {
-      checkDatabaseSchema();
-    }
-  }, [user?.id]);
 
   // --- Robust onboarding state: persist step and completion flag ---
   useEffect(() => {
@@ -138,7 +82,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   }, [step, createdFormId, user?.id]);
 
-  // Fetch product name for any step >= 2 if form exists (including after going back from step 1)
+  // Fetch product name for any step >= 2 if form exists
   useEffect(() => {
     const fetchProductName = async () => {
       if (createdFormId && step >= 2) {
@@ -157,86 +101,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     fetchProductName();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdFormId, step]);
-
-  // Background form creation or patch for step 2
-  const handleBackgroundFormCreationOrPatch = async (name: string): Promise<string | null> => {
-    if (backgroundCreating) return createdFormId; // Prevent duplicate
-    setBackgroundCreating(true);
-    setBackgroundError(null);
-    try {
-      let resultFormId = createdFormId;
-      
-      if (createdFormId) {
-        // Patch the existing form's name
-        const { error: updateError } = await supabase
-          .from('forms')
-          .update({ product_name: name })
-          .eq('id', createdFormId)
-          .select();
-        if (updateError) throw updateError;
-      } else {
-        // Create a new form with a guaranteed ID first (like workspace-creator-dialog)
-        const formId = generateShortId();
-        const formData = {
-          id: formId,
-          product_name: name,
-          owner_id: user?.id,
-          // Add these fields to match the dialog's form creation
-          show_gif_on_success: true,
-          remove_branding: false,
-          keyboard_shortcut: 'L',
-          gif_urls: [
-            'https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif',
-            'https://media1.tenor.com/m/4PLfYPBvjhQAAAAd/tannerparty-tanner.gif',
-            'https://media1.tenor.com/m/lRY5I7kwR08AAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
-            'https://media1.tenor.com/m/9LbEpuHBPScAAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
-            'https://media1.tenor.com/m/mnx8ECSie6EAAAAd/sheldon-cooper-big-bang-theory.gif'
-          ]
-        };
-        
-        const { error } = await supabase
-          .from('forms')
-          .insert(formData)
-          .select('id')
-          .single();
-        
-        if (error) throw error;
-        
-        // Important: Set the formId first before any other operations
-        resultFormId = formId; // Use our predetermined ID, not data?.id
-        setCreatedFormId(resultFormId);
-        
-        // Create default tags for the new form
-        await createDefaultTags(formId);
-        
-        if (formId && user?.id && user?.email) {
-          await supabase
-            .from('form_collaborators')
-            .insert({
-              form_id: formId,
-              user_id: user.id,
-              role: 'admin',
-              invited_by: user.id,
-              invitation_email: user.email,
-              invitation_accepted: true
-            })
-            .select()
-            .single();
-        }
-        
-        if (user?.id && resultFormId) {
-          localStorage.setItem(`userbird-last-form-${user.id}`, resultFormId);
-        }
-      }
-      return resultFormId;
-    } catch (err: any) {
-      setBackgroundError(err.message || 'Failed to create or update workspace');
-      if (!createdFormId) setCreatedFormId(null);
-      return null;
-    } finally {
-      setBackgroundCreating(false);
-    }
-  };
 
   // Function to create default tags for a new form
   const createDefaultTags = async (formId: string) => {
@@ -269,38 +133,115 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
 
+  // Background form creation or patch for step 2
+  const handleBackgroundFormCreationOrPatch = async (name: string): Promise<string | null> => {
+    if (backgroundCreating) return createdFormId; // Prevent duplicate
+    setBackgroundCreating(true);
+    setBackgroundError(null);
+    try {
+      let resultFormId = createdFormId;
+      
+      if (createdFormId) {
+        // Patch the existing form's name
+        const { error: updateError } = await supabase
+          .from('forms')
+          .update({ product_name: name })
+          .eq('id', createdFormId);
+        if (updateError) throw updateError;
+      } else {
+        // Create a new form with a guaranteed ID first
+        const formId = generateShortId();
+        const formData = {
+          id: formId,
+          product_name: name,
+          owner_id: user?.id,
+          show_gif_on_success: true,
+          remove_branding: false,
+          keyboard_shortcut: 'L',
+          gif_urls: [
+            'https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif',
+            'https://media1.tenor.com/m/4PLfYPBvjhQAAAAd/tannerparty-tanner.gif',
+            'https://media1.tenor.com/m/lRY5I7kwR08AAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/9LbEpuHBPScAAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/mnx8ECSie6EAAAAd/sheldon-cooper-big-bang-theory.gif'
+          ]
+        };
+        
+        const { error } = await supabase
+          .from('forms')
+          .insert(formData);
+        
+        if (error) throw error;
+        
+        // Important: Set the formId first before any other operations
+        resultFormId = formId;
+        setCreatedFormId(formId);
+        
+        // Create default tags for the new form
+        await createDefaultTags(formId);
+        
+        if (formId && user?.id && user?.email) {
+          await supabase
+            .from('form_collaborators')
+            .insert({
+              form_id: formId,
+              user_id: user.id,
+              role: 'admin',
+              invited_by: user.id,
+              invitation_email: user.email,
+              invitation_accepted: true
+            });
+        }
+        
+        if (user?.id && resultFormId) {
+          localStorage.setItem(`userbird-last-form-${user.id}`, resultFormId);
+        }
+      }
+      return resultFormId;
+    } catch (err: any) {
+      setBackgroundError(err.message || 'Failed to create or update workspace');
+      if (!createdFormId) setCreatedFormId(null);
+      return null;
+    } finally {
+      setBackgroundCreating(false);
+    }
+  };
+
   const handleNext = () => {
-    console.log('handleNext called, current step:', step);
-    if (step === 2 && !productName.trim()) {
-      console.log('Product name empty, showing error');
-      return;
-    }
-    // On step 2, fire background creation or patch
-    if (step === 2 && productName.trim()) {
+    if (step === 1) {
+      setStep(2);
+    } else if (step === 2 && productName.trim()) {
       handleWorkspaceCreation();
-    } else {
-      setStep(step + 1);
     }
   };
   
-  // Direct click handler for second step button
-  const handleStep2Submit = (e?: React.FormEvent) => {
-    if (e) {
+  // Direct click handler for first step button
+  const handleStep1Next = () => {
+    handleNext();
+  };
+  
+  // Handle keyboard events
+  const handleKeyPress = (e: KeyboardEvent<HTMLDivElement | HTMLFormElement>) => {
+    if (e.key === 'Enter' && step === 1) {
       e.preventDefault();
-    }
-    console.log('handleStep2Submit called directly');
-    if (productName.trim() && !backgroundCreating && !isCreating) {
-      handleNext();
-    } else {
-      console.log('Submit blocked: Empty name or already creating', {
-        nameEmpty: !productName.trim(),
-        backgroundCreating,
-        isCreating
-      });
+      handleStep1Next();
     }
   };
-  
-  // Input keydown and button click handlers
+
+  const handleBack = () => {
+    setStep(step - 1);
+  };
+
+  // Onboarding completion: set completed flag and clear step state
+  const markOnboardingComplete = () => {
+    if (!user?.id) return;
+    const completedKey = `userbird-onboarding-completed-${user.id}`;
+    const stepKey = `userbird-onboarding-step-${user.id}`;
+    localStorage.setItem(completedKey, 'true');
+    localStorage.removeItem(stepKey);
+  };
+
+  // Workspace creation and navigation
   const handleWorkspaceCreation = async () => {
     if (!productName.trim() || backgroundCreating || isCreating) return;
     
@@ -320,41 +261,22 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       console.log(`Successfully created/updated form with ID: ${formId}`);
       
-      // Create sample feedback using the library function
-      try {
-        console.log(`Creating sample feedback for form ID: ${formId}`);
-        await createSampleFeedback(formId);
-        console.log('Successfully initiated sample feedback creation for form:', formId);
-      } catch (sampleError) {
-        console.error('Error creating sample feedback for wizard:', sampleError);
-        // Continue even if sample feedback creation fails
-      }
-      
-      // Double check the formId before proceeding
-      const finalFormId = formId || createdFormId;
-      if (!finalFormId) {
-        console.error('No valid form ID found for navigation');
-        setBackgroundError('Failed to create workspace properly. Please try again.');
-        setIsCreating(false);
-        return;
-      }
-      
       // Mark onboarding as complete
       markOnboardingComplete();
       onComplete();
       
       // Save form ID in localStorage for quick access
       if (user?.id) {
-        localStorage.setItem(`userbird-last-form-${user.id}`, finalFormId);
+        localStorage.setItem(`userbird-last-form-${user.id}`, formId);
       }
       
-      // Set a flag in localStorage to indicate intentional navigation (like the dialog does)
-      localStorage.setItem('userbird-navigating-to-new-form', finalFormId);
+      // Set a flag in localStorage to indicate intentional navigation
+      localStorage.setItem('userbird-navigating-to-new-form', formId);
       
-      // Redirect immediately instead of with window.location for faster navigation
-      navigate(`/forms/${finalFormId}`);
+      // Navigate using React Router (faster than window.location)
+      navigate(`/forms/${formId}`);
       
-      // Clear the navigation flag after 1 second like the dialog does
+      // Clear the navigation flag after 1 second
       setTimeout(() => {
         localStorage.removeItem('userbird-navigating-to-new-form');
       }, 1000);
@@ -364,83 +286,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       setIsCreating(false);
     }
   };
-
-  const handleBack = () => {
-    console.log('handleBack called, moving from step', step, 'to', step - 1);
-    setStep(step - 1);
-  };
-
-  const handleKeyPress = (e: KeyboardEvent<HTMLDivElement | HTMLFormElement>) => {
-    console.log('Key pressed in global handler:', e.key, 'Current step:', step, 'Target:', e.target);
-    // Only handle Enter key for step 1, since step 2 uses form submission
-    if (e.key === 'Enter' && step === 1) {
-      console.log('Enter key detected in global handler for step 1');
-      e.preventDefault();
-      handleStep1Next();
-    }
-    // All other key handlers removed to prevent conflicts
-  };
-
-  // Direct click handler for first step button
-  const handleStep1Next = () => {
-    console.log('handleStep1Next called directly');
-    handleNext();
-  };
-
-  // Onboarding completion: set completed flag and clear step state
-  const markOnboardingComplete = () => {
-    if (!user?.id) return;
-    const completedKey = `userbird-onboarding-completed-${user.id}`;
-    const stepKey = `userbird-onboarding-step-${user.id}`;
-    localStorage.setItem(completedKey, 'true');
-    localStorage.removeItem(stepKey);
-  };
-
-  // Utility to clear onboarding state for the current user
-  function clearOnboardingState(userId: string) {
-    localStorage.removeItem(`userbird-onboarding-step-${userId}`);
-    localStorage.removeItem(`userbird-onboarding-completed-${userId}`);
-    localStorage.removeItem(`userbird-last-form-${userId}`);
-  }
-
-  // On mount, if there are no forms, clear onboarding state and reset
-  useEffect(() => {
-    if (!user?.id) return;
-    const checkUserForms = async () => {
-      const { data } = await supabase
-        .from('form_collaborators')
-        .select('form_id')
-        .eq('user_id', user.id);
-      if (!data || data.length === 0) {
-        clearOnboardingState(user.id);
-        setStep(1);
-        setCreatedFormId(null);
-        setProductName('');
-      }
-    };
-    checkUserForms();
-  }, [user?.id]);
-
-  // On mount and when createdFormId changes, check if the referenced form exists
-  useEffect(() => {
-    if (!user?.id) return;
-    if (!createdFormId) return;
-    const checkFormExists = async () => {
-      const { data } = await supabase
-        .from('forms')
-        .select('id')
-        .eq('id', createdFormId)
-        .single();
-      if (!data) {
-        // Form no longer exists, clear onboarding state and reset
-        clearOnboardingState(user.id);
-        setStep(1);
-        setCreatedFormId(null);
-        setProductName('');
-      }
-    };
-    checkFormExists();
-  }, [createdFormId, user?.id]);
 
   return (
     <div 
@@ -470,11 +315,11 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
       </svg>
       
-      <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
+      <div className="flex flex-col items-end w-full max-w-xl">
         {/* Header flex container with back button and feedback button */}
         <div className="mb-4 w-full flex justify-between items-center">
-          {/* Back button - only show on steps 2, 3, 4 (not on 1 or 5) */}
-          {step > 1 && step < 5 && (
+          {/* Back button - only show on step 2 */}
+          {step > 1 && (
             <button 
               type="button"
               onClick={handleBack}
@@ -521,9 +366,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               <div 
                 className="text-center animate-in fade-in slide-in-from-bottom-4 duration-500"
                 onKeyDown={(e) => {
-                  console.log('Key pressed in step 1 specific handler:', e.key);
                   if (e.key === 'Enter') {
-                    console.log('Enter pressed in step 1 specific handler');
                     e.preventDefault();
                     e.stopPropagation();
                     handleNext();
@@ -575,7 +418,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   />
                 </div>
                 
-                {/* New section with three rows */}
+                {/* Feature rows with hover effect */}
                 <div className="mb-6 space-y-4">
                   <div 
                     className="flex items-center transition-opacity duration-200" 
@@ -629,7 +472,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 <Button 
                   className="w-full max-w-sm mx-auto group" 
                   onClick={handleStep1Next}
-                  autoFocus // Auto focus the button to capture keyboard events
+                  autoFocus
                 >
                 Get started
                   <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
@@ -642,7 +485,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           {step === 2 && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <form 
-                  onSubmit={handleStep2Submit}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (productName.trim() && !backgroundCreating && !isCreating) {
+                      handleWorkspaceCreation();
+                    }
+                  }}
                   id="workspace-form"
                 >
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
@@ -660,12 +508,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                         setProductName(e.target.value);
                         setBackgroundError(null);
                       }}
-                      onKeyDown={async (e) => {
+                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          e.stopPropagation(); // Prevent other handlers from capturing this
-                          console.log('Enter key pressed directly on input');
-                          
+                          e.stopPropagation();
                           if (productName.trim() && !backgroundCreating && !isCreating) {
                             handleWorkspaceCreation();
                           }
@@ -677,11 +523,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   </div>
                   <div className="max-w-sm mx-auto">
                     <Button 
-                      type="button"
-                      form="workspace-form"
+                      type="submit"
                       className="w-full group" 
                       disabled={!productName.trim() || backgroundCreating || isCreating}
-                      onClick={() => handleWorkspaceCreation()}
                     >
                       {backgroundCreating || isCreating ? (
                         <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>

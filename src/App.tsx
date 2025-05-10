@@ -29,9 +29,8 @@ export default function App() {
         <Route path="/setup-workspace" element={
           <AuthGuard>
             <WorkspaceSetupWizard onComplete={() => {
-              console.log('Setup wizard completed, forcing hard navigation to dashboard');
-              // Force a hard navigation to the dashboard to ensure clean state
-              window.location.href = '/';
+              console.log('Setup wizard completed');
+              // Navigate is handled in the component itself for better performance
             }} />
           </AuthGuard>
         } />
