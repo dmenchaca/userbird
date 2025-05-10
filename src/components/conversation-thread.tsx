@@ -1307,7 +1307,11 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                 </div>
               </div>
               <div className="p-3 text-sm email-content preserve-breaks" 
-                dangerouslySetInnerHTML={{ __html: response.message.trim() }} 
+                dangerouslySetInnerHTML={{ 
+                  __html: response.message.includes('<') && response.message.includes('>') 
+                    ? response.message.trim() 
+                    : response.message.trim().replace(/\n/g, '<br>')
+                }} 
               />
             </div>
             
