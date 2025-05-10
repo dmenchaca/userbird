@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { Loader, ArrowLeft, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { createSampleFeedback } from '@/lib/sample-feedback'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -214,7 +215,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       handleWorkspaceCreation();
     }
   };
-  
+
   // Direct click handler for first step button
   const handleStep1Next = () => {
     handleNext();
@@ -260,6 +261,16 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       }
       
       console.log(`Successfully created/updated form with ID: ${formId}`);
+      
+      // Create sample feedback
+      try {
+        console.log(`Creating sample feedback for form ID: ${formId}`);
+        await createSampleFeedback(formId);
+        console.log('Successfully initiated sample feedback creation');
+      } catch (sampleError) {
+        console.error('Error creating sample feedback:', sampleError);
+        // Continue even if sample feedback creation fails
+      }
       
       // Mark onboarding as complete
       markOnboardingComplete();
@@ -495,19 +506,19 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 >
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
-                    Manage your customer support and feedback hub in a shared workspace with your team.
-                  </p>
+                Manage your customer support and feedback hub in a shared workspace with your team.
+              </p>
                   <div className="space-y-2 mb-6 max-w-sm mx-auto">
-                    <label htmlFor="product-name" className="text-sm font-medium">
-                      Product/company name
-                    </label>
-                    <Input
-                      id="product-name"
-                      value={productName}
-                      onChange={(e) => {
-                        setProductName(e.target.value);
-                        setBackgroundError(null);
-                      }}
+                <label htmlFor="product-name" className="text-sm font-medium">
+                  Product/company name
+                </label>
+                <Input
+                  id="product-name"
+                  value={productName}
+                  onChange={(e) => {
+                    setProductName(e.target.value);
+                    setBackgroundError(null);
+                  }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -517,30 +528,30 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                           }
                         }
                       }}
-                      placeholder="e.g., Acme Inc."
+                  placeholder="e.g., Acme Inc."
                       autoFocus
-                    />
-                  </div>
-                  <div className="max-w-sm mx-auto">
-                    <Button 
+                />
+              </div>
+              <div className="max-w-sm mx-auto">
+                <Button 
                       type="submit"
-                      className="w-full group" 
+                    className="w-full group" 
                       disabled={!productName.trim() || backgroundCreating || isCreating}
-                    >
+                  >
                       {backgroundCreating || isCreating ? (
                         <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>
-                      ) : (
+                    ) : (
                         <>Create workspace
-                          <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                            Enter
-                          </span>
-                        </>
-                      )}
-                    </Button>
-                    {backgroundError && (
-                      <div className="text-destructive text-sm mt-2">{backgroundError}</div>
+                        <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
+                          Enter
+                        </span>
+                      </>
                     )}
-                  </div>
+                  </Button>
+                  {backgroundError && (
+                    <div className="text-destructive text-sm mt-2">{backgroundError}</div>
+                  )}
+                </div>
                 </form>
               </div>
             )}
