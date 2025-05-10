@@ -460,7 +460,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       <div>
         {/* Show email callout even when empty */}
         {shouldShowEmailCallout && (
-          <Card className="mx-4 mb-4 mt-4 bg-blue-50 border-blue-200">
+          <Card className="mx-4 mb-4 mt-4">
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-start">
                 <div className="flex-1">
@@ -723,7 +723,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         <div className="flex flex-col divide-y pb-4">
           {/* Email callout card */}
           {shouldShowEmailCallout && (
-            <Card className="mx-4 mb-4 mt-4 bg-blue-50 border-blue-200">
+            <Card className="mx-4 mb-4 mt-4">
               <CardContent className="pt-4 pb-3 px-4">
                 <div className="flex items-start">
                   <div className="flex-1">

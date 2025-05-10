@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check, Slack } from 'lucide-react'
+import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check, Slack, Calendar } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -54,6 +54,70 @@ interface FormSettingsDialogProps {
 
 type SettingsTab = 'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation' | 'integrations'
 
+function InstallPromiseCallout() {
+  const [dismissed, setDismissed] = useState(false);
+  const { user } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  
+  // Get user's first name
+  useEffect(() => {
+    if (user?.user_metadata?.full_name) {
+      const firstNameFromFullName = user.user_metadata.full_name.split(' ')[0];
+      setFirstName(firstNameFromFullName);
+    } else if (user?.email) {
+      const emailName = user.email.split('@')[0];
+      setFirstName(emailName);
+    }
+  }, [user]);
+  
+  // Check if callout was previously dismissed via localStorage
+  useEffect(() => {
+    const isDismissed = localStorage.getItem('widget-install-promise-dismissed') === 'true';
+    setDismissed(isDismissed);
+  }, []);
+  
+  // Dismiss the callout and save preference to localStorage
+  const handleDismiss = () => {
+    localStorage.setItem('widget-install-promise-dismissed', 'true');
+    setDismissed(true);
+  };
+  
+  if (dismissed) {
+    return null;
+  }
+  
+  return (
+    <div className="p-6 pt-4 pb-3 px-4 border rounded-md mb-4 bg-gray-50">
+      <div className="flex items-start">
+        <div className="flex-1">
+          <div className="text-sm font-medium mb-1">{firstName ? `${firstName}, your time for me is sacred` : 'Your time for me is sacred'}</div>
+          <p className="text-sm text-muted-foreground">
+            If it takes you more than 5 minutes to install the widget, I will pay you a $20 gift card.
+          </p>
+        </div>
+        <button 
+          className="text-muted-foreground hover:text-foreground ml-2"
+          onClick={handleDismiss}
+          aria-label="Dismiss notification"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x h-4 w-4">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div className="flex justify-start mt-3">
+        <button 
+          onClick={handleDismiss}
+          className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-8 rounded-md px-3 text-xs"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function WidgetInstallSnippet({ formId }: { formId: string }) {
   const [copied, setCopied] = useState(false);
   const installSnippet = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${formId}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${formId}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${formId}\";\n\n    // Optional: Add user information\n    w.UserBird.user = {\n      id: 'user-123',                 // Your user's ID\n      email: 'user@example.com',      // User's email\n      name: 'John Doe'                // User's name\n    };\n\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    s.async = 1;\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
@@ -89,8 +153,18 @@ function WidgetInstallSnippet({ formId }: { formId: string }) {
           <Button variant="outline" size="sm" onClick={handleEmail}>
             <Mail className="h-4 w-4 mr-1 text-muted-foreground" />Email to developer
           </Button>
+          <a 
+            href="https://calendly.com/diegomenchaca" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-8 rounded-md px-3 text-xs"
+          >
+            <Calendar className="mr-1 h-4 w-4" />
+            Need help? Book a call
+          </a>
         </div>
       </div>
+      <InstallPromiseCallout />
       <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono select-all">
         {installSnippet}
       </pre>
@@ -725,6 +799,7 @@ export function FormSettingsDialog({
   };
 
   const handleTabSwitch = (newTab: SettingsTab) => {
+    console.log('Tab switch requested in dialog from', activeTab, 'to', newTab);
     setActiveTab(newTab);
     
     // If switching to AI tab, refresh the data
@@ -735,6 +810,7 @@ export function FormSettingsDialog({
     }
 
     if (onTabChange) {
+      console.log('Invoking parent onTabChange with', newTab);
       onTabChange(newTab);
     }
   };
@@ -1429,6 +1505,20 @@ export function FormSettingsDialog({
       toast.error('Failed to disconnect Slack integration');
     }
   };
+
+  // Add debug logging for initial tab value
+  useEffect(() => {
+    console.log('FormSettingsDialog mounted with initialTab:', initialTab);
+  }, []);
+
+  // Add effect to sync activeTab with initialTab when it changes
+  useEffect(() => {
+    console.log('initialTab updated to:', initialTab);
+    if (initialTab) {
+      console.log('Forcing activeTab update to:', initialTab);
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   return (
     <>

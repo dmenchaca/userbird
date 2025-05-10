@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, Plus, Code2, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown, PanelRight } from 'lucide-react'
+import { Plus, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown, PanelRight, Code } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { InstallInstructionsModal } from '@/components/install-instructions-modal'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
 import { useAuth } from '@/lib/auth'
 import { UserMenu } from '@/components/user-menu'
@@ -47,8 +46,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(false)
   const [removeBranding, setRemoveBranding] = useState(false)
   const [gifUrls, setGifUrls] = useState<string[]>([])
-  const [hasResponses, setHasResponses] = useState(false)
-  const [showInstallModal, setShowInstallModal] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
   const [loading, setLoading] = useState(true) // Always start with loading true
@@ -77,6 +74,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [editTagName, setEditTagName] = useState('')
   const [editTagColor, setEditTagColor] = useState('#3B82F6')
   const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
+  // New state for tracking widget callout dismissal
+  const [widgetCalloutDismissed, setWidgetCalloutDismissed] = useState(false)
   
   // Team member assignment states
   const [collaborators, setCollaborators] = useState<{
@@ -102,17 +101,43 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     return savedState === 'true'
   })
   
+  // Use a ref to track if we've already processed URL params to prevent multiple timing issues
+  const urlParamsProcessedRef = useRef(false)
+  
   // Add a new state variable for the settings tab
   const [settingsActiveTab, setSettingsActiveTab] = useState<'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation' | 'integrations'>('workspace')
+  
+  // Add debug listener for settingsActiveTab changes
+  useEffect(() => {
+    console.log('settingsActiveTab changed to:', settingsActiveTab);
+  }, [settingsActiveTab]);
+  
+  // Reset URL params processed flag when dialog closes
+  useEffect(() => {
+    if (!showSettingsDialog) {
+      // Reset the URL params processing flag when dialog closes
+      // This ensures next time dialog opens with URL params, they'll be processed
+      urlParamsProcessedRef.current = false;
+      console.log('Reset urlParamsProcessedRef because dialog closed');
+    }
+  }, [showSettingsDialog]);
   
   // Add an effect to read URL parameters for dialog control
   useEffect(() => {
     if (!selectedFormId) return;
     
+    // Check if we've already processed the URL params for this form
+    if (urlParamsProcessedRef.current) return;
+    
     const params = new URLSearchParams(window.location.search);
     const settingsParam = params.get('settings');
     
+    console.log('URL settings parameter detected:', settingsParam);
+    
     if (settingsParam) {
+      // Mark that we've processed URL params
+      urlParamsProcessedRef.current = true;
+      
       // Valid tabs that can be specified in the URL
       const validTabs = ['workspace', 'widget', 'notifications', 'webhooks', 'tags', 'delete', 'emails', 'collaborators', 'ai-automation', 'integrations', 'slack'];
       
@@ -120,13 +145,21 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       if (validTabs.includes(settingsParam)) {
         // Map 'slack' to 'integrations' since that's the actual tab name
         const mappedTab = settingsParam === 'slack' ? 'integrations' : settingsParam;
+        console.log('Setting active tab to:', mappedTab);
+        
+        // Set the tab state first
         setSettingsActiveTab(mappedTab as any);
+        
+        // Open the dialog with a clearly defined sequence and increased timeout
+        setTimeout(() => {
+          console.log('Opening settings dialog with tab:', mappedTab);
+          setShowSettingsDialog(true);
+        }, 150); // Increased timeout for more reliability
+      } else {
+        setShowSettingsDialog(true);
       }
-      
-      // Open the settings dialog
-      setShowSettingsDialog(true);
     }
-  }, [selectedFormId]);
+  }, [selectedFormId, window.location.search]);
   
   // Update URL when settings dialog is opened/closed or tab is changed
   useEffect(() => {
@@ -148,6 +181,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   
   // Handle settings tab change
   const handleSettingsTabChange = (tab: typeof settingsActiveTab) => {
+    console.log('Tab change requested via component callback:', tab);
     setSettingsActiveTab(tab);
   };
   
@@ -389,19 +423,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   }, [selectedFormId, navigate, loading, formsChecked, selectedResponse, initialTicketNumber]);
 
-  // Check if form has any responses
-  useEffect(() => {
-    if (selectedFormId) {
-      supabase
-        .from('feedback')
-        .select('id', { count: 'exact' })
-        .eq('form_id', selectedFormId)
-        .then(({ count }) => {
-          setHasResponses(!!count && count > 0)
-        })
-    }
-  }, [selectedFormId])
-
   // Fetch feedback counts
   useEffect(() => {
     if (!selectedFormId) {
@@ -468,44 +489,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       localStorage.removeItem('clearSelectedFeedback');
     }, 100);
   };
-
-  const handleExport = useCallback(async () => {
-    if (!selectedFormId) return
-
-    try {
-      const { data, error } = await supabase
-        .from('feedback')
-        .select('message, user_id, user_email, user_name, operating_system, screen_category, created_at')
-        .eq('form_id', selectedFormId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      // Convert to CSV
-      const csvContent = [
-        ['Message', 'User ID', 'User Email', 'User Name', 'Operating System', 'Device', 'Date'],
-        ...(data || []).map(row => [
-          `"${row.message.replace(/"/g, '""')}"`,
-          row.user_id || '',
-          row.user_email || '',
-          row.user_name || '',
-          row.operating_system,
-          row.screen_category,
-          new Date(row.created_at).toLocaleString()
-        ])
-      ].join('\n')
-
-      // Create and trigger download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const date = new Date().toISOString().split('T')[0]
-      link.href = URL.createObjectURL(blob)
-      link.download = `${formName}-${date}.csv`
-      link.click()
-    } catch (error) {
-      console.error('Error exporting responses:', error)
-    }
-  }, [selectedFormId, formName])
 
   function clearOnboardingState(userId: string) {
     localStorage.removeItem(`userbird-onboarding-step-${userId}`);
@@ -1377,6 +1360,24 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     }
   }, [needsSetupWizard, navigate])
 
+  // Load widget callout dismissal state from localStorage on initial load
+  useEffect(() => {
+    if (user?.id && selectedFormId) {
+      const key = `widget-callout-dismissed-${user.id}-${selectedFormId}`;
+      const isDismissed = localStorage.getItem(key) === 'true';
+      setWidgetCalloutDismissed(isDismissed);
+    }
+  }, [user?.id, selectedFormId]);
+
+  // Function to dismiss the widget callout
+  const dismissWidgetCallout = useCallback(() => {
+    if (user?.id && selectedFormId) {
+      const key = `widget-callout-dismissed-${user.id}-${selectedFormId}`;
+      localStorage.setItem(key, 'true');
+      setWidgetCalloutDismissed(true);
+    }
+  }, [user?.id, selectedFormId]);
+
   // Optional early return to delay rendering until the check is ready
   if (needsSetupWizard === null) {
     return (
@@ -1737,6 +1738,56 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           {/* Form Action Buttons */}
           {selectedFormId && (
             <div className="px-3 pb-3 pt-1 space-y-1">
+              {/* Callout Card for Widget Installation */}
+              {!widgetCalloutDismissed && (
+                <div className="bg-white border rounded-lg p-3 mb-3 relative">
+                  <button 
+                    className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+                    onClick={dismissWidgetCallout}
+                    aria-label="Dismiss"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
+                      <path d="M18 6 6 18"></path>
+                      <path d="m6 6 12 12"></path>
+                    </svg>
+                  </button>
+                  <h4 className="text-sm font-medium mb-1">Pro tip 🔥</h4>
+                  <p className="text-xs text-muted-foreground" style={{ marginBottom: "12px" }}>Install the feedback widget and get more user feedback. It's super easy.</p>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      console.log('Widget setup button clicked');
+                      
+                      // Since we're manually handling the dialog opening,
+                      // reset the URL params processing flag
+                      urlParamsProcessedRef.current = false;
+                      
+                      // First explicitly set the active tab in state
+                      setSettingsActiveTab('widget');
+                      console.log('Set settingsActiveTab to "widget"');
+                      
+                      // Update URL with settings=widget parameter
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('settings', 'widget');
+                      window.history.pushState({}, '', url.toString());
+                      console.log('Updated URL with widget parameter');
+                      
+                      // Open settings dialog with widget tab active after a brief timeout
+                      // to ensure the tab change has been applied
+                      setTimeout(() => {
+                        console.log('Now opening settings dialog');
+                        setShowSettingsDialog(true);
+                      }, 150);
+                    }}
+                  >
+                    <Code className="mr-2 h-4 w-4" />
+                    Install Widget
+                  </Button>
+                </div>
+              )}
+
               <Button
                 variant="ghost"
                 className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
@@ -1746,25 +1797,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                 Settings
               </Button>
               
-              <Button
-                variant="ghost"
-                className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
-                onClick={handleExport}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
+              {/* Removed Install Instructions button that appeared when !hasResponses */}
               
-              {!hasResponses && (
-                <Button
-                  variant="ghost"
-                  className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-8 rounded-md px-3 justify-start w-full"
-                  onClick={() => setShowInstallModal(true)}
-                >
-                  <Code2 className="mr-2 h-4 w-4" />
-                  Install Instructions
-                </Button>
-              )}
             </div>
           )}
           
@@ -2337,15 +2371,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           open={showNewFormDialog}
           onClose={() => setShowNewFormDialog(false)}
         />
-        {selectedFormId && (
-          <InstallInstructionsModal
-            formId={selectedFormId}
-            open={showInstallModal}
-            onOpenChange={(open) => {
-              setShowInstallModal(open)
-            }}
-          />
-        )}
         {selectedFormId && (
           <FormSettingsDialog
             formId={selectedFormId}
