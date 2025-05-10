@@ -362,10 +362,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       // Create or update the form
       await handleBackgroundFormCreationOrPatch(productName.trim());
       
-      // Create sample feedback directly
+      // Create sample feedback directly - make sure we create 3 items
       try {
         if (createdFormId) {
-          await createSampleFeedback(createdFormId);
+          // Explicitly set count to 3 to ensure we get 3 sample feedback items
+          await createSampleFeedback(createdFormId, 3);
+          console.log('Created 3 sample feedback items for new workspace');
         }
       } catch (err) {
         console.error('Error creating sample feedback:', err);
