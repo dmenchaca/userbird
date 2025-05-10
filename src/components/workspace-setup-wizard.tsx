@@ -376,67 +376,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       console.log(`Successfully created/updated form with ID: ${formId}`);
       
-      // Create sample feedback directly - make sure we create 3 items
+      // Create sample feedback using the library function
       try {
-        // Send direct request to feedback endpoint like the dialog does
-        console.log(`Creating sample feedback for form: ${formId}`);
-        await fetch('/.netlify/functions/feedback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            formId: formId,
-            message: "I found a bug where the data doesn't save if I accidentally refresh the page. I lost my entire document :(",
-            user_name: "Diego Menchaca",
-            user_email: "hi@diego.bio",
-            url_path: "/dashboard",
-            operating_system: "macOS 14.0",
-            screen_category: "Desktop"
-          })
-        });
-        
-        // Add a brief delay before sending the next ones
-        setTimeout(() => {
-          // Second feedback
-          fetch('/.netlify/functions/feedback', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              formId: formId,
-              message: "Having trouble with the export feature. It keeps timing out when I try to export large reports.",
-              user_name: "Diego Menchaca",
-              user_email: "hi@diego.bio",
-              url_path: "/settings",
-              operating_system: "Windows 11",
-              screen_category: "Desktop"
-            })
-          }).catch(e => console.error('Error sending second sample feedback:', e));
-          
-          // Third feedback
-          fetch('/.netlify/functions/feedback', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              formId: formId,
-              message: "Could we get a dark mode option? My eyes get strained when using the app at night.",
-              user_name: "Diego Menchaca",
-              user_email: "hi@diego.bio",
-              url_path: "/projects/active",
-              operating_system: "iOS 17.2",
-              screen_category: "Mobile"
-            })
-          }).catch(e => console.error('Error sending third sample feedback:', e));
-        }, 200);
-        
-        console.log('Created sample feedback items for new workspace');
-      } catch (err) {
-        console.error('Error creating sample feedback:', err);
-        // Continue anyway
+        await createSampleFeedback(formId);
+        console.log('Successfully initiated sample feedback creation for form:', formId);
+      } catch (sampleError) {
+        console.error('Error creating sample feedback for wizard:', sampleError);
+        // Continue even if sample feedback creation fails
       }
       
       // Mark onboarding as complete
@@ -450,9 +396,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Set a flag in localStorage to indicate intentional navigation (like the dialog does)
       localStorage.setItem('userbird-navigating-to-new-form', formId);
-      
-      // Add a small delay to ensure feedback creation requests are sent before navigating
-      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Redirect immediately instead of with window.location for faster navigation
       navigate(`/forms/${formId}`);
