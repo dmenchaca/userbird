@@ -246,25 +246,41 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
           .select();
         if (updateError) throw updateError;
       } else {
-        // Create a new form
+        // Create a new form with a guaranteed ID first (like workspace-creator-dialog)
         const formId = generateShortId();
         const formData = {
           id: formId,
           product_name: name,
-          owner_id: user?.id
+          owner_id: user?.id,
+          // Add these fields to match the dialog's form creation
+          show_gif_on_success: true,
+          remove_branding: false,
+          keyboard_shortcut: 'L',
+          gif_urls: [
+            'https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif',
+            'https://media1.tenor.com/m/4PLfYPBvjhQAAAAd/tannerparty-tanner.gif',
+            'https://media1.tenor.com/m/lRY5I7kwR08AAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/9LbEpuHBPScAAAAd/brooklyn-nine-nine-amy-and-rosa.gif',
+            'https://media1.tenor.com/m/mnx8ECSie6EAAAAd/sheldon-cooper-big-bang-theory.gif'
+          ]
         };
-        const insertResult = await supabase
+        
+        const { data, error } = await supabase
           .from('forms')
           .insert(formData)
           .select('id')
           .single();
-        const { data, error } = insertResult;
+        
         if (error) throw error;
+        
+        // Important: Set the formId first before any other operations
+        resultFormId = formId; // Use our predetermined ID, not data?.id
+        setCreatedFormId(resultFormId);
         
         // Create default tags for the new form
         await createDefaultTags(formId);
         
-        if (data?.id && user?.id && user?.email) {
+        if (formId && user?.id && user?.email) {
           await supabase
             .from('form_collaborators')
             .insert({
@@ -278,8 +294,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             .select()
             .single();
         }
-        resultFormId = data?.id || null;
-        setCreatedFormId(resultFormId);
+        
         if (user?.id && resultFormId) {
           localStorage.setItem(`userbird-last-form-${user.id}`, resultFormId);
         }
@@ -378,11 +393,21 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Create sample feedback using the library function
       try {
+        console.log(`Creating sample feedback for form ID: ${formId}`);
         await createSampleFeedback(formId);
         console.log('Successfully initiated sample feedback creation for form:', formId);
       } catch (sampleError) {
         console.error('Error creating sample feedback for wizard:', sampleError);
         // Continue even if sample feedback creation fails
+      }
+      
+      // Double check the formId before proceeding
+      const finalFormId = formId || createdFormId;
+      if (!finalFormId) {
+        console.error('No valid form ID found for navigation');
+        setBackgroundError('Failed to create workspace properly. Please try again.');
+        setIsCreating(false);
+        return;
       }
       
       // Mark onboarding as complete
@@ -391,14 +416,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Save form ID in localStorage for quick access
       if (user?.id) {
-        localStorage.setItem(`userbird-last-form-${user.id}`, formId);
+        localStorage.setItem(`userbird-last-form-${user.id}`, finalFormId);
       }
       
       // Set a flag in localStorage to indicate intentional navigation (like the dialog does)
-      localStorage.setItem('userbird-navigating-to-new-form', formId);
+      localStorage.setItem('userbird-navigating-to-new-form', finalFormId);
       
       // Redirect immediately instead of with window.location for faster navigation
-      navigate(`/forms/${formId}`);
+      navigate(`/forms/${finalFormId}`);
       
       // Clear the navigation flag after 1 second like the dialog does
       setTimeout(() => {
