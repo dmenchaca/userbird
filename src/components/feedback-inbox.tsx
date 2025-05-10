@@ -1,11 +1,13 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Loader } from 'lucide-react'
+import { Loader, X } from 'lucide-react'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
 import { format, isToday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Checkbox } from './ui/checkbox'
 import { getTagColors } from '@/lib/utils/colors'
+import { Button } from './ui/button'
+import { Card, CardContent } from './ui/card'
 
 interface FeedbackInboxProps {
   formId: string
@@ -35,6 +37,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   const [searchQuery, setSearchQuery] = useState('')
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null)
+  const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
+  const [isCalloutDismissed, setIsCalloutDismissed] = useState<boolean>(false)
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
@@ -123,6 +127,45 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       }
     }
   };
+
+  // Function to fetch form's default email
+  const fetchFormDefaultEmail = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('default_email')
+        .eq('id', formId)
+        .single()
+        
+      if (error) {
+        console.error('Error fetching form default email:', error)
+        return
+      }
+      
+      if (data && data.default_email) {
+        setFormDefaultEmail(data.default_email)
+      }
+    } catch (error) {
+      console.error('Error fetching form default email:', error)
+    }
+  }
+  
+  // Check if callout was previously dismissed
+  useEffect(() => {
+    const dismissedKey = `userbird-email-callout-dismissed-${formId}`
+    const isDismissed = localStorage.getItem(dismissedKey) === 'true'
+    setIsCalloutDismissed(isDismissed)
+    
+    // Fetch form's default email
+    fetchFormDefaultEmail()
+  }, [formId])
+  
+  // Handle callout dismissal
+  const handleDismissCallout = () => {
+    const dismissedKey = `userbird-email-callout-dismissed-${formId}`
+    localStorage.setItem(dismissedKey, 'true')
+    setIsCalloutDismissed(true)
+  }
 
   // Expose the refresh method and selection clear to parent components
   useImperativeHandle(ref, () => ({
@@ -251,49 +294,31 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             
             // Remove the item after animation completes
             setTimeout(() => {
-              setResponses(prev => 
-                prev.filter(response => response.id !== updatedResponse.id)
-              );
-            }, 600); // Duration slightly longer than the CSS animation
-            
-            return;
-          }
-          
-          // Fetch the tag if this response has a tag_id
-          if (updatedResponse.tag_id) {
-            const { data: tagData } = await supabase
-              .from('feedback_tags')
-              .select('*')
-              .eq('id', updatedResponse.tag_id)
-              .single();
-              
-            if (tagData) {
-              updatedResponse.tag = tagData;
-            }
-          }
-          
-          // Mark this as an updated response for animation
-          updatedResponse._isUpdated = true;
-          
-          // Update the response in the array
-          setResponses(prev => 
-            prev.map(response => 
-              response.id === updatedResponse.id ? updatedResponse : response
-            )
-          );
-          
-          // Remove the updated flag after animation completes
-          setTimeout(() => {
+              setResponses(prev => prev.filter(response => response.id !== updatedResponse.id));
+            }, 1000); // Duration slightly longer than the CSS animation
+          } else {
+            // For all other cases, update the record in place and trigger a subtle animation
             setResponses(prev => 
               prev.map(response => 
                 response.id === updatedResponse.id 
-                  ? { ...response, _isUpdated: false } 
+                  ? { ...updatedResponse, _isUpdated: true } 
                   : response
               )
             );
-          }, 1000); // Duration slightly longer than the CSS animation
+            
+            // After the animation completes, remove the updated flag
+            setTimeout(() => {
+              setResponses(prev => 
+                prev.map(response => 
+                  response.id === updatedResponse.id 
+                    ? { ...response, _isUpdated: false } 
+                    : response
+                )
+              );
+            }, 1000); // Duration slightly longer than the CSS animation
+          }
         } catch (error) {
-          console.error('Error processing updated feedback:', error);
+          console.error('Error updating feedback:', error);
         }
       })
       .on('postgres_changes', {
@@ -302,22 +327,18 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         table: 'feedback',
         filter: `form_id=eq.${formId}`
       }, (payload) => {
-        // For deletions, animate out first
-        const deletedId = payload.old.id;
+        // Handle deletion by removing the item from the responses
+        setResponses(prev => prev.filter(response => response.id !== payload.old.id));
         
-        // Mark the item for exit animation
-        setResponses(prev => 
-          prev.map(response => 
-            response.id === deletedId 
-              ? { ...response, _isExiting: true } 
-              : response
-          )
-        );
+        // If the deleted item was selected, clear the selection
+        if (payload.old.id && selectedIds.includes(payload.old.id)) {
+          setSelectedIds(prev => prev.filter(id => id !== payload.old.id));
+        }
         
-        // Remove after animation completes
-        setTimeout(() => {
-          setResponses(prev => prev.filter(response => response.id !== deletedId));
-        }, 600); // Duration slightly longer than the CSS animation
+        // If the deleted item was active, clear the active state
+        if (payload.old.id && activeResponseId === payload.old.id) {
+          setActiveResponseId(null);
+        }
       })
       // Subscribe to tag changes
       .on('postgres_changes', {
@@ -329,76 +350,68 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         // When tags change, refresh responses to get updated tag data
         // Use skipLoadingState=true to avoid showing loading indicator
         await fetchResponses(true);
-      })
-      .subscribe()
+      });
 
+    // Actually subscribe to the channel
+    channel.subscribe((status) => {
+      if (status !== 'SUBSCRIBED') {
+        console.error(`Failed to subscribe to channel: ${status}`);
+      }
+    });
+
+    // Cleanup: unsubscribe on component unmount
     return () => {
-      channel.unsubscribe()
-    }
-  }, [formId, currentStatusFilter, tagFilter])
+      supabase.removeChannel(channel);
+    };
+  }, [formId, selectedIds, activeResponseId, currentStatusFilter]);
 
   // Reset search when filter changes
   useEffect(() => {
     setSearchQuery('')
   }, [formId, currentStatusFilter, tagFilter])
 
-  // Handle checkbox change with modifier keys
   const handleCheckboxChange = (responseId: string, index: number, event: React.MouseEvent) => {
+    // Stop the event from bubbling up to the item click handler
     event.stopPropagation();
     
-    const isSelected = selectedIds.includes(responseId);
-    const newCheckedState = !isSelected;
+    const isChecked = selectedIds.includes(responseId);
     
     if (event.shiftKey && lastSelectedIndex !== null) {
-      // Shift-click: Select range
-      const start = Math.min(lastSelectedIndex, index);
-      const end = Math.max(lastSelectedIndex, index);
-      const rangeIds = filteredResponses.slice(start, end + 1).map(r => r.id);
+      const newSelectedIds = [...selectedIds];
+      const start = Math.min(index, lastSelectedIndex);
+      const end = Math.max(index, lastSelectedIndex);
       
-      setSelectedIds(prev => {
-        if (newCheckedState) {
-          // Add range to selection, preserving existing selections
-          return [...new Set([...prev, ...rangeIds])];
-        } else {
-          // Remove range from selection
-          return prev.filter(id => !rangeIds.includes(id));
+      for (let i = start; i <= end; i++) {
+        const id = filteredResponses[i].id;
+        if (!isChecked && !newSelectedIds.includes(id)) {
+          newSelectedIds.push(id);
+        } else if (isChecked) {
+          const idIndex = newSelectedIds.indexOf(id);
+          if (idIndex !== -1) {
+            newSelectedIds.splice(idIndex, 1);
+          }
         }
-      });
-    } else if (event.ctrlKey || event.metaKey) {
-      // Control/Command-click: Toggle individual selection
-      setSelectedIds(prev => 
-        newCheckedState
-          ? [...prev, responseId]
-          : prev.filter(id => id !== responseId)
-      );
+      }
+      
+      setSelectedIds(newSelectedIds);
     } else {
-      // Normal click: Toggle just this selection while preserving others
-      setSelectedIds(prev => 
-        newCheckedState
-          ? [...prev, responseId]
-          : prev.filter(id => id !== responseId)
-      );
+      // Regular checkbox toggle
+      if (isChecked) {
+        setSelectedIds(selectedIds.filter(id => id !== responseId));
+      } else {
+        setSelectedIds([...selectedIds, responseId]);
+      }
     }
     
-    // Update last selected index
+    // Update the last selected index for future shift+click operations
     setLastSelectedIndex(index);
+    
+    // If clicking on a checkbox, also set the active item but don't trigger onResponseSelect
+    if (onResponseSelect) {
+      // Just update the active state locally without triggering onResponseSelect
+      setActiveResponseId(responseId);
+    }
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-8">
-        <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (responses.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No responses yet
-      </div>
-    )
-  }
 
   // Helper to format the user name
   const formatName = (response: FeedbackResponse) => {
@@ -429,6 +442,67 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     } catch (error) {
       return 'unknown date'
     }
+  }
+
+  // Determine if we should show the email callout - show regardless of message count
+  const shouldShowEmailCallout = formDefaultEmail && !isCalloutDismissed;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (responses.length === 0 && !searchQuery.trim()) {
+    return (
+      <div>
+        {/* Show email callout even when empty */}
+        {shouldShowEmailCallout && (
+          <Card className="mx-4 mb-4 mt-4 bg-blue-50 border-blue-200">
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-start">
+                <div className="flex-1">
+                  <div className="text-sm font-medium mb-1">Try this 🙌</div>
+                  <p className="text-sm text-muted-foreground">
+                    You can email <span className="font-medium text-slate-800">{formDefaultEmail}</span> directly to create new tickets in your inbox.
+                  </p>
+                </div>
+                <button 
+                  className="text-muted-foreground hover:text-foreground ml-2"
+                  onClick={handleDismissCallout}
+                  aria-label="Dismiss notification"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex justify-between mt-3">
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => {
+                    window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Userbird, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
+                  }}
+                >
+                  Try now
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleDismissCallout}
+                >
+                  Got it
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <div className="text-center py-8 text-muted-foreground">
+          No responses yet
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -647,6 +721,47 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         </div>
       ) : (
         <div className="flex flex-col divide-y pb-4">
+          {/* Email callout card */}
+          {shouldShowEmailCallout && (
+            <Card className="mx-4 mb-4 mt-4 bg-blue-50 border-blue-200">
+              <CardContent className="pt-4 pb-3 px-4">
+                <div className="flex items-start">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium mb-1">Try this 🙌</div>
+                    <p className="text-sm text-muted-foreground">
+                      You can email <span className="font-medium text-slate-800">{formDefaultEmail}</span> directly to create new tickets in your inbox.
+                    </p>
+                  </div>
+                  <button 
+                    className="text-muted-foreground hover:text-foreground ml-2"
+                    onClick={handleDismissCallout}
+                    aria-label="Dismiss notification"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex justify-between mt-3">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => {
+                      window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Userbird, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
+                    }}
+                  >
+                    Try now
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleDismissCallout}
+                  >
+                    Got it
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {filteredResponses.map((response, index) => (
             <div
               key={response.id}
