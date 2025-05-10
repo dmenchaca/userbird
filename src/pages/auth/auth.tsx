@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
-import { Bird, CodeXml, Rocket, Zap } from 'lucide-react'
+import { Bird, CodeXml, Rocket, Slack } from 'lucide-react'
 import { AuthForm } from '@/components/auth/auth-form'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 import { useEffect } from 'react'
@@ -133,7 +133,7 @@ export function AuthPage() {
   return (
     <div className="container relative h-screen grid lg:max-w-none lg:grid-cols-[2fr_3fr] lg:px-0 overflow-hidden">
       <div className="lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[356px] h-full relative">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[366px] h-full relative">
           <div className="flex justify-center pb-4">
             <a href="/" className="flex items-center gap-2 font-medium">
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -180,21 +180,19 @@ export function AuthPage() {
                 </p>
                 <div className="flex gap-3 pt-4">
                   <img src="/react.svg" alt="React" className="w-[20px] h-[20px]" />
-                  <img src="/vue.svg" alt="Vue" className="w-[20px] h-[20px]" />
-                  <img src="/angular.svg" alt="Angular" className="w-[20px] h-[20px]" />
                   <img src="/js.svg" alt="JavaScript" className="w-[20px] h-[20px]" />
                 </div>
               </div>
               <div className="flex flex-col items-start max-w-[210px]">
                 <Rocket className="h-6 w-6 mb-2 text-primary" />
                 <p className="text-black">
-                  2x more feedback. <span className="text-black opacity-40">More feedback = better product decisions.</span>
+                  More feedback within a day or I'll pay you $20. <span className="text-black opacity-40">More feedback = better product decisions.</span>
                 </p>
               </div>
               <div className="flex flex-col items-start max-w-[210px]">
-                <Zap className="h-6 w-6 mb-2 text-primary" />
+                <Slack className="h-6 w-6 mb-2 text-primary" />
                 <p className="text-black">
-                  Automate. <span className="text-black opacity-40">Get product feedback right into your CRM or Slack.</span>
+                  Reply in Slack. <span className="text-black opacity-40">Get product feedback right into Slack and your CRM.</span>
                 </p>
               </div>
             </div>

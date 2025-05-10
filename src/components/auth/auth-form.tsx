@@ -100,7 +100,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
-      <div className="flex flex-col space-y-2 text-center pb-6">
+      <div className="flex flex-col text-center">
         <h1 className="text-3xl font-semibold tracking-tight relative">
           {mode === 'signup' ? 'Create account' : (
             <>
@@ -108,6 +108,11 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             </>
           )}
         </h1>
+        {mode === 'login' && (
+          <p className="text-base text-muted-foreground m-4">
+            Try Userbird today, no credit card required.
+          </p>
+        )}
       </div>
       <div className="grid gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
