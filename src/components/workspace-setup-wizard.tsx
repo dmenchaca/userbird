@@ -33,6 +33,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
   const [installCopied, setInstallCopied] = useState(false)
   const [hoveredSection, setHoveredSection] = useState<'email' | 'feedback' | null>(null)
+  const [hoveredFeature, setHoveredFeature] = useState<'widget' | 'guarantee' | 'slack' | null>(null)
   const navigate = useNavigate()
   
   // Add new state variables for the loading animation steps
@@ -712,7 +713,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 
                 {/* New section with three rows */}
                 <div className="mb-6 space-y-4">
-                  <div className="flex items-center">
+                  <div 
+                    className="flex items-center transition-opacity duration-200" 
+                    onMouseEnter={() => setHoveredFeature('widget')}
+                    onMouseLeave={() => setHoveredFeature(null)}
+                    style={{ 
+                      opacity: hoveredFeature && hoveredFeature !== 'widget' ? 0.2 : 1 
+                    }}
+                  >
                     <div className="h-8 w-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
                       <MessageSquare className="h-4 w-4" />
                     </div>
@@ -721,7 +729,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </div>
                   </div>
                   
-                  <div className="flex items-center">
+                  <div 
+                    className="flex items-center transition-opacity duration-200"
+                    onMouseEnter={() => setHoveredFeature('guarantee')}
+                    onMouseLeave={() => setHoveredFeature(null)}
+                    style={{ 
+                      opacity: hoveredFeature && hoveredFeature !== 'guarantee' ? 0.2 : 1 
+                    }}
+                  >
                     <div className="h-8 w-8 rounded-md bg-green-50 text-green-600 flex items-center justify-center mr-3">
                       <Rocket className="h-4 w-4" />
                     </div>
@@ -730,7 +745,14 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                     </div>
                   </div>
                   
-                  <div className="flex items-center">
+                  <div 
+                    className="flex items-center transition-opacity duration-200"
+                    onMouseEnter={() => setHoveredFeature('slack')}
+                    onMouseLeave={() => setHoveredFeature(null)}
+                    style={{ 
+                      opacity: hoveredFeature && hoveredFeature !== 'slack' ? 0.2 : 1 
+                    }}
+                  >
                     <div className="h-8 w-8 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center mr-3">
                       <Slack className="h-4 w-4" />
                     </div>
