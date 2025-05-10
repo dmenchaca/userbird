@@ -449,6 +449,27 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       onKeyDown={handleKeyPress}
       tabIndex={0} // Make div focusable to capture key events
     >
+      <svg
+        className="absolute inset-0 h-full w-full -z-10"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ filter: 'contrast(1.1)' }}
+      >
+        <defs>
+          <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#D3EDCC" stopOpacity="0.2" />
+            <stop offset="50%" stopColor="#FF77F6" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#2BF2B9" stopOpacity="0.2" />
+          </linearGradient>
+          <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="70" />
+          </filter>
+        </defs>
+        <circle cx="60%" cy="20%" r="50%" fill="url(#gradient1)" filter="url(#blur)" opacity="0.25" />
+        <circle cx="85%" cy="50%" r="45%" fill="#D3EDCC" filter="url(#blur)" opacity="0.1" />
+        <circle cx="15%" cy="60%" r="55%" fill="#2BF2B9" filter="url(#blur)" opacity="0.08" />
+        <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
+      </svg>
+      
       <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
         {/* Header flex container with back button and feedback button */}
         <div className="mb-4 w-full flex justify-between items-center">
