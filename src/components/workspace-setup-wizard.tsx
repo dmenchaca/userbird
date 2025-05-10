@@ -351,38 +351,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
   
-  // New function to create sample feedback and redirect after step 2
-  const createWorkspaceAndRedirect = async () => {
-    if (!createdFormId) return;
-    
-    setIsCreating(true);
-    
-    try {
-      // Create sample feedback for the new workspace
-      try {
-        await createSampleFeedback(createdFormId);
-      } catch (sampleError) {
-        console.error('Error creating sample feedback:', sampleError);
-        // Continue even if sample feedback creation fails
-      }
-      
-      // Mark onboarding as complete
-      markOnboardingComplete();
-      onComplete();
-      
-      // Redirect to the new workspace immediately
-      navigate(`/forms/${createdFormId}`);
-    } catch (error: any) {
-      console.error(`Failed to complete onboarding: ${error.message || 'Please try again'}`);
-      // Even on error, still redirect
-      markOnboardingComplete();
-      onComplete();
-      navigate(`/forms/${createdFormId}`);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   // Input keydown and button click handlers
   const handleWorkspaceCreation = async () => {
     if (!productName.trim() || backgroundCreating || isCreating) return;
