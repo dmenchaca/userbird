@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { Loader, ArrowLeft, Info, Copy, Mail, ExternalLink, Check, MessageSquareQuote, MessageSquare, Slack, Rocket } from 'lucide-react'
+import { Loader, ArrowLeft, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { createSampleFeedback } from '@/lib/sample-feedback'
 
@@ -24,37 +24,13 @@ function generateShortId(length = 10): string {
 export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) {
   const [step, setStep] = useState(1)
   const [productName, setProductName] = useState('')
-  const [helpDocsUrl, setHelpDocsUrl] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const { user } = useAuth()
   const [createdFormId, setCreatedFormId] = useState<string | null>(null)
   const [backgroundCreating, setBackgroundCreating] = useState(false)
   const [backgroundError, setBackgroundError] = useState<string | null>(null)
-  const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
-  const [installCopied, setInstallCopied] = useState(false)
-  const [hoveredSection, setHoveredSection] = useState<'email' | 'feedback' | null>(null)
   const [hoveredFeature, setHoveredFeature] = useState<'widget' | 'guarantee' | 'slack' | null>(null)
   const navigate = useNavigate()
-  
-  // Add new state variables for the loading animation steps
-  const [loadingStep, setLoadingStep] = useState(0)
-  const loadingSteps = [
-    "Creating your workspace",
-    "Loading sample support tickets",
-    "Enabling AI to auto-label your feedback"
-  ]
-  
-  // Custom CSS for faster spinning animation (only for Step 5)
-  const fastSpinStyle = `
-    @keyframes fast-spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-    .animate-fast-spin {
-      animation: fast-spin 0.6s linear infinite;
-    }
-  `;
   
   console.log('Rendering WorkspaceSetupWizard, current step:', step);
   
@@ -116,23 +92,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       checkDatabaseSchema();
     }
   }, [user?.id]);
-
-  // Fetch default_email for the created form when step 3 is reached
-  useEffect(() => {
-    const fetchDefaultEmail = async () => {
-      if (createdFormId && step === 3) {
-        const { data, error } = await supabase
-          .from('forms')
-          .select('default_email')
-          .eq('id', createdFormId)
-          .single();
-        if (!error && data?.default_email) {
-          setFormDefaultEmail(data.default_email);
-        }
-      }
-    };
-    fetchDefaultEmail();
-  }, [createdFormId, step]);
 
   // --- Robust onboarding state: persist step and completion flag ---
   useEffect(() => {
@@ -198,36 +157,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     fetchProductName();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdFormId, step]);
-
-  // HTML/JS install instructions (from InstallInstructionsModal, only HTML/JS version)
-  const installInstructions = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${createdFormId || 'FORM_ID'}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${createdFormId || 'FORM_ID'}\";\n\n    // Optional: Add user information\n    w.UserBird.user = {\n      id: 'user-123',                 // Your user's ID\n      email: 'user@example.com',      // User's email\n      name: 'John Doe'                // User's name\n    };\n\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    s.async = 1;\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
-
-  const handleCopyInstall = async () => {
-    try {
-      await navigator.clipboard.writeText(installInstructions)
-      setInstallCopied(true)
-      setTimeout(() => setInstallCopied(false), 2000)
-    } catch {
-      console.error('Failed to copy instructions')
-    }
-  }
-
-  const handleEmailInstall = () => {
-    const subject = encodeURIComponent('Userbird Feedback Button Install Instructions')
-    const body = encodeURIComponent(
-      `Hi,\n\nHere are the install instructions for the Userbird feedback button.\n\n${installInstructions}\n\nLet me know if you have any questions!`
-    )
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank')
-  }
-
-  const handleSendTestEmail = () => {
-    if (formDefaultEmail) {
-      window.open(
-        `mailto:${formDefaultEmail}?subject=Test%20support%20email%20to%20Userbird`,
-        '_blank'
-      );
-    }
-  }
 
   // Background form creation or patch for step 2
   const handleBackgroundFormCreationOrPatch = async (name: string): Promise<string | null> => {
@@ -467,93 +396,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     localStorage.removeItem(stepKey);
   };
 
-  // In handleCreateWorkspace, after successful onboarding, mark as complete and move to step 5
-  const handleCreateWorkspace = async () => {
-    if (!productName.trim()) {
-      return;
-    }
-    // If background creation failed, try again
-    if (!createdFormId && !backgroundCreating) {
-      await handleBackgroundFormCreationOrPatch(productName.trim());
-      if (!createdFormId) {
-        return;
-      }
-    }
-    setIsCreating(true);
-    
-    // Move to step 5 immediately
-    setStep(5);
-    
-    // Reset loading step counter
-    setLoadingStep(0);
-    
-    try {
-      // Ensure there's a small delay for the UI to render with loadingStep=0
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // If help docs URL was provided, create a scraping process
-      if (createdFormId && helpDocsUrl.trim()) {
-        try {
-          await supabase
-            .from('docs_scraping_processes')
-            .insert({
-              form_id: createdFormId,
-              base_url: helpDocsUrl,
-              status: 'in_progress'
-            })
-            .select()
-            .single();
-          await fetch('/.netlify/functions/start-crawl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: helpDocsUrl, form_id: createdFormId })
-          });
-        } catch (docsError) {
-          // Continue anyway
-        }
-      }
-      
-      // Simulate first step completion
-      setLoadingStep(1);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create sample feedback for the new workspace
-      if (createdFormId) {
-        try {
-          // Wait only for the first feedback to be sent
-          await createSampleFeedback(createdFormId);
-          // The rest will be sent in the background
-        } catch (sampleError) {
-          console.error('Error creating sample feedback:', sampleError);
-          // Continue even if sample feedback creation fails
-        }
-      }
-      
-      // Simulate second step completion with artificial delay
-      setLoadingStep(2);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mark onboarding as complete
-      markOnboardingComplete();
-      onComplete();
-      
-      // Simulate third step completion
-      setLoadingStep(3);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Only redirect after all animations are complete
-      window.location.href = `/forms/${createdFormId}`;
-    } catch (error: any) {
-      console.error(`Failed to create workspace: ${error.message || 'Please try again'}`);
-      // Even on error, still redirect
-      markOnboardingComplete();
-      onComplete();
-      window.location.href = `/forms/${createdFormId}`;
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   // Utility to clear onboarding state for the current user
   function clearOnboardingState(userId: string) {
     localStorage.removeItem(`userbird-onboarding-step-${userId}`);
@@ -574,7 +416,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         setStep(1);
         setCreatedFormId(null);
         setProductName('');
-        setHelpDocsUrl('');
       }
     };
     checkUserForms();
@@ -596,7 +437,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         setStep(1);
         setCreatedFormId(null);
         setProductName('');
-        setHelpDocsUrl('');
       }
     };
     checkFormExists();
@@ -609,30 +449,6 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       onKeyDown={handleKeyPress}
       tabIndex={0} // Make div focusable to capture key events
     >
-      {/* Add style tag for custom animation */}
-      <style dangerouslySetInnerHTML={{ __html: fastSpinStyle }} />
-      
-      <svg
-        className="absolute inset-0 h-full w-full -z-10"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ filter: 'contrast(1.1)' }}
-      >
-        <defs>
-          <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#D3EDCC" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#FF77F6" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="#2BF2B9" stopOpacity="0.2" />
-          </linearGradient>
-          <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="70" />
-          </filter>
-        </defs>
-        <circle cx="60%" cy="20%" r="50%" fill="url(#gradient1)" filter="url(#blur)" opacity="0.25" />
-        <circle cx="85%" cy="50%" r="45%" fill="#D3EDCC" filter="url(#blur)" opacity="0.1" />
-        <circle cx="15%" cy="60%" r="55%" fill="#2BF2B9" filter="url(#blur)" opacity="0.08" />
-        <circle cx="40%" cy="80%" r="40%" fill="#FF77F6" filter="url(#blur)" opacity="0.07" />
-      </svg>
-      
       <div className={`flex flex-col items-end w-full ${step === 3 ? 'max-w-[52rem]' : 'max-w-xl'}`}>
         {/* Header flex container with back button and feedback button */}
         <div className="mb-4 w-full flex justify-between items-center">
@@ -693,19 +509,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                   }
                 }}
               >
-            {/* <div className="flex justify-center pb-4">
-              <a href="/" className="flex items-center gap-2 font-medium">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Bird className="h-4 w-4" />
-                </div>
-                Userbird
-              </a>
-            </div> */}
                 <div className="space-y-2 mb-5">
               <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
-              {/* <p className="text-muted-foreground">
-                Set up your new customer support and feedback system.
-              </p> */}
                 </div>
                 
                 <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, backgroundColor: "#f5f5f5", borderRadius: "8px" }}>
@@ -874,245 +679,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 </form>
               </div>
             )}
-
-            {step === 3 && (
-              <div 
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
-                onKeyDown={(e) => {
-                  console.log('Key pressed in step 3 specific handler:', e.key);
-                  if (e.key === 'Enter') {
-                    console.log('Enter pressed in step 3 specific handler');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleNext();
-                  }
-                }}
-                tabIndex={0} // Make div focusable to capture key events
-              >
-                <div className="mb-5">
-                  <h2 className="text-2xl font-semibold text-center mb-1">How to get feedback and support tickets into Userbird</h2>
-                </div>
-                
-                <div className="my-16">
-                  <div className="flex flex-col md:flex-row">
-                    {/* Email Support Side */}
-                    <div 
-                      className={`flex-1 mb-6 md:mb-0 transition-opacity duration-200 ${
-                        hoveredSection === 'feedback' ? 'opacity-20' : hoveredSection === 'email' ? 'opacity-100' : 'opacity-100'
-                      }`}
-                      onMouseEnter={() => setHoveredSection('email')}
-                      onMouseLeave={() => setHoveredSection(null)}
-                    >
-                      <div className="flex items-center mb-5">
-                        <div className="h-8 w-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
-                          <Mail className="h-4 w-4" />
-                        </div>
-                        <h3 className="font-medium">Support via email</h3>
-                      </div>
-                      
-                      <div className="mb-4">
-                        <label className="block text-sm text-muted-foreground mb-1.5">Your support email address:</label>
-                        <div className="flex flex-col space-y-3">
-                          <div className="w-full relative group">
-                            <div className="absolute inset-0 border rounded-md transition-colors pointer-events-none"></div>
-                            <input 
-                              type="text" 
-                              readOnly 
-                              value={formDefaultEmail || '...'}
-                              className="w-full bg-slate-50 py-2 rounded-md font-mono text-sm text-left focus:outline-none"
-                              style={{ padding: '8px 12px' }}
-                            />
-                          </div>
-                          <Button 
-                            variant="outline"
-                            onClick={handleSendTestEmail} 
-                            disabled={!formDefaultEmail}
-                            className="whitespace-nowrap w-full h-9 px-4 py-2"
-                          >
-                            Send test email
-                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-md flex">
-                        <Info className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0" />
-                        <span>You can customize this email address later in your workspace settings.</span>
-                      </div>
-                    </div>
-                    
-                    {/* Vertical Divider */}
-                    <div className="hidden md:block w-px bg-slate-200 mx-12"></div>
-                    
-                    {/* Feedback Button Side */}
-                    <div 
-                      className={`flex-1 transition-opacity duration-200 ${
-                        hoveredSection === 'email' ? 'opacity-20' : hoveredSection === 'feedback' ? 'opacity-100' : 'opacity-100'
-                      }`}
-                      onMouseEnter={() => setHoveredSection('feedback')}
-                      onMouseLeave={() => setHoveredSection(null)}
-                    >
-                      <div className="flex items-center mb-5">
-                        <div className="h-8 w-8 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center mr-3">
-                          <MessageSquareQuote className="h-4 w-4" />
-                        </div>
-                        <h3 className="font-medium">Feedback button integration</h3>
-                      </div>
-                      
-                      <p className="text-sm text-slate-600 mb-5">
-                        Add a feedback button to your product so users can easily share their feedback.
-                      </p>
-                      
-                      <div className="grid grid-cols-1 grid-rows-2 gap-3">
-                        <Button 
-                          onClick={handleCopyInstall}
-                          variant="outline"
-                          className="border-purple-200 hover:border-purple-300 bg-purple-50 hover:bg-purple-100/70"
-                        >
-                          {installCopied ? (
-                            <div className="flex items-center">
-                              <Check className="h-4 w-4 mr-2 text-green-600" />
-                              <span>Copied!</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Copy className="h-4 w-4 mr-2 text-purple-600" />
-                              <span>Copy install code</span>
-                            </div>
-                          )}
-                        </Button>
-                        
-                        <Button 
-                          onClick={handleEmailInstall}
-                          variant="outline"
-                          className="border-slate-200"
-                        >
-                          <span>Email to developer</span>
-                          <ExternalLink className="ml-1.5 h-3.5 w-3.5 opacity-70" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-center mt-10">
-                  <Button 
-                    onClick={handleNext} 
-                    className="w-full max-w-sm mx-auto group"
-                    autoFocus // Auto focus this button when step 3 renders to ensure keyboard navigation works
-                  >
-                    Continue
-                    <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                      Enter
-                    </span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-semibold text-center">Manage feedback at blazing speed 🚀</h2>
-                </div>
-
-                <div className="space-y-2 mb-6 max-w-sm mx-auto">
-                  <label htmlFor="help-docs-url" className="text-sm font-medium">
-                    {productName ? `${productName}'s help docs` : "Your product's knowledge base"}
-                  </label>
-                  <Input
-                    id="help-docs-url"
-                    value={helpDocsUrl}
-                    onChange={(e) => setHelpDocsUrl(e.target.value)}
-                    placeholder="https://help.yourapp.com"
-                    disabled={isCreating}
-                    autoFocus
-                  />
-                </div>
-
-                {/* Callout below the field, as wide as the field and CTA, using mixed terminology */}
-                <div className="bg-muted/50 p-4 rounded-lg mb-6 flex items-start max-w-sm mx-auto">
-                  <Info className="h-5 w-5 text-primary mt-0.5 mr-3 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm mb-0 font-medium">Why connect your documentation?</p>
-                    <p className="text-sm text-muted-foreground mb-0">
-                      We use your knowledge base to help you speed up support.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 max-w-sm mx-auto">
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    onClick={handleCreateWorkspace} 
-                    disabled={isCreating}
-                    className="flex-1"
-                  >
-                    Skip for now
-                  </Button>
-                  <Button 
-                    type="button"
-                    className="flex-1 group" 
-                    onClick={handleWorkspaceCreation} 
-                    disabled={isCreating}
-                  >
-                    {isCreating ? (
-                      <>
-                        <Loader className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        Create workspace
-                        <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
-                          Enter
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 5 && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="mb-10">
-                  <h2 className="text-2xl font-semibold text-center">Setting up your workspace</h2>
-                </div>
-
-                <div className="space-y-6 max-w-md mx-auto">
-                  {loadingSteps.map((step, index) => (
-                    <div 
-                      key={index} 
-                      className={`flex items-center transition-opacity duration-300 ${
-                        loadingStep < index ? 'opacity-40' : 'opacity-100'
-                      }`}
-                    >
-                      <div className="mr-4 h-6 w-6 flex-shrink-0">
-                        {loadingStep > index ? (
-                          <div className="rounded-full h-6 w-6 bg-green-500 text-white flex items-center justify-center">
-                            <Check className="h-3.5 w-3.5" />
-                          </div>
-                        ) : loadingStep === index ? (
-                          <div className="rounded-full h-6 w-6 border-2 border-primary/30 border-t-primary animate-fast-spin"></div>
-                        ) : (
-                          <div className="rounded-full h-6 w-6 border-2 border-muted"></div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className={`font-medium ${loadingStep >= index ? 'text-foreground' : 'text-muted-foreground'}`}>
-                          {step}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
