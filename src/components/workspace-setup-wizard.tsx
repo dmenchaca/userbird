@@ -328,8 +328,56 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     // On step 2, fire background creation or patch
     if (step === 2 && productName.trim()) {
       handleBackgroundFormCreationOrPatch(productName.trim());
+      // After successful form creation in step 2, create sample feedback and redirect
+      if (createdFormId) {
+        createWorkspaceAndRedirect();
+      } else {
+        // If form isn't created yet, set up a listener for when createdFormId changes
+        const checkFormCreation = setInterval(() => {
+          if (createdFormId) {
+            clearInterval(checkFormCreation);
+            createWorkspaceAndRedirect();
+          }
+        }, 500);
+        
+        // Clear interval after 5 seconds to prevent endless checking
+        setTimeout(() => clearInterval(checkFormCreation), 5000);
+      }
+    } else {
+      setStep(step + 1);
     }
-    setStep(step + 1);
+  };
+  
+  // New function to create sample feedback and redirect after step 2
+  const createWorkspaceAndRedirect = async () => {
+    if (!createdFormId) return;
+    
+    setIsCreating(true);
+    
+    try {
+      // Create sample feedback for the new workspace
+      try {
+        await createSampleFeedback(createdFormId);
+      } catch (sampleError) {
+        console.error('Error creating sample feedback:', sampleError);
+        // Continue even if sample feedback creation fails
+      }
+      
+      // Mark onboarding as complete
+      markOnboardingComplete();
+      onComplete();
+      
+      // Redirect to the new workspace
+      window.location.href = `/forms/${createdFormId}`;
+    } catch (error: any) {
+      console.error(`Failed to complete onboarding: ${error.message || 'Please try again'}`);
+      // Even on error, still redirect
+      markOnboardingComplete();
+      onComplete();
+      window.location.href = `/forms/${createdFormId}`;
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleBack = () => {
@@ -353,7 +401,10 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         } else {
           console.log('Step 2 Enter key handler triggered with empty product name');
         }
-      } else if (step === 3) {
+      }
+      // Comment out handling for steps 3+ since we're removing those steps
+      /*
+      else if (step === 3) {
         // On step 3, Enter should advance to step 4, not finish the onboarding
         console.log('Step 3 Enter key handler triggered');
         handleNext();
@@ -367,6 +418,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
       }
       // No action needed for step 5 (loading animation)
+      */
     }
   };
 
@@ -736,12 +788,12 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 <Button 
                     className="w-full group" 
                     onClick={handleNext}
-                    disabled={!productName.trim() || backgroundCreating}
+                    disabled={!productName.trim() || backgroundCreating || isCreating}
                   >
-                    {backgroundCreating ? (
-                      <><Loader className="mr-2 h-4 w-4 animate-spin" />Saving...</>
+                    {backgroundCreating || isCreating ? (
+                      <><Loader className="mr-2 h-4 w-4 animate-spin" />Creating workspace...</>
                     ) : (
-                      <>Continue
+                      <>Create workspace
                         <span className="ml-2 text-xs text-primary-foreground/70 group-hover:text-primary-foreground/90 transition-colors">
                           Enter
                         </span>
