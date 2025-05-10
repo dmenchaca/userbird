@@ -230,11 +230,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   }
 
   // Background form creation or patch for step 2
-  const handleBackgroundFormCreationOrPatch = async (name: string) => {
-    if (backgroundCreating) return; // Prevent duplicate
+  const handleBackgroundFormCreationOrPatch = async (name: string): Promise<string | null> => {
+    if (backgroundCreating) return createdFormId; // Prevent duplicate
     setBackgroundCreating(true);
     setBackgroundError(null);
     try {
+      let resultFormId = createdFormId;
+      
       if (createdFormId) {
         // Patch the existing form's name
         const { error: updateError } = await supabase
@@ -276,14 +278,17 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
             .select()
             .single();
         }
-        setCreatedFormId(data?.id);
-        if (user?.id && data?.id) {
-          localStorage.setItem(`userbird-last-form-${user.id}`, data.id);
+        resultFormId = data?.id || null;
+        setCreatedFormId(resultFormId);
+        if (user?.id && resultFormId) {
+          localStorage.setItem(`userbird-last-form-${user.id}`, resultFormId);
         }
       }
+      return resultFormId;
     } catch (err: any) {
       setBackgroundError(err.message || 'Failed to create or update workspace');
       if (!createdFormId) setCreatedFormId(null);
+      return null;
     } finally {
       setBackgroundCreating(false);
     }
@@ -359,34 +364,29 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     setIsCreating(true);
     
     try {
-      // Create or update the form
-      await handleBackgroundFormCreationOrPatch(productName.trim());
+      // Create or update the form and get the form ID directly
+      const formId = await handleBackgroundFormCreationOrPatch(productName.trim());
       
-      // Wait a bit for the form ID to be properly set
-      if (!createdFormId) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      const formIdToUse = createdFormId;
-      
-      if (!formIdToUse) {
+      if (!formId) {
         console.error('No form ID available after creation');
         setBackgroundError('Failed to create workspace. Please try again.');
         setIsCreating(false);
         return;
       }
       
+      console.log(`Successfully created/updated form with ID: ${formId}`);
+      
       // Create sample feedback directly - make sure we create 3 items
       try {
         // Send direct request to feedback endpoint like the dialog does
-        console.log(`Creating sample feedback for form: ${formIdToUse}`);
+        console.log(`Creating sample feedback for form: ${formId}`);
         await fetch('/.netlify/functions/feedback', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            formId: formIdToUse,
+            formId: formId,
             message: "I found a bug where the data doesn't save if I accidentally refresh the page. I lost my entire document :(",
             user_name: "Diego Menchaca",
             user_email: "hi@diego.bio",
@@ -405,7 +405,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              formId: formIdToUse,
+              formId: formId,
               message: "Having trouble with the export feature. It keeps timing out when I try to export large reports.",
               user_name: "Diego Menchaca",
               user_email: "hi@diego.bio",
@@ -422,7 +422,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              formId: formIdToUse,
+              formId: formId,
               message: "Could we get a dark mode option? My eyes get strained when using the app at night.",
               user_name: "Diego Menchaca",
               user_email: "hi@diego.bio",
@@ -444,18 +444,18 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       onComplete();
       
       // Save form ID in localStorage for quick access
-      if (user?.id && formIdToUse) {
-        localStorage.setItem(`userbird-last-form-${user.id}`, formIdToUse);
+      if (user?.id) {
+        localStorage.setItem(`userbird-last-form-${user.id}`, formId);
       }
       
       // Set a flag in localStorage to indicate intentional navigation (like the dialog does)
-      localStorage.setItem('userbird-navigating-to-new-form', formIdToUse);
+      localStorage.setItem('userbird-navigating-to-new-form', formId);
       
       // Add a small delay to ensure feedback creation requests are sent before navigating
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Redirect immediately instead of with window.location for faster navigation
-      navigate(`/forms/${formIdToUse}`);
+      navigate(`/forms/${formId}`);
       
       // Clear the navigation flag after 1 second like the dialog does
       setTimeout(() => {
