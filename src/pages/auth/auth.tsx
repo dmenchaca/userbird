@@ -132,7 +132,7 @@ export function AuthPage() {
 
   return (
     <div className="container relative h-screen grid lg:max-w-none lg:grid-cols-[2fr_3fr] lg:px-0 overflow-hidden">
-      <div className="lg:p-8">
+      <div className="lg:p-8 relative">
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[366px] h-full relative">
           <div className="flex justify-center pb-4">
             <a href="/" className="flex items-center gap-2 font-medium">
@@ -144,6 +144,9 @@ export function AuthPage() {
           </div>
           <AuthForm mode={mode} />
         </div>
+        <p className="text-center text-sm absolute bottom-4 left-0 right-0 text-slate-400">
+          Maintained with 💙 by <a href="https://www.linkedin.com/in/diegomenchaca/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-primary">Diego</a>
+        </p>
       </div>
       <div className="relative hidden h-full lg:block overflow-hidden">
         <div className="absolute inset-0 flex items-center">
