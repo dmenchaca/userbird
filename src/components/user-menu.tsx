@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSidebar } from "@/components/ui/sidebar"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function UserMenu() {
   const { user, signOut } = useAuth()
@@ -95,6 +96,10 @@ export function UserMenu() {
               Account
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5">
+            <ThemeToggle />
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
             <LogOut className="mr-2 h-4 w-4" />

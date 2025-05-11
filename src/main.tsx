@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { PostHogProvider } from 'posthog-js/react'
 import App from './App.tsx'
 import './index.css'
+import { ThemeProvider } from './components/theme-provider'
 
 const options = {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     options={options}
   >
     <BrowserRouter>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </BrowserRouter>
   </PostHogProvider>
 )
