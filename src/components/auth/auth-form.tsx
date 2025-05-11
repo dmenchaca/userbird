@@ -101,7 +101,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
-        <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2.5rem] w-[372px] mx-auto">
+        <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
             <>
               You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">blind spots.</span>
@@ -109,12 +109,12 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           )}
         </h1>
         {mode === 'login' && (
-          <p className="text-base text-muted-foreground m-4">
+          <p className="text-sm sm:text-base text-muted-foreground mx-2 sm:m-4">
             Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
         <div className="flex justify-center my-2">
-          <div className="inline-block py-2 px-4 rounded-full bg-muted text-center text-foreground">
+          <div className="inline-block py-2 px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
             Beta test for free until June 1st 🚀
           </div>
         </div>
@@ -124,7 +124,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           <div className="grid gap-4">
             <Button 
               type="button"
-              className="w-full max-w-[17rem] mx-auto"
+              className="w-full sm:max-w-[17rem] mx-auto"
               onClick={handleGoogleSignIn}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -139,7 +139,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             <Button 
               type="button"
               variant="outline"
-              className="w-full max-w-[17rem] mx-auto"
+              className="w-full sm:max-w-[17rem] mx-auto"
               onClick={() => setShowEmailForm(true)}
             >
               Continue with email
@@ -150,7 +150,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           <Button 
             type="button"
             variant="outline"
-            className="w-full max-w-[17rem] mx-auto text-muted-foreground"
+            className="w-full sm:max-w-[17rem] mx-auto text-muted-foreground"
             onClick={handleGoogleSignIn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -215,7 +215,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 <span>{error}</span>
               </div>
             )}
-            <Button type="submit" disabled={loading} className="w-full max-w-[17rem] mx-auto">
+            <Button type="submit" disabled={loading} className="w-full sm:max-w-[17rem] mx-auto">
               {loading ? (mode === 'login' ? "Signing in..." : "Creating account...") : (mode === 'login' ? "Sign in" : "Create Account")}
             </Button>
           </form>
@@ -239,7 +239,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           )}
         </div>
         {/* Terms of service and privacy policy - temporarily hidden
-        <p className="px-8 text-center text-sm text-muted-foreground w-[372px] mx-auto">
+        <p className="px-4 sm:px-8 text-center text-sm text-muted-foreground w-full sm:w-[372px] mx-auto">
           By clicking continue, you agree to our{" "}
           <a href="#" className="underline underline-offset-4 hover:text-primary">
             Terms of Service
