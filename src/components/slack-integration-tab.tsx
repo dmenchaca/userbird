@@ -143,7 +143,7 @@ export function SlackIntegrationTab({
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 w-[50px] h-[50px] flex items-center justify-center bg-slate-50 border border-slate-200 rounded-md">
+          <div className="p-3 w-[50px] h-[50px] flex items-center justify-center bg-muted/50 border border-border rounded-md">
             <svg width="100%" height="100%" viewBox="0 0 127 127" fill="none" xmlns="http://www.w3.org/2000/svg">
               <g clipPath="url(#clip0_15950_529)">
                 <path d="M27.2 80C27.2 87.3 21.3 93.2 14 93.2C6.69999 93.2 0.799988 87.3 0.799988 80C0.799988 72.7 6.69999 66.8 14 66.8H27.2V80ZM33.8 80C33.8 72.7 39.7 66.8 47 66.8C54.3 66.8 60.2 72.7 60.2 80V113C60.2 120.3 54.3 126.2 47 126.2C39.7 126.2 33.8 120.3 33.8 113V80Z" fill="#E01E5A"/>

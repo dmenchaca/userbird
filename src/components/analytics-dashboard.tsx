@@ -57,7 +57,7 @@ export function AnalyticsDashboard() {
   return (
     <Card className="relative bg-white/50 rounded-lg shadow-lg overflow-hidden">
       {/* Browser Address Bar */}
-      <div className="relative h-9 bg-white/60 backdrop-blur-sm border-b border-[#e0e0e0]/40 flex items-center px-3 rounded-t-lg">
+      <div className="relative h-9 bg-background/60 backdrop-blur-sm border-b border-border/40 flex items-center px-3 rounded-t-lg">
         {/* Traffic Light Buttons */}
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-[#FF5F56] hover:opacity-90 transition-opacity cursor-pointer" />
@@ -66,7 +66,7 @@ export function AnalyticsDashboard() {
         </div>
         
         {/* URL Field */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-0.5 bg-[#f1f1f1]/50 backdrop-blur-sm border border-[#e0e0e0]/20 rounded-md w-48 justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-0.5 bg-muted/50 backdrop-blur-sm border border-border/20 rounded-md w-48 justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
           <Lock className="h-2.5 w-2.5 text-[#6b7280]/60" />
           <span className="text-xs text-[#333]/70 font-medium">your-app.com</span>
         </div>

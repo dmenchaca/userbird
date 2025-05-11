@@ -32,6 +32,111 @@
     --ring: 215 20.2% 65.1%;
     --radius: 0.5rem;
   }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 100% 52%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 25%;
+    --input: 217.2 32.6% 20%;
+    --ring: 212.7 26.8% 45%;
+  }
+}
+
+/* Shadcn UI Overrides for better dark mode compatibility */
+@layer components {
+  /* Ensure all borders use the border CSS variable */
+  .border {
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Make sure popover/dropdown backgrounds use the correct variable */
+  [data-radix-popper-content-wrapper] > * {
+    background-color: hsl(var(--popover)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Fix select/dropdown items hover state */
+  [role="option"]:hover,
+  [role="menuitem"]:hover,
+  .group[data-highlighted="true"] {
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
+  }
+  
+  /* Fix dialog borders and backgrounds */
+  [role="dialog"] {
+    background-color: hsl(var(--background)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Ensure inputs use the correct border color */
+  input, 
+  textarea, 
+  select {
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Make the sidebar panel border more subtle in dark mode only */
+  .dark .absolute.right-0.top-0.w-\[260px\].border-l {
+    border-left-color: hsl(var(--border)/30%) !important;
+  }
+  
+  /* Make the sidebar panel border match standard border opacity in dark mode */
+  .dark .absolute.right-0.top-0.w-\[260px\].border-l {
+    border-left-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Fix inbox dividers in dark mode */
+  .dark .divide-y > * + * {
+    border-top-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Fix navbar/aside border in dark mode */
+  .dark aside.fixed.left-0.border-r {
+    border-right-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Fix empty state border in dark mode */
+  .dark .w-\[70\%\].flex.items-center.justify-center.border-l {
+    border-left-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Fix user menu horizontal divider in dark mode */
+  .dark .border-t.p-3.space-y-3 {
+    border-top-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Fix widget card border in dark mode */
+  .dark .bg-background.border.rounded-lg.p-3.mb-3.relative {
+    border-color: hsl(var(--border)/70%) !important;
+  }
+  
+  /* Make the widget card stand out more in dark mode */
+  .dark .bg-background.border.rounded-lg.p-3.mb-3.relative {
+    background-color: hsl(var(--card)/80%) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  /* Make the widget card MUCH more prominent in dark mode */
+  .dark div.bg-background.border.rounded-lg.p-3.mb-3.relative {
+    background-color: hsl(var(--card)/30%) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    border-color: hsl(var(--border)/90%) !important;
+  }
 }
 
 @keyframes fadeSlideUp {

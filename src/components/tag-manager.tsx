@@ -397,7 +397,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                 id="is-favorite-tag"
                 checked={isFavoriteTag}
                 onChange={e => setIsFavoriteTag(e.target.checked)}
-                className="rounded border-gray-300 text-primary focus:ring-primary"
+                className="rounded border-border text-primary focus:ring-primary"
               />
               <Label htmlFor="is-favorite-tag" className="text-sm font-normal flex items-center">
                 Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
@@ -501,7 +501,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                 id="edit-is-favorite"
                 checked={isFavoriteTag}
                 onChange={e => setIsFavoriteTag(e.target.checked)}
-                className="rounded border-gray-300 text-primary focus:ring-primary"
+                className="rounded border-border text-primary focus:ring-primary"
               />
               <Label htmlFor="edit-is-favorite" className="text-sm font-normal flex items-center">
                 Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />

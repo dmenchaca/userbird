@@ -180,12 +180,12 @@ Key features:
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
       
-      return `<div class="code-block"><pre style="font-family: monospace; background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 16px 0; line-height: 1.4; font-size: 0.9rem;"><code class="language-${language}">${escapedCode}</code></pre></div>`;
+      return `<div class="code-block"><pre style="font-family: monospace; background: hsl(var(--muted)); padding: 12px; border-radius: 4px; overflow-x: auto; margin: 16px 0; line-height: 1.4; font-size: 0.9rem;"><code class="language-${language}">${escapedCode}</code></pre></div>`;
     });
     
     // Then process inline code blocks (text wrapped in backticks)
     processedContent = processedContent.replace(/`([^`]+)`/g, 
-      '<span style="font-family: monospace; background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-size: 0.9rem;">$1</span>');
+      '<span style="font-family: monospace; background: hsl(var(--muted)); padding: 2px 4px; border-radius: 3px; font-size: 0.9rem;">$1</span>');
 
     // Split into sections and process each part separately
     let parts = processedContent.split(/^(Step \d+:.+|When implemented correctly:|Common issues:|Key features:)$/gm);
@@ -278,7 +278,7 @@ Key features:
           <DialogTitle>Installation Instructions</DialogTitle>
         </DialogHeader>
 
-        <div className="h-[70vh] overflow-y-auto p-5 user-select-text border border-neutral-200 rounded-md bg-white">
+        <div className="h-[70vh] overflow-y-auto p-5 user-select-text border border-border rounded-md bg-background">
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">HTML/JavaScript Integration</h3>

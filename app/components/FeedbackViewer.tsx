@@ -25,7 +25,7 @@ export const FeedbackViewer: React.FC<FeedbackViewerProps> = ({
       <h3 className="text-lg font-medium">Screenshots</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {images.map((image) => (
-          <div key={image.id} className="border border-gray-200 rounded-lg overflow-hidden">
+          <div key={image.id} className="border border-border rounded-lg overflow-hidden">
             {/* Use our secure authenticated image component */}
             <FeedbackImage 
               imagePath={`${formId}/${image.path}`} 

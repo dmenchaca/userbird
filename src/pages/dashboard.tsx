@@ -1397,7 +1397,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="fixed left-0 w-[240px] h-screen border-r bg-[#FAFAFA]">
+      <aside className="fixed left-0 w-[240px] h-screen border-r bg-background">
         <div className="flex flex-col h-full">
           <FormsDropdown 
             selectedFormId={selectedFormId}
@@ -1548,7 +1548,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                               id="is-quick-tag-favorite"
                               checked={isQuickTagFavorite}
                               onChange={e => setIsQuickTagFavorite(e.target.checked)}
-                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                              className="rounded border-border text-primary focus:ring-primary"
                             />
                             <Label htmlFor="is-quick-tag-favorite" className="text-sm font-normal flex items-center">
                               Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
@@ -1703,7 +1703,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 id="edit-is-favorite-tag"
                                 checked={editTagIsFavorite}
                                 onChange={e => setEditTagIsFavorite(e.target.checked)}
-                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                                className="rounded border-border text-primary focus:ring-primary"
                               />
                               <Label htmlFor="edit-is-favorite-tag" className="text-sm font-normal flex items-center">
                                 Add to favorites <Star className="h-3 w-3 ml-1 text-amber-500" />
@@ -1740,7 +1740,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             <div className="px-3 pb-3 pt-1 space-y-1">
               {/* Callout Card for Widget Installation */}
               {!widgetCalloutDismissed && (
-                <div className="bg-white border rounded-lg p-3 mb-3 relative">
+                <div className="bg-card/40 dark:bg-slate-800/60 border rounded-lg p-3 mb-3 relative shadow-md">
                   <button 
                     className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
                     onClick={dismissWidgetCallout}
@@ -1876,7 +1876,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             
             {selectedResponse ? (
               <>
-                <div className="flex-1 conversation-wrapper border-l min-w-0 overflow-hidden h-full flex flex-col">
+                <div className="flex-1 conversation-wrapper border-l border-border min-w-0 overflow-hidden h-full flex flex-col">
                   <header className="border-b border-border">
                     <div className="container py-3 px-4">
                       <div className="flex items-center justify-between">
@@ -1928,7 +1928,6 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 variant="outline" 
                                 size="sm"
                                 className={cn(
-                                  "text-slate-600 border-slate-200 bg-white hover:bg-slate-100",
                                   selectedResponse.tag ? "justify-between" : ""
                                 )}
                               >
@@ -1943,12 +1942,12 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     </>
                                   ) : (
                                     <>
-                                      <Tag className="h-4 w-4 mr-2 text-slate-500" />
+                                      <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
                                       Label
                                     </>
                                   )}
                                 </div>
-                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 mr-1">
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground mr-1">
                                   L
                                 </span>
                               </Button>
@@ -2008,29 +2007,21 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                             <DropdownMenuTrigger asChild>
                               <Button 
                                 ref={statusDropdownTriggerRef}
-                                variant="outline" 
+                                variant={selectedResponse.status === 'open' ? "outline" : "secondary"} 
                                 size="sm"
-                                className={`${
-                                  selectedResponse.status === 'open' 
-                                    ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100' 
-                                    : 'text-green-600 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-700'
-                                }`}
+                                className="justify-between"
                               >
                                 <div className="flex items-center">
                                   {selectedResponse.status === 'open' ? (
-                                    <Circle className="h-3 w-3 mr-2 fill-blue-100 text-blue-600" />
+                                    <Circle className="h-3 w-3 mr-2" />
                                   ) : (
-                                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                                    <Check className="h-4 w-4 mr-2" />
                                   )}
                                   {selectedResponse.status === 'open' ? 'Open' : 'Closed'}
-                                  <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                                    selectedResponse.status === 'open' 
-                                      ? 'bg-blue-100 text-blue-600' 
-                                      : 'bg-green-100 text-green-600'
-                                  }`}>
-                                    S
-                                  </span>
                                 </div>
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground mr-1">
+                                  O
+                                </span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" 
@@ -2048,14 +2039,14 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 className="flex items-center cursor-pointer"
                                 onClick={() => handleResponseStatusChange(selectedResponse.id, 'open')}
                               >
-                                <Circle className="h-3 w-3 mr-2 fill-blue-100 text-blue-600" />
+                                <Circle className="h-3 w-3 mr-2 text-primary" />
                                 <span>Open</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="flex items-center cursor-pointer"
                                 onClick={() => handleResponseStatusChange(selectedResponse.id, 'closed')}
                               >
-                                <Check className="h-4 w-4 mr-2 text-green-500" />
+                                <Check className="h-4 w-4 mr-2 text-primary" />
                                 <span>Closed</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -2067,7 +2058,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 ref={assigneeDropdownTriggerRef}
                                 variant="outline" 
                                 size="sm"
-                                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 justify-between"
+                                className="justify-between"
                               >
                                 <div className="flex items-center">
                                   {selectedResponse.assignee ? (
@@ -2080,18 +2071,18 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                           className="h-5 w-5 rounded-full mr-2"
                                         />
                                       ) : (
-                                        <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                        <UserCircle className="h-4 w-4 mr-2" />
                                       )}
                                       {selectedResponse.assignee.user_name || selectedResponse.assignee.email.split('@')[0]}
                                     </>
                                   ) : (
                                     <>
-                                      <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                      <UserCircle className="h-4 w-4 mr-2" />
                                       Assign
                                     </>
                                   )}
                                 </div>
-                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 mr-1">
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground mr-1">
                                   A
                                 </span>
                                 <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -2191,7 +2182,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                               className="h-5 w-5 rounded-full mr-2"
                                             />
                                           ) : (
-                                            <UserCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                            <UserCircle className="h-4 w-4 mr-2" />
                                           )}
                                           <span className="flex-1">{collaborator.user_profile?.username || collaborator.invitation_email}</span>
                                           {selectedResponse.assignee_id === collaborator.user_id && (
@@ -2234,7 +2225,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-100"
+                                  className="text-muted-foreground border-border bg-muted/50 hover:bg-muted"
                                   onClick={() => {
                                     const newState = !isShowingDetails
                                     setIsShowingDetails(newState)

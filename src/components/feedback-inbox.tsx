@@ -460,13 +460,13 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       <div>
         {/* Show email callout even when empty */}
         {shouldShowEmailCallout && (
-          <Card className="mx-4 mb-4 mt-4">
+          <Card className="mx-4 mb-4 mt-4 dark:bg-slate-800/60 dark:shadow-md">
             <CardContent className="pt-4 pb-3 px-4">
               <div className="flex items-start">
                 <div className="flex-1">
                   <div className="text-sm font-medium mb-1">Try this 🙌</div>
                   <p className="text-sm text-muted-foreground">
-                    You can email <span className="font-medium text-slate-800">{formDefaultEmail}</span> directly to create new tickets in your inbox.
+                    You can email <span className="font-medium text-foreground">{formDefaultEmail}</span> directly to create new tickets in your inbox.
                   </p>
                 </div>
                 <button 
@@ -536,30 +536,30 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             margin-top: 8px;
           }
           .gmail_attr {
-            color: #666;
+            color: hsl(var(--muted-foreground));
             margin-bottom: 8px;
             font-size: 0.9em;
           }
           .gmail_quote {
             margin: 0 0 0 0.8ex !important;
-            border-left: 1px solid #ccc !important;
+            border-left: 1px solid hsl(var(--border)) !important;
             padding-left: 1ex !important;
-            color: #666;
+            color: hsl(var(--muted-foreground));
           }
           /* Keep support for our custom classes too */
           .email_quote_container {
             margin-top: 8px;
           }
           .email_attr {
-            color: #666;
+            color: hsl(var(--muted-foreground));
             margin-bottom: 8px;
             font-size: 0.9em;
           }
           .email_quote {
             margin: 0 0 0 0.8ex !important;
-            border-left: 1px solid #ccc !important;
+            border-left: 1px solid hsl(var(--border)) !important;
             padding-left: 1ex !important;
-            color: #666;
+            color: hsl(var(--muted-foreground));
           }
           /* Tag animation */
           @keyframes tagAppear {
@@ -657,7 +657,14 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           
           /* Active feedback item styling */
           .feedback-active {
-            background-color: rgb(244, 245, 246);
+            background-color: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+          }
+          
+          /* Dark mode compatibility */
+          .dark .feedback-active {
+            background-color: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
           }
         `
       }} />
@@ -720,16 +727,16 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
           No matches found for "{searchQuery}"
         </div>
       ) : (
-        <div className="flex flex-col divide-y pb-4">
+        <div className="flex flex-col divide-y divide-border pb-4">
           {/* Email callout card */}
           {shouldShowEmailCallout && (
-            <Card className="mx-4 mb-4 mt-4">
+            <Card className="mx-4 mb-4 mt-4 dark:bg-slate-800/60 dark:shadow-md">
               <CardContent className="pt-4 pb-3 px-4">
                 <div className="flex items-start">
                   <div className="flex-1">
                     <div className="text-sm font-medium mb-1">Try this 🙌</div>
                     <p className="text-sm text-muted-foreground">
-                      You can email <span className="font-medium text-slate-800">{formDefaultEmail}</span> directly to create new tickets in your inbox.
+                      You can email <span className="font-medium text-foreground">{formDefaultEmail}</span> directly to create new tickets in your inbox.
                     </p>
                   </div>
                   <button 
