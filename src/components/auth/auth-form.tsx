@@ -104,7 +104,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
         <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
             <>
-              You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">blind spots.</span>
+              You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] dark:from-[hsl(210deg_100%_50%)] dark:to-[#60a5fa] bg-clip-text text-transparent">blind spots.</span>
             </>
           )}
         </h1>
