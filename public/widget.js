@@ -135,8 +135,8 @@
       :root[data-color-scheme="dark"] .userbird-modal,
       .dark-theme .userbird-modal,
       html[class*="dark"] .userbird-modal {
-        --ub-background: #1f1f1f;
-        --ub-border-color: #2e2e2e;
+        --ub-background: #0D0D0D;
+        --ub-border-color: #363636;
         --ub-text: #e5e5e5;
         --ub-text-muted: #a1a1a1;
         --ub-hover-background: #2e2e2e;
@@ -191,6 +191,18 @@
         background: var(--ub-background);
         color: var(--ub-text);
       }
+
+      /* Update dark mode specific background for textarea */
+      :root[data-theme="dark"] .userbird-textarea,
+      :root.dark .userbird-textarea,
+      :root[data-mode="dark"] .userbird-textarea,
+      :root[data-color-mode="dark"] .userbird-textarea,
+      :root[data-color-scheme="dark"] .userbird-textarea,
+      .dark-theme .userbird-textarea,
+      html[class*="dark"] .userbird-textarea {
+        background: #171717;
+      }
+
       .userbird-textarea:focus {
         outline: none;
       }
