@@ -99,7 +99,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   }
 
   return (
-    <div className={cn("grid gap-6", className)} {...props}>
+    <div className={cn("grid gap-4 sm:gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
         <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
@@ -109,19 +109,19 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           )}
         </h1>
         {mode === 'login' && (
-          <p className="text-sm sm:text-base text-muted-foreground mx-2 sm:m-4">
+          <p className="text-sm sm:text-base text-muted-foreground mx-2 sm:m-4 mt-3 sm:mt-4">
             Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
-        <div className="flex justify-center my-2">
+        <div className="flex justify-center mt-3 sm:mt-4 mb-3 sm:mb-4">
           <div className="inline-block py-2 px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
             Beta test for free until June 1st 🚀
           </div>
         </div>
       </div>
-      <div className="grid gap-6 animate-in fade-in-0 duration-500">
+      <div className="grid gap-4 sm:gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
-          <div className="grid gap-4">
+          <div className="grid gap-3 sm:gap-4">
             <Button 
               type="button"
               className="w-full sm:max-w-[17rem] mx-auto"
@@ -171,10 +171,10 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
         )}
         {(mode === 'login' && showEmailForm) || mode === 'signup' ? (
           <form onSubmit={handleSubmit} className={cn(
-            "grid gap-4",
+            "grid gap-3 sm:gap-4",
             mode === 'signup' ? "animate-in fade-in-0" : "animate-in fade-in-0 slide-in-from-top-2"
           )}>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5 sm:gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -188,7 +188,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5 sm:gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
                 {mode === 'login' && (
@@ -221,7 +221,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           </form>
         ) : null}
         
-        <div className="text-center text-sm">
+        <div className="text-center text-sm mt-2 sm:mt-3">
           {mode === 'login' ? (
             <>
               Don't have an account?{" "}
