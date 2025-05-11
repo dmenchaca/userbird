@@ -101,18 +101,23 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
-        <h1 className="text-3xl font-semibold tracking-tight relative">
+        <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
             <>
-              The <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">fastest</span> way to get user feedback
+              You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">blind spots.</span>
             </>
           )}
         </h1>
         {mode === 'login' && (
-          <p className="text-base text-muted-foreground m-4">
-            Try Userbird today, no credit card required.
+          <p className="text-sm sm:text-base text-muted-foreground mx-2 sm:m-4 mt-3 sm:mt-4">
+            Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
+        <div className="flex justify-center mt-2 sm:mt-4 mb-2 sm:mb-4">
+          <div className="inline-block py-1.5 sm:py-2 px-3 sm:px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
+            Beta test for free until June 1st 🚀
+          </div>
+        </div>
       </div>
       <div className="grid gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
@@ -233,6 +238,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             </>
           )}
         </div>
+        {/* Terms of service and privacy policy - temporarily hidden 
         <p className="px-8 text-center text-sm text-muted-foreground">
           By clicking continue, you agree to our{" "}
           <a href="#" className="underline underline-offset-4 hover:text-primary">
@@ -243,6 +249,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             Privacy Policy
           </a>
         </p>
+        */}
       </div>
     </div>
   )
