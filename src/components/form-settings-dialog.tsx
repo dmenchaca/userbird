@@ -54,7 +54,7 @@ interface FormSettingsDialogProps {
 
 type SettingsTab = 'workspace' | 'widget' | 'notifications' | 'webhooks' | 'tags' | 'delete' | 'emails' | 'collaborators' | 'ai-automation' | 'integrations'
 
-function InstallPromiseCallout() {
+function InstallPromiseCallout({ formId }: { formId: string }) {
   const [dismissed, setDismissed] = useState(false);
   const { user } = useAuth();
   const [firstName, setFirstName] = useState('');
@@ -72,14 +72,20 @@ function InstallPromiseCallout() {
   
   // Check if callout was previously dismissed via localStorage
   useEffect(() => {
-    const isDismissed = localStorage.getItem('widget-install-promise-dismissed') === 'true';
-    setDismissed(isDismissed);
-  }, []);
+    if (user?.id && formId) {
+      const key = `widget-install-promise-dismissed-${user.id}-${formId}`;
+      const isDismissed = localStorage.getItem(key) === 'true';
+      setDismissed(isDismissed);
+    }
+  }, [user?.id, formId]);
   
   // Dismiss the callout and save preference to localStorage
   const handleDismiss = () => {
-    localStorage.setItem('widget-install-promise-dismissed', 'true');
-    setDismissed(true);
+    if (user?.id && formId) {
+      const key = `widget-install-promise-dismissed-${user.id}-${formId}`;
+      localStorage.setItem(key, 'true');
+      setDismissed(true);
+    }
   };
   
   if (dismissed) {
@@ -87,7 +93,7 @@ function InstallPromiseCallout() {
   }
   
   return (
-    <div className="p-6 pt-4 pb-3 px-4 border rounded-md mb-4 bg-gray-50">
+    <div className="p-6 pt-4 pb-3 px-4 border rounded-md mb-4 bg-gray-50 dark:bg-gray-900">
       <div className="flex items-start">
         <div className="flex-1">
           <div className="text-sm font-medium mb-1">{firstName ? `${firstName}, your time for me is sacred` : 'Your time for me is sacred'}</div>
@@ -120,7 +126,28 @@ function InstallPromiseCallout() {
 
 function WidgetInstallSnippet({ formId }: { formId: string }) {
   const [copied, setCopied] = useState(false);
-  const installSnippet = `<!-- Option A: Simple text button -->\n<button id=\"userbird-trigger-${formId}\">Feedback</button>\n\n<!-- Option B: Button with icon and text -->\n<button id=\"userbird-trigger-${formId}\" class=\"flex items-center gap-2\">\n  <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\">\n    <path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"></path>\n  </svg>\n  <span>Feedback</span>\n  <span class=\"badge\">F</span>\n</button>\n\n<!-- Initialize Userbird - Place this before the closing </body> tag -->\n<script>\n  (function(w,d,s) {\n    w.UserBird = w.UserBird || {};\n    w.UserBird.formId = \"${formId}\";\n\n    // Optional: Add user information\n    w.UserBird.user = {\n      id: 'user-123',                 // Your user's ID\n      email: 'user@example.com',      // User's email\n      name: 'John Doe'                // User's name\n    };\n\n    s = d.createElement('script');\n    s.src = 'https://userbird.netlify.app/widget.js';\n    s.async = 1;\n    d.head.appendChild(s);\n  })(window, document);\n</script>`;
+  const installSnippet = `<!-- Add button on your product -->
+<button id=\"userbird-trigger-${formId}\">Feedback</button>
+
+<!-- Initialize Userbird - Place this before the closing </body> tag -->
+<script>
+  (function(w,d,s) {
+    w.UserBird = w.UserBird || {};
+    w.UserBird.formId = \"${formId}\";
+
+    // Optional: Add user information
+    w.UserBird.user = {
+      id: 'user-123',                 // Your user's ID
+      email: 'user@example.com',      // User's email
+      name: 'John Doe'                // User's name
+    };
+
+    s = d.createElement('script');
+    s.src = 'https://userbird.netlify.app/widget.js';
+    s.async = 1;
+    d.head.appendChild(s);
+  })(window, document);
+</script>`;
 
   const handleCopy = async () => {
     try {
@@ -164,7 +191,7 @@ function WidgetInstallSnippet({ formId }: { formId: string }) {
           </a>
         </div>
       </div>
-      <InstallPromiseCallout />
+      <InstallPromiseCallout formId={formId} />
       <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono select-all">
         {installSnippet}
       </pre>
