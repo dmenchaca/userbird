@@ -99,32 +99,27 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   }
 
   return (
-    <div className={cn("grid gap-3 sm:gap-6", className)} {...props}>
+    <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
-        <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
+        <h1 className="text-3xl font-semibold tracking-tight relative">
           {mode === 'signup' ? 'Create account' : (
             <>
-              You're losing users. Not because of bugs. But <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">blind spots.</span>
+              The <span className="bg-gradient-to-r from-[hsl(210deg_100%_21.98%)] to-[#0061ff] bg-clip-text text-transparent">fastest</span> way to get user feedback
             </>
           )}
         </h1>
         {mode === 'login' && (
-          <p className="text-sm sm:text-base text-muted-foreground mx-2 sm:m-4 mt-3 sm:mt-4">
-            Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
+          <p className="text-base text-muted-foreground m-4">
+            Try Userbird today, no credit card required.
           </p>
         )}
-        <div className="flex justify-center mt-2 sm:mt-4 mb-2 sm:mb-4">
-          <div className="inline-block py-1.5 sm:py-2 px-3 sm:px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
-            Beta test for free until June 1st 🚀
-          </div>
-        </div>
       </div>
-      <div className="grid gap-4 sm:gap-6 animate-in fade-in-0 duration-500">
+      <div className="grid gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
-          <div className="grid gap-3 sm:gap-4">
+          <div className="grid gap-4">
             <Button 
               type="button"
-              className="w-full sm:max-w-[17rem] mx-auto"
+              className="w-full max-w-[17rem] mx-auto"
               onClick={handleGoogleSignIn}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -139,7 +134,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             <Button 
               type="button"
               variant="outline"
-              className="w-full sm:max-w-[17rem] mx-auto"
+              className="w-full max-w-[17rem] mx-auto"
               onClick={() => setShowEmailForm(true)}
             >
               Continue with email
@@ -150,7 +145,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
           <Button 
             type="button"
             variant="outline"
-            className="w-full sm:max-w-[17rem] mx-auto text-muted-foreground"
+            className="w-full max-w-[17rem] mx-auto text-muted-foreground"
             onClick={handleGoogleSignIn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-2 h-4 w-4">
@@ -171,10 +166,10 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
         )}
         {(mode === 'login' && showEmailForm) || mode === 'signup' ? (
           <form onSubmit={handleSubmit} className={cn(
-            "grid gap-3 sm:gap-4",
+            "grid gap-4",
             mode === 'signup' ? "animate-in fade-in-0" : "animate-in fade-in-0 slide-in-from-top-2"
           )}>
-            <div className="grid gap-1.5 sm:gap-2">
+            <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -188,7 +183,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="grid gap-1.5 sm:gap-2">
+            <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
                 {mode === 'login' && (
@@ -215,13 +210,13 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 <span>{error}</span>
               </div>
             )}
-            <Button type="submit" disabled={loading} className="w-full sm:max-w-[17rem] mx-auto">
+            <Button type="submit" disabled={loading} className="w-full max-w-[17rem] mx-auto">
               {loading ? (mode === 'login' ? "Signing in..." : "Creating account...") : (mode === 'login' ? "Sign in" : "Create Account")}
             </Button>
           </form>
         ) : null}
         
-        <div className="text-center text-sm mt-2 sm:mt-3">
+        <div className="text-center text-sm">
           {mode === 'login' ? (
             <>
               Don't have an account?{" "}
@@ -238,8 +233,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             </>
           )}
         </div>
-        {/* Terms of service and privacy policy - temporarily hidden
-        <p className="px-4 sm:px-8 text-center text-sm text-muted-foreground w-full sm:w-[372px] mx-auto">
+        <p className="px-8 text-center text-sm text-muted-foreground">
           By clicking continue, you agree to our{" "}
           <a href="#" className="underline underline-offset-4 hover:text-primary">
             Terms of Service
@@ -249,7 +243,6 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             Privacy Policy
           </a>
         </p>
-        */}
       </div>
     </div>
   )
