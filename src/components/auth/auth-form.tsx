@@ -99,7 +99,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
   }
 
   return (
-    <div className={cn("grid gap-4 sm:gap-6", className)} {...props}>
+    <div className={cn("grid gap-3 sm:gap-6", className)} {...props}>
       <div className="flex flex-col text-center">
         <h1 className="font-[600] tracking-tight relative leading-[120%] text-[2rem] sm:text-[2.5rem] w-full sm:w-[372px] mx-auto">
           {mode === 'signup' ? 'Create account' : (
@@ -113,8 +113,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
-        <div className="flex justify-center mt-3 sm:mt-4 mb-3 sm:mb-4">
-          <div className="inline-block py-2 px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
+        <div className="flex justify-center mt-2 sm:mt-4 mb-2 sm:mb-4">
+          <div className="inline-block py-1.5 sm:py-2 px-3 sm:px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
             Beta test for free until June 1st 🚀
           </div>
         </div>
