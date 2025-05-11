@@ -489,3 +489,91 @@
     opacity: 0.5 !important;
   }
 }
+
+/* Make the beta test pill stand out more in dark mode */
+.dark .rounded-full.bg-muted.text-center.text-foreground {
+  background-color: hsl(var(--primary)/15%) !important;
+  border: 1px solid hsl(var(--primary)/30%) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.1) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Improve divider visibility in dark mode */
+.dark .border-t {
+  border-top-color: hsl(var(--border)/70%) !important;
+}
+
+.dark [role="dialog"] .border-t {
+  border-top-color: hsl(var(--border)/70%) !important;
+}
+
+/* Improve table and container border visibility in dark mode */
+.dark .border.rounded-md {
+  border-color: hsl(var(--border)/70%) !important;
+}
+
+.dark table .border-b,
+.dark tbody .border-b,
+.dark thead .border-b,
+.dark tr.border-b {
+  border-bottom-color: hsl(var(--border)/60%) !important;
+}
+
+.dark table [role="combobox"].border {
+  border-color: hsl(var(--border)/70%) !important;
+}
+
+.dark .rounded-md.border.px-2\.5.py-0\.5 {
+  border-color: hsl(var(--border)/80%) !important;
+}
+
+/* Specifically target status badges in tables */
+.dark .bg-green-50.text-green-700.border-green-200 {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+  border-color: rgba(6, 78, 59, 0.5) !important;
+  color: rgb(74, 222, 128) !important;
+}
+
+.dark .bg-amber-50.text-amber-700.border-amber-200 {
+  background-color: rgba(120, 53, 15, 0.3) !important;
+  border-color: rgba(120, 53, 15, 0.5) !important;
+  color: rgb(252, 211, 77) !important;
+}
+
+/* Make sonner toast component dark mode friendly */
+.dark [data-sonner-toast] {
+  background-color: hsl(var(--background)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark [data-sonner-toast] [data-title] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark [data-sonner-toast] [data-description] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark [data-sonner-toast][data-type="success"] [data-icon] {
+  color: hsl(142, 76%, 60%) !important;
+}
+
+.dark [data-sonner-toast][data-type="error"] [data-icon] {
+  color: hsl(0, 84%, 60%) !important;
+}
+
+.dark [data-sonner-toast][data-type="info"] [data-icon] {
+  color: hsl(210, 100%, 70%) !important;
+}
+
+.dark [data-sonner-toast] [data-close-button] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.dark [data-sonner-toast] [data-close-button]:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}

@@ -175,7 +175,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             mode === 'signup' ? "animate-in fade-in-0" : "animate-in fade-in-0 slide-in-from-top-2"
           )}>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="max-w-[17rem] mx-auto text-left w-full">Email</Label>
               <Input
                 id="email"
                 placeholder="name@example.com"
@@ -186,10 +186,11 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 disabled={loading}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="max-w-[17rem] mx-auto"
               />
             </div>
             <div className="grid gap-2">
-              <div className="flex items-center">
+              <div className="flex items-center max-w-[17rem] mx-auto w-full">
                 <Label htmlFor="password">Password</Label>
                 {mode === 'login' && (
                   <a
@@ -207,6 +208,7 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
                 disabled={loading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="max-w-[17rem] mx-auto"
               />
             </div>
             {error && (
