@@ -1397,7 +1397,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="fixed left-0 w-[240px] h-screen border-r bg-background flex flex-col">
+      <aside className="fixed left-0 w-[240px] h-screen border-r bg-muted/50 flex flex-col">
         <div className="flex flex-col h-full">
           <FormsDropdown 
             selectedFormId={selectedFormId}
