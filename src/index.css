@@ -33,6 +33,26 @@
     --radius: 0.5rem;
   }
 
+  body {
+    /* Default light mode color if needed, usually handled by Tailwind */
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
+  }
+
+  .dark body {
+     color: hsl(var(--foreground)) !important; /* Force the off-white default */
+  }
+
+  /* Ensure headings also use the default foreground in dark mode */
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4,
+  .dark h5,
+  .dark h6 {
+    color: hsl(var(--foreground)) !important;
+  }
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 30% 94%;
