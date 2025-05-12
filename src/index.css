@@ -35,21 +35,21 @@
 
   .dark {
     --background: 222.2 84% 4.9%;
-    --foreground: 210 30% 90%;
+    --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
-    --card-foreground: 210 30% 90%;
+    --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 30% 90%;
+    --popover-foreground: 210 40% 98%;
     --primary: 210 100% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 30% 90%;
+    --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 30% 90%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 30% 90%;
+    --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 25%;
     --input: 217.2 32.6% 20%;
     --ring: 212.7 26.8% 45%;
@@ -474,38 +474,6 @@
 
 .dark .flex.flex-col.items-start.max-w-\[210px\] img {
   filter: brightness(0.95) !important;
-}
-
-/* Global text color override for dark mode - affects all text unless locally overridden */
-.dark * {
-  color: hsl(var(--foreground)) !important;
-}
-/* Restore specific color classes */
-.dark .text-muted-foreground {
-  color: hsl(var(--muted-foreground)) !important;
-}
-/* Preserve button text colors */
-.dark button:not([class*="text-"]), 
-.dark a:not([class*="text-"]),
-.dark [role="button"]:not([class*="text-"]) {
-  color: inherit !important;
-}
-/* Keep colored text variants intact */
-.dark [class*="text-primary"], 
-.dark [class*="text-secondary"],
-.dark [class*="text-accent"],
-.dark [class*="text-destructive"],
-.dark [class*="text-emerald"],
-.dark [class*="text-green"],
-.dark [class*="text-amber"],
-.dark [class*="text-blue"],
-.dark [class*="text-red"] {
-  /* These will keep their color definitions */
-  color: inherit !important;
-}
-/* Keep white text only where explicitly defined with text-white class */
-.dark .text-white {
-  color: white !important;
 }
 
 /* Set the three feature icons to #6e9fd0 in dark mode */
