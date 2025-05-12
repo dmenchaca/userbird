@@ -35,21 +35,21 @@
 
   .dark {
     --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --foreground: 210 30% 94%;
     --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card-foreground: 210 30% 94%;
     --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover-foreground: 210 30% 94%;
     --primary: 210 100% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary-foreground: 210 30% 94%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 210 30% 94%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 210 30% 94%;
     --border: 217.2 32.6% 25%;
     --input: 217.2 32.6% 20%;
     --ring: 212.7 26.8% 45%;
@@ -455,7 +455,7 @@
 }
 
 .dark .try-me-container .text-muted-foreground {
-  color: white !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 /* Improve text contrast in dark mode for features section */
@@ -576,4 +576,14 @@
 .dark [data-sonner-toast] [data-close-button]:hover {
   background-color: hsl(var(--accent)) !important;
   color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Off-white text utility for dark mode */
+.dark .text-off-white {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Force white text on colored backgrounds regardless of mode */
+.text-white-force {
+  color: white !important;
 }

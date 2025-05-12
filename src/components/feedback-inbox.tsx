@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Loader, X } from 'lucide-react'
 import { FeedbackResponse, FeedbackTag } from '@/lib/types/feedback'
@@ -37,6 +37,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   const [searchQuery, setSearchQuery] = useState('')
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null)
+  const activeResponseRef = useRef<string | null>(null)
   const [formDefaultEmail, setFormDefaultEmail] = useState<string | null>(null)
   const [isCalloutDismissed, setIsCalloutDismissed] = useState<boolean>(false)
   
@@ -167,23 +168,15 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     setIsCalloutDismissed(true)
   }
 
-  // Expose the refresh method and selection clear to parent components
-  useImperativeHandle(ref, () => ({
-    refreshData: (skipLoadingState = false) => fetchResponses(skipLoadingState),
-    clearSelection: () => {
-      setSelectedIds([]);
-      setActiveResponseId(null);
-    },
-    getResponses: () => filteredResponses,
-    setActiveResponse: (responseId: string) => {
-      setActiveResponseId(responseId);
-    }
-  }));
+  // Update activeResponseRef whenever activeResponseId changes
+  useEffect(() => {
+    activeResponseRef.current = activeResponseId;
+  }, [activeResponseId]);
 
   // Reset selection when responses change or filters change
   useEffect(() => {
     setSelectedIds([]);
-    setActiveResponseId(null);
+    updateActiveResponse(null);
     if (onSelectionChange) {
       onSelectionChange([]);
     }
@@ -201,7 +194,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     // If onResponseSelect is provided, listen for events that might clear the selected feedback
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === 'clearSelectedFeedback' && e.newValue === 'true') {
-        setActiveResponseId(null);
+        updateActiveResponse(null);
       }
     };
 
@@ -219,7 +212,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       setSelectedIds([]);
     }
     // Clear active state when selecting all
-    setActiveResponseId(null);
+    updateActiveResponse(null);
   };
 
   useEffect(() => {
@@ -330,14 +323,14 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
         // Handle deletion by removing the item from the responses
         setResponses(prev => prev.filter(response => response.id !== payload.old.id));
         
-        // If the deleted item was selected, clear the selection
-        if (payload.old.id && selectedIds.includes(payload.old.id)) {
+        // If the deleted item was selected, clear the selection using function form to access latest state
+        if (payload.old.id) {
           setSelectedIds(prev => prev.filter(id => id !== payload.old.id));
-        }
-        
-        // If the deleted item was active, clear the active state
-        if (payload.old.id && activeResponseId === payload.old.id) {
-          setActiveResponseId(null);
+          
+          // If the deleted item was active, clear the active state
+          if (activeResponseRef.current === payload.old.id) {
+            updateActiveResponse(null);
+          }
         }
       })
       // Subscribe to tag changes
@@ -363,7 +356,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [formId, selectedIds, currentStatusFilter]);
+  }, [formId, currentStatusFilter]);
 
   // Reset search when filter changes
   useEffect(() => {
@@ -409,7 +402,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     // If clicking on a checkbox, also set the active item but don't trigger onResponseSelect
     if (onResponseSelect) {
       // Just update the active state locally without triggering onResponseSelect
-      setActiveResponseId(responseId);
+      updateActiveResponse(responseId);
     }
   };
 
@@ -446,6 +439,25 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
 
   // Determine if we should show the email callout - show regardless of message count
   const shouldShowEmailCallout = formDefaultEmail && !isCalloutDismissed;
+
+  // Function to set the active response ID
+  const updateActiveResponse = (id: string | null) => {
+    setActiveResponseId(id);
+    activeResponseRef.current = id;
+  };
+  
+  // Expose the refresh method and selection clear to parent components
+  useImperativeHandle(ref, () => ({
+    refreshData: (skipLoadingState = false) => fetchResponses(skipLoadingState),
+    clearSelection: () => {
+      setSelectedIds([]);
+      updateActiveResponse(null);
+    },
+    getResponses: () => filteredResponses,
+    setActiveResponse: (responseId: string) => {
+      updateActiveResponse(responseId);
+    }
+  }));
 
   if (loading) {
     return (
@@ -685,7 +697,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
             onChange={(e) => {
               setSearchQuery(e.target.value);
               // Clear the active item when searching
-              setActiveResponseId(null);
+              updateActiveResponse(null);
             }}
             className="w-full pl-9 pr-8 py-2 bg-background border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-input"
           />
@@ -782,7 +794,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
               )}
               onClick={() => {
                 if (onResponseSelect) {
-                  setActiveResponseId(response.id);
+                  updateActiveResponse(response.id);
                   onResponseSelect(response);
                 }
               }}
