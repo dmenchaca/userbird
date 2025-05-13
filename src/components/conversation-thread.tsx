@@ -48,7 +48,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const editorRef = useRef<HTMLDivElement>(null)
     const [productName, setProductName] = useState('Userbird')
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
-    const { theme } = useTheme()
+    const { theme, resolvedTheme } = useTheme()
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -814,7 +814,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         if (!tagInfo) return "a label";
         
         // Get tag colors using the same function as inbox
-        const colors = getTagColors(tagInfo.color, theme === "dark");
+        const colors = getTagColors(tagInfo.color, resolvedTheme === "dark");
         
         return (
           <span

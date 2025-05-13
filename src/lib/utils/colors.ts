@@ -103,25 +103,19 @@ export const colorOptions = [
 
 /**
  * Get background and text colors for a tag based on its color
+ * 
+ * The database stores the canonical light mode color value (e.g. #10B981).
+ * This function maps that value to the appropriate theme variant based on isDarkMode.
  */
 export function getTagColors(tagColor: string, isDarkMode = false) {
-  const colorOption = colorOptions.find(option => 
-    isDarkMode 
-      ? option.dark.value === tagColor 
-      : option.value === tagColor
-  );
+  // Find the matching color definition by the canonical light mode value
+  const colorOption = colorOptions.find(option => option.value === tagColor);
 
   if (colorOption) {
-    if (isDarkMode) {
-      return {
-        background: colorOption.dark.background,
-        text: colorOption.dark.text
-      };
-    }
-    return {
-      background: colorOption.background,
-      text: colorOption.text
-    };
+    // Return the appropriate theme variant
+    return isDarkMode
+      ? { background: colorOption.dark.background, text: colorOption.dark.text }
+      : { background: colorOption.background, text: colorOption.text };
   }
 
   // Fallback for custom colors

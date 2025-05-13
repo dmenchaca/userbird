@@ -45,7 +45,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
   
-  const { theme } = useTheme()
+  const { theme, resolvedTheme } = useTheme()
   
   // Filter responses based on search query
   const filteredResponses = responses.filter(response => {
@@ -462,6 +462,27 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     }
   }));
 
+  // Add this near the beginning of your component where theme is defined
+  const renderTag = (response: FeedbackResponse) => {
+    if (!response.tag) return null;
+    
+    const tagColors = getTagColors(response.tag.color, resolvedTheme === "dark");
+    
+    return (
+      <div 
+        className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-full px-2 text-[12px] leading-[120%] font-medium"
+        style={{ 
+          backgroundColor: tagColors.background,
+          color: tagColors.text
+        }}
+      >
+        <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">
+          <span className="whitespace-nowrap overflow-hidden text-ellipsis">{response.tag.name}</span>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -839,17 +860,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                           userSelect: "none"
                         }}
                       >
-                        <div 
-                          className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-full px-2 text-[12px] leading-[120%] font-medium"
-                          style={{ 
-                            backgroundColor: getTagColors(response.tag.color, theme === "dark").background,
-                            color: getTagColors(response.tag.color, theme === "dark").text
-                          }}
-                        >
-                          <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">
-                            <span className="whitespace-nowrap overflow-hidden text-ellipsis">{response.tag.name}</span>
-                          </div>
-                        </div>
+                        {renderTag(response)}
                       </div>
                     ) : null}
                     {response.status === 'closed' && (
