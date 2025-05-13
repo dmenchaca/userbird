@@ -62,6 +62,16 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
     )
   })
 
+  // Log theme values whenever they change
+  useEffect(() => {
+    console.log('[FeedbackInbox] Theme state:', { 
+      theme, 
+      resolvedTheme, 
+      documentHasDarkClass: typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : 'N/A',
+      mediaQueryDark: typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'N/A'
+    });
+  }, [theme, resolvedTheme]);
+
   // Function to fetch responses
   const fetchResponses = async (skipLoadingState = false) => {
     try {
@@ -466,7 +476,16 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   const renderTag = (response: FeedbackResponse) => {
     if (!response.tag) return null;
     
-    const tagColors = getTagColors(response.tag.color, resolvedTheme === "dark");
+    const isDarkMode = resolvedTheme === "dark";
+    console.log(`[FeedbackInbox] Rendering tag "${response.tag.name}" with color ${response.tag.color}:`, {
+      theme,
+      resolvedTheme,
+      isDarkMode,
+      tagColor: response.tag.color
+    });
+    
+    const tagColors = getTagColors(response.tag.color, isDarkMode);
+    console.log(`[FeedbackInbox] Tag colors returned:`, tagColors);
     
     return (
       <div 

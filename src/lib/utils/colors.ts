@@ -108,19 +108,29 @@ export const colorOptions = [
  * This function maps that value to the appropriate theme variant based on isDarkMode.
  */
 export function getTagColors(tagColor: string, isDarkMode = false) {
+  console.log(`[getTagColors] Called with:`, { tagColor, isDarkMode });
+  
   // Find the matching color definition by the canonical light mode value
   const colorOption = colorOptions.find(option => option.value === tagColor);
+  
+  console.log(`[getTagColors] Found color option:`, colorOption);
 
   if (colorOption) {
     // Return the appropriate theme variant
-    return isDarkMode
+    const result = isDarkMode
       ? { background: colorOption.dark.background, text: colorOption.dark.text }
       : { background: colorOption.background, text: colorOption.text };
+    
+    console.log(`[getTagColors] Returning colors:`, result);
+    return result;
   }
 
   // Fallback for custom colors
-  return {
+  const fallback = {
     background: `${tagColor}25`,
     text: tagColor
   };
+  
+  console.log(`[getTagColors] Using fallback colors:`, fallback);
+  return fallback;
 } 

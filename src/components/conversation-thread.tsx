@@ -769,6 +769,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     }
 
+    // Add a useEffect to log theme state changes
+    useEffect(() => {
+      console.log('[ConversationThread] Theme state:', { 
+        theme, 
+        resolvedTheme, 
+        documentHasDarkClass: typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : 'N/A',
+        mediaQueryDark: typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'N/A'
+      });
+    }, [theme, resolvedTheme]);
+
     // Add the tag change event renderer
     const renderTagChangeEvent = (reply: FeedbackReply) => {
       // Format date in a readable format
@@ -814,7 +824,16 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         if (!tagInfo) return "a label";
         
         // Get tag colors using the same function as inbox
-        const colors = getTagColors(tagInfo.color, resolvedTheme === "dark");
+        const isDarkMode = resolvedTheme === "dark";
+        console.log(`[ConversationThread] Rendering tag "${tagInfo.name}" with color ${tagInfo.color}:`, {
+          theme,
+          resolvedTheme,
+          isDarkMode,
+          tagColor: tagInfo.color
+        });
+        
+        const colors = getTagColors(tagInfo.color, isDarkMode);
+        console.log(`[ConversationThread] Tag colors returned:`, colors);
         
         return (
           <span
