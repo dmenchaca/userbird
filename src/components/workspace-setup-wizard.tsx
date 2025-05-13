@@ -30,6 +30,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [backgroundCreating, setBackgroundCreating] = useState(false)
   const [backgroundError, setBackgroundError] = useState<string | null>(null)
   const [hoveredFeature, setHoveredFeature] = useState<'widget' | 'guarantee' | 'slack' | null>(null)
+  const [videoPlaying, setVideoPlaying] = useState(false)
   const navigate = useNavigate()
   
   // Get user's first name for the welcome message
@@ -298,6 +299,16 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
 
+  // Function to handle video play
+  const handleVideoPlay = () => {
+    setVideoPlaying(true);
+    const video = document.getElementById("welcome-video") as HTMLVideoElement;
+    if (video) {
+      video.style.display = "block";
+      video.play().catch(e => console.error("Error playing video:", e));
+    }
+  };
+
   return (
     <div 
       id="wizard-container"
@@ -388,45 +399,66 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
                 </div>
                 
-                <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, backgroundColor: "#f5f5f5", borderRadius: "8px" }}>
+                <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: "8px", border: "1px solid hsl(var(--muted))" }}>
                   {/* Thumbnail placeholder that shows immediately */}
-                  <div 
+                  {!videoPlaying && (
+                    <div 
+                      id="video-thumbnail"
+                      style={{ 
+                        position: "absolute", 
+                        top: 0, 
+                        left: 0, 
+                        width: "100%", 
+                        height: "100%", 
+                        backgroundImage: "url('https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Video%20thumbnail.webp')", 
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        zIndex: 2
+                      }}
+                      onClick={handleVideoPlay}
+                    >
+                      <div style={{ 
+                        width: "64px", 
+                        height: "64px", 
+                        borderRadius: "50%", 
+                        backgroundColor: "rgba(0,0,0,0.7)", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8 5V19L19 12L8 5Z" fill="white" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Video player */}
+                  <video 
+                    id="welcome-video"
                     style={{ 
                       position: "absolute", 
                       top: 0, 
                       left: 0, 
                       width: "100%", 
                       height: "100%", 
-                      backgroundImage: "url('https://cdn.loom.com/sessions/thumbnails/2972dfe00ea24bf5b0f39d0ee8d7bdd1-with-play.jpg')", 
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
                       borderRadius: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
+                      display: videoPlaying ? "block" : "none"
                     }}
+                    controls
+                    preload="metadata"
                   >
-                    <div style={{ 
-                      width: "64px", 
-                      height: "64px", 
-                      borderRadius: "50%", 
-                      backgroundColor: "rgba(0,0,0,0.7)", 
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center" 
-                    }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8 5V19L19 12L8 5Z" fill="white" />
-                      </svg>
-                    </div>
-                  </div>
-                  <iframe 
-                    src="https://www.loom.com/embed/2972dfe00ea24bf5b0f39d0ee8d7bdd1?sid=c5b01737-eb77-4bc8-bc41-e391a2c7ecd5&hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true"
-                    frameBorder="0" 
-                    allowFullScreen 
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", borderRadius: "8px" }}
-                    loading="lazy"
-                  />
+                    <source 
+                      src="https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Welcome%20Userbird%20for%20import.webm" 
+                      type="video/webm" 
+                    />
+                    Your browser does not support the video tag.
+                  </video>
                 </div>
                 
                 {/* Feature rows with hover effect */}
