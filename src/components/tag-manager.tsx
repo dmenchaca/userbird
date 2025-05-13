@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { colorOptions } from '@/lib/utils/colors'
+import { useTheme } from "next-themes"
 
 interface TagManagerProps {
   formId: string
@@ -25,6 +26,8 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#3B82F6') // Default blue
   const [isFavoriteTag, setIsFavoriteTag] = useState(false)
+  const { theme } = useTheme()
+  const isDarkMode = theme === "dark"
 
   // Fetch tags
   useEffect(() => {
@@ -215,6 +218,25 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
     setShowEditTagDialog(true)
   }
 
+  // Update the style for tag color display
+  const getColorStyle = (colorValue: string) => {
+    const colorOption = colorOptions.find(c => 
+      isDarkMode ? c.dark.value === colorValue : c.value === colorValue
+    );
+    
+    if (isDarkMode && colorOption) {
+      return {
+        backgroundColor: colorOption.dark.value,
+        borderColor: `${colorOption.dark.value}70`
+      };
+    }
+    
+    return {
+      backgroundColor: colorValue,
+      borderColor: `${colorValue}70`
+    };
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -261,10 +283,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                 >
                   <div 
                     className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-[3px] px-[6px] text-[12px] leading-[120%]"
-                    style={{ 
-                      backgroundColor: `${tag.color}20`,
-                      color: `${tag.color}E0`
-                    }}
+                    style={getColorStyle(tag.color)}
                   >
                     <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">
                       <span className="whitespace-nowrap overflow-hidden text-ellipsis">{tag.name}</span>
@@ -342,13 +361,10 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                     <div className="flex items-center">
                       <div
                         className="w-4 h-4 rounded border"
-                        style={{ 
-                          backgroundColor: `${newTagColor}30`,
-                          borderColor: `${newTagColor}70`
-                        }}
+                        style={getColorStyle(newTagColor)}
                       />
                       <span className="ml-2 text-sm text-foreground">
-                        {colorOptions.find(c => c.value === newTagColor)?.name || 'Select color'}
+                        {colorOptions.find(c => isDarkMode ? c.dark.value === newTagColor : c.value === newTagColor)?.name || 'Select color'}
                       </span>
                     </div>
                     <ChevronDown className="h-4 w-4 opacity-50" />
@@ -375,10 +391,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                       >
                         <div 
                           className="w-5 h-5 rounded border" 
-                          style={{ 
-                            backgroundColor: `${color.value}30`,
-                            borderColor: `${color.value}70`
-                          }}
+                          style={getColorStyle(color.value)}
                         />
                         <span className="text-sm text-foreground">{color.name}</span>
                         {newTagColor === color.value && (
@@ -446,13 +459,10 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                     <div className="flex items-center">
                       <div
                         className="w-4 h-4 rounded border"
-                        style={{ 
-                          backgroundColor: `${newTagColor}30`,
-                          borderColor: `${newTagColor}70`
-                        }}
+                        style={getColorStyle(newTagColor)}
                       />
                       <span className="ml-2 text-sm text-foreground">
-                        {colorOptions.find(c => c.value === newTagColor)?.name || 'Select color'}
+                        {colorOptions.find(c => isDarkMode ? c.dark.value === newTagColor : c.value === newTagColor)?.name || 'Select color'}
                       </span>
                     </div>
                     <ChevronDown className="h-4 w-4 opacity-50" />
@@ -479,10 +489,7 @@ export function TagManager({ formId, onTagsChange }: TagManagerProps) {
                       >
                         <div 
                           className="w-5 h-5 rounded border" 
-                          style={{ 
-                            backgroundColor: `${color.value}30`,
-                            borderColor: `${color.value}70`
-                          }}
+                          style={getColorStyle(color.value)}
                         />
                         <span className="text-sm text-foreground">{color.name}</span>
                         {newTagColor === color.value && (

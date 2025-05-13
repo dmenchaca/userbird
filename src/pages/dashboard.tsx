@@ -26,6 +26,7 @@ import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 import { WorkspaceCreatorDialog } from '@/components/workspace-creator-dialog'
 import { updateFeedbackTag } from '@/lib/services/feedback-tags'
 import { colorOptions } from '@/lib/utils/colors'
+import { useTheme } from "next-themes"
 
 interface DashboardProps {
   initialFormId?: string
@@ -76,6 +77,8 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [editTagIsFavorite, setEditTagIsFavorite] = useState(false)
   // New state for tracking widget callout dismissal
   const [widgetCalloutDismissed, setWidgetCalloutDismissed] = useState(false)
+  const { theme } = useTheme()
+  const isDarkMode = theme === "dark"
   
   // Team member assignment states
   const [collaborators, setCollaborators] = useState<{
@@ -1395,6 +1398,25 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     );
   }
 
+  // Helper function to get color styles based on theme
+  const getColorStyle = (colorValue: string) => {
+    const colorOption = colorOptions.find(c => 
+      isDarkMode ? c.dark.value === colorValue : c.value === colorValue
+    );
+    
+    if (isDarkMode && colorOption) {
+      return {
+        backgroundColor: colorOption.dark.value, // Changed from text to value
+        borderColor: `${colorOption.dark.value}70`
+      };
+    }
+    
+    return {
+      backgroundColor: colorValue, // Changed from text to value
+      borderColor: `${colorValue}70`
+    };
+  };
+
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="fixed left-0 w-[240px] h-screen border-r bg-muted/50 flex flex-col">
@@ -1500,13 +1522,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                   <div className="flex items-center">
                                     <div
                                       className="w-4 h-4 rounded border"
-                                      style={{ 
-                                        backgroundColor: `${quickTagColor}30`,
-                                        borderColor: `${quickTagColor}70`
-                                      }}
+                                      style={getColorStyle(quickTagColor)}
                                     />
                                     <span className="ml-2 text-sm text-foreground">
-                                      {colorOptions.find(c => c.value === quickTagColor)?.name || 'Select color'}
+                                      {colorOptions.find(c => isDarkMode ? c.dark.value === quickTagColor : c.value === quickTagColor)?.name || 'Select color'}
                                     </span>
                                   </div>
                                   <ChevronDown className="h-4 w-4 opacity-50" />
@@ -1526,10 +1545,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     >
                                       <div 
                                         className="w-5 h-5 rounded border" 
-                                        style={{ 
-                                          backgroundColor: `${color.value}30`,
-                                          borderColor: `${color.value}70`
-                                        }}
+                                        style={getColorStyle(color.value)}
                                       />
                                       <span className="text-sm text-foreground">{color.name}</span>
                                       {quickTagColor === color.value && (
@@ -1600,9 +1616,13 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                         <Tag 
                           className="h-3 w-3 flex-shrink-0" 
                           style={{ 
-                            color: tag.color,
-                            fill: `${tag.color}30`,
-                            stroke: tag.color
+                            color: isDarkMode && colorOptions.find(c => c.value === tag.color)?.dark?.value ? 
+                              colorOptions.find(c => c.value === tag.color)?.dark.value : tag.color,
+                            fill: isDarkMode ? 
+                              `${colorOptions.find(c => c.value === tag.color)?.dark?.background || `${tag.color}30`}` :
+                              `${tag.color}30`,
+                            stroke: isDarkMode && colorOptions.find(c => c.value === tag.color)?.dark?.value ? 
+                              colorOptions.find(c => c.value === tag.color)?.dark.value : tag.color
                           }} 
                         />
                         <span className="truncate">{tag.name}</span>
@@ -1655,13 +1675,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     <div className="flex items-center">
                                       <div
                                         className="w-4 h-4 rounded border"
-                                        style={{ 
-                                          backgroundColor: `${editTagColor}30`,
-                                          borderColor: `${editTagColor}70`
-                                        }}
+                                        style={getColorStyle(editTagColor)}
                                       />
                                       <span className="ml-2 text-sm text-foreground">
-                                        {colorOptions.find(c => c.value === editTagColor)?.name || 'Select color'}
+                                        {colorOptions.find(c => isDarkMode ? c.dark.value === editTagColor : c.value === editTagColor)?.name || 'Select color'}
                                       </span>
                                     </div>
                                     <ChevronDown className="h-4 w-4 opacity-50" />
@@ -1681,10 +1698,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                       >
                                         <div 
                                           className="w-5 h-5 rounded border" 
-                                          style={{ 
-                                            backgroundColor: `${color.value}30`,
-                                            borderColor: `${color.value}70`
-                                          }}
+                                          style={getColorStyle(color.value)}
                                         />
                                         <span className="text-sm text-foreground">{color.name}</span>
                                         {editTagColor === color.value && (
@@ -1936,7 +1950,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     <>
                                       <div 
                                         className="w-3 h-3 rounded-full mr-2" 
-                                        style={{ backgroundColor: selectedResponse.tag.color }}
+                                        style={selectedResponse.tag ? getColorStyle(selectedResponse.tag.color) : {}}
                                       />
                                       {selectedResponse.tag.name}
                                     </>
@@ -1980,7 +1994,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                 >
                                   <div 
                                     className="w-3 h-3 rounded-full mr-2" 
-                                    style={{ backgroundColor: tag.color }}
+                                    style={getColorStyle(tag.color)}
                                   />
                                   <span className="truncate">{tag.name}</span>
                                   {selectedResponse.tag_id === tag.id && (

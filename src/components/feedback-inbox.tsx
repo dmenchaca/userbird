@@ -8,6 +8,7 @@ import { Checkbox } from './ui/checkbox'
 import { getTagColors } from '@/lib/utils/colors'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
+import { useTheme } from "next-themes"
 
 interface FeedbackInboxProps {
   formId: string
@@ -43,6 +44,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
+  
+  const { theme } = useTheme()
   
   // Filter responses based on search query
   const filteredResponses = responses.filter(response => {
@@ -839,8 +842,8 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                         <div 
                           className="inline-flex items-center flex-shrink-1 min-w-0 max-w-full h-[20px] rounded-full px-2 text-[12px] leading-[120%] font-medium"
                           style={{ 
-                            backgroundColor: getTagColors(response.tag.color).background,
-                            color: getTagColors(response.tag.color).text
+                            backgroundColor: getTagColors(response.tag.color, theme === "dark").background,
+                            color: getTagColors(response.tag.color, theme === "dark").text
                           }}
                         >
                           <div className="whitespace-nowrap overflow-hidden text-ellipsis inline-flex items-center h-[20px] leading-[20px]">

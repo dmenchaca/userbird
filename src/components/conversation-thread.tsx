@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { toast } from 'sonner'
 import { format, isToday } from 'date-fns'
 import { getTagColors } from '@/lib/utils/colors'
+import { useTheme } from "next-themes"
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -47,6 +48,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const editorRef = useRef<HTMLDivElement>(null)
     const [productName, setProductName] = useState('Userbird')
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
+    const { theme } = useTheme()
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -812,7 +814,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
         if (!tagInfo) return "a label";
         
         // Get tag colors using the same function as inbox
-        const colors = getTagColors(tagInfo.color);
+        const colors = getTagColors(tagInfo.color, theme === "dark");
         
         return (
           <span
