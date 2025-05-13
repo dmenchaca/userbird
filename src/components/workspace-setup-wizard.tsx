@@ -439,7 +439,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       opacity: hoveredFeature && hoveredFeature !== 'widget' ? 0.2 : 1 
                     }}
                   >
-                    <div className="h-8 w-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
+                    <div className="h-8 w-8 rounded-md bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mr-3">
                       <MessageSquare className="h-4 w-4" />
                     </div>
                     <div className="text-left">
@@ -455,7 +455,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       opacity: hoveredFeature && hoveredFeature !== 'guarantee' ? 0.2 : 1 
                     }}
                   >
-                    <div className="h-8 w-8 rounded-md bg-green-50 text-green-600 flex items-center justify-center mr-3">
+                    <div className="h-8 w-8 rounded-md bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 flex items-center justify-center mr-3">
                       <Rocket className="h-4 w-4" />
                     </div>
                     <div className="text-left">
@@ -471,7 +471,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       opacity: hoveredFeature && hoveredFeature !== 'slack' ? 0.2 : 1 
                     }}
                   >
-                    <div className="h-8 w-8 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center mr-3">
+                    <div className="h-8 w-8 rounded-md bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mr-3">
                       <Slack className="h-4 w-4" />
                     </div>
                     <div className="text-left">
