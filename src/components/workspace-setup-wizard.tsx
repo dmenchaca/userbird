@@ -1,4 +1,4 @@
-import { useState, useEffect, KeyboardEvent } from 'react'
+import { useState, useEffect, KeyboardEvent, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth'
 import { Loader, ArrowLeft, MessageSquare, Slack, Rocket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { createSampleFeedback } from '@/lib/sample-feedback'
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -21,6 +23,64 @@ function generateShortId(length = 10): string {
   return result;
 }
 
+// Add custom CSS for Plyr color customization
+const customPlyrStyles = `
+  :root {
+    --plyr-color-main: #1d8eff;
+    --plyr-range-fill-background: #1d8eff;
+    --plyr-badge-background: #1d8eff;
+    --plyr-menu-background: white;
+    --plyr-menu-color: #333;
+    --plyr-menu-border-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Fix icon visibility on hover */
+  .plyr--video .plyr__control:hover {
+    background-color: rgba(29, 142, 255, 0.7) !important; /* Semi-transparent blue */
+  }
+  
+  /* Ensure icons remain visible on hover */
+  .plyr--video .plyr__control:hover svg {
+    color: white !important;
+    opacity: 1 !important;
+  }
+  
+  /* Fix for the play button specifically */
+  .plyr--video .plyr__control[data-plyr="play"]:hover svg {
+    color: white !important;
+    fill: white !important;
+    opacity: 1 !important;
+  }
+  
+  /* Ensure speed menu is visible */
+  .plyr__menu__container {
+    display: block !important;
+  }
+  
+  /* Make all menu items visible */
+  .plyr__menu__container .plyr__control {
+    display: flex !important;
+  }
+  
+  /* Fix menu styling */
+  .plyr__menu__container .plyr__control--back::after {
+    border-right-color: rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* Style the active item in menu */
+  .plyr__menu__container [role="menu"] .plyr__control[aria-checked="true"]::after {
+    background: #1d8eff !important;
+    border-color: #1d8eff !important;
+  }
+  
+  /* Style hovered menu items */
+  .plyr__menu__container [role="menu"] .plyr__control:hover,
+  .plyr__menu__container [role="menuitem"]:hover {
+    background: rgba(29, 142, 255, 0.1) !important;
+    color: #1d8eff !important;
+  }
+`;
+
 export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) {
   const [step, setStep] = useState(1)
   const [productName, setProductName] = useState('')
@@ -30,8 +90,9 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   const [backgroundCreating, setBackgroundCreating] = useState(false)
   const [backgroundError, setBackgroundError] = useState<string | null>(null)
   const [hoveredFeature, setHoveredFeature] = useState<'widget' | 'guarantee' | 'slack' | null>(null)
-  const [videoPlaying, setVideoPlaying] = useState(false)
   const navigate = useNavigate()
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<Plyr | null>(null);
   
   // Get user's first name for the welcome message
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 
@@ -299,15 +360,59 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
     }
   };
 
-  // Function to handle video play
-  const handleVideoPlay = () => {
-    setVideoPlaying(true);
-    const video = document.getElementById("welcome-video") as HTMLVideoElement;
-    if (video) {
-      video.style.display = "block";
-      video.play().catch(e => console.error("Error playing video:", e));
+  // Initialize Plyr as soon as component mounts
+  useEffect(() => {
+    if (videoRef.current) {
+      // Insert custom CSS for Plyr
+      const styleEl = document.createElement('style');
+      styleEl.innerHTML = customPlyrStyles;
+      document.head.appendChild(styleEl);
+
+      playerRef.current = new Plyr(videoRef.current, {
+        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'fullscreen'],
+        hideControls: false,
+        fullscreen: { enabled: true },
+        resetOnEnd: false,
+        invertTime: false,
+        keyboard: { focused: true, global: false },
+        clickToPlay: true,
+        settings: ['speed'],
+        speed: {
+          selected: 1,
+          options: [1, 1.5, 2]
+        },
+        markers: {
+          enabled: true,
+          points: [
+            {
+              time: 57,
+              label: "Your guarantee"
+            }
+          ]
+        }
+      });
+      
+      // Force update the speed menu to ensure all options are displayed
+      setTimeout(() => {
+        if (playerRef.current) {
+          // Trigger a UI update
+          playerRef.current.toggleControls(true);
+          playerRef.current.toggleControls(false);
+          playerRef.current.toggleControls(true);
+        }
+      }, 500);
+
+      // No need to track video playing state with our current implementation
+
+      return () => {
+        if (playerRef.current) {
+          playerRef.current.destroy();
+        }
+        // Remove custom styles when component unmounts
+        document.head.removeChild(styleEl);
+      };
     }
-  };
+  }, [videoRef]);
 
   return (
     <div 
@@ -400,47 +505,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 </div>
                 
                 <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: "8px", border: "1px solid hsl(var(--muted))" }}>
-                  {/* Thumbnail placeholder that shows immediately */}
-                  {!videoPlaying && (
-                    <div 
-                      id="video-thumbnail"
-                      style={{ 
-                        position: "absolute", 
-                        top: 0, 
-                        left: 0, 
-                        width: "100%", 
-                        height: "100%", 
-                        backgroundImage: "url('https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Video%20thumbnail.webp')", 
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        zIndex: 2
-                      }}
-                      onClick={handleVideoPlay}
-                    >
-                      <div style={{ 
-                        width: "64px", 
-                        height: "64px", 
-                        borderRadius: "50%", 
-                        backgroundColor: "rgba(0,0,0,0.7)", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center" 
-                      }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8 5V19L19 12L8 5Z" fill="white" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Video player */}
-                  <video 
-                    id="welcome-video"
+                  <div 
                     style={{ 
                       position: "absolute", 
                       top: 0, 
@@ -448,17 +513,23 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                       width: "100%", 
                       height: "100%", 
                       borderRadius: "8px",
-                      display: videoPlaying ? "block" : "none"
+                      overflow: "hidden"
                     }}
-                    controls
-                    preload="metadata"
                   >
-                    <source 
-                      src="https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Welcome%20Userbird%20for%20import.webm" 
-                      type="video/webm" 
-                    />
-                    Your browser does not support the video tag.
-                  </video>
+                    <video
+                      ref={videoRef}
+                      poster="https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Video%20thumbnail.webp"
+                      style={{ width: "100%", height: "100%" }}
+                      playsInline
+                      className="plyr-video"
+                    >
+                      <source 
+                        src="https://tapssagpmxnjvdwyafsq.supabase.co/storage/v1/object/public/app//Welcome%20Userbird%20for%20import.webm" 
+                        type="video/webm" 
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
                 </div>
                 
                 {/* Feature rows with hover effect */}

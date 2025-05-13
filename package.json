@@ -53,6 +53,7 @@
     "node-fetch": "^2.7.0",
     "openai": "^3.3.0",
     "parse-multipart-data": "^1.5.0",
+    "plyr": "^3.7.8",
     "posthog-js": "^1.116.6",
     "posthog-node": "^3.2.0",
     "react": "^18.2.0",
