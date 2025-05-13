@@ -45,7 +45,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   // Use the status filter coming from props
   const currentStatusFilter = externalStatusFilter;
   
-  const { theme, resolvedTheme } = useTheme()
+  const { resolvedTheme } = useTheme()
   
   // Filter responses based on search query
   const filteredResponses = responses.filter(response => {

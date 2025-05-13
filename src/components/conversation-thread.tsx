@@ -48,7 +48,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const editorRef = useRef<HTMLDivElement>(null)
     const [productName, setProductName] = useState('Userbird')
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
-    const { theme, resolvedTheme } = useTheme()
+    const { resolvedTheme } = useTheme()
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
