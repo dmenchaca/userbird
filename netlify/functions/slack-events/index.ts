@@ -418,11 +418,12 @@ async function processSlackReply(slackEvent: any, teamId: string) {
       .from('slack_integrations')
       .select('bot_token, bot_token_id, form_id')
       .eq('workspace_id', teamId)
+      .eq('channel_id', slackEvent.channel)
       .limit(1)
       .maybeSingle();
     
     if (!slackIntegration?.form_id) {
-      throw new Error(`Could not find Slack integration for workspace: ${teamId}`);
+      throw new Error(`Could not find Slack integration for workspace: ${teamId} and channel: ${slackEvent.channel}`);
     }
     
     // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
@@ -876,11 +877,12 @@ async function sendSlackConfirmation(
       .from('slack_integrations')
       .select('bot_token, bot_token_id')
       .eq('workspace_id', teamId)
+      .eq('channel_id', channelId)
       .limit(1)
       .maybeSingle();
     
     if (!integration) {
-      throw new Error(`No integration found for workspace: ${teamId}`);
+      throw new Error(`No integration found for workspace: ${teamId} and channel: ${channelId}`);
     }
     
     // Get the bot token - either from Vault using bot_token_id or fallback to bot_token
