@@ -43,6 +43,8 @@ const SAMPLE_SCREEN_CATEGORIES = [
   "Desktop"
 ]
 
+import { supabase } from './supabase';
+
 // Helper function to get a random item from an array
 const getRandomItem = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)]
@@ -76,7 +78,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
  * 
  * @param formId The ID of the form to create sample feedback for
  * @param count Number of sample feedback entries to create (default: 3)
- * @returns Promise that resolves immediately after the first request is fired
+ * @returns Promise that resolves after sample feedback is created
  */
 export const createSampleFeedback = async (
   formId: string,
@@ -88,65 +90,46 @@ export const createSampleFeedback = async (
     
     if (uniqueMessages.length === 0) return;
     
-    // Send the first feedback immediately and wait for it to be fired
-    const firstFeedbackData = {
-      formId,
-      message: uniqueMessages[0],
+    // Create all feedback entries at once
+    const feedbackEntries = uniqueMessages.map(message => ({
+      form_id: formId,
+      message,
       user_name: USER_NAME,
       user_email: USER_EMAIL,
       url_path: getRandomItem(SAMPLE_URL_PATHS),
       operating_system: getRandomItem(SAMPLE_OS),
       screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
-    };
+    }));
     
-    // Fire the first request and wait for it to be sent
-    await fetch('/.netlify/functions/feedback', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(firstFeedbackData)
-    }).catch(error => {
-      console.error('Error submitting first sample feedback:', error);
-    });
+    // Insert all entries in a single batch operation
+    const { data: insertedData, error: insertError } = await supabase
+      .from('feedback')
+      .insert(feedbackEntries)
+      .select();
     
-    // Send remaining feedback in the background without waiting
-    if (uniqueMessages.length > 1) {
-      // Fire the rest in the background
-      setTimeout(() => {
-        // Process the remaining messages
-        const remainingMessages = uniqueMessages.slice(1);
-        
-        remainingMessages.forEach((message, index) => {
-          // Add a slight delay between requests to avoid overwhelming the server
-          setTimeout(() => {
-            const feedbackData = {
-              formId,
-              message,
-              user_name: USER_NAME,
-              user_email: USER_EMAIL,
-              url_path: getRandomItem(SAMPLE_URL_PATHS),
-              operating_system: getRandomItem(SAMPLE_OS),
-              screen_category: getRandomItem(SAMPLE_SCREEN_CATEGORIES)
-            };
-            
-            fetch('/.netlify/functions/feedback', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(feedbackData)
-            }).catch(error => {
-              console.error(`Error submitting additional sample feedback ${index + 2}:`, error);
-            });
-          }, index * 300); // 300ms between each request
-        });
-        
-        console.log(`Fired first feedback and scheduled ${remainingMessages.length} additional sample feedback requests for form ${formId}`);
-      }, 0);
+    if (insertError) {
+      console.error('Error inserting sample feedback:', insertError);
+      return;
     }
     
-    console.log(`First sample feedback sent for form ${formId}`);
+    // Trigger AI tagging for each entry
+    if (insertedData && insertedData.length > 0) {
+      insertedData.forEach((feedback, index) => {
+        fetch('/.netlify/functions/ai-tag-feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedbackId: feedback.id,
+            formId: formId,
+            content: uniqueMessages[index]
+          })
+        }).catch(err => console.error(`Error triggering AI tagging for entry ${index}:`, err));
+      });
+    }
+    
+    console.log(`Created ${insertedData?.length || 0} sample feedback entries for form ${formId}`);
   } catch (error) {
     console.error('Error in createSampleFeedback:', error);
   }
