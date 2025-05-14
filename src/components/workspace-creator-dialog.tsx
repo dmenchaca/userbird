@@ -254,7 +254,8 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
       // Track event
       await trackEvent('form_create', user?.id || 'anonymous', {
         form_id: newFormId,
-        product_name: trimmedName
+        product_name: trimmedName,
+        source: 'creator_dialog'
       })
     } catch (error) {
       console.error('Error creating workspace:', error)

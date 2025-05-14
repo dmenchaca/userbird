@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { createSampleFeedback } from '@/lib/sample-feedback'
 import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
+import { trackEvent } from '@/lib/posthog'
 
 interface WorkspaceSetupWizardProps {
   onComplete: () => void
@@ -333,6 +334,13 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         console.error('Error creating sample feedback:', sampleError);
         // Continue even if sample feedback creation fails
       }
+      
+      // Track form creation event
+      await trackEvent('form_create', user?.id || 'anonymous', {
+        form_id: formId,
+        product_name: productName.trim(),
+        source: 'onboarding_wizard'
+      });
       
       // Mark onboarding as complete
       markOnboardingComplete();
