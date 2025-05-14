@@ -181,7 +181,7 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
           owner_id: user?.id,
           show_gif_on_success: true,
           remove_branding: false,
-          keyboard_shortcut: 'L',
+          keyboard_shortcut: 'F',
           gif_urls: [
             'https://media1.tenor.com/m/TqHquUQoqu8AAAAd/you%27re-a-lifesaver-dove.gif',
             'https://media1.tenor.com/m/4PLfYPBvjhQAAAAd/tannerparty-tanner.gif',
