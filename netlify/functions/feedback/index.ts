@@ -132,13 +132,25 @@ export const handler: Handler = async (event) => {
       // Determine the distinct ID to use for tracking
       const distinctId = formId === '4hNUB7DVhf' && user_email ? user_email : 'anonymous';
 
+      // Fetch the product name for this form
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select('product_name')
+        .eq('id', formId)
+        .single();
+
+      if (formError) {
+        console.error('Error fetching form data for tracking:', formError);
+      }
+
       // Determine properties to include based on form ID
       const eventProperties: Record<string, any> = {
         form_id: formId,
         has_user_info: !!user_id || !!user_email,
         has_image: !!image_url,
         operating_system,
-        screen_category
+        screen_category,
+        product_name: formData?.product_name || null
       };
 
       // Only include user_id and user_email for the specific form
