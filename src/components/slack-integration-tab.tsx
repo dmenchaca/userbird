@@ -9,6 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { trackEvent } from '@/lib/posthog';
+import { useAuth } from '@/lib/auth';
 
 interface SlackChannel {
   id: string;
@@ -41,6 +43,7 @@ export function SlackIntegrationTab({
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { user } = useAuth();
   
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,6 +57,12 @@ export function SlackIntegrationTab({
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('success');
         window.history.replaceState({}, '', newUrl);
+
+        // Track Slack connected event
+        trackEvent('slack_connected', user?.id || 'anonymous', {
+          form_id: formId,
+          workspace_name: workspaceName || 'unknown'
+        });
 
         setTimeout(() => {
           setSuccessMessage(null);
@@ -69,7 +78,7 @@ export function SlackIntegrationTab({
         window.history.replaceState({}, '', newUrl);
       }
     }
-  }, [onRefreshChannels]);
+  }, [onRefreshChannels, formId, user?.id, workspaceName]);
 
   const isConnected = !!workspaceName;
 

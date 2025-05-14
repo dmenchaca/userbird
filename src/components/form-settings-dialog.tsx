@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { SlackIntegrationTab } from './slack-integration-tab'
+import { trackEvent } from '@/lib/posthog'
 
 // Interfaces for form settings
 interface FormSettingsDialogProps {
@@ -1494,6 +1495,25 @@ export function FormSettingsDialog({
         channelId,
         channelName: channel.name
       }));
+      
+      // Track Slack channel selection
+      trackEvent('slack_channel_configured', user?.id || 'anonymous', {
+        form_id: formId,
+        workspace_name: slackWorkspaceName || 'unknown',
+        channel_name: channel.name,
+        product_name: productName || null
+      });
+      
+      // Track full Slack setup completion if this is the first time a channel is being set
+      // (originalSlackValues.channelId will be undefined on first setup)
+      if (!originalSlackValues.channelId) {
+        trackEvent('slack_setup_complete', user?.id || 'anonymous', {
+          form_id: formId,
+          workspace_name: slackWorkspaceName || 'unknown', 
+          channel_name: channel.name,
+          product_name: productName || null
+        });
+      }
       
       toast.success(`Channel updated to #${channel.name}`);
     } catch (error) {
