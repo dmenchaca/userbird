@@ -22,6 +22,8 @@ import {
 } from "./ui/select"
 import { supabase } from '@/lib/supabase'
 import { isValidEmail } from '@/lib/utils'
+import { trackEvent } from '@/lib/posthog'
+import { useAuth } from '@/lib/auth'
 
 interface Collaborator {
   id: string
@@ -50,6 +52,7 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
   const [inviteRole, setInviteRole] = useState<'admin' | 'agent'>('agent')
   const [emailError, setEmailError] = useState('')
   const [inviting, setInviting] = useState(false)
+  const { user } = useAuth()
   
   // Fetch collaborators
   useEffect(() => {
@@ -147,6 +150,14 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
       // Add new collaborator to the list
       setCollaborators(prev => [...prev, newCollaborator as Collaborator])
       
+      // Track the invitation event
+      trackEvent('collaborator_invited', user?.id || 'anonymous', {
+        form_id: formId,
+        invitee_email: normalizedEmail,
+        role: inviteRole,
+        auto_accepted: !!existingUserId
+      })
+      
       // Reset form
       setInviteEmail('')
       setInviteRole('agent')
@@ -168,6 +179,10 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
   // Handle role change
   const handleRoleChange = async (collaboratorId: string, newRole: 'admin' | 'agent') => {
     try {
+      // Find the collaborator before updating to get the previous role
+      const collaborator = collaborators.find(c => c.id === collaboratorId);
+      const previousRole = collaborator?.role;
+      
       // Update collaborator role directly in Supabase
       const { data, error } = await supabase
         .from('form_collaborators')
@@ -195,6 +210,16 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
         prev.map(c => c.id === collaboratorId ? updatedCollaborator as Collaborator : c)
       )
       
+      // Track role change event
+      if (collaborator) {
+        trackEvent('collaborator_role_changed', user?.id || 'anonymous', {
+          form_id: formId,
+          invitee_email: collaborator.invitation_email,
+          previous_role: previousRole,
+          new_role: newRole
+        })
+      }
+      
       toast.success('Role updated successfully')
     } catch (error) {
       console.error('Error updating role:', error)
@@ -209,6 +234,9 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
     }
     
     try {
+      // Find the collaborator before removing to get their details for tracking
+      const collaborator = collaborators.find(c => c.id === collaboratorId);
+      
       // Delete collaborator directly from Supabase
       const { error } = await supabase
         .from('form_collaborators')
@@ -223,6 +251,16 @@ export function CollaboratorsTab({ formId }: CollaboratorsTabProps) {
       
       // Remove the collaborator from the list
       setCollaborators(prev => prev.filter(c => c.id !== collaboratorId))
+      
+      // Track the removal event
+      if (collaborator) {
+        trackEvent('collaborator_removed', user?.id || 'anonymous', {
+          form_id: formId,
+          invitee_email: collaborator.invitation_email,
+          role: collaborator.role,
+          was_accepted: collaborator.invitation_accepted
+        })
+      }
       
       toast.success('Collaborator removed successfully')
     } catch (error) {
