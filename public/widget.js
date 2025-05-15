@@ -725,7 +725,6 @@
     
     // Don't close if animation is running (until the submit button is clicked)
     if (isAnimationRunning && !modal.successElement.classList.contains('open')) {
-      console.log('Widget close prevented during animation');
       return;
     }
     
@@ -784,11 +783,6 @@
         const gifUrls = settings.gif_urls || [];
         const removeBranding = settings.remove_branding || false;
         
-        console.log('Form settings loaded:', settings);
-        console.log('Show GIF on success:', showGifOnSuccess);
-        console.log('Custom GIF URLs:', gifUrls);
-        console.log('Remove branding:', removeBranding);
-
         injectStyles(buttonColor);
         modal = createModal();
         setupModal(buttonColor, supportText);
@@ -822,7 +816,6 @@
         return settings;
       })
       .catch(error => {
-        console.error('Error loading form settings:', error);
         injectStyles('#1f2937');
         modal = createModal();
         setupModal('#1f2937', null);
@@ -974,15 +967,11 @@
       
       // Function to get a random GIF URL
       function getRandomGifUrl() {
-        console.log('Getting random GIF, available GIFs:', window.UserBird?.gifUrls);
         if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
           const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
-          console.log('Selected random index:', randomIndex);
           const selectedUrl = window.UserBird.gifUrls[randomIndex];
-          console.log('Selected GIF URL:', selectedUrl);
           return selectedUrl;
         }
-        console.log('No custom GIFs found, not showing a GIF');
         return null;
       }
       
@@ -1170,21 +1159,15 @@
   }
 
   function showSuccessMessage() {
-    console.log('Showing success message. GIF flag:', window.UserBird?.showGifOnSuccess);
-    console.log('Available GIF URLs for success message:', window.UserBird?.gifUrls);
-    
     // Function to get a random GIF URL
     function getRandomGifUrl() {
       if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
         // Randomly select a GIF from the array
         const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
-        console.log('Success message - Selected random index:', randomIndex);
         const selectedUrl = window.UserBird.gifUrls[randomIndex];
-        console.log('Success message - Selected GIF URL:', selectedUrl);
         return selectedUrl;
       }
       // Return null if no GIFs are available
-      console.log('Success message - No custom GIFs found, not showing a GIF');
       return null;
     }
     
@@ -1196,8 +1179,6 @@
       }
     }
     
-    console.log('Success message - Final GIF HTML to display:', gifHtml);
-    
     const successMessage = document.createElement('div');
     successMessage.innerHTML = `
       <h2>${MESSAGES.success.title}</h2>
@@ -1205,7 +1186,6 @@
       ${gifHtml}
     `;
     document.body.appendChild(successMessage);
-    console.log('Success message displayed.');
   }
 
   // Initialize global API
@@ -1215,7 +1195,6 @@
   // Add animation control flags
   window.UserBird.setAnimationRunning = function(isRunning) {
     isAnimationRunning = isRunning;
-    console.log(`Animation running state: ${isRunning}`);
   };
 
   // Enhanced open method - respects the original if it was defined previously
