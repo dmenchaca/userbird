@@ -127,10 +127,10 @@ function InstallPromiseCallout({ formId }: { formId: string }) {
 
 function WidgetInstallSnippet({ formId }: { formId: string }) {
   const [copied, setCopied] = useState(false);
-  const installSnippet = `<!-- Add button on your product -->
-<button id=\"userbird-trigger-${formId}\">Feedback</button>
+  const buttonSnippet = `<!-- Add button on your product -->
+<button id=\"userbird-trigger-${formId}\">Feedback</button>`;
 
-<!-- Initialize Userbird - Place this before the closing </body> tag -->
+  const initSnippet = `<!-- Initialize Userbird - Place this before the closing </body> tag -->
 <script>
   (function(w,d,s) {
     w.UserBird = w.UserBird || {};
@@ -149,6 +149,10 @@ function WidgetInstallSnippet({ formId }: { formId: string }) {
     d.head.appendChild(s);
   })(window, document);
 </script>`;
+
+  const installSnippet = `${buttonSnippet}
+
+${initSnippet}`;
 
   const handleCopy = async () => {
     try {
@@ -193,9 +197,22 @@ function WidgetInstallSnippet({ formId }: { formId: string }) {
         </div>
       </div>
       <InstallPromiseCallout formId={formId} />
-      <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono select-all">
-        {installSnippet}
-      </pre>
+      
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Step 1: Initialize Userbird</Label>
+          <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300">
+            {initSnippet}
+          </pre>
+        </div>
+        
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Step 2: Add the button to your product</Label>
+          <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300">
+            {buttonSnippet}
+          </pre>
+        </div>
+      </div>
     </div>
   );
 }
