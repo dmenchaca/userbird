@@ -93,12 +93,26 @@ export const handler: Handler = async (event) => {
       .eq('owner_id', user.id)
       .single();
 
+    // If user is not the owner, check if they are an admin collaborator
     if (formError || !formData) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ error: 'You do not have permission to access this form' })
-      };
+      // Check if user is an admin collaborator for this form
+      const { data: collaboratorData, error: collaboratorError } = await supabase
+        .from('form_collaborators')
+        .select('form_id')
+        .eq('form_id', formId.trim())
+        .eq('user_id', user.id)
+        .eq('invitation_accepted', true)
+        .eq('role', 'admin')
+        .single();
+      
+      // If user is neither the owner nor an admin collaborator, return 403
+      if (collaboratorError || !collaboratorData) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'You do not have permission to access this form' })
+        };
+      }
     }
 
     // Handle different HTTP methods
