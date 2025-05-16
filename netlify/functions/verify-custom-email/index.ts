@@ -67,7 +67,7 @@ export const handler: Handler = async (event) => {
     // Get custom email settings
     const { data: settings, error: settingsError } = await supabase
       .from('custom_email_settings')
-      .select('*, forms!inner(owner_id)')
+      .select('*, forms!inner(owner_id, id)')
       .eq('id', settingsId)
       .single();
 
@@ -79,8 +79,24 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Check if user owns the form
-    if (settings.forms.owner_id !== user.id) {
+    // Check if user is form owner or admin collaborator
+    let hasPermission = settings.forms.owner_id === user.id;
+    
+    // If not the owner, check if they're an admin collaborator
+    if (!hasPermission) {
+      const { data: collaborator, error: collaboratorError } = await supabase
+        .from('form_collaborators')
+        .select('*')
+        .eq('form_id', settings.forms.id)
+        .eq('user_id', user.id)
+        .eq('invitation_accepted', true)
+        .eq('role', 'admin')
+        .single();
+      
+      hasPermission = !collaboratorError && !!collaborator;
+    }
+    
+    if (!hasPermission) {
       return {
         statusCode: 403,
         headers,

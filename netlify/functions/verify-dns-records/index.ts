@@ -80,11 +80,36 @@ export const handler: Handler = async (event) => {
     // Check if user owns the email settings
     const { data: emailSettings, error: emailError } = await supabase
       .from('custom_email_settings')
-      .select('*, forms!inner(owner_id)')
+      .select('*, forms!inner(owner_id, id)')
       .eq('id', customEmailSettingId)
       .single();
     
-    if (emailError || !emailSettings || emailSettings.forms.owner_id !== user.id) {
+    if (emailError || !emailSettings) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'Custom email settings not found' })
+      };
+    }
+
+    // Check if user is form owner or admin collaborator
+    let hasPermission = emailSettings.forms.owner_id === user.id;
+    
+    // If not the owner, check if they're an admin collaborator
+    if (!hasPermission) {
+      const { data: collaborator, error: collaboratorError } = await supabase
+        .from('form_collaborators')
+        .select('*')
+        .eq('form_id', emailSettings.forms.id)
+        .eq('user_id', user.id)
+        .eq('invitation_accepted', true)
+        .eq('role', 'admin')
+        .single();
+      
+      hasPermission = !collaboratorError && !!collaborator;
+    }
+    
+    if (!hasPermission) {
       return {
         statusCode: 403,
         headers,
