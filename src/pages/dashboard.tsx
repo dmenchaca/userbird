@@ -2274,6 +2274,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                           onStatusChange={handleResponseStatusChange}
                           collaborators={collaborators}
                           availableTags={availableTags}
+                          onShowImagePreview={() => setShowImagePreview(true)}
                         />
                       </div>
                       

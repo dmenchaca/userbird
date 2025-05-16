@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap, Image } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { format, isToday } from 'date-fns'
 import { getTagColors } from '@/lib/utils/colors'
 import { useTheme } from "next-themes"
+import { FeedbackImage } from '../../app/components/FeedbackImage'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -28,6 +29,7 @@ interface ConversationThreadProps {
     invitation_accepted?: boolean
   }>
   availableTags?: FeedbackTag[]
+  onShowImagePreview?: () => void
 }
 
 export interface ConversationThreadRef {
@@ -35,7 +37,7 @@ export interface ConversationThreadRef {
 }
 
 export const ConversationThread = forwardRef<ConversationThreadRef, ConversationThreadProps>(
-  ({ response, onStatusChange, collaborators = [], availableTags }, ref) => {
+  ({ response, onStatusChange, collaborators = [], availableTags, onShowImagePreview }, ref) => {
     if (!response) return null
 
     const { user } = useAuth()
@@ -1316,6 +1318,33 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                     : response.message.trim().replace(/\n/g, '<br>')
                 }} 
               />
+              
+              {/* Add image thumbnail for the main feedback */}
+              {response.image_url && (
+                <div className="px-3 pb-3">
+                  <div className="pt-2 border-t border-border">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                      <Image size={12} />
+                      <span>Image Attachment</span>
+                    </div>
+                    <div 
+                      className="inline-block cursor-pointer rounded overflow-hidden border border-border hover:opacity-90 transition-opacity"
+                      onClick={onShowImagePreview}
+                    >
+                      <FeedbackImage
+                        imagePath={response.image_url}
+                        alt={response.image_name || "Feedback image"}
+                        className="max-w-[200px] max-h-[150px] w-auto h-auto object-contain"
+                      />
+                      {response.image_name && (
+                        <div className="px-2 py-1 text-xs text-muted-foreground truncate max-w-[200px]">
+                          {response.image_name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Reply messages */}
