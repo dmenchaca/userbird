@@ -11,6 +11,8 @@ import { toast } from 'sonner'
 import { format, isToday } from 'date-fns'
 import { getTagColors } from '@/lib/utils/colors'
 import { useTheme } from "next-themes"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { FeedbackImage } from "../../app/components/FeedbackImage"
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -49,6 +51,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [productName, setProductName] = useState('Userbird')
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
     const { resolvedTheme } = useTheme()
+    const [showImagePreview, setShowImagePreview] = useState(false)
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -1316,6 +1319,31 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                     : response.message.trim().replace(/\n/g, '<br>')
                 }} 
               />
+              {response.image_url && (
+                <div className="p-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Attachment included</p>
+                  <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+                    <DialogTrigger asChild>
+                      <div className="cursor-pointer w-auto inline-block">
+                        <FeedbackImage
+                          imagePath={response.image_url}
+                          alt="Feedback attachment thumbnail"
+                          className="max-h-[3rem] max-w-[5rem] object-cover border rounded"
+                        />
+                      </div>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
+                      <div className="p-6">
+                        <FeedbackImage
+                          imagePath={response.image_url}
+                          alt="Feedback attachment"
+                          className="w-full h-auto"
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
             </div>
             
             {/* Reply messages */}
