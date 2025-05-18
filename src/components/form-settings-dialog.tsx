@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check, Slack, Calendar } from 'lucide-react'
+import { LayoutGrid, Trash2, Bell, X, Webhook, Tag, Mail, Users, Sparkles, MessageSquareQuote, Copy, Check, Slack, Calendar, Figma } from 'lucide-react'
 import { areArraysEqual, isValidUrl, isValidEmail, isValidHexColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -207,7 +207,12 @@ ${initSnippet}`;
         </div>
         
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Step 2: Add the button to your product</Label>
+          <div className="flex justify-between items-center">
+            <Label className="text-sm font-medium">Step 2: Add the button to your product</Label>
+            <a href="https://www.figma.com/design/F9mVPkd7OPilKwdXqy8OdZ/Feedback-button-inspiration?node-id=1-2&t=N9QxNXi1P1baZNLL-11" target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "link", size: "sm", className: "text-xs" }) + " flex items-center"}>
+              <Figma className="mr-1 h-3 w-3" /> Save time 🙌: See examples on Figma
+            </a>
+          </div>
           <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300">
             {buttonSnippet}
           </pre>
