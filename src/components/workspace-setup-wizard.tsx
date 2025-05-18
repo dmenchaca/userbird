@@ -617,7 +617,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 >
                   <h2 className="text-2xl font-semibold text-center mb-2">Create your workspace</h2>
                   <p className="text-muted-foreground text-center mb-6">
-                Manage your customer support and feedback hub in a shared workspace with your team.
+                Manage your customer support and feedback with your team.
               </p>
                   <div className="space-y-2 mb-6 max-w-sm mx-auto">
                 <label htmlFor="product-name" className="text-sm font-medium">
