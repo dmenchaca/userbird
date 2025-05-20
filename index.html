@@ -5,10 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Userbird</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
     
     <!-- Userbird Widget Initialization -->
     <script>
@@ -46,6 +42,7 @@
         // Load the widget script
         s = d.createElement('script');
         s.src = 'https://userbird.netlify.app/widget.js';
+        s.defer = true; // Added defer to not block rendering
         s.onload = function() {
           console.log('Userbird widget loaded successfully');
           
@@ -98,5 +95,9 @@
         });
       })(window, document);
     </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
