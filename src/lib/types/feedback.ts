@@ -23,6 +23,14 @@ export interface FeedbackResponse {
     user_name?: string
     avatar_url?: string
   } | null
+  metadata?: {
+    consoleLogs?: Array<{
+      level: string;
+      message: string;
+      timestamp: number;
+      stack?: string;
+    }>;
+  } | null;
   _isExiting?: boolean
   _isNew?: boolean
   _isUpdated?: boolean

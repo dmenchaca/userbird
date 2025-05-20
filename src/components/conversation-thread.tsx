@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap, XCircle, AlertTriangle, Info } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -52,6 +52,24 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
     const { resolvedTheme } = useTheme()
     const [showImagePreview, setShowImagePreview] = useState(false)
+
+    // Calculate log counts for the button
+    let errorCount = 0;
+    let warningCount = 0;
+    let infoLogCount = 0;
+
+    if (response.metadata?.consoleLogs && response.metadata.consoleLogs.length > 0) {
+      response.metadata.consoleLogs.forEach(log => {
+        const level = log.level.toLowerCase();
+        if (['error', 'uncaught', 'unhandledrejection'].includes(level)) {
+          errorCount++;
+        } else if (level === 'warn') {
+          warningCount++;
+        } else {
+          infoLogCount++;
+        }
+      });
+    }
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -1319,29 +1337,70 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                     : response.message.trim().replace(/\n/g, '<br>')
                 }} 
               />
-              {response.image_url && (
-                <div className="p-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-1">Attachment included</p>
-                  <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-                    <DialogTrigger asChild>
-                      <div className="cursor-pointer w-auto inline-block">
-                        <FeedbackImage
-                          imagePath={response.image_url}
-                          alt="Feedback attachment thumbnail"
-                          className="max-h-[3rem] max-w-[5rem] object-cover border rounded"
-                        />
-                      </div>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
-                      <div className="p-6">
-                        <FeedbackImage
-                          imagePath={response.image_url}
-                          alt="Feedback attachment"
-                          className="w-full h-auto"
-                        />
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+              {/* Attachment Section: Renders if there's an image OR logs */}
+              {(response.image_url || (response.metadata?.consoleLogs && response.metadata.consoleLogs.length > 0)) && (
+                <div className="p-3 border-t border-border flex items-start space-x-4">
+                  
+                  {/* Image Display (if image_url exists) */}
+                  {response.image_url && (
+                    <div> 
+                      <p className="text-xs text-muted-foreground mb-1">Attachment</p>
+                      <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+                        <DialogTrigger asChild>
+                          <div className="cursor-pointer w-auto inline-block">
+                            <FeedbackImage
+                              imagePath={response.image_url}
+                              alt="Feedback attachment thumbnail"
+                              className="max-h-[3rem] max-w-[5rem] object-cover border rounded"
+                            />
+                          </div>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
+                          <div className="p-6">
+                            <FeedbackImage
+                              imagePath={response.image_url}
+                              alt="Feedback attachment"
+                              className="w-full h-auto"
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+
+                  {/* Console Logs Button Display (if logs exist) */}
+                  {response.metadata?.consoleLogs && response.metadata.consoleLogs.length > 0 && (
+                    <div> 
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Console Logs
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-8 px-2 py-1 text-xs flex items-center gap-2.5 whitespace-nowrap"
+                        // onClick={() => {/* TODO: Open console logs dialog */}}
+                      >
+                        {errorCount > 0 && (
+                          <span className="flex items-center">
+                            <XCircle className="h-3.5 w-3.5 text-red-500 mr-1" />
+                            {errorCount}
+                          </span>
+                        )}
+                        {warningCount > 0 && (
+                          <span className="flex items-center">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mr-1" />
+                            {warningCount}
+                          </span>
+                        )}
+                        {infoLogCount > 0 && (
+                          <span className="flex items-center">
+                            <Info className="h-3.5 w-3.5 text-blue-500 mr-1" />
+                            {infoLogCount}
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
