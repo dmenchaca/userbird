@@ -11,9 +11,221 @@
   let successSound = null;
   let isAnimationRunning = false;
   
+  // Log buffer for console capture
+  const MAX_LOG_ENTRIES = 100;
+  let logBuffer = [];
+  let consoleOriginals = {};
+  let errorThrottleCount = 0;
+  let lastErrorTime = 0;
+  
   // Store the original open method if one is defined
   const originalOpen = window.UserBird && typeof window.UserBird.open === 'function' ? 
                       window.UserBird.open : null;
+  
+  // Initialize console log capture
+  function initConsoleCapture() {
+    // Skip in development mode
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+      return;
+    }
+    
+    // Only wrap if console exists
+    if (typeof console !== 'undefined') {
+      // Store original methods
+      consoleOriginals = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error,
+        info: console.info,
+        debug: console.debug,
+        trace: console.trace
+      };
+      
+      // Wrap each method
+      console.log = wrapConsoleMethod('log', consoleOriginals.log);
+      console.warn = wrapConsoleMethod('warn', consoleOriginals.warn);
+      console.error = wrapConsoleMethod('error', consoleOriginals.error);
+      console.info = wrapConsoleMethod('info', consoleOriginals.info);
+      console.debug = wrapConsoleMethod('debug', consoleOriginals.debug);
+      console.trace = wrapConsoleMethod('trace', consoleOriginals.trace);
+      
+      // Add global error listeners
+      window.addEventListener('error', captureGlobalError);
+      window.addEventListener('unhandledrejection', captureUnhandledRejection);
+      
+      // Show a notification in dev environments when using localhost
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        consoleOriginals.info('[Userbird] Console logs are being captured for feedback reports.');
+      }
+    }
+  }
+  
+  // Format log message for storage
+  function formatLogMessage(args) {
+    try {
+      return Array.from(args).map(arg => {
+        if (arg === null) return 'null';
+        if (arg === undefined) return 'undefined';
+        if (typeof arg === 'string') return arg;
+        if (arg instanceof Error) {
+          return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
+        }
+        try {
+          // For DOM nodes, return a simplified representation
+          if (arg instanceof Node) {
+            if (arg.nodeType === Node.ELEMENT_NODE) {
+              const el = arg;
+              const attrs = Array.from(el.attributes || [])
+                .map(attr => `${attr.name}="${attr.value}"`)
+                .join(' ');
+              return `<${el.tagName.toLowerCase()}${attrs ? ' ' + attrs : ''}${el.children.length ? '...' : ' /'}>`; 
+            }
+            return `[${arg.nodeName}]`;
+          }
+          
+          // For complex objects, use a more concise stringification
+          if (typeof arg === 'object') {
+            // Check if it's a native object like Response, Request, etc.
+            const objClass = Object.prototype.toString.call(arg);
+            if (objClass !== '[object Object]' && objClass !== '[object Array]') {
+              return objClass;
+            }
+            
+            // For regular objects and arrays, stringify with limits
+            return JSON.stringify(arg, (key, value) => {
+              // Limit string values to 100 chars
+              if (typeof value === 'string' && value.length > 100) {
+                return value.substring(0, 100) + '...';
+              }
+              return value;
+            }, 2);
+          }
+          
+          return String(arg);
+        } catch (e) {
+          return String(arg);
+        }
+      }).join(' ');
+    } catch (e) {
+      return 'Error formatting log message';
+    }
+  }
+  
+  // Wrap console method with logger
+  function wrapConsoleMethod(level, originalMethod) {
+    return function() {
+      // Call original method
+      originalMethod.apply(console, arguments);
+      
+      // Capture log for buffer
+      try {
+        const message = formatLogMessage(arguments);
+        
+        // Truncate if too long
+        const truncatedMessage = message.length > 500 ? message.substring(0, 500) + '...(truncated)' : message;
+        
+        addLogEntry({
+          level: level,
+          message: truncatedMessage,
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        // If logging fails, don't break the console
+      }
+    };
+  }
+  
+  // Capture global errors
+  function captureGlobalError(event) {
+    // Throttle error capture (first 10 errors at full rate, then 1 per second)
+    const now = Date.now();
+    if (errorThrottleCount >= 10 && (now - lastErrorTime < 1000)) {
+      return;
+    }
+    
+    lastErrorTime = now;
+    errorThrottleCount++;
+    
+    addLogEntry({
+      level: 'uncaught',
+      message: `${event.message || 'Unknown error'} at ${event.filename || 'unknown'}:${event.lineno || '?'}:${event.colno || '?'}`,
+      timestamp: now,
+      stack: event.error?.stack
+    });
+  }
+  
+  // Capture unhandled promise rejections
+  function captureUnhandledRejection(event) {
+    // Apply same throttling as errors
+    const now = Date.now();
+    if (errorThrottleCount >= 10 && (now - lastErrorTime < 1000)) {
+      return;
+    }
+    
+    lastErrorTime = now;
+    errorThrottleCount++;
+    
+    let message = 'Unhandled Promise Rejection';
+    let stack = null;
+    
+    if (event.reason) {
+      if (typeof event.reason === 'string') {
+        message = event.reason;
+      } else if (event.reason instanceof Error) {
+        message = event.reason.message || 'Unhandled Promise Rejection';
+        stack = event.reason.stack;
+      } else {
+        try {
+          message = JSON.stringify(event.reason);
+        } catch (e) {
+          message = 'Unhandled Promise Rejection (unstringifiable object)';
+        }
+      }
+    }
+    
+    addLogEntry({
+      level: 'unhandledrejection',
+      message: message,
+      timestamp: now,
+      stack
+    });
+  }
+  
+  // Add entry to circular buffer
+  function addLogEntry(entry) {
+    logBuffer.push(entry);
+    
+    // Keep buffer size limited
+    if (logBuffer.length > MAX_LOG_ENTRIES) {
+      logBuffer.shift();
+    }
+  }
+  
+  // Get recent logs for feedback submission
+  function getRecentLogs() {
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    
+    // Filter logs to last 5 minutes
+    const recentLogs = logBuffer.filter(entry => entry.timestamp >= fiveMinutesAgo);
+    
+    // Enforce payload size limit (50KB estimate)
+    let totalSize = 0;
+    const logs = [];
+    
+    for (let i = recentLogs.length - 1; i >= 0; i--) {
+      const log = recentLogs[i];
+      const entrySize = JSON.stringify(log).length;
+      
+      if (totalSize + entrySize > 50000) {
+        break;
+      }
+      
+      logs.unshift(log); // Maintain chronological order
+      totalSize += entrySize;
+    }
+    
+    return logs;
+  }
   
   // Simplified direct approach to handle trigger button clicks
   function setupTriggerEvents() {
@@ -743,6 +955,9 @@
   }
 
   async function init() {
+    // Initialize console log capture
+    initConsoleCapture();
+    
     window.addEventListener('focus', () => {
       if (pressedKeys.size > 0) {
         pressedKeys.clear();
@@ -936,6 +1151,9 @@
     const systemInfo = getSystemInfo();
     const userInfo = window.UserBird?.user || {};
     let imageData = null;
+    
+    // Collect console logs for metadata
+    const consoleLogs = getRecentLogs();
 
     if (selectedImage) {
       try {
@@ -1039,7 +1257,10 @@
           user_name: userInfo.name,
           image_url: imageData?.url,
           image_name: imageData?.name,
-          image_size: imageData?.size
+          image_size: imageData?.size,
+          metadata: {
+            consoleLogs: consoleLogs
+          }
         })
       });
 
