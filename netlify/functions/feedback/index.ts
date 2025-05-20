@@ -68,7 +68,8 @@ export const handler: Handler = async (event) => {
       user_id,
       user_email,
       user_name,
-      url_path
+      url_path,
+      metadata
     } = body;
 
     if (!formId || !message?.trim()) {
@@ -116,7 +117,8 @@ export const handler: Handler = async (event) => {
         user_email: user_email || null,
         user_name: user_name || null,
         url_path: url_path || null,
-        operating_system: operating_system || 'Unknown'
+        operating_system: operating_system || 'Unknown',
+        metadata: metadata || null
       }])
       .select();
 
@@ -124,7 +126,9 @@ export const handler: Handler = async (event) => {
 
     console.log('Feedback insert result:', {
       hasData: !!feedbackData,
-      dataLength: feedbackData?.length || 0
+      dataLength: feedbackData?.length || 0,
+      hasMetadata: !!metadata,
+      metadataSize: metadata ? JSON.stringify(metadata).length : 0
     });
 
     // Track feedback submission
