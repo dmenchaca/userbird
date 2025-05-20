@@ -1372,7 +1372,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   {response.metadata?.consoleLogs && response.metadata.consoleLogs.length > 0 && (
                     <div> 
                       <p className="text-xs text-muted-foreground mb-1">
-                        Console Logs
+                        Console logs
                       </p>
                       <Button 
                         variant="outline" 
