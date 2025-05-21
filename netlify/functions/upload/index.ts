@@ -17,6 +17,11 @@ console.log('Upload function configuration:', {
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
 
+function sanitizeFilename(filename: string): string {
+  // Replace any non-alphanumeric characters except for safe punctuation with underscores
+  return filename.replace(/[^\w\s.-]/g, '_');
+}
+
 function getCorsHeaders(origin: string | undefined) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
@@ -133,10 +138,11 @@ export const handler: Handler = async (event) => {
           });
 
           // Upload to Supabase Storage
+          const sanitizedFileName = sanitizeFilename(fileName);
           const { data, error } = await supabase.storage
             .from('feedback-images')
             .upload(
-              `${formId}/${Date.now()}-${fileName}`,
+              `${formId}/${Date.now()}-${sanitizedFileName}`,
               fileBuffer,
               {
                 contentType: fileType,
