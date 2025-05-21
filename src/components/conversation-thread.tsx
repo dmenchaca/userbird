@@ -13,6 +13,7 @@ import { getTagColors } from '@/lib/utils/colors'
 import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { FeedbackImage } from "../../app/components/FeedbackImage"
+import { ConsoleLogsDialog } from './console-logs-dialog'
 
 interface ConversationThreadProps {
   response: FeedbackResponse | null
@@ -52,6 +53,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const [supportEmail, setSupportEmail] = useState('support@userbird.co')
     const { resolvedTheme } = useTheme()
     const [showImagePreview, setShowImagePreview] = useState(false)
+    const [showConsoleLogsDialog, setShowConsoleLogsDialog] = useState(false)
 
     // Calculate log counts for the button
     let errorCount = 0;
@@ -1378,7 +1380,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                         variant="outline" 
                         size="sm"
                         className="h-8 px-2 py-1 text-xs flex items-center gap-2.5 whitespace-nowrap"
-                        // onClick={() => {/* TODO: Open console logs dialog */}}
+                        onClick={() => setShowConsoleLogsDialog(true)}
                       >
                         {errorCount > 0 && (
                           <span className="flex items-center">
@@ -1399,6 +1401,15 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                           </span>
                         )}
                       </Button>
+                      
+                      {/* Console Logs Dialog */}
+                      {response.metadata?.consoleLogs && (
+                        <ConsoleLogsDialog 
+                          logs={response.metadata.consoleLogs}
+                          open={showConsoleLogsDialog}
+                          onOpenChange={setShowConsoleLogsDialog}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
