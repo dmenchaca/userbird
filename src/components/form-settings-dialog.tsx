@@ -43,6 +43,7 @@ interface FormSettingsDialogProps {
   soundEnabled: boolean
   showGifOnSuccess: boolean
   removeBranding: boolean
+  collectConsoleLogs: boolean
   initialGifUrls?: string[]
   initialTab?: SettingsTab
   open: boolean
@@ -232,6 +233,7 @@ export function FormSettingsDialog({
   soundEnabled: initialSoundEnabled,
   showGifOnSuccess: initialShowGifOnSuccess,
   removeBranding: initialRemoveBranding,
+  collectConsoleLogs: initialCollectConsoleLogs,
   initialGifUrls = [],
   initialTab,
   open, 
@@ -252,6 +254,7 @@ export function FormSettingsDialog({
       soundEnabled: false,
       showGifOnSuccess: false,
       removeBranding: false,
+      collectConsoleLogs: true,
       gifUrls: [] as string[]
     },
     notifications: {
@@ -286,6 +289,7 @@ export function FormSettingsDialog({
   const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
   const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
+  const [collectConsoleLogs, setCollectConsoleLogs] = useState(initialCollectConsoleLogs)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
@@ -346,6 +350,7 @@ export function FormSettingsDialog({
           soundEnabled: initialSoundEnabled,
           showGifOnSuccess: initialShowGifOnSuccess,
           removeBranding: initialRemoveBranding,
+          collectConsoleLogs: initialCollectConsoleLogs,
           gifUrls: initialGifUrls || []
         }
       }));
@@ -361,6 +366,7 @@ export function FormSettingsDialog({
     initialSoundEnabled,
     initialShowGifOnSuccess,
     initialRemoveBranding,
+    initialCollectConsoleLogs,
     initialGifUrls
   ]);
 
@@ -881,6 +887,7 @@ export function FormSettingsDialog({
     setSoundEnabled(initialSoundEnabled);
     setShowGifOnSuccess(initialShowGifOnSuccess);
     setRemoveBranding(initialRemoveBranding);
+    setCollectConsoleLogs(initialCollectConsoleLogs);
     setGifUrls(initialGifUrls);
     setGifUrlsText(initialGifUrls.join('\n'));
   };
@@ -895,13 +902,14 @@ export function FormSettingsDialog({
     setSoundEnabled(initialSoundEnabled);
     setShowGifOnSuccess(initialShowGifOnSuccess);
     setRemoveBranding(initialRemoveBranding);
+    setCollectConsoleLogs(initialCollectConsoleLogs);
     
     // Debug log to verify productName is being received correctly
     console.log('[FormSettingsDialog] Updated product name from props:', {
       receivedProductName: productName,
       setProductValue: productName || ''
     });
-  }, [buttonColor, supportText, formUrl, productName, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding]);
+  }, [buttonColor, supportText, formUrl, productName, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding, initialCollectConsoleLogs]);
 
   // Auto-save sound enabled state
   /*
@@ -1336,6 +1344,40 @@ export function FormSettingsDialog({
     }
   };
 
+  // Handle collect console logs toggle to save changes
+  const handleCollectConsoleLogsChange = async (checked: boolean) => {
+    if (checked === originalValues.styling.collectConsoleLogs) {
+      return;
+    }
+
+    setCollectConsoleLogs(checked);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ collect_console_logs: checked })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          collectConsoleLogs: checked
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success(`Console logs collection ${checked ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating console logs collection setting:', error);
+      setCollectConsoleLogs(originalValues.styling.collectConsoleLogs);
+      toast.error(`Failed to ${checked ? 'enable' : 'disable'} console logs collection`);
+    }
+  };
+
   // Handle product name blur to save changes
   const handleProductNameBlur = async () => {
     if (product === originalValues.styling.productName) {
@@ -1736,10 +1778,11 @@ export function FormSettingsDialog({
                         </p>
                       </div>
                     </div>
+
                   </div>
                 )}
                 {activeTab === 'widget' && (
-                  <div className="space-y-8">
+                  <div className="space-y-8 pb-10">
                     <WidgetInstallSnippet formId={formId} />
                     <div className="space-y-3">
                       <Label htmlFor="url" className="flex items-center gap-1">
@@ -1894,6 +1937,24 @@ export function FormSettingsDialog({
                             </p>
                           </div>
                         )}
+                      </div>
+                      
+                      <div className="space-y-3 mt-6 pt-6 border-t mb-8">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-2">
+                            <Label>Collect console logs</Label>
+                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                              NEW
+                            </span>
+                          </div>
+                          <Switch
+                            checked={collectConsoleLogs}
+                            onCheckedChange={handleCollectConsoleLogsChange}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Automatically collect console logs to help with debugging
+                        </p>
                       </div>
                     </div>
                   </div>

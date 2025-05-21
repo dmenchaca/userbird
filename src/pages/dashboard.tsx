@@ -46,6 +46,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(false)
   const [removeBranding, setRemoveBranding] = useState(false)
+  const [collectConsoleLogs, setCollectConsoleLogs] = useState(false)
   const [gifUrls, setGifUrls] = useState<string[]>([])
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
@@ -333,7 +334,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         // First try to fetch as owner
         let { data, error } = await supabase
           .from('forms')
-          .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+          .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
           .eq('id', selectedFormId)
           .eq('owner_id', user.id)
           .single();
@@ -351,7 +352,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             // User has collaborative access, fetch form details
             const { data: formData, error: formError } = await supabase
               .from('forms')
-              .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+              .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
               .eq('id', selectedFormId)
               .single();
 
@@ -371,6 +372,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           setShowGifOnSuccess(data.show_gif_on_success);
           setGifUrls(data.gif_urls || []);
           setRemoveBranding(data.remove_branding);
+          setCollectConsoleLogs(data.collect_console_logs ?? false);
         }
       };
 
@@ -2387,6 +2389,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             soundEnabled={soundEnabled}
             showGifOnSuccess={showGifOnSuccess}
             removeBranding={removeBranding}
+            collectConsoleLogs={collectConsoleLogs}
             initialGifUrls={gifUrls}
             initialTab={settingsActiveTab}
             open={showSettingsDialog}
@@ -2398,7 +2401,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                 // First try to fetch as owner
                 let { data, error } = await supabase
                   .from('forms')
-                  .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+                  .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
                   .eq('id', selectedFormId)
                   .eq('owner_id', user?.id || '')
                   .single();
@@ -2416,7 +2419,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                     // User has collaborative access, fetch form details
                     const { data: formData, error: formError } = await supabase
                       .from('forms')
-                      .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding')
+                      .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
                       .eq('id', selectedFormId)
                       .single();
 
@@ -2436,6 +2439,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   setShowGifOnSuccess(data.show_gif_on_success);
                   setGifUrls(data.gif_urls || []);
                   setRemoveBranding(data.remove_branding);
+                  setCollectConsoleLogs(data.collect_console_logs ?? false);
                 }
               };
 
