@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { XCircle, AlertTriangle, Info, Search, X } from "lucide-react";
 import { Button } from "./ui/button";
