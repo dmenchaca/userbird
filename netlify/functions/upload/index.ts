@@ -18,8 +18,15 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
 
 function sanitizeFilename(filename: string): string {
-  // Replace any non-alphanumeric characters except for safe punctuation with underscores
-  return filename.replace(/[^\w\s.-]/g, '_');
+  // Only keep alphanumeric characters, dots, hyphens, underscores and spaces
+  // First remove any characters that aren't in our whitelist
+  let sanitized = filename.replace(/[^a-zA-Z0-9_\s.-]/g, '');
+  
+  // Also trim excessive whitespace and ensure we have a non-empty filename
+  sanitized = sanitized.trim();
+  
+  // If after sanitization we have an empty string, provide a default name
+  return sanitized || 'file';
 }
 
 function getCorsHeaders(origin: string | undefined) {
