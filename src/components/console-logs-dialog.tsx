@@ -47,7 +47,7 @@ export function ConsoleLogsDialog({
     return logs.filter(
       (log) =>
         log.message.toLowerCase().includes(query) ||
-        log.level.toLowerCase().includes(query) ||
+        log.level?.toLowerCase().includes(query) ||
         (log.stack && log.stack.toLowerCase().includes(query))
     );
   }, [logs, searchQuery]);
@@ -65,7 +65,7 @@ export function ConsoleLogsDialog({
 
   // Get icon based on log level
   const getLogIcon = (level: string) => {
-    const lowerLevel = level.toLowerCase();
+    const lowerLevel = level?.toLowerCase() || '';
     if (["error", "uncaught", "unhandledrejection"].includes(lowerLevel)) {
       return <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />;
     } else if (lowerLevel === "warn") {
@@ -130,10 +130,10 @@ export function ConsoleLogsDialog({
                     <div
                       className={`flex items-center gap-2 p-3 cursor-pointer ${
                         ["error", "uncaught", "unhandledrejection"].includes(
-                          log.level.toLowerCase()
+                          log.level?.toLowerCase()
                         )
                           ? "bg-red-500/10"
-                          : log.level.toLowerCase() === "warn"
+                          : log.level?.toLowerCase() === "warn"
                           ? "bg-amber-500/10"
                           : "bg-blue-500/10"
                       }`}

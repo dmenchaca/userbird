@@ -56,9 +56,9 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
       (response.message && response.message.toLowerCase().includes(query)) ||
       (response.user_name && response.user_name.toLowerCase().includes(query)) ||
       (response.user_email && response.user_email.toLowerCase().includes(query)) ||
-      (response.operating_system && response.operating_system.toLowerCase().includes(query)) ||
-      (response.screen_category && response.screen_category.toLowerCase().includes(query)) ||
-      (response.tag && response.tag.name.toLowerCase().includes(query))
+      (response.operating_system && response.operating_system?.toLowerCase().includes(query)) ||
+      (response.screen_category && response.screen_category?.toLowerCase().includes(query)) ||
+      (response.tag && response.tag.name && response.tag.name.toLowerCase().includes(query))
     )
   })
 

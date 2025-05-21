@@ -62,7 +62,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
 
     if (response.metadata?.consoleLogs && response.metadata.consoleLogs.length > 0) {
       response.metadata.consoleLogs.forEach(log => {
-        const level = log.level.toLowerCase();
+        const level = log.level?.toLowerCase();
         if (['error', 'uncaught', 'unhandledrejection'].includes(level)) {
           errorCount++;
         } else if (level === 'warn') {
