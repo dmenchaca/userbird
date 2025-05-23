@@ -25,8 +25,8 @@ import {
 import { useSidebar } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 
-// Import the vanilla JS screenshot dialog
-import '../components/screenshot-dialog-vanilla.js';
+// Note: The screenshot dialog is loaded as a script tag, not an ES6 import
+// It will be available globally as window.ScreenshotDialog
 
 // Declare the global ScreenshotDialog class
 declare global {
@@ -57,8 +57,29 @@ export function UserMenu() {
 
   // Initialize vanilla JS screenshot dialog
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.ScreenshotDialog) {
-      screenshotDialogRef.current = new window.ScreenshotDialog();
+    const loadScreenshotDialog = async () => {
+      // Check if script is already loaded
+      if (window.ScreenshotDialog) {
+        screenshotDialogRef.current = new window.ScreenshotDialog();
+        return;
+      }
+
+      // Load the script
+      const script = document.createElement('script');
+      script.src = '/libs/screenshot-dialog/screenshot-dialog.js';
+      script.onload = () => {
+        if (window.ScreenshotDialog) {
+          screenshotDialogRef.current = new window.ScreenshotDialog();
+        }
+      };
+      script.onerror = () => {
+        console.error('Failed to load screenshot dialog script');
+      };
+      document.head.appendChild(script);
+    };
+
+    if (typeof window !== 'undefined') {
+      loadScreenshotDialog();
     }
   }, []);
 

@@ -933,26 +933,69 @@ class ScreenshotDialog {
       'facebook.com',
       'fbcdn.net',
       'instagram.com',
-      'cdninstagram.com'
+      'cdninstagram.com',
+      'storage.googleapis.com',  // Google Cloud Storage
+      'cloudfront.net',         // AWS CloudFront
+      'amazonaws.com'           // AWS S3
     ];
     
     const images = document.querySelectorAll('img');
     for (const img of images) {
-      if (img.src && this.isProblematicDomain(img.src, problematicDomains)) {
+      if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
         return true;
       }
     }
     return false;
   }
 
-  // Check if image is from a known problematic domain
-  isProblematicDomain(src, problematicDomains) {
+  // Enhanced check for problematic images including nested URLs
+  isProblematicImage(src, problematicDomains) {
     try {
+      // Check the immediate domain first
       const url = new URL(src, window.location.href);
-      return problematicDomains.some(domain => url.hostname.includes(domain));
+      if (problematicDomains.some(domain => url.hostname.includes(domain))) {
+        return true;
+      }
+      
+      // Check for Next.js image optimization URLs
+      if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
+        const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
+        try {
+          const nestedUrlObj = new URL(nestedUrl);
+          if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
+            return true;
+          }
+        } catch (e) {
+          // If nested URL parsing fails, continue with other checks
+        }
+      }
+      
+      // Check for other image proxy patterns (e.g., ?url=, &url=, etc.)
+      const urlParams = url.search;
+      if (urlParams.includes('url=')) {
+        const urlMatch = urlParams.match(/url=([^&]+)/);
+        if (urlMatch) {
+          try {
+            const nestedUrl = decodeURIComponent(urlMatch[1]);
+            const nestedUrlObj = new URL(nestedUrl);
+            if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
+              return true;
+            }
+          } catch (e) {
+            // If nested URL parsing fails, continue
+          }
+        }
+      }
+      
+      return false;
     } catch (e) {
       return false;
     }
+  }
+
+  // Check if image is from a known problematic domain (kept for backward compatibility)
+  isProblematicDomain(src, problematicDomains) {
+    return this.isProblematicImage(src, problematicDomains);
   }
 
   // Wait for all images to load before taking screenshot
@@ -964,12 +1007,15 @@ class ScreenshotDialog {
       'facebook.com',
       'fbcdn.net',
       'instagram.com',
-      'cdninstagram.com'
+      'cdninstagram.com',
+      'storage.googleapis.com',  // Google Cloud Storage
+      'cloudfront.net',         // AWS CloudFront
+      'amazonaws.com'           // AWS S3
     ];
     
     // Only process images from known problematic domains
     const imagePromises = images
-      .filter(img => img.src && this.isProblematicDomain(img.src, problematicDomains))
+      .filter(img => img.src && this.isProblematicImage(img.src, problematicDomains))
       .map(async (img) => {
         // Check cache first
         if (this.imageCache.has(img.src)) {
@@ -987,7 +1033,7 @@ class ScreenshotDialog {
           if (dataUrl) {
             this.imageCache.set(img.src, dataUrl); // Cache the result
             img.src = dataUrl;
-            console.log('✅ Converted problematic image');
+            console.log('✅ Converted problematic image:', img.src.substring(0, 50) + '...');
           }
         } catch (e) {
           console.warn('❌ Failed to convert image:', e);
