@@ -1097,9 +1097,19 @@
       // Load screenshot dependencies and initialize dialog if needed
       UserBird.enableScreenshots().then(dialog => {
         if (dialog) {
+          // Store the current trigger to reopen modal later
+          const triggerToReopen = currentTrigger;
+          
+          // Close the widget modal before opening screenshot dialog
+          closeModal();
+          
           // Open screenshot dialog and capture the screen
           dialog.openWithScreenshot((annotatedImageDataUrl) => {
-            if (!annotatedImageDataUrl) return;
+            if (!annotatedImageDataUrl) {
+              // If no screenshot was taken, reopen the widget modal
+              openModal(triggerToReopen);
+              return;
+            }
             
             // Convert data URL to Blob for consistency with the existing image handling
             fetch(annotatedImageDataUrl)
@@ -1108,16 +1118,27 @@
                 // Create a File object from the Blob (needed for consistency with file upload)
                 const screenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
                 
-                // Display the screenshot in the preview area
-                imagePreview.classList.add('show');
-                imagePreview.innerHTML = `<img src="${URL.createObjectURL(screenshotFile)}" alt="Screenshot" />`;
-                imageButton.style.display = 'none';
-                
                 // Set as the selected image for submission
                 selectedImage = screenshotFile;
+                
+                // Reopen the widget modal
+                openModal(triggerToReopen);
+                
+                // After modal is reopened, update the UI to show the screenshot
+                setTimeout(() => {
+                  const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+                  const imageButton = modal.modal.querySelector('.userbird-image-button');
+                  
+                  // Display the screenshot in the preview area
+                  imagePreview.classList.add('show');
+                  imagePreview.innerHTML = `<img src="${URL.createObjectURL(screenshotFile)}" alt="Screenshot" />`;
+                  imageButton.style.display = 'none';
+                }, 100);
               })
               .catch(err => {
                 console.error('Error processing screenshot:', err);
+                // Reopen the widget modal even if there was an error
+                openModal(triggerToReopen);
               });
           });
         } else {
