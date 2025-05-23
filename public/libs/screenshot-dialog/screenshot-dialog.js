@@ -954,19 +954,22 @@ class ScreenshotDialog {
       // Check the immediate domain first
       const url = new URL(src, window.location.href);
       if (problematicDomains.some(domain => url.hostname.includes(domain))) {
+        console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
         return true;
       }
       
       // Check for Next.js image optimization URLs
       if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
         const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
+        console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
         try {
           const nestedUrlObj = new URL(nestedUrl);
           if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
+            console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
             return true;
           }
         } catch (e) {
-          // If nested URL parsing fails, continue with other checks
+          console.warn('Failed to parse nested URL:', e);
         }
       }
       
@@ -978,11 +981,13 @@ class ScreenshotDialog {
           try {
             const nestedUrl = decodeURIComponent(urlMatch[1]);
             const nestedUrlObj = new URL(nestedUrl);
+            console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
             if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
+              console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
               return true;
             }
           } catch (e) {
-            // If nested URL parsing fails, continue
+            console.warn('Failed to parse URL parameter:', e);
           }
         }
       }
@@ -1013,18 +1018,25 @@ class ScreenshotDialog {
       'amazonaws.com'           // AWS S3
     ];
     
+    console.log('🔍 Found', images.length, 'total images on page');
+    
     // Only process images from known problematic domains
     const imagePromises = images
       .filter(img => img.src && this.isProblematicImage(img.src, problematicDomains))
       .map(async (img) => {
+        const originalSrc = img.src;
+        console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
+        
         // Check cache first
         if (this.imageCache.has(img.src)) {
+          console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
           img.src = this.imageCache.get(img.src);
           return Promise.resolve();
         }
         
         // Skip very small images
         if (img.width < 20 && img.height < 20) {
+          console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
           return Promise.resolve();
         }
         
@@ -1032,23 +1044,34 @@ class ScreenshotDialog {
           const dataUrl = await this.convertImageToDataUrl(img);
           if (dataUrl) {
             this.imageCache.set(img.src, dataUrl); // Cache the result
+            console.log('✅ Successfully converted image');
+            console.log('   Original:', originalSrc.substring(0, 80) + '...');
+            console.log('   Converted:', dataUrl.substring(0, 80) + '...');
             img.src = dataUrl;
-            console.log('✅ Converted problematic image:', img.src.substring(0, 50) + '...');
+          } else {
+            console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
           }
         } catch (e) {
-          console.warn('❌ Failed to convert image:', e);
+          console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
         }
         
         return Promise.resolve();
       });
 
+    const problematicImages = images.filter(img => img.src && this.isProblematicImage(img.src, problematicDomains));
+    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+
     await Promise.all(imagePromises);
+    console.log('✅ Finished processing all problematic images');
   }
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
     return new Promise((resolve) => {
       try {
+        console.log('🔄 Starting image conversion for:', img.src.substring(0, 100) + '...');
+        console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
+        
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
@@ -1060,34 +1083,42 @@ class ScreenshotDialog {
         canvas.width = (img.naturalWidth || img.width) * ratio;
         canvas.height = (img.naturalHeight || img.height) * ratio;
         
+        console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
+        
         // Create a new image element to avoid CORS issues
         const proxyImg = new Image();
         proxyImg.crossOrigin = 'anonymous';
         
         proxyImg.onload = () => {
           try {
+            console.log('   ✅ Proxy image loaded successfully');
             ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
             // Use lower quality for faster conversion
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
             resolve(dataUrl);
           } catch (e) {
-            console.warn('Failed to draw image to canvas:', e);
+            console.warn('   ❌ Failed to draw image to canvas:', e);
             resolve(null);
           }
         };
         
-        proxyImg.onerror = () => {
+        proxyImg.onerror = (e) => {
+          console.warn('   ❌ Proxy image failed to load:', e);
           resolve(null);
         };
         
+        console.log('   🔄 Loading proxy image...');
         proxyImg.src = img.src;
         
         // Much shorter timeout for faster processing
         setTimeout(() => {
+          console.warn('   ⏰ Image conversion timed out after 500ms');
           resolve(null);
         }, 500); // Reduced from 2000ms to 500ms
         
       } catch (e) {
+        console.warn('   ❌ Image conversion failed with exception:', e);
         resolve(null);
       }
     });
