@@ -1176,7 +1176,7 @@
                     imagePreview.appendChild(removeImageButton);
                     imagePreview.classList.add('show');
                     imageButton.style.display = 'none';
-                  }, 100);
+                  }, 80); // Wait 80ms for modal to fully disappear - much faster!
                 })
                 .catch(err => {
                   console.error('Error processing screenshot:', err);
@@ -1184,7 +1184,7 @@
                   openModal(triggerToReopen);
                 });
             }, buttonColor); // Pass the dynamic button color to the screenshot dialog
-          }, 200); // Wait 200ms for modal to fully disappear
+          }, 80); // Wait 80ms for modal to fully disappear - much faster!
         } else {
           console.error('Screenshot dialog could not be initialized');
         }
