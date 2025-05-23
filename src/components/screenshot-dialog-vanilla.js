@@ -55,7 +55,7 @@ class ScreenshotDialog {
         --ssd-text: #111827;
         --ssd-text-muted: #6b7280;
         --ssd-hover-background: #f3f4f6;
-        --ssd-toolbar-background: rgba(255, 255, 255, 0.9);
+        --ssd-toolbar-background: rgba(255, 255, 255, 1.0);
         --ssd-tooltip-background: #374151;
         --ssd-tooltip-text: white;
       }
@@ -73,7 +73,7 @@ class ScreenshotDialog {
         --ssd-text: #e5e5e5;
         --ssd-text-muted: #a1a1a1;
         --ssd-hover-background: #2e2e2e;
-        --ssd-toolbar-background: rgba(13, 13, 13, 0.9);
+        --ssd-toolbar-background: rgba(13, 13, 13, 1.0);
         --ssd-tooltip-background: #363636;
         --ssd-tooltip-text: #e5e5e5;
       }
@@ -263,10 +263,10 @@ class ScreenshotDialog {
         color: white;
       `;
       button.addEventListener('mouseenter', () => {
-        button.style.background = '#374151';
+        button.style.opacity = '0.9';
       });
       button.addEventListener('mouseleave', () => {
-        button.style.background = this.buttonColor;
+        button.style.opacity = '1';
       });
     }
 
