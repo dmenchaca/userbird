@@ -42,7 +42,7 @@
       
       // Load screenshot dialog if needed
       const screenshotDialogPromise = typeof window.ScreenshotDialog === 'undefined' ?
-        loadScript(`${API_BASE_URL}/src/components/screenshot-dialog-vanilla.js`).then(() => {
+        loadScript(`${API_BASE_URL}/libs/screenshot-dialog/screenshot-dialog.js`).then(() => {
           console.log('✅ ScreenshotDialog script loaded');
           if (typeof window.ScreenshotDialog === 'undefined') {
             throw new Error('ScreenshotDialog script loaded but not available on window');
