@@ -306,6 +306,7 @@ class ScreenshotDialog {
         button.style.background = 'transparent';
       });
     } else {
+      console.log('🎨 Creating default button with color:', this.buttonColor, 'for text:', text);
       button.style.cssText = baseStyles + `
         background: ${this.buttonColor};
         color: white;
@@ -838,14 +839,19 @@ class ScreenshotDialog {
   }
 
   deleteScreenshot() {
+    console.log('🗑️ Delete screenshot called - clearing all data');
+    
     // Clear all screenshot data
     this.annotatedImage = null;
     this.screenshotSrc = null;
     this.isAnnotationReady = false;
     
-    // Notify React component
+    // Notify React component with null to indicate deletion
     if (this.onSaveAnnotation) {
+      console.log('📞 Calling onSaveAnnotation with null (delete)');
       this.onSaveAnnotation(null);
+    } else {
+      console.warn('⚠️ No onSaveAnnotation callback available');
     }
     
     this.close();
@@ -856,6 +862,8 @@ class ScreenshotDialog {
    * Used when removing thumbnails or starting fresh
    */
   reset() {
+    console.log('🔄 Reset called - preserving buttonColor:', this.buttonColor);
+    
     // Hide spinner if it's showing
     this.hideSpinner();
     
@@ -864,12 +872,16 @@ class ScreenshotDialog {
       window.UserBird.setScreenshotDialogOpen(false);
     }
     
-    // Clear all screenshot data
+    // Clear all screenshot data but preserve buttonColor
+    const preservedButtonColor = this.buttonColor;
     this.annotatedImage = null;
     this.screenshotSrc = null;
     this.isAnnotationReady = false;
     this.isCapturing = false;
     this.onSaveAnnotation = null;
+    
+    // Restore buttonColor after clearing other properties
+    this.buttonColor = preservedButtonColor;
     
     // Reset UI elements
     this.resetImageElement();
@@ -889,7 +901,7 @@ class ScreenshotDialog {
       this.toolbar.style.display = 'none';
     }
     
-    // console.log('Screenshot dialog fully reset');
+    console.log('✅ Reset complete - buttonColor preserved as:', this.buttonColor);
   }
 
   updateToolbar() {
@@ -1213,9 +1225,16 @@ class ScreenshotDialog {
   }
 
   async openWithScreenshot(onSaveAnnotation = null, buttonColor = null) {
+    console.log('🔧 openWithScreenshot called with:', { 
+      hasCallback: !!onSaveAnnotation, 
+      buttonColor, 
+      currentButtonColor: this.buttonColor 
+    });
+    
     // Update button color if provided
     if (buttonColor) {
       this.buttonColor = buttonColor;
+      console.log('🎨 Button color updated to:', this.buttonColor);
     }
     
     // Show spinner during capture
@@ -1232,6 +1251,7 @@ class ScreenshotDialog {
     this.hideSpinner();
     
     if (screenshotSrc) {
+      console.log('📸 Screenshot captured, opening dialog with buttonColor:', this.buttonColor);
       this.open(screenshotSrc, onSaveAnnotation);
     } else {
       console.error('Failed to capture screenshot');
