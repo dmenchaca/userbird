@@ -1103,7 +1103,7 @@
           // Close the widget modal before opening screenshot dialog
           closeModal();
           
-          // Open screenshot dialog and capture the screen
+          // Open screenshot dialog and capture the screen with dynamic color
           dialog.openWithScreenshot((annotatedImageDataUrl) => {
             if (!annotatedImageDataUrl) {
               // If no screenshot was taken, reopen the widget modal
@@ -1128,10 +1128,51 @@
                 setTimeout(() => {
                   const imagePreview = modal.modal.querySelector('.userbird-image-preview');
                   const imageButton = modal.modal.querySelector('.userbird-image-button');
+                  const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
                   
-                  // Display the screenshot in the preview area
+                  // Create and display the screenshot image
+                  const img = document.createElement('img');
+                  img.src = URL.createObjectURL(screenshotFile);
+                  img.alt = 'Screenshot';
+                  img.style.cursor = 'pointer';
+                  
+                  // Add click handler to thumbnail for re-editing
+                  img.addEventListener('click', () => {
+                    // Store current trigger and close modal
+                    const currentTriggerForReEdit = currentTrigger;
+                    closeModal();
+                    
+                    // Open screenshot dialog with existing image for re-editing
+                    dialog.open(annotatedImageDataUrl, (newAnnotatedImageDataUrl) => {
+                      if (newAnnotatedImageDataUrl) {
+                        // Update with new screenshot
+                        fetch(newAnnotatedImageDataUrl)
+                          .then(res => res.blob())
+                          .then(blob => {
+                            const newScreenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
+                            selectedImage = newScreenshotFile;
+                            
+                            // Reopen modal and update thumbnail
+                            openModal(currentTriggerForReEdit);
+                            setTimeout(() => {
+                              const newImg = modal.modal.querySelector('.userbird-image-preview img');
+                              if (newImg) {
+                                newImg.src = URL.createObjectURL(newScreenshotFile);
+                              }
+                            }, 100);
+                          });
+                      } else {
+                        // User cancelled, just reopen modal
+                        openModal(currentTriggerForReEdit);
+                      }
+                    });
+                  });
+                  
+                  // Clear previous content and add image and remove button
+                  imagePreview.innerHTML = '';
+                  imagePreview.appendChild(img);
+                  imagePreview.appendChild(removeImageButton);
                   imagePreview.classList.add('show');
-                  imagePreview.innerHTML = `<img src="${URL.createObjectURL(screenshotFile)}" alt="Screenshot" />`;
                   imageButton.style.display = 'none';
                 }, 100);
               })
@@ -1140,7 +1181,7 @@
                 // Reopen the widget modal even if there was an error
                 openModal(triggerToReopen);
               });
-          });
+          }, buttonColor); // Pass the dynamic button color to the screenshot dialog
         } else {
           console.error('Screenshot dialog could not be initialized');
         }
