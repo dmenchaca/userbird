@@ -984,16 +984,22 @@ class ScreenshotDialog {
     // Convert external images to data URLs to bypass CORS issues
     const imagePromises = images.map(async (img) => {
       if (img.complete && img.src) {
-        // Try to convert external images to data URLs
+        // Skip if already a data URL or very small images
+        if (img.src.startsWith('data:') || 
+            (img.width < 16 && img.height < 16)) {
+          return Promise.resolve();
+        }
+        
+        // Only convert external images that are likely to cause CORS issues
         if (this.isExternalImage(img.src)) {
           try {
             const dataUrl = await this.convertImageToDataUrl(img);
             if (dataUrl) {
               img.src = dataUrl;
-              console.log('✅ Converted external image to data URL:', img.src.substring(0, 50) + '...');
+              console.log('✅ Converted external image to data URL');
             }
           } catch (e) {
-            console.warn('❌ Failed to convert external image:', img.src, e);
+            console.warn('❌ Failed to convert external image:', img.src.substring(0, 50) + '...', e);
           }
         }
         return Promise.resolve();
@@ -1001,12 +1007,19 @@ class ScreenshotDialog {
       
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          console.warn('Image load timeout:', img.src);
+          console.warn('Image load timeout:', img.src.substring(0, 50) + '...');
           resolve(); // Continue even if image fails to load
-        }, 3000); // 3 second timeout per image
+        }, 500); // Reduced from 3000ms to 500ms
         
         img.onload = async () => {
           clearTimeout(timeout);
+          
+          // Skip small images and data URLs
+          if (img.src.startsWith('data:') || 
+              (img.width < 16 && img.height < 16)) {
+            resolve();
+            return;
+          }
           
           // Try to convert external images after loading
           if (this.isExternalImage(img.src)) {
@@ -1014,10 +1027,10 @@ class ScreenshotDialog {
               const dataUrl = await this.convertImageToDataUrl(img);
               if (dataUrl) {
                 img.src = dataUrl;
-                console.log('✅ Converted external image to data URL after load:', img.src.substring(0, 50) + '...');
+                console.log('✅ Converted external image to data URL after load');
               }
             } catch (e) {
-              console.warn('❌ Failed to convert external image after load:', img.src, e);
+              console.warn('❌ Failed to convert external image after load:', img.src.substring(0, 50) + '...', e);
             }
           }
           
@@ -1026,7 +1039,7 @@ class ScreenshotDialog {
         
         img.onerror = () => {
           clearTimeout(timeout);
-          console.warn('Image failed to load:', img.src);
+          console.warn('Image failed to load:', img.src.substring(0, 50) + '...');
           resolve(); // Continue even if image fails
         };
       });
@@ -1045,15 +1058,20 @@ class ScreenshotDialog {
     }
   }
   
-  // Convert image to data URL using canvas
+  // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
     return new Promise((resolve) => {
       try {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        // Optimize canvas size for faster processing
+        const maxSize = 200; // Limit size for avatars/small images
+        const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
+                              maxSize / (img.naturalHeight || img.height), 1);
+        
+        canvas.width = (img.naturalWidth || img.width) * ratio;
+        canvas.height = (img.naturalHeight || img.height) * ratio;
         
         // Create a new image element to avoid CORS issues
         const proxyImg = new Image();
@@ -1061,8 +1079,9 @@ class ScreenshotDialog {
         
         proxyImg.onload = () => {
           try {
-            ctx.drawImage(proxyImg, 0, 0);
-            const dataUrl = canvas.toDataURL('image/png');
+            ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+            // Use lower quality for faster conversion
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             resolve(dataUrl);
           } catch (e) {
             console.warn('Failed to draw image to canvas:', e);
@@ -1071,19 +1090,17 @@ class ScreenshotDialog {
         };
         
         proxyImg.onerror = () => {
-          console.warn('Failed to load image with crossOrigin:', img.src);
           resolve(null);
         };
         
         proxyImg.src = img.src;
         
-        // Timeout after 2 seconds
+        // Much shorter timeout for faster processing
         setTimeout(() => {
           resolve(null);
-        }, 2000);
+        }, 500); // Reduced from 2000ms to 500ms
         
       } catch (e) {
-        console.warn('Error in convertImageToDataUrl:', e);
         resolve(null);
       }
     });
