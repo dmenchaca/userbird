@@ -884,7 +884,7 @@ class ScreenshotDialog {
       const canvas = await html2canvas(document.body, {
         scale: 2,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         foreignObjectRendering: true,
         logging: false,
         backgroundColor: null,
