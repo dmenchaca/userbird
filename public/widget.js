@@ -1093,7 +1093,7 @@
     
     // Initialize screenshot functionality when the widget loads
     loadScreenshotDependencies().then(result => {
-      console.log('Screenshot dependencies pre-loaded');
+      // console.log('Screenshot dependencies pre-loaded');
     }).catch(err => {
       console.error('Failed to pre-load screenshot dependencies:', err);
     });
@@ -1587,11 +1587,9 @@
   window.UserBird.enableScreenshots = function() {
     return loadScreenshotDependencies()
       .then(() => {
-        console.log('Screenshot dependencies loaded successfully');
         // Initialize screenshot dialog if needed
         if (!screenshotDialog && window.ScreenshotDialog) {
           screenshotDialog = new window.ScreenshotDialog();
-          console.log('Screenshot dialog initialized');
         }
         return screenshotDialog;
       })

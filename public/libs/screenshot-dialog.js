@@ -36,7 +36,7 @@ class ScreenshotDialog {
       const script = document.createElement('script');
       script.src = '/libs/html2canvas/html2canvas.min.js';
       script.onload = () => {
-        console.log('✅ html2canvas loaded successfully');
+        // console.log('✅ html2canvas loaded successfully');
       };
       script.onerror = () => {
         console.error('❌ Failed to load html2canvas');
@@ -110,7 +110,7 @@ class ScreenshotDialog {
       bottom: 0;
       background-color: rgba(0, 0, 0, 0.8);
       display: none;
-      z-index: 50;
+      z-index: 10000;
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
       outline: none;
@@ -172,7 +172,7 @@ class ScreenshotDialog {
     this.toolbar.className = 'screenshot-toolbar';
     this.toolbar.style.cssText = `
       position: absolute;
-      z-index: 51;
+      z-index: 10001;
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
@@ -304,7 +304,7 @@ class ScreenshotDialog {
           border-radius: 4px;
           font-size: 12px;
           white-space: nowrap;
-          z-index: 60;
+          z-index: 10002;
           pointer-events: none;
         `;
         element.appendChild(tooltipElement);
@@ -589,9 +589,9 @@ class ScreenshotDialog {
     this.onSaveAnnotation = onSaveAnnotation;
     this.isOpen = true;
 
-    console.log('📸 Screenshot dialog opened');
-    console.log('🔗 Original screenshotSrc stored:', this.screenshotSrc?.substring(0, 50) + '...');
-    console.log('🎨 Current annotatedImage:', this.annotatedImage ? 'exists' : 'null');
+    // console.log('📸 Screenshot dialog opened');
+    // console.log('🔗 Original screenshotSrc stored:', this.screenshotSrc?.substring(0, 50) + '...');
+    // console.log('🎨 Current annotatedImage:', this.annotatedImage ? 'exists' : 'null');
 
     // Reset image to original state before opening
     this.resetImageElement();
@@ -606,7 +606,6 @@ class ScreenshotDialog {
     if (this.annotatedImage) {
       // When opening with an existing annotated image (thumbnail click),
       // show the preview mode immediately
-      console.log('🖼️ Opening with existing annotated image');
       this.isAnnotationReady = false;
       this.imageElement.src = this.annotatedImage;
       setTimeout(() => {
@@ -614,7 +613,6 @@ class ScreenshotDialog {
       }, 100);
     } else if (screenshotSrc && !this.isAnnotationReady) {
       // When opening with a new screenshot, start annotation mode
-      console.log('🆕 Opening with new screenshot, starting annotation mode');
       this.imageElement.src = screenshotSrc;
       this.imageElement.onload = () => {
         // Ensure image is reset after loading
@@ -691,8 +689,8 @@ class ScreenshotDialog {
   async startAnnotation() {
     if (!this.imageElement || !this.container) return;
 
-    console.log('🎨 Starting annotation mode');
-    console.log('🔗 Image source for annotation:', this.imageElement.src?.substring(0, 50) + '...');
+    // console.log('🎨 Starting annotation mode');
+    // console.log('🔗 Image source for annotation:', this.imageElement.src?.substring(0, 50) + '...');
 
     this.cleanup();
 
@@ -705,7 +703,7 @@ class ScreenshotDialog {
       this.container.appendChild(this.markerArea);
 
       this.isAnnotationReady = true;
-      console.log('✅ Annotation mode ready - MarkerArea initialized');
+      // console.log('✅ Annotation mode ready - MarkerArea initialized');
       this.updateToolbar();
 
       // Hide the original image when MarkerArea is active
@@ -739,8 +737,8 @@ class ScreenshotDialog {
   async saveAnnotation() {
     if (!this.markerArea || !this.screenshotSrc) return;
 
-    console.log('💾 Starting save annotation process');
-    console.log('🔗 Using original screenshotSrc:', this.screenshotSrc?.substring(0, 50) + '...');
+    // console.log('💾 Starting save annotation process');
+    // console.log('🔗 Using original screenshotSrc:', this.screenshotSrc?.substring(0, 50) + '...');
 
     try {
       // Import Renderer from global object
@@ -752,7 +750,7 @@ class ScreenshotDialog {
       const img = document.createElement('img');
       img.src = this.screenshotSrc;
       
-      console.log('📷 Created temp image from original screenshotSrc for rendering');
+      // console.log('📷 Created temp image from original screenshotSrc for rendering');
       
       await new Promise(resolve => {
         img.onload = resolve;
@@ -766,15 +764,15 @@ class ScreenshotDialog {
       
       const dataUrl = await renderer.rasterize(state);
       
-      console.log('✅ Annotation saved successfully');
-      console.log('🎨 annotatedImage created:', dataUrl?.substring(0, 50) + '...');
+      // console.log('✅ Annotation saved successfully');
+      // console.log('🎨 annotatedImage created:', dataUrl?.substring(0, 50) + '...');
       
       if (this.onSaveAnnotation) {
         this.onSaveAnnotation(dataUrl);
       }
       
       this.annotatedImage = dataUrl;
-      console.log('📝 State updated - annotatedImage now exists');
+      // console.log('📝 State updated - annotatedImage now exists');
       this.cleanup();
       this.close();
     } catch (error) {
@@ -820,15 +818,13 @@ class ScreenshotDialog {
       this.markerArea.close();
       this.markerArea = null;
     }
-    
-    console.log('Screenshot dialog fully reset');
   }
 
   updateToolbar() {
     // IMPORTANT: This method mirrors React's state-based toolbar logic exactly.
     // React shows tools based ONLY on state, NOT on "modes" or parameters.
     // Do NOT add mode parameters - just check state like React does.
-    console.log('updateToolbar called - annotatedImage exists:', !!this.annotatedImage, 'isAnnotationReady:', this.isAnnotationReady, 'markerArea exists:', !!this.markerArea);
+    // console.log('updateToolbar called - annotatedImage exists:', !!this.annotatedImage, 'isAnnotationReady:', this.isAnnotationReady, 'markerArea exists:', !!this.markerArea);
     
     // Clear existing tools
     const existingTools = this.toolbarContent.querySelector('.toolbar-tools');
@@ -842,18 +838,18 @@ class ScreenshotDialog {
     // Mirror React logic exactly:
     // Show annotation tools when: isAnnotationReady && markerArea && !annotatedImage
     if (this.isAnnotationReady && this.markerArea && !this.annotatedImage) {
-      console.log('Creating annotation tools');
+      // console.log('Creating annotation tools');
       toolsContainer.appendChild(this.createAnnotationTools());
       this.toolbar.style.display = 'block';
     }
     // Show preview tools when: annotatedImage exists (regardless of mode)
     else if (this.annotatedImage) {
-      console.log('Creating preview tools');
+      // console.log('Creating preview tools');
       toolsContainer.appendChild(this.createPreviewTools());
       this.toolbar.style.display = 'block';
     }
     else {
-      console.log('No tools to show, hiding toolbar');
+      // console.log('No tools to show, hiding toolbar');
       this.toolbar.style.display = 'none';
     }
 
@@ -862,7 +858,7 @@ class ScreenshotDialog {
 
   async captureScreenshot() {
     if (this.isCapturing || typeof html2canvas === 'undefined') {
-      console.log('Screenshot capture already in progress or html2canvas not loaded');
+      // console.log('Screenshot capture already in progress or html2canvas not loaded');
       return null;
     }
 
@@ -871,19 +867,19 @@ class ScreenshotDialog {
     this.annotatedImage = null;
     
     this.isCapturing = true;
-    console.log('📸 Starting screenshot capture...');
+    // console.log('📸 Starting screenshot capture...');
 
     try {
       // Wait for fonts to be ready
       await document.fonts.ready;
-      console.log('✅ Fonts loaded');
+      // console.log('✅ Fonts loaded');
 
       // Only process images if we detect known problematic domains
       if (this.hasProblematicImages()) {
         await this.waitForImages();
-        console.log('✅ Images processed');
+        // console.log('✅ Images processed');
       } else {
-        console.log('✅ No problematic images detected - skipping processing');
+        // console.log('✅ No problematic images detected - skipping processing');
       }
 
       // Apply screenshot mode class for better quality
@@ -913,7 +909,7 @@ class ScreenshotDialog {
       document.body.classList.remove('screenshot-mode');
 
       const dataUrl = canvas.toDataURL('image/png', 1.0);
-      console.log('✅ Screenshot captured successfully');
+      // console.log('✅ Screenshot captured successfully');
       
       this.isCapturing = false;
       return dataUrl;
@@ -954,22 +950,22 @@ class ScreenshotDialog {
       // Check the immediate domain first
       const url = new URL(src, window.location.href);
       if (problematicDomains.some(domain => url.hostname.includes(domain))) {
-        console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
+        // console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
         return true;
       }
       
       // Check for Next.js image optimization URLs
       if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
         const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
-        console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
+        // console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
         try {
           const nestedUrlObj = new URL(nestedUrl);
           if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-            console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
+            // console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
             return true;
           }
         } catch (e) {
-          console.warn('Failed to parse nested URL:', e);
+          // console.warn('Failed to parse nested URL:', e);
         }
       }
       
@@ -981,13 +977,13 @@ class ScreenshotDialog {
           try {
             const nestedUrl = decodeURIComponent(urlMatch[1]);
             const nestedUrlObj = new URL(nestedUrl);
-            console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
+            // console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
             if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-              console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
+              // console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
               return true;
             }
           } catch (e) {
-            console.warn('Failed to parse URL parameter:', e);
+            // console.warn('Failed to parse URL parameter:', e);
           }
         }
       }
@@ -1018,25 +1014,25 @@ class ScreenshotDialog {
       'amazonaws.com'           // AWS S3
     ];
     
-    console.log('🔍 Found', images.length, 'total images on page');
+    // console.log('🔍 Found', images.length, 'total images on page');
     
     // Only process images from known problematic domains
     const imagePromises = images
       .filter(img => img.src && this.isProblematicImage(img.src, problematicDomains))
       .map(async (img) => {
         const originalSrc = img.src;
-        console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
+        // console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
         
         // Check cache first
         if (this.imageCache.has(img.src)) {
-          console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
+          // console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
           img.src = this.imageCache.get(img.src);
           return Promise.resolve();
         }
         
         // Skip very small images
         if (img.width < 20 && img.height < 20) {
-          console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
+          // console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
           return Promise.resolve();
         }
         
@@ -1044,33 +1040,33 @@ class ScreenshotDialog {
           const dataUrl = await this.convertImageToDataUrl(img);
           if (dataUrl) {
             this.imageCache.set(img.src, dataUrl); // Cache the result
-            console.log('✅ Successfully converted image');
-            console.log('   Original:', originalSrc.substring(0, 80) + '...');
-            console.log('   Converted:', dataUrl.substring(0, 80) + '...');
+            // console.log('✅ Successfully converted image');
+            // console.log('   Original:', originalSrc.substring(0, 80) + '...');
+            // console.log('   Converted:', dataUrl.substring(0, 80) + '...');
             img.src = dataUrl;
           } else {
-            console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
+            // console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
           }
         } catch (e) {
-          console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
+          // console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
         }
         
         return Promise.resolve();
       });
 
     const problematicImages = images.filter(img => img.src && this.isProblematicImage(img.src, problematicDomains));
-    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+    // console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
 
     await Promise.all(imagePromises);
-    console.log('✅ Finished processing all problematic images');
+    // console.log('✅ Finished processing all problematic images');
   }
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
     return new Promise((resolve) => {
       try {
-        console.log('🔄 Starting image conversion for:', img.src.substring(0, 100) + '...');
-        console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
+        // console.log('🔄 Starting image conversion for:', img.src.substring(0, 100) + '...');
+        // console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1083,7 +1079,7 @@ class ScreenshotDialog {
         canvas.width = (img.naturalWidth || img.width) * ratio;
         canvas.height = (img.naturalHeight || img.height) * ratio;
         
-        console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
+        // console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
         
         // Create a new image element to avoid CORS issues
         const proxyImg = new Image();
@@ -1091,34 +1087,34 @@ class ScreenshotDialog {
         
         proxyImg.onload = () => {
           try {
-            console.log('   ✅ Proxy image loaded successfully');
+            // console.log('   ✅ Proxy image loaded successfully');
             ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
             // Use lower quality for faster conversion
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+            // console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
             resolve(dataUrl);
           } catch (e) {
-            console.warn('   ❌ Failed to draw image to canvas:', e);
+            // console.warn('   ❌ Failed to draw image to canvas:', e);
             resolve(null);
           }
         };
         
         proxyImg.onerror = (e) => {
-          console.warn('   ❌ Proxy image failed to load:', e);
+          // console.warn('   ❌ Proxy image failed to load:', e);
           resolve(null);
         };
         
-        console.log('   🔄 Loading proxy image...');
+        // console.log('   🔄 Loading proxy image...');
         proxyImg.src = img.src;
         
         // Much shorter timeout for faster processing
         setTimeout(() => {
-          console.warn('   ⏰ Image conversion timed out after 500ms');
+          // console.warn('   ⏰ Image conversion timed out after 500ms');
           resolve(null);
         }, 500); // Reduced from 2000ms to 500ms
         
       } catch (e) {
-        console.warn('   ❌ Image conversion failed with exception:', e);
+        // console.warn('   ❌ Image conversion failed with exception:', e);
         resolve(null);
       }
     });
@@ -1139,7 +1135,7 @@ class ScreenshotDialog {
     if (screenshotSrc) {
       this.open(screenshotSrc, onSaveAnnotation);
     } else {
-      console.error('Failed to capture screenshot');
+      // console.error('Failed to capture screenshot');
     }
   }
 }
@@ -1158,10 +1154,10 @@ Usage Examples:
    const dialog = new ScreenshotDialog();
    dialog.openWithScreenshot((annotatedImageDataUrl) => {
      if (annotatedImageDataUrl) {
-       console.log('Annotation saved:', annotatedImageDataUrl);
+       // console.log('Annotation saved:', annotatedImageDataUrl);
        // Handle the annotated image (save to server, display thumbnail, etc.)
      } else {
-       console.log('Screenshot deleted');
+       // console.log('Screenshot deleted');
      }
    });
 
