@@ -1103,88 +1103,91 @@
           // Close the widget modal before opening screenshot dialog
           closeModal();
           
-          // Wait for modal to fully disappear before taking screenshot
-          setTimeout(() => {
-            // Open screenshot dialog and capture the screen with dynamic color
-            dialog.openWithScreenshot((annotatedImageDataUrl) => {
-              if (!annotatedImageDataUrl) {
-                // If no screenshot was taken, reopen the widget modal
-                openModal(triggerToReopen);
-                return;
-              }
-              
-              // Convert data URL to Blob for consistency with the existing image handling
-              fetch(annotatedImageDataUrl)
-                .then(res => res.blob())
-                .then(blob => {
-                  // Create a File object from the Blob (needed for consistency with file upload)
-                  const screenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
-                  
-                  // Set as the selected image for submission
-                  selectedImage = screenshotFile;
-                  
-                  // Reopen the widget modal
+          // Wait for browser to render the modal as hidden, then take screenshot
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // Two animation frames ensures modal is visually gone
+              // Open screenshot dialog and capture the screen with dynamic color
+              dialog.openWithScreenshot((annotatedImageDataUrl) => {
+                if (!annotatedImageDataUrl) {
+                  // If no screenshot was taken, reopen the widget modal
                   openModal(triggerToReopen);
-                  
-                  // After modal is reopened, update the UI to show the screenshot
-                  setTimeout(() => {
-                    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
-                    const imageButton = modal.modal.querySelector('.userbird-image-button');
-                    const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+                  return;
+                }
+                
+                // Convert data URL to Blob for consistency with the existing image handling
+                fetch(annotatedImageDataUrl)
+                  .then(res => res.blob())
+                  .then(blob => {
+                    // Create a File object from the Blob (needed for consistency with file upload)
+                    const screenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
                     
-                    // Create and display the screenshot image
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(screenshotFile);
-                    img.alt = 'Screenshot';
-                    img.style.cursor = 'pointer';
+                    // Set as the selected image for submission
+                    selectedImage = screenshotFile;
                     
-                    // Add click handler to thumbnail for re-editing
-                    img.addEventListener('click', () => {
-                      // Store current trigger and close modal
-                      const currentTriggerForReEdit = currentTrigger;
-                      closeModal();
+                    // Reopen the widget modal
+                    openModal(triggerToReopen);
+                    
+                    // After modal is reopened, update the UI to show the screenshot
+                    setTimeout(() => {
+                      const imagePreview = modal.modal.querySelector('.userbird-image-preview');
+                      const imageButton = modal.modal.querySelector('.userbird-image-button');
+                      const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
                       
-                      // Open screenshot dialog with existing image for re-editing
-                      dialog.open(annotatedImageDataUrl, (newAnnotatedImageDataUrl) => {
-                        if (newAnnotatedImageDataUrl) {
-                          // Update with new screenshot
-                          fetch(newAnnotatedImageDataUrl)
-                            .then(res => res.blob())
-                            .then(blob => {
-                              const newScreenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
-                              selectedImage = newScreenshotFile;
-                              
-                              // Reopen modal and update thumbnail
-                              openModal(currentTriggerForReEdit);
-                              setTimeout(() => {
-                                const newImg = modal.modal.querySelector('.userbird-image-preview img');
-                                if (newImg) {
-                                  newImg.src = URL.createObjectURL(newScreenshotFile);
-                                }
-                              }, 100);
-                            });
-                        } else {
-                          // User cancelled, just reopen modal
-                          openModal(currentTriggerForReEdit);
-                        }
+                      // Create and display the screenshot image
+                      const img = document.createElement('img');
+                      img.src = URL.createObjectURL(screenshotFile);
+                      img.alt = 'Screenshot';
+                      img.style.cursor = 'pointer';
+                      
+                      // Add click handler to thumbnail for re-editing
+                      img.addEventListener('click', () => {
+                        // Store current trigger and close modal
+                        const currentTriggerForReEdit = currentTrigger;
+                        closeModal();
+                        
+                        // Open screenshot dialog with existing image for re-editing
+                        dialog.open(annotatedImageDataUrl, (newAnnotatedImageDataUrl) => {
+                          if (newAnnotatedImageDataUrl) {
+                            // Update with new screenshot
+                            fetch(newAnnotatedImageDataUrl)
+                              .then(res => res.blob())
+                              .then(blob => {
+                                const newScreenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
+                                selectedImage = newScreenshotFile;
+                                
+                                // Reopen modal and update thumbnail
+                                openModal(currentTriggerForReEdit);
+                                setTimeout(() => {
+                                  const newImg = modal.modal.querySelector('.userbird-image-preview img');
+                                  if (newImg) {
+                                    newImg.src = URL.createObjectURL(newScreenshotFile);
+                                  }
+                                }, 100);
+                              });
+                          } else {
+                            // User cancelled, just reopen modal
+                            openModal(currentTriggerForReEdit);
+                          }
+                        }, buttonColor); // Pass the dynamic button color for re-editing
                       });
-                    });
-                    
-                    // Clear previous content and add image and remove button
-                    imagePreview.innerHTML = '';
-                    imagePreview.appendChild(img);
-                    imagePreview.appendChild(removeImageButton);
-                    imagePreview.classList.add('show');
-                    imageButton.style.display = 'none';
-                  }, 80); // Wait 80ms for modal to fully disappear - much faster!
-                })
-                .catch(err => {
-                  console.error('Error processing screenshot:', err);
-                  // Reopen the widget modal even if there was an error
-                  openModal(triggerToReopen);
-                });
-            }, buttonColor); // Pass the dynamic button color to the screenshot dialog
-          }, 80); // Wait 80ms for modal to fully disappear - much faster!
+                      
+                      // Clear previous content and add image and remove button
+                      imagePreview.innerHTML = '';
+                      imagePreview.appendChild(img);
+                      imagePreview.appendChild(removeImageButton);
+                      imagePreview.classList.add('show');
+                      imageButton.style.display = 'none';
+                    }, 80); // Wait 80ms for modal to fully disappear - much faster!
+                  })
+                  .catch(err => {
+                    console.error('Error processing screenshot:', err);
+                    // Reopen the widget modal even if there was an error
+                    openModal(triggerToReopen);
+                  });
+              }, buttonColor); // Pass the dynamic button color to the screenshot dialog
+            });
+          });
         } else {
           console.error('Screenshot dialog could not be initialized');
         }

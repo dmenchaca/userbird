@@ -3,7 +3,7 @@
  * Uses html2canvas for screenshot capture and markerjs3 for annotation functionality
  */
 class ScreenshotDialog {
-  constructor() {
+  constructor(buttonColor = '#1f2937') {
     this.isOpen = false;
     this.screenshotSrc = null;
     this.annotatedImage = null;
@@ -11,6 +11,7 @@ class ScreenshotDialog {
     this.isAnnotationReady = false;
     this.onSaveAnnotation = null;
     this.isCapturing = false;
+    this.buttonColor = buttonColor; // Store the dynamic button color
     
     // Toolbar state
     this.toolbarPosition = { top: 10, left: '50%', transform: 'translateX(-50%)' };
@@ -258,14 +259,14 @@ class ScreenshotDialog {
       });
     } else {
       button.style.cssText = baseStyles + `
-        background: #1f2937;
+        background: ${this.buttonColor};
         color: white;
       `;
       button.addEventListener('mouseenter', () => {
         button.style.background = '#374151';
       });
       button.addEventListener('mouseleave', () => {
-        button.style.background = '#1f2937';
+        button.style.background = this.buttonColor;
       });
     }
 
@@ -492,7 +493,12 @@ class ScreenshotDialog {
     }
   }
 
-  open(screenshotSrc, onSaveAnnotation = null) {
+  open(screenshotSrc, onSaveAnnotation = null, buttonColor = null) {
+    // Update button color if provided
+    if (buttonColor) {
+      this.buttonColor = buttonColor;
+    }
+    
     this.screenshotSrc = screenshotSrc;
     this.onSaveAnnotation = onSaveAnnotation;
     this.isOpen = true;
@@ -622,7 +628,7 @@ class ScreenshotDialog {
             marker.strokeWidth = 5;
           }
           if (marker.strokeColor !== undefined) {
-            marker.strokeColor = '#ff0000';
+            marker.strokeColor = this.buttonColor;
           }
         } catch (e) {
           console.error('Error setting marker style:', e);
@@ -801,7 +807,12 @@ class ScreenshotDialog {
     }
   }
 
-  async openWithScreenshot(onSaveAnnotation = null) {
+  async openWithScreenshot(onSaveAnnotation = null, buttonColor = null) {
+    // Update button color if provided
+    if (buttonColor) {
+      this.buttonColor = buttonColor;
+    }
+    
     // Reset completely before taking a new screenshot
     // This ensures we don't have any lingering state from previous screenshots
     this.reset();
@@ -837,23 +848,28 @@ Usage Examples:
      }
    });
 
-3. Open with existing screenshot:
-   const dialog = new ScreenshotDialog();
-   dialog.open(existingImageDataUrl, callbackFunction);
+3. With custom button color:
+   const dialog = new ScreenshotDialog('#3b82f6'); // Custom blue color
+   dialog.openWithScreenshot(callback, '#3b82f6');
 
-4. Just capture screenshot without opening dialog:
+4. Open with existing screenshot and custom color:
+   const dialog = new ScreenshotDialog();
+   dialog.open(existingImageDataUrl, callbackFunction, '#ef4444');
+
+5. Just capture screenshot without opening dialog:
    const dialog = new ScreenshotDialog();
    const screenshotDataUrl = await dialog.captureScreenshot();
    
-5. Integration example:
-   // In your existing code (e.g., user-menu.tsx):
+6. Integration example with dynamic color:
+   // In your existing code (e.g., widget.js):
    const handleScreenshotClick = async () => {
      if (window.ScreenshotDialog) {
-       const dialog = new window.ScreenshotDialog();
+       const buttonColor = '#1f2937'; // Get from form settings
+       const dialog = new window.ScreenshotDialog(buttonColor);
        await dialog.openWithScreenshot((annotatedImage) => {
          // Handle the result
          setScreenshotImage(annotatedImage);
-       });
+       }, buttonColor);
      }
    };
 */ 
