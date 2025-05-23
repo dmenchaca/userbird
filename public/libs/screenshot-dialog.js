@@ -690,20 +690,29 @@ class ScreenshotDialog {
   }
 
   close() {
-    // Notify widget that screenshot dialog is closed
-    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
-      window.UserBird.setScreenshotDialogOpen(false);
+    if (this.overlay) {
+      this.isOpen = false;
+      
+      // Hide spinner if it's showing
+      this.hideSpinner();
+      
+      this.overlay.style.opacity = '0';
+      setTimeout(() => {
+        if (this.overlay) {
+          this.overlay.style.display = 'none';
+        }
+      }, 200);
+      
+      // Call callback with null to indicate dialog was closed without saving
+      if (this.onSaveAnnotation) {
+        this.onSaveAnnotation(null);
+      }
     }
     
-    this.isOpen = false;
-    this.overlay.style.opacity = '0';
-    setTimeout(() => {
-      this.overlay.style.display = 'none';
-    }, 200);
-
-    // Hide toolbar when closing
-    this.toolbar.style.display = 'none';
-    this.cleanup();
+    // Update widget state
+    if (typeof window !== 'undefined' && window.UserBird) {
+      window.UserBird.isScreenshotDialogOpen = false;
+    }
   }
 
   cleanup() {
@@ -946,7 +955,9 @@ class ScreenshotDialog {
         ignoreElements: (element) => {
           // Ignore elements that might cause issues
           return element.classList.contains('html2canvas-ignore') ||
-                 element.getAttribute('data-html2canvas-ignore') === 'true';
+                 element.getAttribute('data-html2canvas-ignore') === 'true' ||
+                 element.classList.contains('screenshot-capture-spinner') ||
+                 (this.spinnerOverlay && element === this.spinnerOverlay);
         }
       });
 
@@ -1165,22 +1176,109 @@ class ScreenshotDialog {
     });
   }
 
-  async openWithScreenshot(onSaveAnnotation = null, buttonColor = null) {
-    // Update button color if provided
-    if (buttonColor) {
-      this.buttonColor = buttonColor;
+  async openWithScreenshot(onSaveCallback = null) {
+    // Show spinner during capture
+    this.showSpinner();
+    
+    const screenshotSrc = await this.captureScreenshot();
+    
+    // Hide spinner regardless of success or failure
+    this.hideSpinner();
+    
+    if (screenshotSrc) {
+      this.open(screenshotSrc, onSaveCallback);
+    } else {
+      console.error('Failed to capture screenshot');
+    }
+  }
+
+  createSpinnerOverlay() {
+    // Create spinner overlay
+    this.spinnerOverlay = document.createElement('div');
+    this.spinnerOverlay.className = 'screenshot-capture-spinner';
+    this.spinnerOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      z-index: 10004;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    `;
+
+    // Create spinner content
+    this.spinnerContent = document.createElement('div');
+    this.spinnerContent.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    `;
+
+    // Create spinner animation
+    this.spinner = document.createElement('div');
+    this.spinner.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      animation: screenshot-spinner-spin 1s linear infinite;
+    `;
+
+    // Create spinner text
+    this.spinnerText = document.createElement('div');
+    this.spinnerText.textContent = 'Capturing screenshot...';
+    this.spinnerText.style.cssText = `
+      color: white;
+      font-size: 16px;
+      font-weight: 500;
+      text-align: center;
+    `;
+
+    // Add spinner animation keyframes
+    if (!document.querySelector('#screenshot-spinner-styles')) {
+      const style = document.createElement('style');
+      style.id = 'screenshot-spinner-styles';
+      style.textContent = `
+        @keyframes screenshot-spinner-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Assemble spinner
+    this.spinnerContent.appendChild(this.spinner);
+    this.spinnerContent.appendChild(this.spinnerText);
+    this.spinnerOverlay.appendChild(this.spinnerContent);
+    document.body.appendChild(this.spinnerOverlay);
+  }
+
+  showSpinner() {
+    if (!this.spinnerOverlay) {
+      this.createSpinnerOverlay();
     }
     
-    // Reset completely before taking a new screenshot
-    // This ensures we don't have any lingering state from previous screenshots
-    this.reset();
-    
-    // Capture screenshot first, then open dialog
-    const screenshotSrc = await this.captureScreenshot();
-    if (screenshotSrc) {
-      this.open(screenshotSrc, onSaveAnnotation);
-    } else {
-      // console.error('Failed to capture screenshot');
+    this.spinnerOverlay.style.display = 'flex';
+    setTimeout(() => {
+      this.spinnerOverlay.style.opacity = '1';
+    }, 10);
+  }
+
+  hideSpinner() {
+    if (this.spinnerOverlay) {
+      this.spinnerOverlay.style.opacity = '0';
+      setTimeout(() => {
+        this.spinnerOverlay.style.display = 'none';
+      }, 200);
     }
   }
 }
