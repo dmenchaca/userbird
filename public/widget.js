@@ -4,6 +4,44 @@
   let settingsLoaded = false;
   let settingsPromise = null;
   let selectedImage = null;
+  let screenshotDialog = null;
+  
+  // Load screenshot dependencies (html2canvas and markerjs3) when needed
+  function loadScreenshotDependencies() {
+    return new Promise((resolve, reject) => {
+      // Check if libraries are already loaded
+      if (window.html2canvas && window.markerjs3) {
+        return resolve();
+      }
+      
+      // Load html2canvas if needed
+      const html2canvasPromise = typeof html2canvas === 'undefined' ? 
+        loadScript(`${API_BASE_URL}/libs/html2canvas/html2canvas.min.js`) : 
+        Promise.resolve();
+      
+      // Load markerjs3 if needed
+      const markerjs3Promise = typeof window.markerjs3 === 'undefined' ? 
+        loadScript(`${API_BASE_URL}/libs/markerjs3/markerjs3.js`) : 
+        Promise.resolve();
+      
+      // Wait for both to load
+      Promise.all([html2canvasPromise, markerjs3Promise])
+        .then(resolve)
+        .catch(reject);
+    });
+  }
+
+  // Helper function to load scripts
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
   let currentTrigger = null;
   let modal = null;
   let pressedKeys = new Set();
@@ -678,11 +716,10 @@
             <div class="userbird-actions">
               <div class="userbird-image-upload">
                 <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
-                <button class="userbird-image-button">
+                <button class="userbird-image-button" title="Take screenshot">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <path d="M21 15l-5-5L5 21"/>
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
                   </svg>
                 </button>
                 <div class="userbird-image-preview">
@@ -1047,7 +1084,49 @@
     const imagePreview = modal.modal.querySelector('.userbird-image-preview');
     const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
     
-    imageButton.addEventListener('click', () => fileInput.click());
+    // Initialize screenshot functionality when the widget loads
+    loadScreenshotDependencies().then(result => {
+      console.log('Screenshot dependencies pre-loaded');
+    }).catch(err => {
+      console.error('Failed to pre-load screenshot dependencies:', err);
+    });
+    
+    // Change image button to trigger screenshot instead of file upload
+    imageButton.addEventListener('click', () => {
+      // Load screenshot dependencies and initialize dialog if needed
+      UserBird.enableScreenshots().then(dialog => {
+        if (dialog) {
+          // Configure the onSaveAnnotation callback to handle the annotated image
+          dialog.onSaveAnnotation = (annotatedImageDataUrl) => {
+            if (!annotatedImageDataUrl) return;
+            
+            // Convert data URL to Blob for consistency with the existing image handling
+            fetch(annotatedImageDataUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                // Create a File object from the Blob (needed for consistency with file upload)
+                const screenshotFile = new File([blob], 'screenshot.png', { type: 'image/png' });
+                
+                // Display the screenshot in the preview area
+                imagePreview.classList.add('show');
+                imagePreview.innerHTML = `<img src="${URL.createObjectURL(screenshotFile)}" alt="Screenshot" />`;
+                imageButton.style.display = 'none';
+                
+                // Set as the selected image for submission
+                selectedImage = screenshotFile;
+              })
+              .catch(err => {
+                console.error('Error processing screenshot:', err);
+              });
+          };
+          
+          // Open screenshot dialog and capture the screen
+          dialog.openWithScreenshot();
+        } else {
+          console.error('Screenshot dialog could not be initialized');
+        }
+      });
+    });
     
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -1419,6 +1498,24 @@
   };
 
   // Enhanced open method - respects the original if it was defined previously
+  // Enable screenshot capture and annotation functionality
+  window.UserBird.enableScreenshots = function() {
+    return loadScreenshotDependencies()
+      .then(() => {
+        console.log('Screenshot dependencies loaded successfully');
+        // Initialize screenshot dialog if needed
+        if (!screenshotDialog && window.ScreenshotDialog) {
+          screenshotDialog = new window.ScreenshotDialog();
+          console.log('Screenshot dialog initialized');
+        }
+        return screenshotDialog;
+      })
+      .catch(err => {
+        console.error('Failed to load screenshot dependencies:', err);
+        return null;
+      });
+  };
+
   window.UserBird.open = function(trigger) {
     if (originalOpen) {
       // Call original method first if it was defined

@@ -14,6 +14,7 @@
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "dependencies": {
+    "@markerjs/markerjs3": "^3.5.8",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-checkbox": "^1.1.4",
     "@radix-ui/react-dialog": "^1.1.10",
@@ -45,9 +46,11 @@
     "clsx": "^2.1.0",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.358.0",
     "mailparser": "^3.7.2",
+    "markerjs2": "^2.32.4",
     "nanoid": "^5.0.6",
     "next-themes": "^0.4.6",
     "node-fetch": "^2.7.0",
