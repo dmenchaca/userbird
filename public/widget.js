@@ -10,24 +10,56 @@
   function loadScreenshotDependencies() {
     return new Promise((resolve, reject) => {
       // Check if libraries are already loaded
-      if (window.html2canvas && window.markerjs3) {
+      if (window.html2canvas && window.markerjs3 && window.ScreenshotDialog) {
+        console.log('✅ All screenshot dependencies already loaded');
         return resolve();
       }
       
+      console.log('Loading screenshot dependencies...');
+      console.log('html2canvas available:', typeof window.html2canvas !== 'undefined');
+      console.log('markerjs3 available:', typeof window.markerjs3 !== 'undefined');
+      console.log('ScreenshotDialog available:', typeof window.ScreenshotDialog !== 'undefined');
+      
       // Load html2canvas if needed
       const html2canvasPromise = typeof html2canvas === 'undefined' ? 
-        loadScript(`${API_BASE_URL}/libs/html2canvas/html2canvas.min.js`) : 
+        loadScript(`${API_BASE_URL}/libs/html2canvas/html2canvas.min.js`).then(() => {
+          console.log('✅ html2canvas script loaded');
+          if (typeof window.html2canvas === 'undefined') {
+            throw new Error('html2canvas script loaded but not available on window');
+          }
+        }) : 
         Promise.resolve();
       
       // Load markerjs3 if needed
       const markerjs3Promise = typeof window.markerjs3 === 'undefined' ? 
-        loadScript(`${API_BASE_URL}/libs/markerjs3/markerjs3.js`) : 
+        loadScript(`${API_BASE_URL}/libs/markerjs3/markerjs3.js`).then(() => {
+          console.log('✅ markerjs3 script loaded');
+          if (typeof window.markerjs3 === 'undefined') {
+            throw new Error('markerjs3 script loaded but not available on window');
+          }
+        }) : 
         Promise.resolve();
       
-      // Wait for both to load
-      Promise.all([html2canvasPromise, markerjs3Promise])
-        .then(resolve)
-        .catch(reject);
+      // Load screenshot dialog if needed
+      const screenshotDialogPromise = typeof window.ScreenshotDialog === 'undefined' ?
+        loadScript(`${API_BASE_URL}/src/components/screenshot-dialog-vanilla.js`).then(() => {
+          console.log('✅ ScreenshotDialog script loaded');
+          if (typeof window.ScreenshotDialog === 'undefined') {
+            throw new Error('ScreenshotDialog script loaded but not available on window');
+          }
+        }) :
+        Promise.resolve();
+      
+      // Wait for all to load
+      Promise.all([html2canvasPromise, markerjs3Promise, screenshotDialogPromise])
+        .then(() => {
+          console.log('✅ All screenshot dependencies loaded successfully');
+          resolve();
+        })
+        .catch((error) => {
+          console.error('❌ Failed to load screenshot dependencies:', error);
+          reject(error);
+        });
     });
   }
 
@@ -1577,21 +1609,47 @@
     isScreenshotDialogOpen = isOpen;
   };
 
-  // Enhanced open method - respects the original if it was defined previously
   // Enable screenshot capture and annotation functionality
   window.UserBird.enableScreenshots = function() {
     return loadScreenshotDependencies()
       .then(() => {
         console.log('Screenshot dependencies loaded successfully');
-        // Initialize screenshot dialog if needed
-        if (!screenshotDialog && window.ScreenshotDialog) {
-          screenshotDialog = new window.ScreenshotDialog();
-          console.log('Screenshot dialog initialized');
+        
+        // Check if required dependencies are available
+        if (typeof window.html2canvas === 'undefined') {
+          console.error('❌ html2canvas not available on window object');
+          return null;
         }
+        
+        if (typeof window.markerjs3 === 'undefined') {
+          console.error('❌ markerjs3 not available on window object');
+          return null;
+        }
+        
+        if (typeof window.ScreenshotDialog === 'undefined') {
+          console.error('❌ ScreenshotDialog class not available on window object');
+          console.log('Available window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('screenshot')));
+          return null;
+        }
+        
+        // Initialize screenshot dialog if needed
+        if (!screenshotDialog) {
+          try {
+            console.log('Creating new ScreenshotDialog instance...');
+            screenshotDialog = new window.ScreenshotDialog();
+            console.log('✅ Screenshot dialog initialized successfully');
+          } catch (error) {
+            console.error('❌ Error creating ScreenshotDialog instance:', error);
+            console.error('Error stack:', error.stack);
+            return null;
+          }
+        }
+        
         return screenshotDialog;
       })
       .catch(err => {
-        console.error('Failed to load screenshot dependencies:', err);
+        console.error('❌ Failed to load screenshot dependencies:', err);
+        console.error('Dependency error stack:', err.stack);
         return null;
       });
   };
