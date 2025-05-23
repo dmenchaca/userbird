@@ -100,7 +100,6 @@ class ScreenshotDialog {
     // Create overlay
     this.overlay = document.createElement('div');
     this.overlay.className = 'screenshot-dialog-overlay';
-    this.overlay.tabIndex = -1; // Make focusable for focus management
     this.overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -112,7 +111,6 @@ class ScreenshotDialog {
       z-index: 50;
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
-      outline: none;
     `;
 
     // Create dialog content
@@ -427,34 +425,11 @@ class ScreenshotDialog {
       }
     });
 
-    // Prevent all clicks from propagating to host application
-    this.overlay.addEventListener('click', (e) => {
-      e.stopPropagation();
-    }, true);
-
     // Toolbar dragging
     this.dragHandle.addEventListener('mousedown', this.handleMouseDown.bind(this));
 
-    // Comprehensive keyboard event handling to prevent host app shortcuts
-    this.overlay.addEventListener('keydown', this.handleKeyDown.bind(this), true); // Use capture phase
-    this.overlay.addEventListener('keyup', this.handleKeyUp.bind(this), true); // Use capture phase
-    this.overlay.addEventListener('keypress', this.handleKeyPress.bind(this), true); // Use capture phase
-    
-    // Focus management - ensure focus stays within dialog
-    document.addEventListener('focusin', this.handleFocusIn.bind(this));
-  }
-
-  handleFocusIn(e) {
-    // Only manage focus when screenshot dialog is open
-    if (!this.isOpen) return;
-    
-    // If focus moves outside the overlay, bring it back
-    if (!this.overlay.contains(e.target)) {
-      e.preventDefault();
-      e.stopPropagation();
-      // Focus the overlay itself to keep focus within dialog
-      this.overlay.focus();
-    }
+    // Keyboard shortcuts
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
   }
 
   handleMouseDown(e) {
@@ -499,10 +474,6 @@ class ScreenshotDialog {
   }
 
   handleKeyDown(e) {
-    // Always prevent keyboard events from bubbling to host application
-    e.stopPropagation();
-    
-    // Only handle our specific shortcuts if dialog is open and annotation is ready
     if (!this.isOpen || !this.markerArea || !this.isAnnotationReady || this.annotatedImage) return;
 
     // Undo: Ctrl+Z or Cmd+Z
@@ -520,33 +491,12 @@ class ScreenshotDialog {
         this.markerArea.redo();
       }
     }
-
-    // Escape to close dialog
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this.close();
-    }
-  }
-
-  handleKeyUp(e) {
-    // Always prevent keyboard events from bubbling to host application
-    e.stopPropagation();
-  }
-
-  handleKeyPress(e) {
-    // Always prevent keyboard events from bubbling to host application
-    e.stopPropagation();
   }
 
   open(screenshotSrc, onSaveAnnotation = null, buttonColor = null) {
     // Update button color if provided
     if (buttonColor) {
       this.buttonColor = buttonColor;
-    }
-    
-    // Notify widget that screenshot dialog is open to prevent shortcuts
-    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
-      window.UserBird.setScreenshotDialogOpen(true);
     }
     
     this.screenshotSrc = screenshotSrc;
@@ -611,11 +561,6 @@ class ScreenshotDialog {
   }
 
   close() {
-    // Notify widget that screenshot dialog is closed
-    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
-      window.UserBird.setScreenshotDialogOpen(false);
-    }
-    
     this.isOpen = false;
     this.overlay.style.opacity = '0';
     setTimeout(() => {
@@ -628,14 +573,6 @@ class ScreenshotDialog {
   }
 
   cleanup() {
-    // Notify widget that screenshot dialog is closed
-    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
-      window.UserBird.setScreenshotDialogOpen(false);
-    }
-    
-    // Remove focus event listener
-    document.removeEventListener('focusin', this.handleFocusIn.bind(this));
-    
     if (this.markerArea) {
       try {
         if (this.markerArea.parentNode) {
@@ -765,11 +702,6 @@ class ScreenshotDialog {
    * Used when removing thumbnails or starting fresh
    */
   reset() {
-    // Notify widget that screenshot dialog is closed
-    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
-      window.UserBird.setScreenshotDialogOpen(false);
-    }
-    
     // Clear all screenshot data
     this.annotatedImage = null;
     this.screenshotSrc = null;
@@ -940,12 +872,4 @@ Usage Examples:
        }, buttonColor);
      }
    };
-
-KEYBOARD ISOLATION:
-- When the screenshot dialog is open, ALL keyboard shortcuts from the host application are prevented
-- This includes custom shortcuts defined by the host app (e.g., 's' for status, 'a' for other actions)
-- Text annotation typing will not trigger any external shortcuts
-- Only specific screenshot dialog shortcuts work: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Y (redo), Escape (close)
-- Focus is automatically managed to stay within the dialog
-- Widget shortcuts are also disabled while the dialog is open
 */ 

@@ -48,7 +48,6 @@
   let formId = null;
   let successSound = null;
   let isAnimationRunning = false;
-  let isScreenshotDialogOpen = false; // Track screenshot dialog state
   
   // Log buffer for console capture
   const MAX_LOG_ENTRIES = 100;
@@ -1439,11 +1438,6 @@
   }
 
   function handleKeyDown(e) {
-    // If screenshot dialog is open, don't handle any keyboard shortcuts
-    if (isScreenshotDialogOpen) {
-      return;
-    }
-    
     const activeElement = document.activeElement;
     const isInputFocused = activeElement?.matches('input, textarea, [contenteditable]');
     
@@ -1570,11 +1564,6 @@
   // Add animation control flags
   window.UserBird.setAnimationRunning = function(isRunning) {
     isAnimationRunning = isRunning;
-  };
-
-  // Add screenshot dialog state control
-  window.UserBird.setScreenshotDialogOpen = function(isOpen) {
-    isScreenshotDialogOpen = isOpen;
   };
 
   // Enhanced open method - respects the original if it was defined previously
