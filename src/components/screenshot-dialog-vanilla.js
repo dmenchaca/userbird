@@ -877,10 +877,6 @@ class ScreenshotDialog {
       await document.fonts.ready;
       console.log('✅ Fonts loaded');
 
-      // Preload all images to ensure they're ready for capture
-      await this.preloadImages();
-      console.log('✅ Images preloaded');
-
       // Apply screenshot mode class for better quality
       document.body.classList.add('screenshot-mode');
 
@@ -888,47 +884,14 @@ class ScreenshotDialog {
       const canvas = await html2canvas(document.body, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: false,
+        allowTaint: false,
+        foreignObjectRendering: true,
         logging: false,
         backgroundColor: null,
         width: window.innerWidth,
         height: window.innerHeight,
         scrollX: 0,
-        scrollY: 0,
-        imageTimeout: 15000,
-        onclone: (clonedDoc) => {
-          // Ensure all images are loaded in the cloned document
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach(img => {
-            if (img.loading) {
-              img.loading = 'eager';
-            }
-            
-            // Handle lazy loaded images
-            if (img.dataset.src && !img.src) {
-              img.src = img.dataset.src;
-            }
-            
-            // Handle srcset for responsive images
-            if (img.srcset) {
-              img.removeAttribute('srcset');
-            }
-            
-            // Ensure images don't have loading restrictions
-            img.crossOrigin = 'anonymous';
-          });
-          
-          // Also handle background images
-          const elementsWithBgImages = clonedDoc.querySelectorAll('[style*="background-image"]');
-          elementsWithBgImages.forEach(el => {
-            const style = window.getComputedStyle(el);
-            if (style.backgroundImage && style.backgroundImage !== 'none') {
-              // Keep background images as they are, html2canvas should handle them
-              el.style.backgroundImage = style.backgroundImage;
-            }
-          });
-        }
+        scrollY: 0
       });
 
       // Remove screenshot mode class
@@ -964,50 +927,6 @@ class ScreenshotDialog {
     } else {
       console.error('Failed to capture screenshot');
     }
-  }
-
-  /**
-   * Preload all images on the page to ensure they're ready for screenshot
-   */
-  async preloadImages() {
-    const images = document.querySelectorAll('img');
-    const imagePromises = Array.from(images).map(img => {
-      return new Promise((resolve) => {
-        if (img.complete && img.naturalWidth > 0) {
-          // Image is already loaded
-          resolve();
-        } else {
-          // Image needs to load
-          const handleLoad = () => {
-            img.removeEventListener('load', handleLoad);
-            img.removeEventListener('error', handleError);
-            resolve();
-          };
-          const handleError = () => {
-            img.removeEventListener('load', handleLoad);
-            img.removeEventListener('error', handleError);
-            console.warn('Failed to load image:', img.src);
-            resolve(); // Resolve anyway to not block screenshot
-          };
-          
-          img.addEventListener('load', handleLoad);
-          img.addEventListener('error', handleError);
-          
-          // Trigger load if src is set but not loading
-          if (img.src && !img.loading) {
-            img.loading = 'eager';
-          }
-          
-          // Timeout after 5 seconds to not block indefinitely
-          setTimeout(() => {
-            handleError();
-          }, 5000);
-        }
-      });
-    });
-
-    // Wait for all images to load (or timeout)
-    await Promise.all(imagePromises);
   }
 }
 
