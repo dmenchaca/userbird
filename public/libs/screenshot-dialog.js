@@ -443,7 +443,22 @@ class ScreenshotDialog {
       () => this.deleteScreenshot()
     );
 
+    // Separator
+    const separator = document.createElement('div');
+    separator.style.cssText = 'width: 1px; height: 24px; background: var(--ssd-border-color);';
+
+    // Close button
+    const closeButton = this.createButton(
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+      'Close',
+      'Close dialog',
+      () => this.close(),
+      'default'
+    );
+
     tools.appendChild(deleteButton);
+    tools.appendChild(separator);
+    tools.appendChild(closeButton);
 
     return tools;
   }
