@@ -26,7 +26,7 @@
       
       // Load screenshot dialog if needed
       const screenshotDialogPromise = typeof window.ScreenshotDialog === 'undefined' ?
-        loadScript(`${API_BASE_URL}/components/screenshot-dialog-vanilla.js`) :
+        loadScript(`${API_BASE_URL}/libs/screenshot-dialog.js`) :
         Promise.resolve();
       
       // Wait for all to load

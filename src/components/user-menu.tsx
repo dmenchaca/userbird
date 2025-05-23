@@ -66,7 +66,7 @@ export function UserMenu() {
 
       // Load the script
       const script = document.createElement('script');
-      script.src = '/libs/screenshot-dialog/screenshot-dialog.js';
+      script.src = '/libs/screenshot-dialog.js';
       script.onload = () => {
         if (window.ScreenshotDialog) {
           screenshotDialogRef.current = new window.ScreenshotDialog();
