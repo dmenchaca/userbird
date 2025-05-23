@@ -877,21 +877,88 @@ class ScreenshotDialog {
       await document.fonts.ready;
       console.log('✅ Fonts loaded');
 
+      // Wait for images to load
+      await this.waitForImages();
+      console.log('✅ Images loaded');
+
       // Apply screenshot mode class for better quality
       document.body.classList.add('screenshot-mode');
 
       // Capture with high quality settings
       const canvas = await html2canvas(document.body, {
         scale: 2,
-        useCORS: true,
         allowTaint: true,
         foreignObjectRendering: true,
-        logging: false,
+        logging: true,
         backgroundColor: null,
         width: window.innerWidth,
         height: window.innerHeight,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        imageTimeout: 0,
+        removeContainer: true,
+        ignoreElements: (element) => {
+          // Ignore elements that might cause issues
+          return element.classList.contains('html2canvas-ignore') ||
+                 element.getAttribute('data-html2canvas-ignore') === 'true';
+        },
+        onclone: (clonedDoc, element) => {
+          // Fix images in the cloned document
+          const images = clonedDoc.querySelectorAll('img');
+          images.forEach(img => {
+            // Ensure images have proper attributes
+            if (img.src && !img.complete) {
+              img.src = img.src; // Force reload
+            }
+            
+            // Handle images with srcset
+            if (img.srcset) {
+              img.removeAttribute('srcset');
+              img.removeAttribute('sizes');
+            }
+            
+            // Handle lazy loading
+            if (img.loading === 'lazy') {
+              img.loading = 'eager';
+            }
+            
+            // Remove any transforms that might interfere
+            img.style.transform = 'none';
+            img.style.filter = 'none';
+          });
+          
+          // Handle background images
+          const elementsWithBg = clonedDoc.querySelectorAll('*');
+          elementsWithBg.forEach(el => {
+            const computedStyle = window.getComputedStyle(el);
+            if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
+              // Convert background image to img element for better capture
+              try {
+                const bgImage = computedStyle.backgroundImage.match(/url\("?([^"]*)"?\)/);
+                if (bgImage && bgImage[1]) {
+                  const img = clonedDoc.createElement('img');
+                  img.src = bgImage[1];
+                  img.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: ${computedStyle.backgroundSize || 'cover'};
+                    object-position: ${computedStyle.backgroundPosition || 'center'};
+                    z-index: -1;
+                  `;
+                  el.appendChild(img);
+                  el.style.backgroundImage = 'none';
+                }
+              } catch (e) {
+                // Ignore errors in background image handling
+              }
+            }
+          });
+          
+          return element;
+        }
       });
 
       // Remove screenshot mode class
@@ -908,6 +975,118 @@ class ScreenshotDialog {
       this.isCapturing = false;
       return null;
     }
+  }
+
+  // Wait for all images to load before taking screenshot
+  async waitForImages() {
+    const images = Array.from(document.querySelectorAll('img'));
+    
+    // Convert external images to data URLs to bypass CORS issues
+    const imagePromises = images.map(async (img) => {
+      if (img.complete && img.src) {
+        // Try to convert external images to data URLs
+        if (this.isExternalImage(img.src)) {
+          try {
+            const dataUrl = await this.convertImageToDataUrl(img);
+            if (dataUrl) {
+              img.src = dataUrl;
+              console.log('✅ Converted external image to data URL:', img.src.substring(0, 50) + '...');
+            }
+          } catch (e) {
+            console.warn('❌ Failed to convert external image:', img.src, e);
+          }
+        }
+        return Promise.resolve();
+      }
+      
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.warn('Image load timeout:', img.src);
+          resolve(); // Continue even if image fails to load
+        }, 3000); // 3 second timeout per image
+        
+        img.onload = async () => {
+          clearTimeout(timeout);
+          
+          // Try to convert external images after loading
+          if (this.isExternalImage(img.src)) {
+            try {
+              const dataUrl = await this.convertImageToDataUrl(img);
+              if (dataUrl) {
+                img.src = dataUrl;
+                console.log('✅ Converted external image to data URL after load:', img.src.substring(0, 50) + '...');
+              }
+            } catch (e) {
+              console.warn('❌ Failed to convert external image after load:', img.src, e);
+            }
+          }
+          
+          resolve();
+        };
+        
+        img.onerror = () => {
+          clearTimeout(timeout);
+          console.warn('Image failed to load:', img.src);
+          resolve(); // Continue even if image fails
+        };
+      });
+    });
+
+    await Promise.all(imagePromises);
+  }
+  
+  // Check if image is external (cross-origin)
+  isExternalImage(src) {
+    try {
+      const url = new URL(src, window.location.href);
+      return url.origin !== window.location.origin;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Convert image to data URL using canvas
+  async convertImageToDataUrl(img) {
+    return new Promise((resolve) => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        
+        // Create a new image element to avoid CORS issues
+        const proxyImg = new Image();
+        proxyImg.crossOrigin = 'anonymous';
+        
+        proxyImg.onload = () => {
+          try {
+            ctx.drawImage(proxyImg, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            resolve(dataUrl);
+          } catch (e) {
+            console.warn('Failed to draw image to canvas:', e);
+            resolve(null);
+          }
+        };
+        
+        proxyImg.onerror = () => {
+          console.warn('Failed to load image with crossOrigin:', img.src);
+          resolve(null);
+        };
+        
+        proxyImg.src = img.src;
+        
+        // Timeout after 2 seconds
+        setTimeout(() => {
+          resolve(null);
+        }, 2000);
+        
+      } catch (e) {
+        console.warn('Error in convertImageToDataUrl:', e);
+        resolve(null);
+      }
+    });
   }
 
   async openWithScreenshot(onSaveAnnotation = null, buttonColor = null) {
