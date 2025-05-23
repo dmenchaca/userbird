@@ -10,7 +10,7 @@
   function loadScreenshotDependencies() {
     return new Promise((resolve, reject) => {
       // Check if libraries are already loaded
-      if (window.html2canvas && window.markerjs3) {
+      if (window.html2canvas && window.markerjs3 && window.ScreenshotDialog) {
         return resolve();
       }
       
@@ -24,8 +24,13 @@
         loadScript(`${API_BASE_URL}/libs/markerjs3/markerjs3.js`) : 
         Promise.resolve();
       
-      // Wait for both to load
-      Promise.all([html2canvasPromise, markerjs3Promise])
+      // Load screenshot dialog if needed
+      const screenshotDialogPromise = typeof window.ScreenshotDialog === 'undefined' ?
+        loadScript(`${API_BASE_URL}/components/screenshot-dialog-vanilla.js`) :
+        Promise.resolve();
+      
+      // Wait for all to load
+      Promise.all([html2canvasPromise, markerjs3Promise, screenshotDialogPromise])
         .then(resolve)
         .catch(reject);
     });
