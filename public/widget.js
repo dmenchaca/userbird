@@ -961,6 +961,11 @@
         return;
       }
       
+      // Don't close if screenshot dialog is open
+      if (isScreenshotDialogOpen) {
+        return;
+      }
+      
       if (e.key === 'Escape') {
         closeModal();
         document.removeEventListener('keydown', handleEscKey);

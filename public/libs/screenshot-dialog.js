@@ -134,6 +134,50 @@ class ScreenshotDialog {
       border: 1px solid var(--ssd-border-color);
     `;
 
+    // Create close button in top right corner
+    this.closeButton = document.createElement('button');
+    this.closeButton.className = 'screenshot-dialog-close';
+    this.closeButton.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    `;
+    this.closeButton.style.cssText = `
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10003;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: var(--ssd-background);
+      color: var(--ssd-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--ssd-border-color);
+    `;
+    
+    // Add hover effects for close button
+    this.closeButton.addEventListener('mouseenter', () => {
+      this.closeButton.style.background = 'var(--ssd-hover-background)';
+      this.closeButton.style.color = 'var(--ssd-text)';
+    });
+    this.closeButton.addEventListener('mouseleave', () => {
+      this.closeButton.style.background = 'var(--ssd-background)';
+      this.closeButton.style.color = 'var(--ssd-text-muted)';
+    });
+    
+    // Add click handler for close button
+    this.closeButton.addEventListener('click', () => {
+      this.close();
+    });
+
     // Create container for image and annotations
     this.container = document.createElement('div');
     this.container.className = 'screenshot-container';
@@ -162,6 +206,7 @@ class ScreenshotDialog {
     // Assemble dialog
     this.container.appendChild(this.imageElement);
     this.container.appendChild(this.toolbar);
+    this.dialog.appendChild(this.closeButton);
     this.dialog.appendChild(this.container);
     this.overlay.appendChild(this.dialog);
     document.body.appendChild(this.overlay);
@@ -390,8 +435,6 @@ class ScreenshotDialog {
     const tools = document.createElement('div');
     tools.style.cssText = 'display: flex; gap: 8px; align-items: center;';
 
-    // Note: 'New' button removed to simplify UI
-
     // Delete button
     const deleteButton = this.createButton(
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
@@ -400,22 +443,7 @@ class ScreenshotDialog {
       () => this.deleteScreenshot()
     );
 
-    // Separator
-    const separator = document.createElement('div');
-    separator.style.cssText = 'width: 1px; height: 24px; background: var(--ssd-border-color);';
-
-    // Close button
-    const closeButton = this.createButton(
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-      'Close',
-      'Close dialog',
-      () => this.close(),
-      'default'
-    );
-
     tools.appendChild(deleteButton);
-    tools.appendChild(separator);
-    tools.appendChild(closeButton);
 
     return tools;
   }
@@ -514,6 +542,14 @@ class ScreenshotDialog {
     // For all other elements, prevent all keyboard events from bubbling
     e.stopPropagation();
     
+    // Specifically handle ESC key to prevent it from closing the widget
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return; // Do nothing - ESC is completely disabled for closing
+    }
+    
     // Only handle our specific shortcuts if dialog is open and annotation is ready
     if (!this.isOpen || !this.markerArea || !this.isAnnotationReady || this.annotatedImage) return;
 
@@ -531,12 +567,6 @@ class ScreenshotDialog {
       if (typeof this.markerArea.redo === 'function') {
         this.markerArea.redo();
       }
-    }
-
-    // Escape to close dialog
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this.close();
     }
   }
 
