@@ -306,7 +306,6 @@ class ScreenshotDialog {
         button.style.background = 'transparent';
       });
     } else {
-      console.log('🎨 Creating default button with color:', this.buttonColor, 'for text:', text);
       button.style.cssText = baseStyles + `
         background: ${this.buttonColor};
         color: white;
@@ -691,35 +690,23 @@ class ScreenshotDialog {
   }
 
   close() {
-    if (this.overlay) {
-      this.isOpen = false;
-      
-      // Hide spinner if it's showing
-      this.hideSpinner();
-      
-      this.overlay.style.opacity = '0';
-      setTimeout(() => {
-        if (this.overlay) {
-          this.overlay.style.display = 'none';
-        }
-      }, 200);
-      
-      // Call callback with null to indicate dialog was closed without saving
-      if (this.onSaveAnnotation) {
-        this.onSaveAnnotation(null);
-      }
+    // Notify widget that screenshot dialog is closed
+    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
+      window.UserBird.setScreenshotDialogOpen(false);
     }
     
-    // Update widget state
-    if (typeof window !== 'undefined' && window.UserBird) {
-      window.UserBird.isScreenshotDialogOpen = false;
-    }
+    this.isOpen = false;
+    this.overlay.style.opacity = '0';
+    setTimeout(() => {
+      this.overlay.style.display = 'none';
+    }, 200);
+
+    // Hide toolbar when closing
+    this.toolbar.style.display = 'none';
+    this.cleanup();
   }
 
   cleanup() {
-    // Hide spinner if it's showing
-    this.hideSpinner();
-    
     // Notify widget that screenshot dialog is closed
     if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
       window.UserBird.setScreenshotDialogOpen(false);
@@ -839,19 +826,14 @@ class ScreenshotDialog {
   }
 
   deleteScreenshot() {
-    console.log('🗑️ Delete screenshot called - clearing all data');
-    
     // Clear all screenshot data
     this.annotatedImage = null;
     this.screenshotSrc = null;
     this.isAnnotationReady = false;
     
-    // Notify React component with null to indicate deletion
+    // Notify React component
     if (this.onSaveAnnotation) {
-      console.log('📞 Calling onSaveAnnotation with null (delete)');
       this.onSaveAnnotation(null);
-    } else {
-      console.warn('⚠️ No onSaveAnnotation callback available');
     }
     
     this.close();
@@ -862,46 +844,25 @@ class ScreenshotDialog {
    * Used when removing thumbnails or starting fresh
    */
   reset() {
-    console.log('🔄 Reset called - preserving buttonColor:', this.buttonColor);
-    
-    // Hide spinner if it's showing
-    this.hideSpinner();
-    
     // Notify widget that screenshot dialog is closed
     if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
       window.UserBird.setScreenshotDialogOpen(false);
     }
     
-    // Clear all screenshot data but preserve buttonColor
-    const preservedButtonColor = this.buttonColor;
+    // Clear all screenshot data
     this.annotatedImage = null;
     this.screenshotSrc = null;
     this.isAnnotationReady = false;
     this.isCapturing = false;
-    this.onSaveAnnotation = null;
-    
-    // Restore buttonColor after clearing other properties
-    this.buttonColor = preservedButtonColor;
     
     // Reset UI elements
     this.resetImageElement();
     
     // Clean up marker area if it exists
     if (this.markerArea) {
-      try {
-        this.markerArea.close();
-      } catch (e) {
-        console.error("Error closing marker area:", e);
-      }
+      this.markerArea.close();
       this.markerArea = null;
     }
-    
-    // Hide toolbar
-    if (this.toolbar) {
-      this.toolbar.style.display = 'none';
-    }
-    
-    console.log('✅ Reset complete - buttonColor preserved as:', this.buttonColor);
   }
 
   updateToolbar() {
@@ -953,12 +914,6 @@ class ScreenshotDialog {
     this.isCapturing = true;
     // console.log('📸 Starting screenshot capture...');
 
-    // Temporarily hide spinner during capture to prevent any interference
-    const spinnerWasVisible = this.spinnerOverlay && this.spinnerOverlay.style.display === 'flex';
-    if (spinnerWasVisible) {
-      this.spinnerOverlay.style.display = 'none';
-    }
-
     try {
       // Wait for fonts to be ready
       await document.fonts.ready;
@@ -991,9 +946,7 @@ class ScreenshotDialog {
         ignoreElements: (element) => {
           // Ignore elements that might cause issues
           return element.classList.contains('html2canvas-ignore') ||
-                 element.getAttribute('data-html2canvas-ignore') === 'true' ||
-                 element.classList.contains('screenshot-capture-spinner') ||
-                 (this.spinnerOverlay && element === this.spinnerOverlay);
+                 element.getAttribute('data-html2canvas-ignore') === 'true';
         }
       });
 
@@ -1004,23 +957,11 @@ class ScreenshotDialog {
       // console.log('✅ Screenshot captured successfully');
       
       this.isCapturing = false;
-      
-      // Restore spinner if it was visible
-      if (spinnerWasVisible && this.spinnerOverlay) {
-        this.spinnerOverlay.style.display = 'flex';
-      }
-      
       return dataUrl;
     } catch (error) {
       console.error('❌ Screenshot capture failed:', error);
       document.body.classList.remove('screenshot-mode');
       this.isCapturing = false;
-      
-      // Restore spinner if it was visible
-      if (spinnerWasVisible && this.spinnerOverlay) {
-        this.spinnerOverlay.style.display = 'flex';
-      }
-      
       return null;
     }
   }
@@ -1225,20 +1166,10 @@ class ScreenshotDialog {
   }
 
   async openWithScreenshot(onSaveAnnotation = null, buttonColor = null) {
-    console.log('🔧 openWithScreenshot called with:', { 
-      hasCallback: !!onSaveAnnotation, 
-      buttonColor, 
-      currentButtonColor: this.buttonColor 
-    });
-    
     // Update button color if provided
     if (buttonColor) {
       this.buttonColor = buttonColor;
-      console.log('🎨 Button color updated to:', this.buttonColor);
     }
-    
-    // Show spinner during capture
-    this.showSpinner();
     
     // Reset completely before taking a new screenshot
     // This ensures we don't have any lingering state from previous screenshots
@@ -1246,105 +1177,10 @@ class ScreenshotDialog {
     
     // Capture screenshot first, then open dialog
     const screenshotSrc = await this.captureScreenshot();
-    
-    // Hide spinner regardless of success or failure
-    this.hideSpinner();
-    
     if (screenshotSrc) {
-      console.log('📸 Screenshot captured, opening dialog with buttonColor:', this.buttonColor);
       this.open(screenshotSrc, onSaveAnnotation);
     } else {
-      console.error('Failed to capture screenshot');
-    }
-  }
-
-  createSpinnerOverlay() {
-    // Create spinner overlay
-    this.spinnerOverlay = document.createElement('div');
-    this.spinnerOverlay.className = 'screenshot-capture-spinner';
-    this.spinnerOverlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.7);
-      display: none;
-      z-index: 10004;
-      opacity: 0;
-      transition: opacity 0.2s ease-in-out;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-    `;
-
-    // Create spinner content
-    this.spinnerContent = document.createElement('div');
-    this.spinnerContent.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    `;
-
-    // Create spinner animation
-    this.spinner = document.createElement('div');
-    this.spinner.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top: 3px solid white;
-      border-radius: 50%;
-      animation: screenshot-spinner-spin 1s linear infinite;
-    `;
-
-    // Create spinner text
-    this.spinnerText = document.createElement('div');
-    this.spinnerText.textContent = 'Capturing screenshot...';
-    this.spinnerText.style.cssText = `
-      color: white;
-      font-size: 16px;
-      font-weight: 500;
-      text-align: center;
-    `;
-
-    // Add spinner animation keyframes
-    if (!document.querySelector('#screenshot-spinner-styles')) {
-      const style = document.createElement('style');
-      style.id = 'screenshot-spinner-styles';
-      style.textContent = `
-        @keyframes screenshot-spinner-spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    // Assemble spinner
-    this.spinnerContent.appendChild(this.spinner);
-    this.spinnerContent.appendChild(this.spinnerText);
-    this.spinnerOverlay.appendChild(this.spinnerContent);
-    document.body.appendChild(this.spinnerOverlay);
-  }
-
-  showSpinner() {
-    if (!this.spinnerOverlay) {
-      this.createSpinnerOverlay();
-    }
-    
-    this.spinnerOverlay.style.display = 'flex';
-    setTimeout(() => {
-      this.spinnerOverlay.style.opacity = '1';
-    }, 10);
-  }
-
-  hideSpinner() {
-    if (this.spinnerOverlay) {
-      this.spinnerOverlay.style.opacity = '0';
-      setTimeout(() => {
-        this.spinnerOverlay.style.display = 'none';
-      }, 200);
+      // console.error('Failed to capture screenshot');
     }
   }
 }
