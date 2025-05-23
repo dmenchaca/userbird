@@ -12,6 +12,7 @@ class ScreenshotDialog {
     this.onSaveAnnotation = null;
     this.isCapturing = false;
     this.buttonColor = buttonColor; // Store the dynamic button color
+    this.imageCache = new Map(); // Cache for converted images
     
     // Toolbar state
     this.toolbarPosition = { top: 10, left: '50%', transform: 'translateX(-50%)' };
@@ -877,87 +878,34 @@ class ScreenshotDialog {
       await document.fonts.ready;
       console.log('✅ Fonts loaded');
 
-      // Wait for images to load
-      await this.waitForImages();
-      console.log('✅ Images loaded');
+      // Only process images if we detect known problematic domains
+      if (this.hasProblematicImages()) {
+        await this.waitForImages();
+        console.log('✅ Images processed');
+      } else {
+        console.log('✅ No problematic images detected - skipping processing');
+      }
 
       // Apply screenshot mode class for better quality
       document.body.classList.add('screenshot-mode');
 
-      // Capture with high quality settings
+      // Capture with optimized settings for speed
       const canvas = await html2canvas(document.body, {
-        scale: 2,
+        scale: 2, // Back to maximum quality
         allowTaint: true,
         foreignObjectRendering: true,
-        logging: true,
+        logging: false, // Disabled for speed
         backgroundColor: null,
         width: window.innerWidth,
         height: window.innerHeight,
         scrollX: 0,
         scrollY: 0,
-        imageTimeout: 0,
+        imageTimeout: 100, // Very short timeout
         removeContainer: true,
         ignoreElements: (element) => {
           // Ignore elements that might cause issues
           return element.classList.contains('html2canvas-ignore') ||
                  element.getAttribute('data-html2canvas-ignore') === 'true';
-        },
-        onclone: (clonedDoc, element) => {
-          // Fix images in the cloned document
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach(img => {
-            // Ensure images have proper attributes
-            if (img.src && !img.complete) {
-              img.src = img.src; // Force reload
-            }
-            
-            // Handle images with srcset
-            if (img.srcset) {
-              img.removeAttribute('srcset');
-              img.removeAttribute('sizes');
-            }
-            
-            // Handle lazy loading
-            if (img.loading === 'lazy') {
-              img.loading = 'eager';
-            }
-            
-            // Remove any transforms that might interfere
-            img.style.transform = 'none';
-            img.style.filter = 'none';
-          });
-          
-          // Handle background images
-          const elementsWithBg = clonedDoc.querySelectorAll('*');
-          elementsWithBg.forEach(el => {
-            const computedStyle = window.getComputedStyle(el);
-            if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
-              // Convert background image to img element for better capture
-              try {
-                const bgImage = computedStyle.backgroundImage.match(/url\("?([^"]*)"?\)/);
-                if (bgImage && bgImage[1]) {
-                  const img = clonedDoc.createElement('img');
-                  img.src = bgImage[1];
-                  img.style.cssText = `
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    object-fit: ${computedStyle.backgroundSize || 'cover'};
-                    object-position: ${computedStyle.backgroundPosition || 'center'};
-                    z-index: -1;
-                  `;
-                  el.appendChild(img);
-                  el.style.backgroundImage = 'none';
-                }
-              } catch (e) {
-                // Ignore errors in background image handling
-              }
-            }
-          });
-          
-          return element;
         }
       });
 
@@ -977,85 +925,78 @@ class ScreenshotDialog {
     }
   }
 
-  // Wait for all images to load before taking screenshot
-  async waitForImages() {
-    const images = Array.from(document.querySelectorAll('img'));
+  // Check if page has images from known problematic domains
+  hasProblematicImages() {
+    const problematicDomains = [
+      'googleusercontent.com',
+      'gravatar.com', 
+      'facebook.com',
+      'fbcdn.net',
+      'instagram.com',
+      'cdninstagram.com'
+    ];
     
-    // Convert external images to data URLs to bypass CORS issues
-    const imagePromises = images.map(async (img) => {
-      if (img.complete && img.src) {
-        // Skip if already a data URL or very small images
-        if (img.src.startsWith('data:') || 
-            (img.width < 16 && img.height < 16)) {
-          return Promise.resolve();
-        }
-        
-        // Only convert external images that are likely to cause CORS issues
-        if (this.isExternalImage(img.src)) {
-          try {
-            const dataUrl = await this.convertImageToDataUrl(img);
-            if (dataUrl) {
-              img.src = dataUrl;
-              console.log('✅ Converted external image to data URL');
-            }
-          } catch (e) {
-            console.warn('❌ Failed to convert external image:', img.src.substring(0, 50) + '...', e);
-          }
-        }
-        return Promise.resolve();
+    const images = document.querySelectorAll('img');
+    for (const img of images) {
+      if (img.src && this.isProblematicDomain(img.src, problematicDomains)) {
+        return true;
       }
-      
-      return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          console.warn('Image load timeout:', img.src.substring(0, 50) + '...');
-          resolve(); // Continue even if image fails to load
-        }, 500); // Reduced from 3000ms to 500ms
-        
-        img.onload = async () => {
-          clearTimeout(timeout);
-          
-          // Skip small images and data URLs
-          if (img.src.startsWith('data:') || 
-              (img.width < 16 && img.height < 16)) {
-            resolve();
-            return;
-          }
-          
-          // Try to convert external images after loading
-          if (this.isExternalImage(img.src)) {
-            try {
-              const dataUrl = await this.convertImageToDataUrl(img);
-              if (dataUrl) {
-                img.src = dataUrl;
-                console.log('✅ Converted external image to data URL after load');
-              }
-            } catch (e) {
-              console.warn('❌ Failed to convert external image after load:', img.src.substring(0, 50) + '...', e);
-            }
-          }
-          
-          resolve();
-        };
-        
-        img.onerror = () => {
-          clearTimeout(timeout);
-          console.warn('Image failed to load:', img.src.substring(0, 50) + '...');
-          resolve(); // Continue even if image fails
-        };
-      });
-    });
-
-    await Promise.all(imagePromises);
+    }
+    return false;
   }
-  
-  // Check if image is external (cross-origin)
-  isExternalImage(src) {
+
+  // Check if image is from a known problematic domain
+  isProblematicDomain(src, problematicDomains) {
     try {
       const url = new URL(src, window.location.href);
-      return url.origin !== window.location.origin;
+      return problematicDomains.some(domain => url.hostname.includes(domain));
     } catch (e) {
       return false;
     }
+  }
+
+  // Wait for all images to load before taking screenshot
+  async waitForImages() {
+    const images = Array.from(document.querySelectorAll('img'));
+    const problematicDomains = [
+      'googleusercontent.com',
+      'gravatar.com', 
+      'facebook.com',
+      'fbcdn.net',
+      'instagram.com',
+      'cdninstagram.com'
+    ];
+    
+    // Only process images from known problematic domains
+    const imagePromises = images
+      .filter(img => img.src && this.isProblematicDomain(img.src, problematicDomains))
+      .map(async (img) => {
+        // Check cache first
+        if (this.imageCache.has(img.src)) {
+          img.src = this.imageCache.get(img.src);
+          return Promise.resolve();
+        }
+        
+        // Skip very small images
+        if (img.width < 20 && img.height < 20) {
+          return Promise.resolve();
+        }
+        
+        try {
+          const dataUrl = await this.convertImageToDataUrl(img);
+          if (dataUrl) {
+            this.imageCache.set(img.src, dataUrl); // Cache the result
+            img.src = dataUrl;
+            console.log('✅ Converted problematic image');
+          }
+        } catch (e) {
+          console.warn('❌ Failed to convert image:', e);
+        }
+        
+        return Promise.resolve();
+      });
+
+    await Promise.all(imagePromises);
   }
   
   // Convert image to data URL using canvas (optimized for speed)
