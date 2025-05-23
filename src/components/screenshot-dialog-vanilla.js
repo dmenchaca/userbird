@@ -100,6 +100,7 @@ class ScreenshotDialog {
     // Create overlay
     this.overlay = document.createElement('div');
     this.overlay.className = 'screenshot-dialog-overlay';
+    this.overlay.tabIndex = -1; // Make focusable for focus management
     this.overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -111,6 +112,7 @@ class ScreenshotDialog {
       z-index: 50;
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
+      outline: none;
     `;
 
     // Create dialog content
@@ -428,8 +430,27 @@ class ScreenshotDialog {
     // Toolbar dragging
     this.dragHandle.addEventListener('mousedown', this.handleMouseDown.bind(this));
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    // Comprehensive keyboard event handling to prevent host app shortcuts
+    this.overlay.addEventListener('keydown', this.handleKeyDown.bind(this), true); // Use capture phase
+    this.overlay.addEventListener('keyup', this.handleKeyUp.bind(this), true); // Use capture phase
+    this.overlay.addEventListener('keypress', this.handleKeyPress.bind(this), true); // Use capture phase
+    
+    // Focus management - ensure focus stays within dialog
+    document.addEventListener('focusin', this.handleFocusIn.bind(this));
+  }
+
+  handleFocusIn(e) {
+    // Only manage focus when screenshot dialog is open
+    if (!this.isOpen) return;
+    
+    // Allow MarkerArea to manage its own elements (text inputs, etc.)
+    // Only redirect focus if it's going to completely unrelated elements
+    if (!this.overlay.contains(e.target) && 
+        !e.target.closest('.markerjs-marker-area') && 
+        !e.target.closest('[class*="marker"]')) {
+      // Focus moved to unrelated element, bring it back to overlay
+      this.overlay.focus();
+    }
   }
 
   handleMouseDown(e) {
@@ -474,6 +495,25 @@ class ScreenshotDialog {
   }
 
   handleKeyDown(e) {
+    // Always prevent keyboard shortcuts from bubbling to host application
+    // But allow normal typing and MarkerArea interactions
+    
+    // Don't interfere with MarkerArea text inputs and other interactive elements
+    if (e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable ||
+        e.target.closest('.markerjs-marker-area')) {
+      // Allow normal typing and interaction - only stop propagation for shortcuts
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1) {
+        e.stopPropagation(); // Prevent shortcuts but allow normal typing
+      }
+      return;
+    }
+    
+    // For all other elements, prevent all keyboard events from bubbling
+    e.stopPropagation();
+    
+    // Only handle our specific shortcuts if dialog is open and annotation is ready
     if (!this.isOpen || !this.markerArea || !this.isAnnotationReady || this.annotatedImage) return;
 
     // Undo: Ctrl+Z or Cmd+Z
@@ -491,12 +531,57 @@ class ScreenshotDialog {
         this.markerArea.redo();
       }
     }
+
+    // Escape to close dialog
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.close();
+    }
+  }
+
+  handleKeyUp(e) {
+    // Only prevent shortcuts from bubbling, allow normal typing
+    if (e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable ||
+        e.target.closest('.markerjs-marker-area')) {
+      // Allow normal typing - only stop shortcuts
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1) {
+        e.stopPropagation();
+      }
+      return;
+    }
+    
+    // For other elements, prevent all events from bubbling
+    e.stopPropagation();
+  }
+
+  handleKeyPress(e) {
+    // Only prevent shortcuts from bubbling, allow normal typing
+    if (e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable ||
+        e.target.closest('.markerjs-marker-area')) {
+      // Allow normal typing - only stop shortcuts
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1) {
+        e.stopPropagation();
+      }
+      return;
+    }
+    
+    // For other elements, prevent all events from bubbling
+    e.stopPropagation();
   }
 
   open(screenshotSrc, onSaveAnnotation = null, buttonColor = null) {
     // Update button color if provided
     if (buttonColor) {
       this.buttonColor = buttonColor;
+    }
+    
+    // Notify widget that screenshot dialog is open to prevent shortcuts
+    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
+      window.UserBird.setScreenshotDialogOpen(true);
     }
     
     this.screenshotSrc = screenshotSrc;
@@ -561,6 +646,11 @@ class ScreenshotDialog {
   }
 
   close() {
+    // Notify widget that screenshot dialog is closed
+    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
+      window.UserBird.setScreenshotDialogOpen(false);
+    }
+    
     this.isOpen = false;
     this.overlay.style.opacity = '0';
     setTimeout(() => {
@@ -573,6 +663,14 @@ class ScreenshotDialog {
   }
 
   cleanup() {
+    // Notify widget that screenshot dialog is closed
+    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
+      window.UserBird.setScreenshotDialogOpen(false);
+    }
+    
+    // Remove focus event listener
+    document.removeEventListener('focusin', this.handleFocusIn.bind(this));
+    
     if (this.markerArea) {
       try {
         if (this.markerArea.parentNode) {
@@ -702,6 +800,11 @@ class ScreenshotDialog {
    * Used when removing thumbnails or starting fresh
    */
   reset() {
+    // Notify widget that screenshot dialog is closed
+    if (window.UserBird && window.UserBird.setScreenshotDialogOpen) {
+      window.UserBird.setScreenshotDialogOpen(false);
+    }
+    
     // Clear all screenshot data
     this.annotatedImage = null;
     this.screenshotSrc = null;
@@ -872,4 +975,13 @@ Usage Examples:
        }, buttonColor);
      }
    };
+
+KEYBOARD ISOLATION:
+- When the screenshot dialog is open, keyboard shortcuts from the host application are selectively prevented
+- This includes custom shortcuts defined by the host app (e.g., 's' for status, 'a' for other actions)
+- Text annotation typing works normally and will not trigger any external shortcuts
+- MarkerArea interactions (clicking tools, typing text annotations) work as expected
+- Widget shortcuts are disabled while the dialog is open
+- Only specific screenshot dialog shortcuts work: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Y (redo), Escape (close)
+- Focus is managed to prevent accidental activation of host app elements
 */ 
