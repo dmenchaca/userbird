@@ -1105,29 +1105,38 @@ class ScreenshotDialog {
     try {
       // Check for blob URLs first (these are always problematic for screenshots)
       if (src.startsWith('blob:')) {
-        // console.log('🔍 Found blob URL:', src.substring(0, 100) + '...');
+        console.log('🔍 Found blob URL:', src.substring(0, 100) + '...');
         return true;
       }
       
+      // Use document.baseURI for proper relative URL resolution on the current page
+      // This ensures relative URLs are resolved relative to the page being screenshotted, not the widget
+      const baseURI = document.baseURI || window.location.href;
+      
       // Check the immediate domain first
-      const url = new URL(src, window.location.href);
+      const url = new URL(src, baseURI);
+      console.log('🔍 Checking image URL:', src.substring(0, 100) + '...');
+      console.log('   Resolved to:', url.href.substring(0, 100) + '...');
+      console.log('   Hostname:', url.hostname);
+      
       if (problematicDomains.some(domain => url.hostname.includes(domain))) {
-        // console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
+        console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
         return true;
       }
       
       // Check for Next.js image optimization URLs
       if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
         const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
-        // console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
+        console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
         try {
           const nestedUrlObj = new URL(nestedUrl);
+          console.log('   Nested hostname:', nestedUrlObj.hostname);
           if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-            // console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
+            console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
             return true;
           }
         } catch (e) {
-          // console.warn('Failed to parse nested URL:', e);
+          console.warn('Failed to parse nested URL:', e);
         }
       }
       
@@ -1139,19 +1148,21 @@ class ScreenshotDialog {
           try {
             const nestedUrl = decodeURIComponent(urlMatch[1]);
             const nestedUrlObj = new URL(nestedUrl);
-            // console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
+            console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
             if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-              // console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
+              console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
               return true;
             }
           } catch (e) {
-            // console.warn('Failed to parse URL parameter:', e);
+            console.warn('Failed to parse URL parameter:', e);
           }
         }
       }
       
+      console.log('   ✅ Image is not problematic');
       return false;
     } catch (e) {
+      console.warn('Error checking if image is problematic:', e);
       return false;
     }
   }
@@ -1306,7 +1317,9 @@ class ScreenshotDialog {
   // Extract the base image URL from Next.js optimized URLs or other proxies
   extractBaseImageUrl(src) {
     try {
-      const url = new URL(src, window.location.href);
+      // Use document.baseURI for proper relative URL resolution on the current page
+      const baseURI = document.baseURI || window.location.href;
+      const url = new URL(src, baseURI);
       
       // Handle Next.js image optimization
       if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
