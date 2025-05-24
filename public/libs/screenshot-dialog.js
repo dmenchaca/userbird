@@ -796,6 +796,12 @@ class ScreenshotDialog {
 
       this.isAnnotationReady = true;
       // console.log('✅ Annotation mode ready - MarkerArea initialized');
+      
+      // Remove the default 10px margin from MarkerArea SVG
+      setTimeout(() => {
+        this.removeMarkerAreaMargin();
+      }, 100);
+      
       this.updateToolbar();
 
       // Hide the original image when MarkerArea is active
@@ -993,6 +999,15 @@ class ScreenshotDialog {
     
     // If left is a pixel value (not 50%) or transform is 'none', it was dragged
     return (currentLeft && currentLeft !== '50%') || currentTransform === 'none';
+  }
+
+  removeMarkerAreaMargin() {
+    // Find and remove the 10px margin from MarkerArea SVG
+    const svg = this.container.querySelector('svg');
+    if (svg) {
+      svg.style.margin = '0';
+      // console.log('✅ Removed 10px margin from MarkerArea SVG');
+    }
   }
 
   async captureScreenshot() {
