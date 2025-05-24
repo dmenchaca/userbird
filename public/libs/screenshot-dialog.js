@@ -1015,6 +1015,9 @@ class ScreenshotDialog {
         // console.log('✅ No problematic images detected - skipping processing');
       }
 
+      // Wait for converted images to be ready in the DOM
+      await this.waitForConvertedImages();
+
       // Apply screenshot mode class for better quality
       document.body.classList.add('screenshot-mode');
 
@@ -1514,6 +1517,47 @@ class ScreenshotDialog {
     } else {
       // console.error('Failed to capture screenshot');
     }
+  }
+
+  // Wait for converted images to load in the DOM
+  async waitForConvertedImages() {
+    const convertedImages = Array.from(document.querySelectorAll('img')).filter(img => 
+      img.src.startsWith('data:image/')
+    );
+    
+    if (convertedImages.length === 0) {
+      return;
+    }
+    
+    console.log('⏳ Waiting for', convertedImages.length, 'converted images to load...');
+    
+    const imagePromises = convertedImages.map(img => {
+      return new Promise((resolve) => {
+        if (img.complete && img.naturalWidth > 0) {
+          resolve();
+        } else {
+          const onLoad = () => {
+            img.removeEventListener('load', onLoad);
+            img.removeEventListener('error', onError);
+            resolve();
+          };
+          const onError = () => {
+            img.removeEventListener('load', onLoad);
+            img.removeEventListener('error', onError);
+            resolve(); // Resolve anyway to not block
+          };
+          
+          img.addEventListener('load', onLoad);
+          img.addEventListener('error', onError);
+        }
+      });
+    });
+    
+    await Promise.all(imagePromises);
+    console.log('✅ All converted images loaded');
+    
+    // Add a small additional delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
 
