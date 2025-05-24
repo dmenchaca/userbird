@@ -94,35 +94,36 @@ class ScreenshotDialog {
         image-rendering: -webkit-optimize-contrast;
       }
 
-      /* Bouncy toolbar animation */
-      @keyframes bounceIn {
+      /* Elegant magical toolbar animation */
+      @keyframes magicalAppear {
         0% {
           opacity: 0;
-          transform: translateX(-50%) scale(0.3) translateY(-20px);
+          transform: translateX(-50%) translateY(20px) scale(0.9);
+          filter: blur(8px) brightness(1.3);
+          box-shadow: 0 0 30px rgba(255, 255, 255, 0);
         }
-        20% {
-          opacity: 0.7;
-          transform: translateX(-50%) scale(1.1) translateY(-5px);
-        }
-        40% {
-          opacity: 0.9;
-          transform: translateX(-50%) scale(0.9) translateY(2px);
+        30% {
+          opacity: 0.6;
+          transform: translateX(-50%) translateY(5px) scale(0.95);
+          filter: blur(4px) brightness(1.15);
+          box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
         }
         60% {
-          opacity: 1;
-          transform: translateX(-50%) scale(1.05) translateY(-1px);
-        }
-        80% {
-          transform: translateX(-50%) scale(0.98) translateY(1px);
+          opacity: 0.9;
+          transform: translateX(-50%) translateY(-2px) scale(1.02);
+          filter: blur(1px) brightness(1.05);
+          box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
         100% {
           opacity: 1;
-          transform: translateX(-50%) scale(1) translateY(0px);
+          transform: translateX(-50%) translateY(0px) scale(1);
+          filter: blur(0px) brightness(1);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
       }
 
-      .screenshot-toolbar.bounce-in {
-        animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      .screenshot-toolbar.magical-appear {
+        animation: magicalAppear 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       }
 
       /* Ensure toolbar maintains its position during animation */
@@ -939,7 +940,7 @@ class ScreenshotDialog {
       // console.log('No tools to show, hiding toolbar');
       this.toolbar.style.display = 'none';
       // Remove animation class when hiding
-      this.toolbar.classList.remove('bounce-in');
+      this.toolbar.classList.remove('magical-appear');
     }
 
     this.toolbarContent.appendChild(toolsContainer);
@@ -951,18 +952,18 @@ class ScreenshotDialog {
     // Only animate if toolbar was previously hidden
     if (wasHidden) {
       // Remove any existing animation class first
-      this.toolbar.classList.remove('bounce-in');
+      this.toolbar.classList.remove('magical-appear');
       
       // Force a reflow to ensure the class removal takes effect
       this.toolbar.offsetHeight;
       
       // Add the animation class
-      this.toolbar.classList.add('bounce-in');
+      this.toolbar.classList.add('magical-appear');
       
       // Remove the animation class after it completes to allow future animations
       setTimeout(() => {
-        this.toolbar.classList.remove('bounce-in');
-      }, 600); // Match the animation duration
+        this.toolbar.classList.remove('magical-appear');
+      }, 800); // Match the animation duration
     }
   }
 
