@@ -1120,6 +1120,12 @@ class ScreenshotDialog {
   hasProblematicImages() {
     const problematicDomains = [
       'googleusercontent.com',
+      'lh1.googleusercontent.com',  // Google Photos/Avatar domains
+      'lh2.googleusercontent.com',
+      'lh3.googleusercontent.com',
+      'lh4.googleusercontent.com',
+      'lh5.googleusercontent.com',
+      'lh6.googleusercontent.com',
       'gravatar.com', 
       'facebook.com',
       'fbcdn.net',
@@ -1268,6 +1274,12 @@ class ScreenshotDialog {
     const images = Array.from(document.querySelectorAll('img'));
     const problematicDomains = [
       'googleusercontent.com',
+      'lh1.googleusercontent.com',  // Google Photos/Avatar domains
+      'lh2.googleusercontent.com',
+      'lh3.googleusercontent.com',
+      'lh4.googleusercontent.com',
+      'lh5.googleusercontent.com',
+      'lh6.googleusercontent.com',
       'gravatar.com', 
       'facebook.com',
       'fbcdn.net',
@@ -1510,6 +1522,21 @@ class ScreenshotDialog {
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
+    /**
+     * GOOGLE IMAGES SPECIAL HANDLING
+     * 
+     * Google images (lh*.googleusercontent.com) have additional protection that prevents
+     * canvas manipulation even when they load successfully in proxy images. This manifests as:
+     * - Image loads successfully (no CORS error)
+     * - ctx.drawImage() throws an error when trying to draw to canvas
+     * 
+     * FALLBACK STRATEGY:
+     * When this happens, we try drawing the original img element directly to canvas.
+     * This sometimes works if the image was already loaded and displayed in the DOM.
+     * 
+     * If both strategies fail, the image will remain unconverted and may appear
+     * blank in screenshots, but this is preferable to blocking the entire process.
+     */
     return new Promise((resolve) => {
       const processImageConversion = async () => {
         try {
@@ -1616,6 +1643,29 @@ class ScreenshotDialog {
                   imgResolve(dataUrl);
                 } catch (e) {
                   console.warn('   ❌ Failed to draw image to canvas:', e);
+                  
+                  // Special handling for Google images that load but can't be drawn
+                  if (actualSrc.includes('googleusercontent.com')) {
+                    console.log('   🔄 Google image detected - attempting fallback conversion strategy...');
+                    try {
+                      // Create a fresh canvas and try with the original img element
+                      const fallbackCanvas = document.createElement('canvas');
+                      const fallbackCtx = fallbackCanvas.getContext('2d');
+                      fallbackCanvas.width = img.naturalWidth || img.width;
+                      fallbackCanvas.height = img.naturalHeight || img.height;
+                      
+                      // Try drawing the original img element directly
+                      fallbackCtx.drawImage(img, 0, 0);
+                      const fallbackDataUrl = fallbackCanvas.toDataURL('image/png', 1.0);
+                      console.log('   ✅ Google image fallback conversion successful, data URL length:', fallbackDataUrl.length);
+                      cleanup();
+                      imgResolve(fallbackDataUrl);
+                      return;
+                    } catch (fallbackError) {
+                      console.warn('   ❌ Google image fallback also failed:', fallbackError);
+                    }
+                  }
+                  
                   cleanup();
                   imgResolve(null);
                 }
