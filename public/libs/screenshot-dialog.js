@@ -132,7 +132,9 @@ class ScreenshotDialog {
       }
 
       /* Remove default margin from MarkerArea SVG */
-      .screenshot-container svg {
+      .screenshot-container mjs-marker-area svg,
+      .screenshot-container svg,
+      mjs-marker-area svg {
         margin: 0 !important;
       }
     `;
