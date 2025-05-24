@@ -1179,14 +1179,10 @@ class ScreenshotDialog {
     
     // Filter problematic images and separate by priority
     const problematicImages = images.filter(img => {
-      // Check src attribute
-      if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
+      // Check the actual URL being displayed (currentSrc for srcset support)
+      const actualSrc = img.currentSrc || img.src;
+      if (actualSrc && this.isProblematicImage(actualSrc, problematicDomains)) {
         return true;
-      }
-      // Check srcset attribute
-      if (img.srcset) {
-        const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
-        return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
       }
       return false;
     });
@@ -1203,7 +1199,7 @@ class ScreenshotDialog {
       return 0; // same priority
     });
 
-        console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
     console.log('📋 Processing order: same-origin first for better cache sharing');
 
     // Process images sequentially to ensure cache sharing works properly
