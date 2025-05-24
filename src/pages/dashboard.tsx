@@ -2085,7 +2085,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                           src={selectedResponse.assignee.avatar_url} 
                                           alt={selectedResponse.assignee.user_name || ''} 
                                           className="h-5 w-5 rounded-full mr-2"
-                                          crossOrigin="anonymous"
+                                         
                                         />
                                       ) : (
                                         <UserCircle className="h-4 w-4 mr-2" />
@@ -2197,7 +2197,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                               src={collaborator.user_profile.avatar_url} 
                                               alt={collaborator.user_profile.username}
                                               className="h-5 w-5 rounded-full mr-2"
-                                              crossOrigin="anonymous"
+                                             
                                             />
                                           ) : (
                                             <UserCircle className="h-4 w-4 mr-2" />

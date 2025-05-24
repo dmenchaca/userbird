@@ -1076,9 +1076,15 @@ class ScreenshotDialog {
     return false;
   }
 
-  // Enhanced check for problematic images including nested URLs
+  // Enhanced check for problematic images including nested URLs and blob URLs
   isProblematicImage(src, problematicDomains) {
     try {
+      // Check for blob URLs first (these are always problematic for screenshots)
+      if (src.startsWith('blob:')) {
+        // console.log('🔍 Found blob URL:', src.substring(0, 100) + '...');
+        return true;
+      }
+      
       // Check the immediate domain first
       const url = new URL(src, window.location.href);
       if (problematicDomains.some(domain => url.hostname.includes(domain))) {
@@ -1213,6 +1219,60 @@ class ScreenshotDialog {
         
         // console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
         
+        // Special handling for blob URLs - draw directly from the existing img element
+        if (img.src.startsWith('blob:')) {
+          try {
+            // console.log('   🔄 Processing blob URL directly...');
+            // For blob URLs, we can draw the already-loaded img element directly
+            if (img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
+              resolve(dataUrl);
+              return;
+            } else {
+              // If the image isn't loaded yet, wait for it
+              const onLoad = () => {
+                try {
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                  // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
+                  resolve(dataUrl);
+                } catch (e) {
+                  // console.warn('   ❌ Failed to draw blob image to canvas:', e);
+                  resolve(null);
+                }
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+              };
+              
+              const onError = () => {
+                // console.warn('   ❌ Blob image failed to load');
+                resolve(null);
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+              };
+              
+              img.addEventListener('load', onLoad);
+              img.addEventListener('error', onError);
+              
+              // Timeout for blob URLs too
+              setTimeout(() => {
+                // console.warn('   ⏰ Blob image conversion timed out');
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+                resolve(null);
+              }, 500);
+              return;
+            }
+          } catch (e) {
+            // console.warn('   ❌ Blob URL processing failed:', e);
+            resolve(null);
+            return;
+          }
+        }
+        
+        // Standard handling for regular URLs
         // Create a new image element to avoid CORS issues
         const proxyImg = new Image();
         proxyImg.crossOrigin = 'anonymous';
