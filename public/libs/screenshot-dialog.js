@@ -951,30 +951,41 @@ class ScreenshotDialog {
     
     // Only animate if toolbar was previously hidden
     if (wasHidden) {
-      // Reset toolbar to centered position before animating
-      this.resetToolbarPosition();
+      // Check if toolbar was dragged (has pixel positioning)
+      const wasDragged = this.isToolbarDragged();
       
-      // Remove any existing animation class first
-      this.toolbar.classList.remove('magical-appear');
-      
-      // Force a reflow to ensure the class removal takes effect
-      this.toolbar.offsetHeight;
-      
-      // Add the animation class
-      this.toolbar.classList.add('magical-appear');
-      
-      // Remove the animation class after it completes to allow future animations
-      setTimeout(() => {
+      if (wasDragged) {
+        // If dragged, show immediately without animation to preserve position
+        // console.log('Toolbar was dragged, showing without animation');
+      } else {
+        // If still centered, apply magical animation
+        // console.log('Toolbar is centered, applying magical animation');
+        
+        // Remove any existing animation class first
         this.toolbar.classList.remove('magical-appear');
-      }, 800); // Match the animation duration
+        
+        // Force a reflow to ensure the class removal takes effect
+        this.toolbar.offsetHeight;
+        
+        // Add the animation class
+        this.toolbar.classList.add('magical-appear');
+        
+        // Remove the animation class after it completes to allow future animations
+        setTimeout(() => {
+          this.toolbar.classList.remove('magical-appear');
+        }, 800); // Match the animation duration
+      }
     }
   }
 
-  resetToolbarPosition() {
-    // Reset toolbar to its original centered position
-    this.toolbar.style.top = '10px';
-    this.toolbar.style.left = '50%';
-    this.toolbar.style.transform = 'translateX(-50%)';
+  isToolbarDragged() {
+    // Check if toolbar has been moved from its default centered position
+    // Default position has left: 50% and transform: translateX(-50%)
+    const currentLeft = this.toolbar.style.left;
+    const currentTransform = this.toolbar.style.transform;
+    
+    // If left is a pixel value (not 50%) or transform is 'none', it was dragged
+    return (currentLeft && currentLeft !== '50%') || currentTransform === 'none';
   }
 
   async captureScreenshot() {
