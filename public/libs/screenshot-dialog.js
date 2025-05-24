@@ -229,11 +229,11 @@ class ScreenshotDialog {
     this.toolbarContent = document.createElement('div');
     this.toolbarContent.style.cssText = `
       background: var(--ssd-toolbar-background);
-      border-radius: 6px;
+      border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      padding: 8px;
+      padding: 16px;
       display: flex;
-      gap: 8px;
+      gap: 16px;
       align-items: center;
       border: 1px solid var(--ssd-border-color);
     `;
@@ -242,7 +242,7 @@ class ScreenshotDialog {
     this.dragHandle = document.createElement('div');
     this.dragHandle.className = 'toolbar-drag-handle';
     this.dragHandle.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="12" r="1"></circle>
         <circle cx="9" cy="5" r="1"></circle>
         <circle cx="9" cy="19" r="1"></circle>
@@ -254,11 +254,11 @@ class ScreenshotDialog {
     this.dragHandle.style.cssText = `
       display: flex;
       align-items: center;
-      padding-right: 4px;
+      padding-right: 8px;
       cursor: grab;
-      color: var(--ssd-text-muted);
-      padding: 4px;
-      border-radius: 4px;
+      color: var(--ssd-text);
+      padding: 8px;
+      border-radius: 8px;
       transition: all 0.2s;
     `;
     this.dragHandle.addEventListener('mouseenter', () => {
@@ -266,7 +266,7 @@ class ScreenshotDialog {
       this.dragHandle.style.backgroundColor = 'var(--ssd-hover-background)';
     });
     this.dragHandle.addEventListener('mouseleave', () => {
-      this.dragHandle.style.color = 'var(--ssd-text-muted)';
+      this.dragHandle.style.color = 'var(--ssd-text)';
       this.dragHandle.style.backgroundColor = 'transparent';
     });
 
@@ -276,17 +276,19 @@ class ScreenshotDialog {
 
   createButton(iconSvg, text, tooltip, onClick, variant = 'outline') {
     const button = document.createElement('button');
-    button.innerHTML = `${iconSvg} ${text ? `<span style="margin-left: 4px;">${text}</span>` : ''}`;
+    // Scale up icons by replacing width="16" height="16" with width="32" height="32"
+    const scaledIconSvg = iconSvg.replace(/width="16" height="16"/g, 'width="32" height="32"');
+    button.innerHTML = `${scaledIconSvg} ${text ? `<span style="margin-left: 8px;">${text}</span>` : ''}`;
     
     const baseStyles = `
       display: inline-flex;
       align-items: center;
       justify-content: center;
       white-space: nowrap;
-      border-radius: 6px;
-      font-size: 0.875rem;
+      border-radius: 12px;
+      font-size: 1rem;
       font-weight: 500;
-      padding: 0.5rem 0.75rem;
+      padding: 1rem 1.5rem;
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
@@ -297,7 +299,7 @@ class ScreenshotDialog {
       button.style.cssText = baseStyles + `
         background: transparent;
         border: 1px solid var(--ssd-border-color);
-        color: var(--ssd-text-muted);
+        color: var(--ssd-text);
       `;
       button.addEventListener('mouseenter', () => {
         button.style.background = 'var(--ssd-hover-background)';
@@ -374,7 +376,7 @@ class ScreenshotDialog {
 
   createAnnotationTools() {
     const tools = document.createElement('div');
-    tools.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    tools.style.cssText = 'display: flex; gap: 16px; align-items: center;';
 
     // Rectangle tool
     const rectButton = this.createButton(
@@ -410,11 +412,11 @@ class ScreenshotDialog {
 
     // Separator
     const separator = document.createElement('div');
-    separator.style.cssText = 'width: 1px; height: 24px; background: var(--ssd-border-color);';
+    separator.style.cssText = 'width: 1px; height: 48px; background: var(--ssd-border-color);';
 
     // Done button
     const doneButton = this.createButton(
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22,4 12,14.01 9,11.01"></polyline></svg>',
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>',
       'Done',
       'Save Annotation',
       () => this.saveAnnotation(),
@@ -433,7 +435,7 @@ class ScreenshotDialog {
 
   createPreviewTools() {
     const tools = document.createElement('div');
-    tools.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    tools.style.cssText = 'display: flex; gap: 16px; align-items: center;';
 
     // Delete button
     const deleteButton = this.createButton(
@@ -445,7 +447,7 @@ class ScreenshotDialog {
 
     // Separator
     const separator = document.createElement('div');
-    separator.style.cssText = 'width: 1px; height: 24px; background: var(--ssd-border-color);';
+    separator.style.cssText = 'width: 1px; height: 48px; background: var(--ssd-border-color);';
 
     // Close button
     const closeButton = this.createButton(
