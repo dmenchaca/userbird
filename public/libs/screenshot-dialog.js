@@ -1203,100 +1203,103 @@ class ScreenshotDialog {
       return 0; // same priority
     });
 
-    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+        console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
     console.log('📋 Processing order: same-origin first for better cache sharing');
 
-    // Process images sequentially in batches for better cache sharing
-    const imagePromises = problematicImages.map(async (img) => {
-        // Determine the actual URL being used (currentSrc for srcset support, fallback to src)
-        const actualSrc = img.currentSrc || img.src;
-        const originalSrc = actualSrc;
-        console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
-        
-        // Check cache first
-        if (this.imageCache.has(actualSrc)) {
-          // console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
-          // For srcset images, we need to replace the appropriate URL
-          if (img.currentSrc && img.currentSrc !== img.src) {
-            // This image is using srcset, we need to modify the srcset
-            const cachedDataUrl = this.imageCache.get(actualSrc);
-            img.src = cachedDataUrl;
-            img.removeAttribute('srcset'); // Remove srcset to force use of our data URL
-          } else {
-            img.src = this.imageCache.get(actualSrc);
-          }
-          return Promise.resolve();
-        }
-        
-        // Skip very small images
-        if (img.width < 20 && img.height < 20) {
-          // console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
-          return Promise.resolve();
-        }
-        
-        try {
-          const dataUrl = await this.convertImageToDataUrl(img);
-          if (dataUrl) {
-            this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
-            // Also cache using the base URL for sharing between similar images
-            const baseUrl = this.extractBaseImageUrl(actualSrc);
-            if (baseUrl !== actualSrc) {
-              this.imageCache.set(baseUrl, dataUrl);
-            }
-            console.log('✅ Successfully converted image');
-            console.log('   Original:', originalSrc.substring(0, 80) + '...');
-            console.log('   Converted:', dataUrl.substring(0, 80) + '...');
-            
-            // Store original sources before modifying (for restoration later)
-            const imageId = img.src + (img.srcset || ''); // Create unique ID
-            if (!this.originalImageSources.has(imageId)) {
-              this.originalImageSources.set(imageId, {
-                src: img.src,
-                srcset: img.srcset || null,
-                element: img
-              });
-            }
-            
-            // Try to find if we already have a successful conversion for the same underlying image
-            const baseImageUrl = this.extractBaseImageUrl(actualSrc);
-            const existingConversion = this.findExistingConversion(baseImageUrl);
-            
-            if (existingConversion) {
-              console.log('🔄 Using existing conversion for same underlying image');
-              console.log('   Current URL:', actualSrc.substring(0, 80) + '...');
-              console.log('   Using cached conversion from similar URL');
-              
-              // Replace the image source appropriately
-              if (img.currentSrc && img.currentSrc !== img.src) {
-                img.src = existingConversion;
-                img.removeAttribute('srcset');
-              } else {
-                img.src = existingConversion;
-              }
-              return Promise.resolve();
-            }
-            
-            // Replace the image source appropriately
-            if (img.currentSrc && img.currentSrc !== img.src) {
-              // This image is using srcset, replace with data URL and remove srcset
-              img.src = dataUrl;
-              img.removeAttribute('srcset');
-            } else {
-              img.src = dataUrl;
-            }
-          } else {
-            console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
-          }
-        } catch (e) {
-          console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
-        }
-        
-        return Promise.resolve();
-      });
-
     // Process images sequentially to ensure cache sharing works properly
-    for (const imagePromise of imagePromises) {
-      await imagePromise;
+    for (const img of problematicImages) {
+      // Determine the actual URL being used (currentSrc for srcset support, fallback to src)
+      const actualSrc = img.currentSrc || img.src;
+      const originalSrc = actualSrc;
+      console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
+      
+      // Check cache first
+      if (this.imageCache.has(actualSrc)) {
+        console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
+        // For srcset images, we need to replace the appropriate URL
+        if (img.currentSrc && img.currentSrc !== img.src) {
+          // This image is using srcset, we need to modify the srcset
+          const cachedDataUrl = this.imageCache.get(actualSrc);
+          img.src = cachedDataUrl;
+          img.removeAttribute('srcset'); // Remove srcset to force use of our data URL
+        } else {
+          img.src = this.imageCache.get(actualSrc);
+        }
+        continue;
+      }
+      
+      // Try to find if we already have a successful conversion for the same underlying image
+      const baseImageUrl = this.extractBaseImageUrl(actualSrc);
+      const existingConversion = this.findExistingConversion(baseImageUrl);
+      
+      if (existingConversion) {
+        console.log('🔄 Using existing conversion for same underlying image');
+        console.log('   Current URL:', actualSrc.substring(0, 80) + '...');
+        console.log('   Using cached conversion from similar URL');
+        
+        // Store original sources before modifying (for restoration later)
+        const imageId = img.src + (img.srcset || ''); // Create unique ID
+        if (!this.originalImageSources.has(imageId)) {
+          this.originalImageSources.set(imageId, {
+            src: img.src,
+            srcset: img.srcset || null,
+            element: img
+          });
+        }
+        
+        // Replace the image source appropriately
+        if (img.currentSrc && img.currentSrc !== img.src) {
+          img.src = existingConversion;
+          img.removeAttribute('srcset');
+        } else {
+          img.src = existingConversion;
+        }
+        continue;
+      }
+      
+      // Skip very small images
+      if (img.width < 20 && img.height < 20) {
+        console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
+        continue;
+      }
+      
+      try {
+        const dataUrl = await this.convertImageToDataUrl(img);
+        if (dataUrl) {
+          this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
+          // Also cache using the base URL for sharing between similar images
+          const baseUrl = this.extractBaseImageUrl(actualSrc);
+          if (baseUrl !== actualSrc) {
+            this.imageCache.set(baseUrl, dataUrl);
+          }
+          console.log('✅ Successfully converted image');
+          console.log('   Original:', originalSrc.substring(0, 80) + '...');
+          console.log('   Converted:', dataUrl.substring(0, 80) + '...');
+          
+          // Store original sources before modifying (for restoration later)
+          const imageId = img.src + (img.srcset || ''); // Create unique ID
+          if (!this.originalImageSources.has(imageId)) {
+            this.originalImageSources.set(imageId, {
+              src: img.src,
+              srcset: img.srcset || null,
+              element: img
+            });
+          }
+          
+          // Replace the image source appropriately
+          if (img.currentSrc && img.currentSrc !== img.src) {
+            // This image is using srcset, replace with data URL and remove srcset
+            img.src = dataUrl;
+            img.removeAttribute('srcset');
+          } else {
+            img.src = dataUrl;
+          }
+        } else {
+          console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
+        }
+      } catch (e) {
+        console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
+      }
     }
     // console.log('✅ Finished processing all problematic images');
   }
