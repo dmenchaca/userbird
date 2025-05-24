@@ -98,25 +98,25 @@ class ScreenshotDialog {
       @keyframes magicalAppear {
         0% {
           opacity: 0;
-          transform: translateX(-50%) translateY(20px) scale(0.9);
+          transform: scale(0.9);
           filter: blur(8px) brightness(1.3);
           box-shadow: 0 0 30px rgba(255, 255, 255, 0);
         }
         30% {
           opacity: 0.6;
-          transform: translateX(-50%) translateY(5px) scale(0.95);
+          transform: scale(0.95);
           filter: blur(4px) brightness(1.15);
           box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
         }
         60% {
           opacity: 0.9;
-          transform: translateX(-50%) translateY(-2px) scale(1.02);
+          transform: scale(1.02);
           filter: blur(1px) brightness(1.05);
           box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
         100% {
           opacity: 1;
-          transform: translateX(-50%) translateY(0px) scale(1);
+          transform: scale(1);
           filter: blur(0px) brightness(1);
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
