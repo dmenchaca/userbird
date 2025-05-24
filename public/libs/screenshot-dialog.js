@@ -13,6 +13,7 @@ class ScreenshotDialog {
     this.isCapturing = false;
     this.buttonColor = buttonColor; // Store the dynamic button color
     this.imageCache = new Map(); // Cache for converted images
+    this.originalImageSources = new Map(); // Store original image sources for restoration
     
     // Toolbar state
     this.toolbarPosition = { top: 10, left: '50%', transform: 'translateX(-50%)' };
@@ -1043,11 +1044,18 @@ class ScreenshotDialog {
       const dataUrl = canvas.toDataURL('image/png', 1.0);
       // console.log('✅ Screenshot captured successfully');
       
+      // Restore original image sources after screenshot
+      this.restoreOriginalImages();
+      
       this.isCapturing = false;
       return dataUrl;
     } catch (error) {
       console.error('❌ Screenshot capture failed:', error);
       document.body.classList.remove('screenshot-mode');
+      
+      // Restore original image sources even if screenshot failed
+      this.restoreOriginalImages();
+      
       this.isCapturing = false;
       return null;
     }
@@ -1218,6 +1226,16 @@ class ScreenshotDialog {
             console.log('   Original:', originalSrc.substring(0, 80) + '...');
             console.log('   Converted:', dataUrl.substring(0, 80) + '...');
             
+            // Store original sources before modifying (for restoration later)
+            const imageId = img.src + (img.srcset || ''); // Create unique ID
+            if (!this.originalImageSources.has(imageId)) {
+              this.originalImageSources.set(imageId, {
+                src: img.src,
+                srcset: img.srcset || null,
+                element: img
+              });
+            }
+            
             // Replace the image source appropriately
             if (img.currentSrc && img.currentSrc !== img.src) {
               // This image is using srcset, replace with data URL and remove srcset
@@ -1254,6 +1272,25 @@ class ScreenshotDialog {
     // console.log('✅ Finished processing all problematic images');
   }
   
+  // Restore original image sources after screenshot
+  restoreOriginalImages() {
+    console.log('🔄 Restoring', this.originalImageSources.size, 'original image sources...');
+    
+    this.originalImageSources.forEach((originalData, imageId) => {
+      const img = originalData.element;
+      if (img && img.parentNode) { // Make sure element still exists in DOM
+        img.src = originalData.src;
+        if (originalData.srcset) {
+          img.setAttribute('srcset', originalData.srcset);
+        }
+      }
+    });
+    
+    // Clear the storage
+    this.originalImageSources.clear();
+    console.log('✅ Original image sources restored');
+  }
+
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
     return new Promise(async (resolve) => {
@@ -1266,8 +1303,8 @@ class ScreenshotDialog {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Optimize canvas size for faster processing
-        const maxSize = 200; // Limit size for avatars/small images
+        // Use full resolution for high quality screenshots
+        const maxSize = 1200; // Much higher limit for better quality
         const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
                               maxSize / (img.naturalHeight || img.height), 1);
         
@@ -1283,7 +1320,7 @@ class ScreenshotDialog {
             // For blob URLs, we can draw the already-loaded img element directly
             if (img.complete && img.naturalWidth > 0) {
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              const dataUrl = canvas.toDataURL('image/png', 1.0);
               // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
               resolve(dataUrl);
               return;
@@ -1292,7 +1329,7 @@ class ScreenshotDialog {
               const onLoad = () => {
                 try {
                   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                  const dataUrl = canvas.toDataURL('image/png', 1.0);
                   // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
                   resolve(dataUrl);
                 } catch (e) {
@@ -1355,7 +1392,7 @@ class ScreenshotDialog {
               try {
                 console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
                 ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                const dataUrl = canvas.toDataURL('image/png', 1.0);
                 console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
                 cleanup();
                 imgResolve(dataUrl);
