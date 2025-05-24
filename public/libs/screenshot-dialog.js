@@ -93,6 +93,11 @@ class ScreenshotDialog {
         text-rendering: geometricPrecision;
         font-smooth: always;
         image-rendering: -webkit-optimize-contrast;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      }
+
+      .screenshot-mode * {
+        font-family: inherit !important;
       }
 
       /* Elegant magical toolbar animation */
@@ -1003,9 +1008,7 @@ class ScreenshotDialog {
     // console.log('📸 Starting screenshot capture...');
 
     try {
-      // Wait for fonts to be ready
-      await document.fonts.ready;
-      // console.log('✅ Fonts loaded');
+      // Using fallback sans-serif fonts for faster screenshots (no font loading delay)
 
       // Only process images if we detect known problematic domains
       if (this.hasProblematicImages()) {
