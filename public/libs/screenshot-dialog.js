@@ -1069,7 +1069,54 @@ class ScreenshotDialog {
     }
   }
 
+  /**
+   * ==========================================
+   * CORS IMAGE CONVERSION SYSTEM
+   * ==========================================
+   * 
+   * WHY THIS IS NECESSARY:
+   * html2canvas cannot capture images from cross-origin domains due to CORS restrictions.
+   * This affects images from:
+   * - External CDNs (Google Cloud Storage, AWS S3, CloudFront)
+   * - Social media platforms (Gravatar, Facebook, Instagram) 
+   * - Image services (Unsplash, Google Photos)
+   * - Next.js optimized images that proxy external URLs
+   * 
+   * WHAT HAPPENS WITHOUT THIS:
+   * - Images appear as blank/missing in screenshots
+   * - Console shows CORS errors
+   * - Screenshot quality is poor due to missing visual elements
+   * 
+   * HOW THE CONVERSION WORKS:
+   * 1. Detect problematic images by checking src, srcset, and currentSrc
+   * 2. Convert each image to a data URL using canvas (bypasses CORS for rendering)
+   * 3. Replace the original src/srcset with the data URL
+   * 4. Take screenshot with html2canvas (now uses local data URLs)
+   * 5. Restore original src/srcset after screenshot
+   * 
+   * CRITICAL IMPLEMENTATION DETAILS:
+   * - Must check ALL image attributes: src, srcset, currentSrc
+   * - Must remove srcset when applying conversion (prevents browser from reverting)
+   * - Must store original attributes for restoration
+   * - Must handle Next.js image optimization URLs (nested URL extraction)
+   * - Must use sequential processing for cache efficiency
+   * - Must verify all problematic images are converted before screenshot
+   * 
+   * DEBUGGING TIPS:
+   * - Check console for "Still found X problematic images" warnings
+   * - Look for images with intact srcset attributes after conversion
+   * - Verify data URLs are actually applied to DOM elements
+   * - Check timing of restoration vs screenshot completion
+   * 
+   * COMMON FAILURE PATTERNS:
+   * 1. Image detected but srcset not removed → Browser reverts to original URL
+   * 2. Conversion succeeds but restoration happens too early → html2canvas gets original URLs
+   * 3. URL variations not cached properly → Same image converted multiple times
+   * 4. New domains added but not in problematicDomains list → Images not detected
+   */
+
   // Check if page has images from known problematic domains
+  // This is the entry point - determines if conversion is needed at all
   hasProblematicImages() {
     const problematicDomains = [
       'googleusercontent.com',
@@ -1110,7 +1157,18 @@ class ScreenshotDialog {
     return false;
   }
 
-  // Enhanced check for problematic images including nested URLs and blob URLs
+  /**
+   * Enhanced problematic image detection with support for:
+   * - Direct cross-origin URLs
+   * - Next.js image optimization proxies  
+   * - Blob URLs from file uploads
+   * - URL parameter patterns
+   * 
+   * IMPORTANT: This method handles nested URLs in Next.js optimized images like:
+   * /_next/image?url=https%3A%2F%2Fstorage.googleapis.com%2Fimage.jpg
+   * 
+   * It extracts and checks the actual underlying URL, not just the proxy URL.
+   */
   isProblematicImage(src, problematicDomains) {
     try {
       // Check for blob URLs first (these are always problematic for screenshots)
@@ -1182,7 +1240,30 @@ class ScreenshotDialog {
     return this.isProblematicImage(src, problematicDomains);
   }
 
-  // Wait for all images to load before taking screenshot
+  /**
+   * MAIN IMAGE CONVERSION ORCHESTRATOR
+   * 
+   * This is the heart of the CORS image conversion system. It:
+   * 1. Identifies ALL problematic images (src, srcset, currentSrc)
+   * 2. Converts them to data URLs sequentially (for cache efficiency)
+   * 3. Applies conversions while preserving originals for restoration
+   * 4. Verifies all problematic images were successfully converted
+   * 
+   * CRITICAL SEQUENCING:
+   * - Images are processed sequentially, not in parallel
+   * - Same-origin images are prioritized (better cache sharing)
+   * - Each image's srcset is completely removed when converted
+   * - Original src/srcset are stored in this.originalImageSources Map
+   * 
+   * FAILURE MODES TO WATCH FOR:
+   * - Images detected but not converted (network/CORS failures)
+   * - srcset not removed (browser reverts to original URLs)
+   * - Restoration called too early (before html2canvas finishes)
+   * - Cache misses due to URL variations
+   * 
+   * DEBUGGING: Check the final verification step - it will log any images
+   * that remain problematic after conversion attempts.
+   */
   async waitForImages() {
     const images = Array.from(document.querySelectorAll('img'));
     const problematicDomains = [
@@ -1357,6 +1438,22 @@ class ScreenshotDialog {
     console.log('   ✅ Applied converted image');
   }
 
+  /**
+   * URL UTILITY METHODS
+   * 
+   * These methods handle the complexity of Next.js image optimization and other proxy patterns:
+   * - extractBaseImageUrl(): Extracts the actual image URL from proxy URLs
+   * - findExistingConversion(): Checks cache for similar images to avoid duplicate work
+   * - isProblematicImage(): Detects if an image needs CORS conversion (handles nested URLs)
+   * 
+   * RESTORATION SYSTEM:
+   * - applyConvertedImage(): Safely applies converted data URLs while storing originals
+   * - restoreOriginalImages(): Restores all original src/srcset after screenshot
+   * 
+   * The cache system (this.imageCache) and restoration system (this.originalImageSources)
+   * work together to ensure efficiency and proper cleanup.
+   */
+
   // Extract the base image URL from Next.js optimized URLs or other proxies
   extractBaseImageUrl(src) {
     try {
@@ -1413,148 +1510,153 @@ class ScreenshotDialog {
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
-    return new Promise(async (resolve) => {
-      try {
-        // Use the actual URL being displayed (currentSrc for srcset support)
-        const actualSrc = img.currentSrc || img.src;
-        console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
-        console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Use full resolution for high quality screenshots
-        const maxSize = 1200; // Much higher limit for better quality
-        const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
-                              maxSize / (img.naturalHeight || img.height), 1);
-        
-        canvas.width = (img.naturalWidth || img.width) * ratio;
-        canvas.height = (img.naturalHeight || img.height) * ratio;
-        
-        console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
-        
-        // Special handling for blob URLs - draw directly from the existing img element
-        if (img.src.startsWith('blob:')) {
-          try {
-            // console.log('   🔄 Processing blob URL directly...');
-            // For blob URLs, we can draw the already-loaded img element directly
-            if (img.complete && img.naturalWidth > 0) {
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              const dataUrl = canvas.toDataURL('image/png', 1.0);
-              // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
-              resolve(dataUrl);
-              return;
-            } else {
-              // If the image isn't loaded yet, wait for it
-              const onLoad = () => {
-                try {
-                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  const dataUrl = canvas.toDataURL('image/png', 1.0);
-                  // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
-                  resolve(dataUrl);
-                } catch (e) {
-                  // console.warn('   ❌ Failed to draw blob image to canvas:', e);
-                  resolve(null);
-                }
-                img.removeEventListener('load', onLoad);
-                img.removeEventListener('error', onError);
-              };
-              
-              const onError = () => {
-                // console.warn('   ❌ Blob image failed to load');
-                resolve(null);
-                img.removeEventListener('load', onLoad);
-                img.removeEventListener('error', onError);
-              };
-              
-              img.addEventListener('load', onLoad);
-              img.addEventListener('error', onError);
-              
-              // Timeout for blob URLs too
-              setTimeout(() => {
-                // console.warn('   ⏰ Blob image conversion timed out');
-                img.removeEventListener('load', onLoad);
-                img.removeEventListener('error', onError);
-                resolve(null);
-              }, 500);
-              return;
-            }
-          } catch (e) {
-            // console.warn('   ❌ Blob URL processing failed:', e);
-            resolve(null);
-            return;
-          }
-        }
-        
-        // Standard handling for regular URLs
-        // Try without CORS first, then fallback to CORS if needed
-        let timeoutId;
-        
-        const tryImageLoad = (useCors = false) => {
-          return new Promise((imgResolve) => {
-        const proxyImg = new Image();
-            if (useCors) {
-        proxyImg.crossOrigin = 'anonymous';
-              console.log('   🔄 Trying with CORS...');
-            } else {
-              console.log('   🔄 Trying without CORS...');
-            }
-            
-            const cleanup = () => {
-              proxyImg.onload = null;
-              proxyImg.onerror = null;
-              if (timeoutId) {
-                clearTimeout(timeoutId);
-              }
-            };
-        
-        proxyImg.onload = () => {
-          try {
-                console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-            ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => {
+      const processImageConversion = async () => {
+        try {
+          // Use the actual URL being displayed (currentSrc for srcset support)
+          const actualSrc = img.currentSrc || img.src;
+          console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
+          console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
+          
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Use full resolution for high quality screenshots
+          const maxSize = 1200; // Much higher limit for better quality
+          const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
+                                maxSize / (img.naturalHeight || img.height), 1);
+          
+          canvas.width = (img.naturalWidth || img.width) * ratio;
+          canvas.height = (img.naturalHeight || img.height) * ratio;
+          
+          console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
+          
+          // Special handling for blob URLs - draw directly from the existing img element
+          if (img.src.startsWith('blob:')) {
+            try {
+              // console.log('   🔄 Processing blob URL directly...');
+              // For blob URLs, we can draw the already-loaded img element directly
+              if (img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/png', 1.0);
-                console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
-                cleanup();
-                imgResolve(dataUrl);
-          } catch (e) {
-                console.warn('   ❌ Failed to draw image to canvas:', e);
+                // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
+                resolve(dataUrl);
+                return;
+              } else {
+                // If the image isn't loaded yet, wait for it
+                const onLoad = () => {
+                  try {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/png', 1.0);
+                    // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
+                    resolve(dataUrl);
+                  } catch (e) {
+                    // console.warn('   ❌ Failed to draw blob image to canvas:', e);
+                    resolve(null);
+                  }
+                  img.removeEventListener('load', onLoad);
+                  img.removeEventListener('error', onError);
+                };
+                
+                const onError = () => {
+                  // console.warn('   ❌ Blob image failed to load');
+                  resolve(null);
+                  img.removeEventListener('load', onLoad);
+                  img.removeEventListener('error', onError);
+                };
+                
+                img.addEventListener('load', onLoad);
+                img.addEventListener('error', onError);
+                
+                // Timeout for blob URLs too
+                setTimeout(() => {
+                  // console.warn('   ⏰ Blob image conversion timed out');
+                  img.removeEventListener('load', onLoad);
+                  img.removeEventListener('error', onError);
+                  resolve(null);
+                }, 500);
+                return;
+              }
+            } catch (e) {
+              // console.warn('   ❌ Blob URL processing failed:', e);
+              resolve(null);
+              return;
+            }
+          }
+          
+          // Standard handling for regular URLs
+          // Try without CORS first, then fallback to CORS if needed
+          let timeoutId;
+          
+          const tryImageLoad = (useCors = false) => {
+            return new Promise((imgResolve) => {
+              const proxyImg = new Image();
+              if (useCors) {
+                proxyImg.crossOrigin = 'anonymous';
+                console.log('   🔄 Trying with CORS...');
+              } else {
+                console.log('   🔄 Trying without CORS...');
+              }
+              
+              const cleanup = () => {
+                proxyImg.onload = null;
+                proxyImg.onerror = null;
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                }
+              };
+              
+              proxyImg.onload = () => {
+                try {
+                  console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+                  ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+                  const dataUrl = canvas.toDataURL('image/png', 1.0);
+                  console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+                  cleanup();
+                  imgResolve(dataUrl);
+                } catch (e) {
+                  console.warn('   ❌ Failed to draw image to canvas:', e);
+                  cleanup();
+                  imgResolve(null);
+                }
+              };
+              
+              proxyImg.onerror = (e) => {
+                console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
                 cleanup();
                 imgResolve(null);
+              };
+              
+              // Set timeout for this attempt
+              timeoutId = setTimeout(() => {
+                console.warn('   ⏰ Image load attempt timed out after 3000ms' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+                cleanup();
+                imgResolve(null);
+              }, 3000);
+              
+              proxyImg.src = actualSrc;
+            });
+          };
+          
+          // Try without CORS first
+          let result = await tryImageLoad(false);
+          
+          // If that failed, try with CORS
+          if (!result) {
+            console.log('   🔄 First attempt failed, trying with CORS...');
+            result = await tryImageLoad(true);
           }
-        };
-        
-        proxyImg.onerror = (e) => {
-              console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
-              cleanup();
-              imgResolve(null);
-        };
-        
-            // Set timeout for this attempt
-            timeoutId = setTimeout(() => {
-              console.warn('   ⏰ Image load attempt timed out after 3000ms' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-              cleanup();
-              imgResolve(null);
-            }, 3000);
-            
-            proxyImg.src = actualSrc;
-          });
-        };
-        
-        // Try without CORS first
-        let result = await tryImageLoad(false);
-        
-        // If that failed, try with CORS
-        if (!result) {
-          console.log('   🔄 First attempt failed, trying with CORS...');
-          result = await tryImageLoad(true);
+          
+          resolve(result);
+          
+        } catch (e) {
+          // console.warn('   ❌ Image conversion failed with exception:', e);
+          resolve(null);
         }
-        
-        resolve(result);
-        
-      } catch (e) {
-        // console.warn('   ❌ Image conversion failed with exception:', e);
-        resolve(null);
-      }
+      };
+      
+      // Start the async process
+      processImageConversion();
     });
   }
 
