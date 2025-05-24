@@ -256,7 +256,7 @@ class ScreenshotDialog {
       align-items: center;
       padding-right: 6px;
       cursor: grab;
-      color: var(--ssd-text);
+      color: var(--ssd-text-muted);
       padding: 6px;
       border-radius: 6px;
       transition: all 0.2s;
@@ -266,7 +266,7 @@ class ScreenshotDialog {
       this.dragHandle.style.backgroundColor = 'var(--ssd-hover-background)';
     });
     this.dragHandle.addEventListener('mouseleave', () => {
-      this.dragHandle.style.color = 'var(--ssd-text)';
+      this.dragHandle.style.color = 'var(--ssd-text-muted)';
       this.dragHandle.style.backgroundColor = 'transparent';
     });
 
@@ -777,6 +777,28 @@ class ScreenshotDialog {
           }
         } catch (e) {
           console.error('Error setting marker style:', e);
+        }
+      }
+      
+      // Set default text and width for text markers
+      if (marker && markerType === 'TextMarker') {
+        try {
+          if (marker.text !== undefined) {
+            marker.text = "Type something";
+          }
+          // Set a reasonable default width (about 200px)
+          if (marker.defaultSize !== undefined) {
+            marker.defaultSize = { width: 200, height: 40 };
+          }
+          // Also set current width in case defaultSize doesn't work
+          if (marker.width !== undefined) {
+            marker.width = 200;
+          }
+          if (marker.height !== undefined) {
+            marker.height = 40;
+          }
+        } catch (e) {
+          console.error('Error setting text marker properties:', e);
         }
       }
     }
