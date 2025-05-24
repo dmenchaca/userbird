@@ -1252,7 +1252,7 @@ class ScreenshotDialog {
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       try {
         // Use the actual URL being displayed (currentSrc for srcset support)
         const actualSrc = img.currentSrc || img.src;
@@ -1326,37 +1326,69 @@ class ScreenshotDialog {
         }
         
         // Standard handling for regular URLs
-        // Create a new image element to avoid CORS issues
-        const proxyImg = new Image();
-        proxyImg.crossOrigin = 'anonymous';
+        // Try without CORS first, then fallback to CORS if needed
+        let timeoutId;
         
-        proxyImg.onload = () => {
-          try {
-            console.log('   ✅ Proxy image loaded successfully');
-            ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
-            // Use lower quality for faster conversion
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
-            resolve(dataUrl);
-          } catch (e) {
-            console.warn('   ❌ Failed to draw image to canvas:', e);
-            resolve(null);
-          }
+        const tryImageLoad = (useCors = false) => {
+          return new Promise((imgResolve) => {
+            const proxyImg = new Image();
+            if (useCors) {
+              proxyImg.crossOrigin = 'anonymous';
+              console.log('   🔄 Trying with CORS...');
+            } else {
+              console.log('   🔄 Trying without CORS...');
+            }
+            
+            const cleanup = () => {
+              proxyImg.onload = null;
+              proxyImg.onerror = null;
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+              }
+            };
+            
+            proxyImg.onload = () => {
+              try {
+                console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+                ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+                cleanup();
+                imgResolve(dataUrl);
+              } catch (e) {
+                console.warn('   ❌ Failed to draw image to canvas:', e);
+                cleanup();
+                imgResolve(null);
+              }
+            };
+            
+            proxyImg.onerror = (e) => {
+              console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
+              cleanup();
+              imgResolve(null);
+            };
+            
+            // Set timeout for this attempt
+            timeoutId = setTimeout(() => {
+              console.warn('   ⏰ Image load attempt timed out after 3000ms' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+              cleanup();
+              imgResolve(null);
+            }, 3000);
+            
+            proxyImg.src = actualSrc;
+          });
         };
         
-        proxyImg.onerror = (e) => {
-          console.warn('   ❌ Proxy image failed to load:', e);
-          resolve(null);
-        };
+        // Try without CORS first
+        let result = await tryImageLoad(false);
         
-        console.log('   🔄 Loading proxy image...');
-        proxyImg.src = actualSrc;
+        // If that failed, try with CORS
+        if (!result) {
+          console.log('   🔄 First attempt failed, trying with CORS...');
+          result = await tryImageLoad(true);
+        }
         
-        // Reasonable timeout for cross-origin image loading
-        setTimeout(() => {
-          console.warn('   ⏰ Image conversion timed out after 2000ms');
-          resolve(null);
-        }, 2000); // Increased timeout for better reliability
+        resolve(result);
         
       } catch (e) {
         // console.warn('   ❌ Image conversion failed with exception:', e);
