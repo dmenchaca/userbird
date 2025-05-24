@@ -1518,18 +1518,15 @@ class ScreenshotDialog {
           console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
           console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
         
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-          // Use full resolution for high quality screenshots
+          // Calculate canvas dimensions once (will be reused for each attempt)
           const maxSize = 1200; // Much higher limit for better quality
-        const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
-                              maxSize / (img.naturalHeight || img.height), 1);
-        
-        canvas.width = (img.naturalWidth || img.width) * ratio;
-        canvas.height = (img.naturalHeight || img.height) * ratio;
-        
-          console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
+          const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
+                                maxSize / (img.naturalHeight || img.height), 1);
+          
+          const canvasWidth = (img.naturalWidth || img.width) * ratio;
+          const canvasHeight = (img.naturalHeight || img.height) * ratio;
+          
+          console.log('   Canvas size:', canvasWidth + 'x' + canvasHeight, 'ratio:', ratio);
           
           // Special handling for blob URLs - draw directly from the existing img element
           if (img.src.startsWith('blob:')) {
@@ -1537,6 +1534,11 @@ class ScreenshotDialog {
               // console.log('   🔄 Processing blob URL directly...');
               // For blob URLs, we can draw the already-loaded img element directly
               if (img.complete && img.naturalWidth > 0) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/png', 1.0);
                 // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
@@ -1546,6 +1548,11 @@ class ScreenshotDialog {
                 // If the image isn't loaded yet, wait for it
                 const onLoad = () => {
                   try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const dataUrl = canvas.toDataURL('image/png', 1.0);
                     // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
@@ -1590,12 +1597,18 @@ class ScreenshotDialog {
           
           const tryImageLoad = (useCors = false) => {
             return new Promise((imgResolve) => {
-        const proxyImg = new Image();
+              // Create a fresh canvas for each attempt to avoid canvas tainting issues
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = canvasWidth;
+              canvas.height = canvasHeight;
+              
+              const proxyImg = new Image();
               if (useCors) {
-        proxyImg.crossOrigin = 'anonymous';
-                console.log('   🔄 Trying with CORS...');
+                proxyImg.crossOrigin = 'anonymous';
+                console.log('   🔄 Trying with CORS (fresh canvas)...');
               } else {
-                console.log('   🔄 Trying without CORS...');
+                console.log('   🔄 Trying without CORS (fresh canvas)...');
               }
               
               const cleanup = () => {
@@ -1606,51 +1619,51 @@ class ScreenshotDialog {
                 }
               };
         
-        proxyImg.onload = () => {
-          try {
-            console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-            
-            // Separate canvas drawing from data URL conversion to identify specific failure points
-            try {
-              ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
-              console.log('   ✅ Image drawn to canvas successfully');
-            } catch (drawError) {
-              console.warn('   ❌ Failed to draw image to canvas (likely CORS restriction):', {
-                name: drawError.name || 'Unknown',
-                message: drawError.message || 'No message',
-                toString: drawError.toString()
-              });
-              cleanup();
-              imgResolve(null);
-              return;
-            }
-            
-            try {
-              const dataUrl = canvas.toDataURL('image/png', 1.0);
-              console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
-              cleanup();
-              imgResolve(dataUrl);
-            } catch (dataUrlError) {
-              console.warn('   ❌ Failed to convert canvas to data URL (canvas tainted by CORS):', {
-                name: dataUrlError.name || 'Unknown', 
-                message: dataUrlError.message || 'No message',
-                toString: dataUrlError.toString()
-              });
-              cleanup();
-              imgResolve(null);
-            }
-          } catch (e) {
-            console.warn('   ❌ Unexpected error in image conversion:', {
-              name: e.name || 'Unknown',
-              message: e.message || 'No message', 
-              toString: e.toString()
-            });
-            cleanup();
-            imgResolve(null);
-          }
-        };
-        
-        proxyImg.onerror = (e) => {
+              proxyImg.onload = () => {
+                try {
+                  console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+                  
+                  // Separate canvas drawing from data URL conversion to identify specific failure points
+                  try {
+                    ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+                    console.log('   ✅ Image drawn to canvas successfully');
+                  } catch (drawError) {
+                    console.warn('   ❌ Failed to draw image to canvas (likely CORS restriction):', {
+                      name: drawError.name || 'Unknown',
+                      message: drawError.message || 'No message',
+                      toString: drawError.toString()
+                    });
+                    cleanup();
+                    imgResolve(null);
+                    return;
+                  }
+                  
+                  try {
+                    const dataUrl = canvas.toDataURL('image/png', 1.0);
+                    console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+                    cleanup();
+                    imgResolve(dataUrl);
+                  } catch (dataUrlError) {
+                    console.warn('   ❌ Failed to convert canvas to data URL (canvas tainted by CORS):', {
+                      name: dataUrlError.name || 'Unknown', 
+                      message: dataUrlError.message || 'No message',
+                      toString: dataUrlError.toString()
+                    });
+                    cleanup();
+                    imgResolve(null);
+                  }
+                } catch (e) {
+                  console.warn('   ❌ Unexpected error in image conversion:', {
+                    name: e.name || 'Unknown',
+                    message: e.message || 'No message', 
+                    toString: e.toString()
+                  });
+                  cleanup();
+                  imgResolve(null);
+                }
+              };
+              
+              proxyImg.onerror = (e) => {
                 console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
                 cleanup();
                 imgResolve(null);
@@ -1678,10 +1691,10 @@ class ScreenshotDialog {
           
           resolve(result);
         
-      } catch (e) {
-        // console.warn('   ❌ Image conversion failed with exception:', e);
-        resolve(null);
-      }
+        } catch (e) {
+          // console.warn('   ❌ Image conversion failed with exception:', e);
+          resolve(null);
+        }
       };
       
       // Start the async process
