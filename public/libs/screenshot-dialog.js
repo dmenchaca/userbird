@@ -1120,12 +1120,6 @@ class ScreenshotDialog {
   hasProblematicImages() {
     const problematicDomains = [
       'googleusercontent.com',
-      'lh1.googleusercontent.com',  // Google Photos/Avatar domains
-      'lh2.googleusercontent.com',
-      'lh3.googleusercontent.com',
-      'lh4.googleusercontent.com',
-      'lh5.googleusercontent.com',
-      'lh6.googleusercontent.com',
       'gravatar.com', 
       'facebook.com',
       'fbcdn.net',
@@ -1274,12 +1268,6 @@ class ScreenshotDialog {
     const images = Array.from(document.querySelectorAll('img'));
     const problematicDomains = [
       'googleusercontent.com',
-      'lh1.googleusercontent.com',  // Google Photos/Avatar domains
-      'lh2.googleusercontent.com',
-      'lh3.googleusercontent.com',
-      'lh4.googleusercontent.com',
-      'lh5.googleusercontent.com',
-      'lh6.googleusercontent.com',
       'gravatar.com', 
       'facebook.com',
       'fbcdn.net',
@@ -1342,7 +1330,7 @@ class ScreenshotDialog {
       console.log('   Element classes:', img.className);
       console.log('   Element alt:', img.alt);
         
-      // Check cache first
+        // Check cache first
       if (this.imageCache.has(actualSrc)) {
         console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
         this.applyConvertedImage(img, this.imageCache.get(actualSrc));
@@ -1359,17 +1347,17 @@ class ScreenshotDialog {
         console.log('   Using cached conversion from similar URL');
         this.applyConvertedImage(img, existingConversion);
         continue;
-      }
+        }
         
-      // Skip very small images
-      if (img.width < 20 && img.height < 20) {
+        // Skip very small images
+        if (img.width < 20 && img.height < 20) {
         console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
         continue;
-      }
+        }
         
-      try {
-        const dataUrl = await this.convertImageToDataUrl(img);
-        if (dataUrl) {
+        try {
+          const dataUrl = await this.convertImageToDataUrl(img);
+          if (dataUrl) {
           this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
           // Also cache using the base URL for sharing between similar images
           const baseUrl = this.extractBaseImageUrl(actualSrc);
@@ -1381,10 +1369,10 @@ class ScreenshotDialog {
           console.log('   Converted:', dataUrl.substring(0, 80) + '...');
           
           this.applyConvertedImage(img, dataUrl);
-        } else {
+          } else {
           console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
-        }
-      } catch (e) {
+          }
+        } catch (e) {
         console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
       }
     }
@@ -1522,21 +1510,6 @@ class ScreenshotDialog {
   
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
-    /**
-     * GOOGLE IMAGES SPECIAL HANDLING
-     * 
-     * Google images (lh*.googleusercontent.com) have additional protection that prevents
-     * canvas manipulation even when they load successfully in proxy images. This manifests as:
-     * - Image loads successfully (no CORS error)
-     * - ctx.drawImage() throws an error when trying to draw to canvas
-     * 
-     * FALLBACK STRATEGY:
-     * When this happens, we try drawing the original img element directly to canvas.
-     * This sometimes works if the image was already loaded and displayed in the DOM.
-     * 
-     * If both strategies fail, the image will remain unconverted and may appear
-     * blank in screenshots, but this is preferable to blocking the entire process.
-     */
     return new Promise((resolve) => {
       const processImageConversion = async () => {
         try {
@@ -1544,18 +1517,18 @@ class ScreenshotDialog {
           const actualSrc = img.currentSrc || img.src;
           console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
           console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
-          
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
           // Use full resolution for high quality screenshots
           const maxSize = 1200; // Much higher limit for better quality
-          const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
-                                maxSize / (img.naturalHeight || img.height), 1);
-          
-          canvas.width = (img.naturalWidth || img.width) * ratio;
-          canvas.height = (img.naturalHeight || img.height) * ratio;
-          
+        const ratio = Math.min(maxSize / (img.naturalWidth || img.width), 
+                              maxSize / (img.naturalHeight || img.height), 1);
+        
+        canvas.width = (img.naturalWidth || img.width) * ratio;
+        canvas.height = (img.naturalHeight || img.height) * ratio;
+        
           console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
           
           // Special handling for blob URLs - draw directly from the existing img element
@@ -1617,9 +1590,9 @@ class ScreenshotDialog {
           
           const tryImageLoad = (useCors = false) => {
             return new Promise((imgResolve) => {
-              const proxyImg = new Image();
+        const proxyImg = new Image();
               if (useCors) {
-                proxyImg.crossOrigin = 'anonymous';
+        proxyImg.crossOrigin = 'anonymous';
                 console.log('   🔄 Trying with CORS...');
               } else {
                 console.log('   🔄 Trying without CORS...');
@@ -1632,46 +1605,52 @@ class ScreenshotDialog {
                   clearTimeout(timeoutId);
                 }
               };
-              
-              proxyImg.onload = () => {
-                try {
-                  console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-                  ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
-                  const dataUrl = canvas.toDataURL('image/png', 1.0);
-                  console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
-                  cleanup();
-                  imgResolve(dataUrl);
-                } catch (e) {
-                  console.warn('   ❌ Failed to draw image to canvas:', e);
-                  
-                  // Special handling for Google images that load but can't be drawn
-                  if (actualSrc.includes('googleusercontent.com')) {
-                    console.log('   🔄 Google image detected - attempting fallback conversion strategy...');
-                    try {
-                      // Create a fresh canvas and try with the original img element
-                      const fallbackCanvas = document.createElement('canvas');
-                      const fallbackCtx = fallbackCanvas.getContext('2d');
-                      fallbackCanvas.width = img.naturalWidth || img.width;
-                      fallbackCanvas.height = img.naturalHeight || img.height;
-                      
-                      // Try drawing the original img element directly
-                      fallbackCtx.drawImage(img, 0, 0);
-                      const fallbackDataUrl = fallbackCanvas.toDataURL('image/png', 1.0);
-                      console.log('   ✅ Google image fallback conversion successful, data URL length:', fallbackDataUrl.length);
-                      cleanup();
-                      imgResolve(fallbackDataUrl);
-                      return;
-                    } catch (fallbackError) {
-                      console.warn('   ❌ Google image fallback also failed:', fallbackError);
-                    }
-                  }
-                  
-                  cleanup();
-                  imgResolve(null);
-                }
-              };
-              
-              proxyImg.onerror = (e) => {
+        
+        proxyImg.onload = () => {
+          try {
+            console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
+            
+            // Separate canvas drawing from data URL conversion to identify specific failure points
+            try {
+              ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+              console.log('   ✅ Image drawn to canvas successfully');
+            } catch (drawError) {
+              console.warn('   ❌ Failed to draw image to canvas (likely CORS restriction):', {
+                name: drawError.name || 'Unknown',
+                message: drawError.message || 'No message',
+                toString: drawError.toString()
+              });
+              cleanup();
+              imgResolve(null);
+              return;
+            }
+            
+            try {
+              const dataUrl = canvas.toDataURL('image/png', 1.0);
+              console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+              cleanup();
+              imgResolve(dataUrl);
+            } catch (dataUrlError) {
+              console.warn('   ❌ Failed to convert canvas to data URL (canvas tainted by CORS):', {
+                name: dataUrlError.name || 'Unknown', 
+                message: dataUrlError.message || 'No message',
+                toString: dataUrlError.toString()
+              });
+              cleanup();
+              imgResolve(null);
+            }
+          } catch (e) {
+            console.warn('   ❌ Unexpected error in image conversion:', {
+              name: e.name || 'Unknown',
+              message: e.message || 'No message', 
+              toString: e.toString()
+            });
+            cleanup();
+            imgResolve(null);
+          }
+        };
+        
+        proxyImg.onerror = (e) => {
                 console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
                 cleanup();
                 imgResolve(null);
@@ -1698,11 +1677,11 @@ class ScreenshotDialog {
           }
           
           resolve(result);
-          
-        } catch (e) {
-          // console.warn('   ❌ Image conversion failed with exception:', e);
-          resolve(null);
-        }
+        
+      } catch (e) {
+        // console.warn('   ❌ Image conversion failed with exception:', e);
+        resolve(null);
+      }
       };
       
       // Start the async process
