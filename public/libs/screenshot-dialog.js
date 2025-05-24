@@ -286,7 +286,7 @@ class ScreenshotDialog {
       justify-content: center;
       white-space: nowrap;
       border-radius: 12px;
-      font-size: 1rem;
+      font-size: 1.75rem;
       font-weight: 500;
       padding: 1rem 1.5rem;
       cursor: pointer;
