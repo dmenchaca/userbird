@@ -155,6 +155,7 @@ export function UserMenu() {
                     alt="Recent screenshot" 
                     className="w-7 h-7 object-cover rounded-md cursor-pointer"
                     onClick={handleThumbnailClick}
+                    crossOrigin="anonymous"
                   />
                   <button
                     onClick={handleRemoveThumbnail}
@@ -191,7 +192,7 @@ export function UserMenu() {
                 <span className="flex items-center gap-2">
                   <Avatar className="h-5 w-5 rounded-full">
                     {user.user_metadata?.avatar_url ? (
-                      <img src={user.user_metadata.avatar_url} alt={user.user_metadata?.full_name || user.email} className="h-full w-full object-cover rounded-full" />
+                      <img src={user.user_metadata.avatar_url} alt={user.user_metadata?.full_name || user.email} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />
                     ) : (
                       <AvatarFallback className="rounded-full text-xs">{user.user_metadata?.full_name?.[0].toUpperCase() || user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                     )}
@@ -211,7 +212,7 @@ export function UserMenu() {
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-full">
                     {user.user_metadata?.avatar_url ? (
-                      <img src={user.user_metadata.avatar_url} alt={user.user_metadata?.full_name || user.email} className="h-full w-full object-cover rounded-full" />
+                      <img src={user.user_metadata.avatar_url} alt={user.user_metadata?.full_name || user.email} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />
                     ) : (
                       <AvatarFallback className="rounded-full">{user.user_metadata?.full_name?.[0].toUpperCase() || user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                     )}

@@ -1453,13 +1453,13 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                               (() => {
                                 // First check if we have a sender_profile
                                 if (reply.sender_profile?.avatar_url) {
-                                  return <img src={reply.sender_profile.avatar_url} alt={reply.sender_profile.username || "Collaborator"} className="h-full w-full object-cover rounded-full" />;
+                                  return <img src={reply.sender_profile.avatar_url} alt={reply.sender_profile.username || "Collaborator"} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />;
                                 }
                                 
                                 // Fall back to collaborator data if available
                                 const senderCollaborator = collaborators.find(c => c.user_id === reply.sender_id);
                                 if (senderCollaborator?.user_profile?.avatar_url) {
-                                  return <img src={senderCollaborator.user_profile.avatar_url} alt={senderCollaborator.user_profile?.username || "Collaborator"} className="h-full w-full object-cover rounded-full" />;
+                                  return <img src={senderCollaborator.user_profile.avatar_url} alt={senderCollaborator.user_profile?.username || "Collaborator"} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />;
                                 } else {
                                   return <AvatarFallback className="rounded-full text-xs">
                                     {reply.sender_profile?.username?.[0]?.toUpperCase() ||
@@ -1471,7 +1471,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             ) : (
                               // Render current user avatar (fallback or when sender_id matches current user)
                               adminAvatarUrl ? (
-                                <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" />
+                                <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />
                               ) : (
                                 <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
                               )
@@ -1590,6 +1590,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                                     src={attachment.url} 
                                     alt={attachment.filename}
                                     className="w-16 h-16 object-cover"
+                                    crossOrigin="anonymous"
                                   />
                                 </a>
                               ) : (
@@ -1626,7 +1627,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   <div className="flex items-center gap-2">
                     <Avatar className="h-7 w-7 rounded-full">
                       {adminAvatarUrl ? (
-                        <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" />
+                        <img src={adminAvatarUrl} alt={adminName || "Admin"} className="h-full w-full object-cover rounded-full" crossOrigin="anonymous" />
                       ) : (
                         <AvatarFallback className="rounded-full text-xs">{adminInitials}</AvatarFallback>
                       )}

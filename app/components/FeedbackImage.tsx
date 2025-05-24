@@ -114,6 +114,7 @@ export const FeedbackImage: React.FC<FeedbackImageProps> = ({
           height={height}
           loading="lazy"
           fetchPriority="auto"
+          crossOrigin="anonymous"
         />
       )}
     </>
