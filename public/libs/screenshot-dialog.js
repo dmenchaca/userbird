@@ -161,9 +161,9 @@ class ScreenshotDialog {
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
-      max-width: 95vw;
+      max-width: 100vw;
       width: auto;
-      max-height: 95vh;
+      max-height: 100vh;
       background: var(--ssd-background);
       border-radius: 8px;
       padding: 0;
@@ -231,8 +231,8 @@ class ScreenshotDialog {
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
-      max-width: 95vw;
-      max-height: 90vh;
+      max-width: 100vw;
+      max-height: 100vh;
       object-fit: contain;
       image-rendering: auto;
     `;
