@@ -779,25 +779,6 @@ class ScreenshotDialog {
           console.error('Error setting marker style:', e);
         }
       }
-      
-      // Set default width for text markers (text content might need to be set differently)
-      if (marker && markerType === 'TextMarker') {
-        try {
-          // Set a reasonable default width (about 200px)
-          if (marker.defaultSize !== undefined) {
-            marker.defaultSize = { width: 200, height: 40 };
-          }
-          // Also set current width in case defaultSize doesn't work
-          if (marker.width !== undefined) {
-            marker.width = 200;
-          }
-          if (marker.height !== undefined) {
-            marker.height = 40;
-          }
-        } catch (e) {
-          console.error('Error setting text marker properties:', e);
-        }
-      }
     }
   }
 
