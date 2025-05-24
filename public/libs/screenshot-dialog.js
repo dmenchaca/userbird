@@ -1591,13 +1591,47 @@ class ScreenshotDialog {
             }
           }
           
+          /*
+           * ========================================================================
+           * CRITICAL: CANVAS TAINTING AND CORS HANDLING
+           * ========================================================================
+           * 
+           * ISSUE: Canvas becomes "tainted" when drawing cross-origin images without CORS.
+           * Once tainted, canvas.toDataURL() will ALWAYS throw SecurityError, even if 
+           * subsequent operations have proper CORS headers.
+           * 
+           * SOLUTION: Create a fresh canvas for each CORS attempt.
+           * 
+           * FAILURE PATTERN (what was happening before):
+           * 1. Create single canvas
+           * 2. First attempt (no CORS): drawImage() succeeds, canvas becomes tainted
+           * 3. First attempt: toDataURL() fails due to tainted canvas
+           * 4. Second attempt (with CORS): uses same tainted canvas 
+           * 5. Second attempt: Even with CORS, toDataURL() fails because canvas is already tainted
+           * 6. Result: Both attempts fail even if CORS headers are available
+           * 
+           * WORKING PATTERN (current implementation):
+           * 1. First attempt: Create fresh canvas, try without CORS
+           * 2. If fails: Create NEW fresh canvas, try with CORS
+           * 3. Each canvas is independent and uncontaminated
+           * 
+           * WARNING: Do NOT "optimize" by reusing canvas between attempts!
+           * This will break Google avatars and other cross-origin images.
+           * 
+           * References:
+           * - https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image
+           * - https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL
+           * ========================================================================
+           */
+          
           // Standard handling for regular URLs
           // Try without CORS first, then fallback to CORS if needed
           let timeoutId;
           
           const tryImageLoad = (useCors = false) => {
             return new Promise((imgResolve) => {
-              // Create a fresh canvas for each attempt to avoid canvas tainting issues
+              // CRITICAL: Create a fresh canvas for each attempt to avoid canvas tainting issues
+              // DO NOT move this outside the function - each attempt needs its own clean canvas
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               canvas.width = canvasWidth;
@@ -1683,7 +1717,7 @@ class ScreenshotDialog {
           // Try without CORS first
           let result = await tryImageLoad(false);
           
-          // If that failed, try with CORS
+          // If that failed, try with CORS using a fresh canvas
           if (!result) {
             console.log('   🔄 First attempt failed, trying with CORS...');
             result = await tryImageLoad(true);
