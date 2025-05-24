@@ -1064,7 +1064,9 @@ class ScreenshotDialog {
       'cdninstagram.com',
       'storage.googleapis.com',  // Google Cloud Storage
       'cloudfront.net',         // AWS CloudFront
-      'amazonaws.com'           // AWS S3
+      'amazonaws.com',          // AWS S3
+      'unsplash.com',           // Unsplash images
+      'plus.unsplash.com'       // Unsplash Plus images
     ];
     
     const images = document.querySelectorAll('img');
@@ -1160,7 +1162,9 @@ class ScreenshotDialog {
       'cdninstagram.com',
       'storage.googleapis.com',  // Google Cloud Storage
       'cloudfront.net',         // AWS CloudFront
-      'amazonaws.com'           // AWS S3
+      'amazonaws.com',          // AWS S3
+      'unsplash.com',           // Unsplash images
+      'plus.unsplash.com'       // Unsplash Plus images
     ];
     
     // console.log('🔍 Found', images.length, 'total images on page');
