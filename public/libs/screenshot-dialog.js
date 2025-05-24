@@ -1177,21 +1177,37 @@ class ScreenshotDialog {
     
     // console.log('🔍 Found', images.length, 'total images on page');
     
-    // Only process images from known problematic domains (check both src and srcset)
-    const imagePromises = images
-      .filter(img => {
-        // Check src attribute
-        if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
-          return true;
-        }
-        // Check srcset attribute
-        if (img.srcset) {
-          const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
-          return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
-        }
-        return false;
-      })
-      .map(async (img) => {
+    // Filter problematic images and separate by priority
+    const problematicImages = images.filter(img => {
+      // Check src attribute
+      if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
+        return true;
+      }
+      // Check srcset attribute
+      if (img.srcset) {
+        const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
+        return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
+      }
+      return false;
+    });
+
+    // Sort images by priority: same-origin first (more likely to succeed)
+    problematicImages.sort((a, b) => {
+      const aUrl = a.currentSrc || a.src;
+      const bUrl = b.currentSrc || b.src;
+      const aSameOrigin = aUrl.startsWith(window.location.origin);
+      const bSameOrigin = bUrl.startsWith(window.location.origin);
+      
+      if (aSameOrigin && !bSameOrigin) return -1; // a comes first
+      if (!aSameOrigin && bSameOrigin) return 1;  // b comes first
+      return 0; // same priority
+    });
+
+    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+    console.log('📋 Processing order: same-origin first for better cache sharing');
+
+    // Process images sequentially in batches for better cache sharing
+    const imagePromises = problematicImages.map(async (img) => {
         // Determine the actual URL being used (currentSrc for srcset support, fallback to src)
         const actualSrc = img.currentSrc || img.src;
         const originalSrc = actualSrc;
@@ -1277,20 +1293,6 @@ class ScreenshotDialog {
         
         return Promise.resolve();
       });
-
-    const problematicImages = images.filter(img => {
-      // Check src attribute
-      if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
-        return true;
-      }
-      // Check srcset attribute
-      if (img.srcset) {
-        const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
-        return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
-      }
-      return false;
-    });
-    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
 
     await Promise.all(imagePromises);
     // console.log('✅ Finished processing all problematic images');
