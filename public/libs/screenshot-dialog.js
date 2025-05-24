@@ -1294,7 +1294,10 @@ class ScreenshotDialog {
         return Promise.resolve();
       });
 
-    await Promise.all(imagePromises);
+    // Process images sequentially to ensure cache sharing works properly
+    for (const imagePromise of imagePromises) {
+      await imagePromise;
+    }
     // console.log('✅ Finished processing all problematic images');
   }
   
