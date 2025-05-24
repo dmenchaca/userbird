@@ -1336,7 +1336,9 @@ class ScreenshotDialog {
 
   // Restore original image sources after screenshot
   restoreOriginalImages() {
-    console.log('🔄 Restoring', this.originalImageSources.size, 'original image sources...');
+    const timestamp = new Date().toISOString().split('T')[1];
+    console.log(`🔄 [${timestamp}] Restoring ${this.originalImageSources.size} original image sources...`);
+    console.trace('🔍 Restoration called from:'); // This will show the call stack
     
     this.originalImageSources.forEach((originalData, imageId) => {
       const img = originalData.element;
@@ -1350,7 +1352,7 @@ class ScreenshotDialog {
     
     // Clear the storage
     this.originalImageSources.clear();
-    console.log('✅ Original image sources restored');
+    console.log(`✅ [${timestamp}] Original image sources restored`);
   }
 
   // Convert image to data URL using canvas (optimized for speed)
@@ -1555,6 +1557,7 @@ class ScreenshotDialog {
     
     await Promise.all(imagePromises);
     console.log('✅ All converted images loaded');
+    console.log('🛡️ NOT restoring images yet - keeping converted versions for screenshot');
     
     // Add a small additional delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 100));
