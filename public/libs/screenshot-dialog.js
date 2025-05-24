@@ -1211,8 +1211,8 @@ class ScreenshotDialog {
       const actualSrc = img.currentSrc || img.src;
       const originalSrc = actualSrc;
       console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
-      
-      // Check cache first
+        
+        // Check cache first
       if (this.imageCache.has(actualSrc)) {
         console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
         // For srcset images, we need to replace the appropriate URL
@@ -1254,17 +1254,17 @@ class ScreenshotDialog {
           img.src = existingConversion;
         }
         continue;
-      }
-      
-      // Skip very small images
-      if (img.width < 20 && img.height < 20) {
+        }
+        
+        // Skip very small images
+        if (img.width < 20 && img.height < 20) {
         console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
         continue;
-      }
-      
-      try {
-        const dataUrl = await this.convertImageToDataUrl(img);
-        if (dataUrl) {
+        }
+        
+        try {
+          const dataUrl = await this.convertImageToDataUrl(img);
+          if (dataUrl) {
           this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
           // Also cache using the base URL for sharing between similar images
           const baseUrl = this.extractBaseImageUrl(actualSrc);
@@ -1295,10 +1295,10 @@ class ScreenshotDialog {
           }
         } else {
           console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
-        }
-      } catch (e) {
+          }
+        } catch (e) {
         console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
-      }
+        }
     }
     // console.log('✅ Finished processing all problematic images');
   }
@@ -1354,7 +1354,7 @@ class ScreenshotDialog {
     this.originalImageSources.clear();
     console.log(`✅ [${timestamp}] Original image sources restored`);
   }
-
+  
   // Convert image to data URL using canvas (optimized for speed)
   async convertImageToDataUrl(img) {
     return new Promise(async (resolve) => {
@@ -1436,9 +1436,9 @@ class ScreenshotDialog {
         
         const tryImageLoad = (useCors = false) => {
           return new Promise((imgResolve) => {
-            const proxyImg = new Image();
+        const proxyImg = new Image();
             if (useCors) {
-              proxyImg.crossOrigin = 'anonymous';
+        proxyImg.crossOrigin = 'anonymous';
               console.log('   🔄 Trying with CORS...');
             } else {
               console.log('   🔄 Trying without CORS...');
@@ -1451,28 +1451,28 @@ class ScreenshotDialog {
                 clearTimeout(timeoutId);
               }
             };
-            
-            proxyImg.onload = () => {
-              try {
+        
+        proxyImg.onload = () => {
+          try {
                 console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-                ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/png', 1.0);
                 console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
                 cleanup();
                 imgResolve(dataUrl);
-              } catch (e) {
+          } catch (e) {
                 console.warn('   ❌ Failed to draw image to canvas:', e);
                 cleanup();
                 imgResolve(null);
-              }
-            };
-            
-            proxyImg.onerror = (e) => {
+          }
+        };
+        
+        proxyImg.onerror = (e) => {
               console.warn('   ❌ Proxy image failed to load' + (useCors ? ' (with CORS)' : ' (without CORS)'), e);
               cleanup();
               imgResolve(null);
-            };
-            
+        };
+        
             // Set timeout for this attempt
             timeoutId = setTimeout(() => {
               console.warn('   ⏰ Image load attempt timed out after 3000ms' + (useCors ? ' (with CORS)' : ' (without CORS)'));
