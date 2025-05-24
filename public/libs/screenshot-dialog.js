@@ -1210,9 +1210,9 @@ class ScreenshotDialog {
           const dataUrl = await this.convertImageToDataUrl(img);
           if (dataUrl) {
             this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
-            // console.log('✅ Successfully converted image');
-            // console.log('   Original:', originalSrc.substring(0, 80) + '...');
-            // console.log('   Converted:', dataUrl.substring(0, 80) + '...');
+            console.log('✅ Successfully converted image');
+            console.log('   Original:', originalSrc.substring(0, 80) + '...');
+            console.log('   Converted:', dataUrl.substring(0, 80) + '...');
             
             // Replace the image source appropriately
             if (img.currentSrc && img.currentSrc !== img.src) {
@@ -1223,10 +1223,10 @@ class ScreenshotDialog {
               img.src = dataUrl;
             }
           } else {
-            // console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
+            console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
           }
         } catch (e) {
-          // console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
+          console.warn('❌ Failed to convert image:', originalSrc.substring(0, 80) + '...', e);
         }
         
         return Promise.resolve();
@@ -1254,8 +1254,10 @@ class ScreenshotDialog {
   async convertImageToDataUrl(img) {
     return new Promise((resolve) => {
       try {
-        // console.log('🔄 Starting image conversion for:', img.src.substring(0, 100) + '...');
-        // console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
+        // Use the actual URL being displayed (currentSrc for srcset support)
+        const actualSrc = img.currentSrc || img.src;
+        console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
+        console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1268,7 +1270,7 @@ class ScreenshotDialog {
         canvas.width = (img.naturalWidth || img.width) * ratio;
         canvas.height = (img.naturalHeight || img.height) * ratio;
         
-        // console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
+        console.log('   Canvas size:', canvas.width + 'x' + canvas.height, 'ratio:', ratio);
         
         // Special handling for blob URLs - draw directly from the existing img element
         if (img.src.startsWith('blob:')) {
@@ -1330,31 +1332,31 @@ class ScreenshotDialog {
         
         proxyImg.onload = () => {
           try {
-            // console.log('   ✅ Proxy image loaded successfully');
+            console.log('   ✅ Proxy image loaded successfully');
             ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
             // Use lower quality for faster conversion
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            // console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
+            console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
             resolve(dataUrl);
           } catch (e) {
-            // console.warn('   ❌ Failed to draw image to canvas:', e);
+            console.warn('   ❌ Failed to draw image to canvas:', e);
             resolve(null);
           }
         };
         
         proxyImg.onerror = (e) => {
-          // console.warn('   ❌ Proxy image failed to load:', e);
+          console.warn('   ❌ Proxy image failed to load:', e);
           resolve(null);
         };
         
-        // console.log('   🔄 Loading proxy image...');
-        proxyImg.src = img.src;
+        console.log('   🔄 Loading proxy image...');
+        proxyImg.src = actualSrc;
         
-        // Much shorter timeout for faster processing
+        // Reasonable timeout for cross-origin image loading
         setTimeout(() => {
-          // console.warn('   ⏰ Image conversion timed out after 500ms');
+          console.warn('   ⏰ Image conversion timed out after 2000ms');
           resolve(null);
-        }, 500); // Reduced from 2000ms to 500ms
+        }, 2000); // Increased timeout for better reliability
         
       } catch (e) {
         // console.warn('   ❌ Image conversion failed with exception:', e);
