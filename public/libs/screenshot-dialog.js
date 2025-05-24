@@ -83,7 +83,7 @@ class ScreenshotDialog {
   }
 
   injectScreenshotStyles() {
-    // Add styles for screenshot quality improvement
+    // Add styles for screenshot quality improvement and toolbar animations
     const style = document.createElement('style');
     style.textContent = `
       .screenshot-mode {
@@ -92,6 +92,42 @@ class ScreenshotDialog {
         text-rendering: geometricPrecision;
         font-smooth: always;
         image-rendering: -webkit-optimize-contrast;
+      }
+
+      /* Bouncy toolbar animation */
+      @keyframes bounceIn {
+        0% {
+          opacity: 0;
+          transform: translateX(-50%) scale(0.3) translateY(-20px);
+        }
+        20% {
+          opacity: 0.7;
+          transform: translateX(-50%) scale(1.1) translateY(-5px);
+        }
+        40% {
+          opacity: 0.9;
+          transform: translateX(-50%) scale(0.9) translateY(2px);
+        }
+        60% {
+          opacity: 1;
+          transform: translateX(-50%) scale(1.05) translateY(-1px);
+        }
+        80% {
+          transform: translateX(-50%) scale(0.98) translateY(1px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateX(-50%) scale(1) translateY(0px);
+        }
+      }
+
+      .screenshot-toolbar.bounce-in {
+        animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      /* Ensure toolbar maintains its position during animation */
+      .screenshot-toolbar {
+        animation-fill-mode: both;
       }
     `;
     document.head.appendChild(style);
@@ -883,25 +919,51 @@ class ScreenshotDialog {
     const toolsContainer = document.createElement('div');
     toolsContainer.className = 'toolbar-tools';
 
+    // Check if toolbar was previously hidden to determine if we should animate
+    const wasHidden = this.toolbar.style.display === 'none';
+
     // Mirror React logic exactly:
     // Show annotation tools when: isAnnotationReady && markerArea && !annotatedImage
     if (this.isAnnotationReady && this.markerArea && !this.annotatedImage) {
       // console.log('Creating annotation tools');
       toolsContainer.appendChild(this.createAnnotationTools());
-      this.toolbar.style.display = 'block';
+      this.showToolbarWithAnimation(wasHidden);
     }
     // Show preview tools when: annotatedImage exists (regardless of mode)
     else if (this.annotatedImage) {
       // console.log('Creating preview tools');
       toolsContainer.appendChild(this.createPreviewTools());
-      this.toolbar.style.display = 'block';
+      this.showToolbarWithAnimation(wasHidden);
     }
     else {
       // console.log('No tools to show, hiding toolbar');
       this.toolbar.style.display = 'none';
+      // Remove animation class when hiding
+      this.toolbar.classList.remove('bounce-in');
     }
 
     this.toolbarContent.appendChild(toolsContainer);
+  }
+
+  showToolbarWithAnimation(wasHidden) {
+    this.toolbar.style.display = 'block';
+    
+    // Only animate if toolbar was previously hidden
+    if (wasHidden) {
+      // Remove any existing animation class first
+      this.toolbar.classList.remove('bounce-in');
+      
+      // Force a reflow to ensure the class removal takes effect
+      this.toolbar.offsetHeight;
+      
+      // Add the animation class
+      this.toolbar.classList.add('bounce-in');
+      
+      // Remove the animation class after it completes to allow future animations
+      setTimeout(() => {
+        this.toolbar.classList.remove('bounce-in');
+      }, 600); // Match the animation duration
+    }
   }
 
   async captureScreenshot() {
