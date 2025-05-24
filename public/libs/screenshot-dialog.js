@@ -229,11 +229,11 @@ class ScreenshotDialog {
     this.toolbarContent = document.createElement('div');
     this.toolbarContent.style.cssText = `
       background: var(--ssd-toolbar-background);
-      border-radius: 12px;
+      border-radius: 8px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      padding: 16px;
+      padding: 12px;
       display: flex;
-      gap: 16px;
+      gap: 12px;
       align-items: center;
       border: 1px solid var(--ssd-border-color);
     `;
@@ -242,7 +242,7 @@ class ScreenshotDialog {
     this.dragHandle = document.createElement('div');
     this.dragHandle.className = 'toolbar-drag-handle';
     this.dragHandle.innerHTML = `
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="12" r="1"></circle>
         <circle cx="9" cy="5" r="1"></circle>
         <circle cx="9" cy="19" r="1"></circle>
@@ -254,11 +254,11 @@ class ScreenshotDialog {
     this.dragHandle.style.cssText = `
       display: flex;
       align-items: center;
-      padding-right: 8px;
+      padding-right: 6px;
       cursor: grab;
       color: var(--ssd-text);
-      padding: 8px;
-      border-radius: 8px;
+      padding: 6px;
+      border-radius: 6px;
       transition: all 0.2s;
     `;
     this.dragHandle.addEventListener('mouseenter', () => {
@@ -276,23 +276,24 @@ class ScreenshotDialog {
 
   createButton(iconSvg, text, tooltip, onClick, variant = 'outline') {
     const button = document.createElement('button');
-    // Scale up icons by replacing width="16" height="16" with width="32" height="32"
-    const scaledIconSvg = iconSvg.replace(/width="16" height="16"/g, 'width="32" height="32"');
-    button.innerHTML = `${scaledIconSvg} ${text ? `<span style="margin-left: 8px;">${text}</span>` : ''}`;
+    // Scale up icons by replacing width="16" height="16" with width="24" height="24"
+    const scaledIconSvg = iconSvg.replace(/width="16" height="16"/g, 'width="24" height="24"');
+    button.innerHTML = `${scaledIconSvg} ${text ? `<span style="margin-left: 6px;">${text}</span>` : ''}`;
     
     const baseStyles = `
       display: inline-flex;
       align-items: center;
       justify-content: center;
       white-space: nowrap;
-      border-radius: 12px;
-      font-size: 1.75rem;
+      border-radius: 8px;
+      font-size: 1rem;
       font-weight: 500;
-      padding: 1rem 1.5rem;
+      padding: 0.75rem 1rem;
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
       border: none;
+      height: 48px;
     `;
 
     if (variant === 'outline') {
@@ -376,7 +377,7 @@ class ScreenshotDialog {
 
   createAnnotationTools() {
     const tools = document.createElement('div');
-    tools.style.cssText = 'display: flex; gap: 16px; align-items: center;';
+    tools.style.cssText = 'display: flex; gap: 12px; align-items: center;';
 
     // Rectangle tool
     const rectButton = this.createButton(
@@ -412,7 +413,7 @@ class ScreenshotDialog {
 
     // Separator
     const separator = document.createElement('div');
-    separator.style.cssText = 'width: 1px; height: 48px; background: var(--ssd-border-color);';
+    separator.style.cssText = 'width: 1px; height: 36px; background: var(--ssd-border-color);';
 
     // Done button
     const doneButton = this.createButton(
@@ -435,7 +436,7 @@ class ScreenshotDialog {
 
   createPreviewTools() {
     const tools = document.createElement('div');
-    tools.style.cssText = 'display: flex; gap: 16px; align-items: center;';
+    tools.style.cssText = 'display: flex; gap: 12px; align-items: center;';
 
     // Delete button
     const deleteButton = this.createButton(
@@ -447,7 +448,7 @@ class ScreenshotDialog {
 
     // Separator
     const separator = document.createElement('div');
-    separator.style.cssText = 'width: 1px; height: 48px; background: var(--ssd-border-color);';
+    separator.style.cssText = 'width: 1px; height: 36px; background: var(--ssd-border-color);';
 
     // Close button
     const closeButton = this.createButton(
