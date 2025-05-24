@@ -1222,6 +1222,11 @@ class ScreenshotDialog {
           const dataUrl = await this.convertImageToDataUrl(img);
           if (dataUrl) {
             this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
+            // Also cache using the base URL for sharing between similar images
+            const baseUrl = this.extractBaseImageUrl(actualSrc);
+            if (baseUrl !== actualSrc) {
+              this.imageCache.set(baseUrl, dataUrl);
+            }
             console.log('✅ Successfully converted image');
             console.log('   Original:', originalSrc.substring(0, 80) + '...');
             console.log('   Converted:', dataUrl.substring(0, 80) + '...');
@@ -1234,6 +1239,25 @@ class ScreenshotDialog {
                 srcset: img.srcset || null,
                 element: img
               });
+            }
+            
+            // Try to find if we already have a successful conversion for the same underlying image
+            const baseImageUrl = this.extractBaseImageUrl(actualSrc);
+            const existingConversion = this.findExistingConversion(baseImageUrl);
+            
+            if (existingConversion) {
+              console.log('🔄 Using existing conversion for same underlying image');
+              console.log('   Current URL:', actualSrc.substring(0, 80) + '...');
+              console.log('   Using cached conversion from similar URL');
+              
+              // Replace the image source appropriately
+              if (img.currentSrc && img.currentSrc !== img.src) {
+                img.src = existingConversion;
+                img.removeAttribute('srcset');
+              } else {
+                img.src = existingConversion;
+              }
+              return Promise.resolve();
             }
             
             // Replace the image source appropriately
@@ -1272,6 +1296,37 @@ class ScreenshotDialog {
     // console.log('✅ Finished processing all problematic images');
   }
   
+  // Extract the base image URL from Next.js optimized URLs or other proxies
+  extractBaseImageUrl(src) {
+    try {
+      const url = new URL(src, window.location.href);
+      
+      // Handle Next.js image optimization
+      if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
+        const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
+        // Remove query parameters that might vary (w, q, etc.) but keep core image ID
+        const baseUrl = new URL(nestedUrl);
+        return baseUrl.origin + baseUrl.pathname; // Remove query params
+      }
+      
+      // For direct URLs, remove query parameters that might vary
+      return url.origin + url.pathname;
+    } catch (e) {
+      return src; // Fallback to original if parsing fails
+    }
+  }
+
+  // Find if we already have a successful conversion for the same base image
+  findExistingConversion(baseImageUrl) {
+    for (const [cachedUrl, dataUrl] of this.imageCache.entries()) {
+      const cachedBaseUrl = this.extractBaseImageUrl(cachedUrl);
+      if (cachedBaseUrl === baseImageUrl) {
+        return dataUrl;
+      }
+    }
+    return null;
+  }
+
   // Restore original image sources after screenshot
   restoreOriginalImages() {
     console.log('🔄 Restoring', this.originalImageSources.size, 'original image sources...');
