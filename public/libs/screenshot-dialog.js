@@ -1069,8 +1069,19 @@ class ScreenshotDialog {
     
     const images = document.querySelectorAll('img');
     for (const img of images) {
+      // Check src attribute
       if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
         return true;
+      }
+      
+      // Check srcset attribute for responsive images
+      if (img.srcset) {
+        const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
+        for (const srcsetUrl of srcsetUrls) {
+          if (this.isProblematicImage(srcsetUrl, problematicDomains)) {
+            return true;
+          }
+        }
       }
     }
     return false;
@@ -1154,17 +1165,38 @@ class ScreenshotDialog {
     
     // console.log('🔍 Found', images.length, 'total images on page');
     
-    // Only process images from known problematic domains
+    // Only process images from known problematic domains (check both src and srcset)
     const imagePromises = images
-      .filter(img => img.src && this.isProblematicImage(img.src, problematicDomains))
+      .filter(img => {
+        // Check src attribute
+        if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
+          return true;
+        }
+        // Check srcset attribute
+        if (img.srcset) {
+          const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
+          return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
+        }
+        return false;
+      })
       .map(async (img) => {
-        const originalSrc = img.src;
-        // console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
+        // Determine the actual URL being used (currentSrc for srcset support, fallback to src)
+        const actualSrc = img.currentSrc || img.src;
+        const originalSrc = actualSrc;
+        console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
         
         // Check cache first
-        if (this.imageCache.has(img.src)) {
+        if (this.imageCache.has(actualSrc)) {
           // console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
-          img.src = this.imageCache.get(img.src);
+          // For srcset images, we need to replace the appropriate URL
+          if (img.currentSrc && img.currentSrc !== img.src) {
+            // This image is using srcset, we need to modify the srcset
+            const cachedDataUrl = this.imageCache.get(actualSrc);
+            img.src = cachedDataUrl;
+            img.removeAttribute('srcset'); // Remove srcset to force use of our data URL
+          } else {
+            img.src = this.imageCache.get(actualSrc);
+          }
           return Promise.resolve();
         }
         
@@ -1177,11 +1209,19 @@ class ScreenshotDialog {
         try {
           const dataUrl = await this.convertImageToDataUrl(img);
           if (dataUrl) {
-            this.imageCache.set(img.src, dataUrl); // Cache the result
+            this.imageCache.set(actualSrc, dataUrl); // Cache using the actual URL
             // console.log('✅ Successfully converted image');
             // console.log('   Original:', originalSrc.substring(0, 80) + '...');
             // console.log('   Converted:', dataUrl.substring(0, 80) + '...');
-            img.src = dataUrl;
+            
+            // Replace the image source appropriately
+            if (img.currentSrc && img.currentSrc !== img.src) {
+              // This image is using srcset, replace with data URL and remove srcset
+              img.src = dataUrl;
+              img.removeAttribute('srcset');
+            } else {
+              img.src = dataUrl;
+            }
           } else {
             // console.warn('❌ Image conversion returned null for:', originalSrc.substring(0, 80) + '...');
           }
@@ -1192,8 +1232,19 @@ class ScreenshotDialog {
         return Promise.resolve();
       });
 
-    const problematicImages = images.filter(img => img.src && this.isProblematicImage(img.src, problematicDomains));
-    // console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
+    const problematicImages = images.filter(img => {
+      // Check src attribute
+      if (img.src && this.isProblematicImage(img.src, problematicDomains)) {
+        return true;
+      }
+      // Check srcset attribute
+      if (img.srcset) {
+        const srcsetUrls = img.srcset.split(',').map(src => src.trim().split(' ')[0]);
+        return srcsetUrls.some(srcsetUrl => this.isProblematicImage(srcsetUrl, problematicDomains));
+      }
+      return false;
+    });
+    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
 
     await Promise.all(imagePromises);
     // console.log('✅ Finished processing all problematic images');
