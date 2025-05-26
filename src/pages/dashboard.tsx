@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown, PanelRight, Code } from 'lucide-react'
+import { Plus, Settings2, Loader, Inbox, CheckCircle, Circle, Check, ChevronDown, Star, Tag, MoreHorizontal, UserCircle, ChevronsUpDown, Search, ArrowUp, ArrowDown, PanelRight, Code, ZoomIn, ZoomOut, Download, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { FormSettingsDialog } from '@/components/form-settings-dialog'
 import { useAuth } from '@/lib/auth'
@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FeedbackImage } from '../../app/components/FeedbackImage'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { DialogTrigger } from '@/components/ui/dialog'
 import { assignFeedback } from '@/lib/services/feedback-assignments'
 import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 import { WorkspaceCreatorDialog } from '@/components/workspace-creator-dialog'
@@ -57,6 +58,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [activeFilter, setActiveFilter] = useState<'all' | 'open' | 'closed' | { type: 'tag', id: string, name: string }>('open')
   const [selectedResponse, setSelectedResponse] = useState<FeedbackResponse | null>(null)
   const [showImagePreview, setShowImagePreview] = useState(false)
+  const [imageZoom, setImageZoom] = useState(100)
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
   const inboxRef = useRef<FeedbackInboxRef>(null)
   const conversationThreadRef = useRef<ConversationThreadRef>(null)
@@ -187,6 +189,30 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const handleSettingsTabChange = (tab: typeof settingsActiveTab) => {
     console.log('Tab change requested via component callback:', tab);
     setSettingsActiveTab(tab);
+  };
+
+  // Image zoom functions
+  const handleZoomIn = () => {
+    setImageZoom(prev => Math.min(prev + 25, 300));
+  };
+
+  const handleZoomOut = () => {
+    setImageZoom(prev => Math.max(prev - 25, 25));
+  };
+
+  const handleImageClick = () => {
+    setImageZoom(prev => prev === 100 ? 150 : 100);
+  };
+
+  const handleDownload = () => {
+    if (selectedResponse?.image_url) {
+      const link = document.createElement('a');
+      link.href = selectedResponse.image_url;
+      link.download = `feedback-attachment-${selectedResponse.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
   
   // Function to navigate to the next/previous response
@@ -1184,6 +1210,11 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
       toast.error('Failed to update label');
     }
   };
+
+  // Reset image zoom when response changes
+  useEffect(() => {
+    setImageZoom(100);
+  }, [selectedResponse?.id]);
 
   // Handle URL navigation when selecting a response
   const handleResponseSelect = (response: FeedbackResponse | null) => {
@@ -2493,14 +2524,105 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         
         {/* Image preview dialog */}
         {selectedResponse?.image_url && (
-          <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-            <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
-              <div className="p-6">
-                <FeedbackImage
-                  imagePath={selectedResponse.image_url}
-                  alt="Feedback screenshot"
-                  className="w-full h-auto"
-                />
+          <Dialog open={showImagePreview} onOpenChange={(open) => {
+            setShowImagePreview(open);
+            if (!open) setImageZoom(100); // Reset zoom when closing
+          }}>
+            <DialogContent className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 overflow-hidden focus:outline-none focus:ring-0" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+              <div className="relative flex flex-col h-full">
+                {/* Image container */}
+                <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center p-4">
+                  <div 
+                    className={`transition-transform duration-200 ease-in-out select-none ${
+                      imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                    }`}
+                    style={{ transform: `scale(${imageZoom / 100})` }}
+                    onClick={handleImageClick}
+                  >
+                    <FeedbackImage
+                      imagePath={selectedResponse.image_url}
+                      alt="Feedback screenshot"
+                      className={`max-h-full max-w-full object-contain ${
+                        imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                      }`}
+                    />
+                  </div>
+                </div>
+                
+                {/* Bottom controls - Notion style */}
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+                  <TooltipProvider disableHoverableContent>
+                    <div className="flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2 py-1.5 shadow-lg">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleZoomOut}
+                            variant="ghost"
+                            size="sm"
+                            disabled={imageZoom <= 25}
+                            className="h-7 w-7 p-0 hover:bg-muted"
+                          >
+                            <ZoomOut className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Zoom out
+                        </TooltipContent>
+                      </Tooltip>
+                      <span className="text-xs font-medium min-w-[45px] text-center px-2 text-muted-foreground">
+                        {imageZoom}%
+                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleZoomIn}
+                            variant="ghost"
+                            size="sm"
+                            disabled={imageZoom >= 300}
+                            className="h-7 w-7 p-0 hover:bg-muted"
+                          >
+                            <ZoomIn className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Zoom in
+                        </TooltipContent>
+                      </Tooltip>
+                      <div className="w-px h-4 bg-border mx-1" />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleDownload}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Download image
+                        </TooltipContent>
+                      </Tooltip>
+                      <div className="w-px h-4 bg-border mx-1" />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={() => setShowImagePreview(false)}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:bg-muted"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Close
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
