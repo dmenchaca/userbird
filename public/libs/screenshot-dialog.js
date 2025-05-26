@@ -1176,7 +1176,6 @@ class ScreenshotDialog {
     try {
       // Check for blob URLs first (these are always problematic for screenshots)
       if (src.startsWith('blob:')) {
-        console.log('🔍 Found blob URL:', src.substring(0, 100) + '...');
         return true;
       }
       
@@ -1186,24 +1185,17 @@ class ScreenshotDialog {
       
       // Check the immediate domain first
       const url = new URL(src, baseURI);
-      console.log('🔍 Checking image URL:', src.substring(0, 100) + '...');
-      console.log('   Resolved to:', url.href.substring(0, 100) + '...');
-      console.log('   Hostname:', url.hostname);
       
       if (problematicDomains.some(domain => url.hostname.includes(domain))) {
-        console.log('🔍 Found problematic image (direct):', url.hostname, 'in', src.substring(0, 100) + '...');
         return true;
       }
       
       // Check for Next.js image optimization URLs
       if (url.pathname.includes('/_next/image') && url.searchParams.has('url')) {
         const nestedUrl = decodeURIComponent(url.searchParams.get('url'));
-        console.log('🔍 Found Next.js image optimization URL, nested URL:', nestedUrl.substring(0, 100) + '...');
         try {
           const nestedUrlObj = new URL(nestedUrl);
-          console.log('   Nested hostname:', nestedUrlObj.hostname);
           if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-            console.log('🔍 Found problematic image (nested):', nestedUrlObj.hostname, 'in Next.js optimized image');
             return true;
           }
         } catch (e) {
@@ -1219,9 +1211,7 @@ class ScreenshotDialog {
           try {
             const nestedUrl = decodeURIComponent(urlMatch[1]);
             const nestedUrlObj = new URL(nestedUrl);
-            console.log('🔍 Found URL parameter pattern, nested URL:', nestedUrl.substring(0, 100) + '...');
             if (problematicDomains.some(domain => nestedUrlObj.hostname.includes(domain))) {
-              console.log('🔍 Found problematic image (URL param):', nestedUrlObj.hostname);
               return true;
             }
           } catch (e) {
@@ -1230,7 +1220,6 @@ class ScreenshotDialog {
         }
       }
       
-      console.log('   ✅ Image is not problematic');
       return false;
     } catch (e) {
       console.warn('Error checking if image is problematic:', e);
@@ -1283,8 +1272,6 @@ class ScreenshotDialog {
       'plus.unsplash.com'       // Unsplash Plus images
     ];
     
-    console.log('🔍 Found', images.length, 'total images on page');
-    
     // Filter problematic images - check BOTH src and srcset
     const problematicImages = images.filter(img => {
       // Check the actual URL being displayed (currentSrc for srcset support)
@@ -1318,24 +1305,14 @@ class ScreenshotDialog {
       return 0; // same priority
     });
 
-    console.log('🎯 Found', problematicImages.length, 'problematic images to convert');
-    console.log('📋 Processing order: same-origin first for better cache sharing');
-
     // Process images sequentially to ensure cache sharing works properly
     for (const img of problematicImages) {
       // Determine the actual URL being used (currentSrc for srcset support, fallback to src)
       const actualSrc = img.currentSrc || img.src;
       const originalSrc = actualSrc;
-      console.log('🔄 Processing problematic image:', originalSrc.substring(0, 100) + '...');
-      console.log('   Has srcset:', !!img.srcset);
-      console.log('   currentSrc:', img.currentSrc?.substring(0, 80) + '...');
-      console.log('   src:', img.src?.substring(0, 80) + '...');
-      console.log('   Element classes:', img.className);
-      console.log('   Element alt:', img.alt);
         
         // Check cache first
       if (this.imageCache.has(actualSrc)) {
-        console.log('💾 Using cached conversion for:', originalSrc.substring(0, 50) + '...');
         this.applyConvertedImage(img, this.imageCache.get(actualSrc));
         continue;
       }
@@ -1345,16 +1322,12 @@ class ScreenshotDialog {
       const existingConversion = this.findExistingConversion(baseImageUrl);
       
       if (existingConversion) {
-        console.log('🔄 Using existing conversion for same underlying image');
-        console.log('   Current URL:', actualSrc.substring(0, 80) + '...');
-        console.log('   Using cached conversion from similar URL');
         this.applyConvertedImage(img, existingConversion);
         continue;
         }
         
         // Skip very small images
         if (img.width < 20 && img.height < 20) {
-        console.log('⏭️ Skipping very small image:', img.width + 'x' + img.height);
         continue;
         }
         
@@ -1367,9 +1340,6 @@ class ScreenshotDialog {
           if (baseUrl !== actualSrc) {
             this.imageCache.set(baseUrl, dataUrl);
           }
-          console.log('✅ Successfully converted image');
-          console.log('   Original:', originalSrc.substring(0, 80) + '...');
-          console.log('   Converted:', dataUrl.substring(0, 80) + '...');
           
           this.applyConvertedImage(img, dataUrl);
           } else {
@@ -1380,13 +1350,7 @@ class ScreenshotDialog {
       }
     }
     
-    // Add final verification
-    console.log('🔍 Final verification - checking converted images in DOM:');
-    const convertedImages = Array.from(document.querySelectorAll('img')).filter(img => 
-      img.src.startsWith('data:image/')
-    );
-    console.log('   Found', convertedImages.length, 'images with data URL sources');
-    
+    // Final verification - check for any remaining problematic images
     const stillProblematic = Array.from(document.querySelectorAll('img')).filter(img => {
       const actualSrc = img.currentSrc || img.src;
       if (actualSrc && this.isProblematicImage(actualSrc, problematicDomains)) {
@@ -1411,11 +1375,7 @@ class ScreenshotDialog {
         console.warn(`      srcset: ${img.srcset ? 'EXISTS' : 'none'}`);
         console.warn(`      currentSrc: ${img.currentSrc?.substring(0, 100)}...`);
       });
-    } else {
-      console.log('✅ All problematic images have been converted');
     }
-    
-    console.log('✅ Finished processing all problematic images');
   }
 
   // Apply converted image and store original for restoration
@@ -1433,12 +1393,10 @@ class ScreenshotDialog {
     // Always remove srcset first to ensure our data URL takes precedence
     if (img.srcset) {
       img.removeAttribute('srcset');
-      console.log('   🗑️ Removed srcset attribute');
     }
     
     // Set the converted data URL as the source
     img.src = dataUrl;
-    console.log('   ✅ Applied converted image');
   }
 
   /**
@@ -1492,10 +1450,6 @@ class ScreenshotDialog {
 
   // Restore original image sources after screenshot
   restoreOriginalImages() {
-    const timestamp = new Date().toISOString().split('T')[1];
-    console.log(`🔄 [${timestamp}] Restoring ${this.originalImageSources.size} original image sources...`);
-    console.trace('🔍 Restoration called from:'); // This will show the call stack
-    
     this.originalImageSources.forEach((originalData, imageId) => {
       const img = originalData.element;
       if (img && img.parentNode) { // Make sure element still exists in DOM
@@ -1508,7 +1462,6 @@ class ScreenshotDialog {
     
     // Clear the storage
     this.originalImageSources.clear();
-    console.log(`✅ [${timestamp}] Original image sources restored`);
   }
   
   // Convert image to data URL using canvas (optimized for speed)
@@ -1518,8 +1471,6 @@ class ScreenshotDialog {
         try {
           // Use the actual URL being displayed (currentSrc for srcset support)
           const actualSrc = img.currentSrc || img.src;
-          console.log('🔄 Starting image conversion for:', actualSrc.substring(0, 100) + '...');
-          console.log('   Image dimensions:', img.width + 'x' + img.height, 'natural:', (img.naturalWidth || 'unknown') + 'x' + (img.naturalHeight || 'unknown'));
         
           // Calculate canvas dimensions once (will be reused for each attempt)
           const maxSize = 1200; // Much higher limit for better quality
@@ -1529,12 +1480,9 @@ class ScreenshotDialog {
           const canvasWidth = (img.naturalWidth || img.width) * ratio;
           const canvasHeight = (img.naturalHeight || img.height) * ratio;
           
-          console.log('   Canvas size:', canvasWidth + 'x' + canvasHeight, 'ratio:', ratio);
-          
           // Special handling for blob URLs - draw directly from the existing img element
           if (img.src.startsWith('blob:')) {
             try {
-              // console.log('   🔄 Processing blob URL directly...');
               // For blob URLs, we can draw the already-loaded img element directly
               if (img.complete && img.naturalWidth > 0) {
                 const canvas = document.createElement('canvas');
@@ -1544,7 +1492,6 @@ class ScreenshotDialog {
                 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/png', 1.0);
-                // console.log('   ✅ Blob URL conversion successful, data URL length:', dataUrl.length);
                 resolve(dataUrl);
                 return;
               } else {
@@ -1558,10 +1505,8 @@ class ScreenshotDialog {
                     
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const dataUrl = canvas.toDataURL('image/png', 1.0);
-                    // console.log('   ✅ Blob URL conversion successful (after load), data URL length:', dataUrl.length);
                     resolve(dataUrl);
                   } catch (e) {
-                    // console.warn('   ❌ Failed to draw blob image to canvas:', e);
                     resolve(null);
                   }
                   img.removeEventListener('load', onLoad);
@@ -1569,7 +1514,6 @@ class ScreenshotDialog {
                 };
                 
                 const onError = () => {
-                  // console.warn('   ❌ Blob image failed to load');
                   resolve(null);
                   img.removeEventListener('load', onLoad);
                   img.removeEventListener('error', onError);
@@ -1580,7 +1524,6 @@ class ScreenshotDialog {
                 
                 // Timeout for blob URLs too
                 setTimeout(() => {
-                  // console.warn('   ⏰ Blob image conversion timed out');
                   img.removeEventListener('load', onLoad);
                   img.removeEventListener('error', onError);
                   resolve(null);
@@ -1588,7 +1531,6 @@ class ScreenshotDialog {
                 return;
               }
             } catch (e) {
-              // console.warn('   ❌ Blob URL processing failed:', e);
               resolve(null);
               return;
             }
@@ -1643,9 +1585,6 @@ class ScreenshotDialog {
               const proxyImg = new Image();
               if (useCors) {
                 proxyImg.crossOrigin = 'anonymous';
-                console.log('   🔄 Trying with CORS (fresh canvas)...');
-              } else {
-                console.log('   🔄 Trying without CORS (fresh canvas)...');
               }
               
               const cleanup = () => {
@@ -1658,12 +1597,9 @@ class ScreenshotDialog {
         
               proxyImg.onload = () => {
                 try {
-                  console.log('   ✅ Proxy image loaded successfully' + (useCors ? ' (with CORS)' : ' (without CORS)'));
-                  
                   // Separate canvas drawing from data URL conversion to identify specific failure points
                   try {
                     ctx.drawImage(proxyImg, 0, 0, canvas.width, canvas.height);
-                    console.log('   ✅ Image drawn to canvas successfully');
                   } catch (drawError) {
                     console.warn('   ❌ Failed to draw image to canvas (likely CORS restriction):', {
                       name: drawError.name || 'Unknown',
@@ -1677,7 +1613,6 @@ class ScreenshotDialog {
                   
                   try {
                     const dataUrl = canvas.toDataURL('image/png', 1.0);
-                    console.log('   ✅ Canvas conversion successful, data URL length:', dataUrl.length);
                     cleanup();
                     imgResolve(dataUrl);
                   } catch (dataUrlError) {
@@ -1708,7 +1643,6 @@ class ScreenshotDialog {
               
               // Set timeout for this attempt
               timeoutId = setTimeout(() => {
-                console.warn('   ⏰ Image load attempt timed out after 3000ms' + (useCors ? ' (with CORS)' : ' (without CORS)'));
                 cleanup();
                 imgResolve(null);
               }, 3000);
@@ -1722,14 +1656,12 @@ class ScreenshotDialog {
           
           // If that failed, try with CORS using a fresh canvas
           if (!result) {
-            console.log('   🔄 First attempt failed, trying with CORS...');
             result = await tryImageLoad(true);
           }
           
           resolve(result);
         
         } catch (e) {
-          // console.warn('   ❌ Image conversion failed with exception:', e);
           resolve(null);
         }
       };
@@ -1768,8 +1700,6 @@ class ScreenshotDialog {
       return;
     }
     
-    console.log('⏳ Waiting for', convertedImages.length, 'converted images to load...');
-    
     const imagePromises = convertedImages.map(img => {
       return new Promise((resolve) => {
         if (img.complete && img.naturalWidth > 0) {
@@ -1793,8 +1723,6 @@ class ScreenshotDialog {
     });
     
     await Promise.all(imagePromises);
-    console.log('✅ All converted images loaded');
-    console.log('🛡️ NOT restoring images yet - keeping converted versions for screenshot');
     
     // Add a small additional delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 100));
