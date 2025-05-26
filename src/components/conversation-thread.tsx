@@ -1386,7 +1386,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             />
                           </div>
                         </DialogTrigger>
-                        <DialogContent className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                        <DialogContent className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 overflow-hidden focus:outline-none focus:ring-0" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
                           <div className="relative flex flex-col h-full">
                             {/* Image container */}
                             <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center p-4">
