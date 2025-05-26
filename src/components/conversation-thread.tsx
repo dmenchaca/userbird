@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap, XCircle, AlertTriangle, Info } from 'lucide-react'
+import { Paperclip, Send, CornerDownLeft, Command, MoreHorizontal, UserPlus, Sparkles, Loader, StopCircle, Tag, Zap, XCircle, AlertTriangle, Info, ZoomIn, ZoomOut, Download, X } from 'lucide-react'
 import { Button } from './ui/button'
 import { FeedbackResponse, FeedbackReply, FeedbackAttachment, FeedbackTag } from '@/lib/types/feedback'
 import { supabase } from '@/lib/supabase'
@@ -54,6 +54,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     const { resolvedTheme } = useTheme()
     const [showImagePreview, setShowImagePreview] = useState(false)
     const [showConsoleLogsDialog, setShowConsoleLogsDialog] = useState(false)
+    const [imageZoom, setImageZoom] = useState(100)
 
     // Calculate log counts for the button
     let errorCount = 0;
@@ -213,8 +214,9 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
     }, [response?.id, isGeneratingAIReply, isSubmitting, cachedHasValidName, cachedAdminFirstName])
 
     useEffect(() => {
-      // When response changes, reset the reply content
+      // When response changes, reset the reply content and image zoom
       setReplyContent('')
+      setImageZoom(100)
     }, [response?.id])
 
     const fetchReplies = async () => {
@@ -1224,6 +1226,30 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
       }
     };
 
+    // Image zoom functions
+    const handleZoomIn = () => {
+      setImageZoom(prev => Math.min(prev + 25, 300));
+    };
+
+    const handleZoomOut = () => {
+      setImageZoom(prev => Math.max(prev - 25, 25));
+    };
+
+    const handleImageClick = () => {
+      setImageZoom(prev => prev === 100 ? 150 : 100);
+    };
+
+    const handleDownload = () => {
+      if (response.image_url) {
+        const link = document.createElement('a');
+        link.href = response.image_url;
+        link.download = `feedback-attachment-${response.id}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    };
+
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* CSS to handle email content formatting */}
@@ -1347,7 +1373,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   {response.image_url && (
                     <div> 
                       <p className="text-xs text-muted-foreground mb-1">Attachment</p>
-                      <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
+                      <Dialog modal={false} open={showImagePreview} onOpenChange={(open) => {
+                        setShowImagePreview(open);
+                        if (!open) setImageZoom(100); // Reset zoom when closing
+                      }}>
                         <DialogTrigger asChild>
                           <div className="cursor-pointer w-auto inline-block">
                             <FeedbackImage
@@ -1357,13 +1386,101 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             />
                           </div>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-auto">
-                          <div className="p-6">
-                            <FeedbackImage
-                              imagePath={response.image_url}
-                              alt="Feedback attachment"
-                              className="w-full h-auto"
-                            />
+                        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                          <div className="relative flex flex-col h-full">
+                            {/* Image container */}
+                            <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center">
+                              <div 
+                                className={`transition-transform duration-200 ease-in-out select-none ${
+                                  imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                                }`}
+                                style={{ transform: `scale(${imageZoom / 100})` }}
+                                onClick={handleImageClick}
+                              >
+                                <FeedbackImage
+                                  imagePath={response.image_url}
+                                  alt="Feedback attachment"
+                                  className={`max-w-none ${
+                                    imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                            
+                                                         {/* Bottom controls - Notion style */}
+                             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+                               <TooltipProvider disableHoverableContent>
+                                 <div className="flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2 py-1.5 shadow-lg">
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         onClick={handleZoomOut}
+                                         variant="ghost"
+                                         size="sm"
+                                         disabled={imageZoom <= 25}
+                                         className="h-7 w-7 p-0 hover:bg-muted"
+                                       >
+                                         <ZoomOut className="h-3.5 w-3.5" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent side="top" className="text-xs">
+                                       Zoom out
+                                     </TooltipContent>
+                                   </Tooltip>
+                                   <span className="text-xs font-medium min-w-[45px] text-center px-2 text-muted-foreground">
+                                     {imageZoom}%
+                                   </span>
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         onClick={handleZoomIn}
+                                         variant="ghost"
+                                         size="sm"
+                                         disabled={imageZoom >= 300}
+                                         className="h-7 w-7 p-0 hover:bg-muted"
+                                       >
+                                         <ZoomIn className="h-3.5 w-3.5" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent side="top" className="text-xs">
+                                       Zoom in
+                                     </TooltipContent>
+                                   </Tooltip>
+                                   <div className="w-px h-4 bg-border mx-1" />
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         onClick={handleDownload}
+                                         variant="ghost"
+                                         size="sm"
+                                         className="h-7 w-7 p-0 hover:bg-muted"
+                                       >
+                                         <Download className="h-3.5 w-3.5" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent side="top" className="text-xs">
+                                       Download image
+                                     </TooltipContent>
+                                   </Tooltip>
+                                   <div className="w-px h-4 bg-border mx-1" />
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         onClick={() => setShowImagePreview(false)}
+                                         variant="ghost"
+                                         size="sm"
+                                         className="h-7 w-7 p-0 hover:bg-muted"
+                                       >
+                                         <X className="h-3.5 w-3.5" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent side="top" className="text-xs">
+                                       Close
+                                     </TooltipContent>
+                                   </Tooltip>
+                                 </div>
+                               </TooltipProvider>
+                             </div>
                           </div>
                         </DialogContent>
                       </Dialog>
