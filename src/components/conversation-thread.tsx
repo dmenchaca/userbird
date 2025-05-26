@@ -1373,7 +1373,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                   {response.image_url && (
                     <div> 
                       <p className="text-xs text-muted-foreground mb-1">Attachment</p>
-                      <Dialog modal={false} open={showImagePreview} onOpenChange={(open) => {
+                      <Dialog open={showImagePreview} onOpenChange={(open) => {
                         setShowImagePreview(open);
                         if (!open) setImageZoom(100); // Reset zoom when closing
                       }}>
@@ -1386,10 +1386,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                             />
                           </div>
                         </DialogTrigger>
-                        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                        <DialogContent className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
                           <div className="relative flex flex-col h-full">
                             {/* Image container */}
-                            <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center">
+                            <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center p-4">
                               <div 
                                 className={`transition-transform duration-200 ease-in-out select-none ${
                                   imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
@@ -1400,7 +1400,7 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                                 <FeedbackImage
                                   imagePath={response.image_url}
                                   alt="Feedback attachment"
-                                  className={`max-w-none ${
+                                  className={`max-h-full max-w-full object-contain ${
                                     imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
                                   }`}
                                 />
