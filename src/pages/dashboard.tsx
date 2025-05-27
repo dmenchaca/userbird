@@ -2532,26 +2532,31 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                 {/* Image container */}
                 <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20">
                   <div 
-                    className="flex items-center justify-center p-4"
+                    className="p-4"
                     style={{ 
+                      width: `${Math.max(100, imageZoom)}%`,
+                      height: `${Math.max(100, imageZoom)}%`,
                       minWidth: '100%',
-                      minHeight: '100%'
+                      minHeight: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                   >
                     <div 
-                      className={`transition-all duration-200 ease-in-out select-none ${
+                      className={`transition-transform duration-200 ease-in-out select-none ${
                         imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
                       }`}
                       style={{
-                        width: `${imageZoom}%`,
-                        height: `${imageZoom}%`
+                        transform: `scale(${imageZoom / 100})`,
+                        transformOrigin: 'center center'
                       }}
                       onClick={handleImageClick}
                     >
                       <FeedbackImage
                         imagePath={selectedResponse.image_url}
                         alt="Feedback screenshot"
-                        className={`w-full h-full object-contain ${
+                        className={`max-h-[80vh] max-w-[80vw] object-contain ${
                           imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
                         }`}
                       />
