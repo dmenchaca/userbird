@@ -2554,11 +2554,10 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                       onClick={handleImageClick}
                     >
                       <FeedbackImage
+                        key={selectedResponse.image_url} // Add key to prevent unnecessary re-renders
                         imagePath={selectedResponse.image_url}
                         alt="Feedback screenshot"
-                        className={`max-h-[80vh] max-w-[80vw] object-contain ${
-                          imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
-                        }`}
+                        className="max-h-[80vh] max-w-[80vw] object-contain cursor-pointer"
                       />
                     </div>
                   </div>

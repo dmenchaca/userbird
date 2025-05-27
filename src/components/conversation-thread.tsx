@@ -1413,11 +1413,10 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                                   onClick={handleImageClick}
                                 >
                                   <FeedbackImage
+                                    key={response.image_url} // Add key to prevent unnecessary re-renders
                                     imagePath={response.image_url}
                                     alt="Feedback attachment"
-                                    className={`max-h-[80vh] max-w-[80vw] object-contain ${
-                                      imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
-                                    }`}
+                                    className="max-h-[80vh] max-w-[80vw] object-contain cursor-pointer"
                                   />
                                 </div>
                               </div>
