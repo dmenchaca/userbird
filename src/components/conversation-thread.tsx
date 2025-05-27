@@ -1389,21 +1389,34 @@ export const ConversationThread = forwardRef<ConversationThreadRef, Conversation
                         <DialogContent className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 overflow-hidden focus:outline-none focus:ring-0" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
                           <div className="relative flex flex-col h-full">
                             {/* Image container */}
-                            <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 flex items-center justify-center p-4">
+                            <div className="flex-1 overflow-auto bg-black/5 dark:bg-black/20 p-4">
                               <div 
-                                className={`transition-transform duration-200 ease-in-out select-none ${
-                                  imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
-                                }`}
-                                style={{ transform: `scale(${imageZoom / 100})` }}
-                                onClick={handleImageClick}
+                                className="flex items-center justify-center min-h-full"
+                                style={{ 
+                                  width: `${imageZoom}%`,
+                                  height: `${imageZoom}%`,
+                                  minWidth: '100%',
+                                  minHeight: '100%'
+                                }}
                               >
-                                <FeedbackImage
-                                  imagePath={response.image_url}
-                                  alt="Feedback attachment"
-                                  className={`max-h-full max-w-full object-contain ${
-                                    imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
-                                  }`}
-                                />
+                                                                 <div 
+                                   className={`transition-transform duration-200 ease-in-out select-none ${
+                                     imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                                   }`}
+                                   style={{ 
+                                     transform: `scale(${imageZoom / 100})`,
+                                     transformOrigin: 'center center'
+                                   }}
+                                   onClick={handleImageClick}
+                                 >
+                                   <FeedbackImage
+                                     imagePath={response.image_url}
+                                     alt="Feedback attachment"
+                                     className={`max-h-full max-w-full object-contain ${
+                                       imageZoom === 100 ? 'cursor-zoom-in' : 'cursor-zoom-out'
+                                     }`}
+                                   />
+                                 </div>
                               </div>
                             </div>
                             
