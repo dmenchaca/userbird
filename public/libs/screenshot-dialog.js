@@ -58,8 +58,8 @@ class ScreenshotDialog {
         --ssd-text-muted: #6b7280;
         --ssd-hover-background: #f3f4f6;
         --ssd-toolbar-background: rgba(255, 255, 255, 1.0);
-        --ssd-tooltip-background: #374151;
-        --ssd-tooltip-text: white;
+        --ssd-tooltip-background: white;
+        --ssd-tooltip-text: #374151;
       }
 
       /* Dark mode settings - matches Userbird widget selectors */
@@ -76,8 +76,8 @@ class ScreenshotDialog {
         --ssd-text-muted: #a1a1a1;
         --ssd-hover-background: #2e2e2e;
         --ssd-toolbar-background: rgba(13, 13, 13, 1.0);
-        --ssd-tooltip-background: #363636;
-        --ssd-tooltip-text: #e5e5e5;
+        --ssd-tooltip-background: #374151;
+        --ssd-tooltip-text: white;
       }
     `;
     document.head.appendChild(style);
@@ -386,7 +386,7 @@ class ScreenshotDialog {
         tooltipElement.textContent = text;
         tooltipElement.style.cssText = `
           position: absolute;
-          bottom: calc(100% + 8px);
+          top: calc(100% + 8px);
           left: 50%;
           transform: translateX(-50%) scale(0.95);
           background: var(--ssd-tooltip-background);
