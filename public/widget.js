@@ -380,8 +380,8 @@
         --ub-text: #111827;
         --ub-text-muted: #6b7280;
         --ub-hover-background: #f3f4f6;
-        --ub-tooltip-background: #374151;
-        --ub-tooltip-text: white;
+        --ub-tooltip-background: white;
+        --ub-tooltip-text: #374151;
         font-family: inherit;
       }
 
@@ -398,8 +398,8 @@
         --ub-text: #e5e5e5;
         --ub-text-muted: #a1a1a1;
         --ub-hover-background: #2e2e2e;
-        --ub-tooltip-background: #363636;
-        --ub-tooltip-text: #e5e5e5;
+        --ub-tooltip-background: #374151;
+        --ub-tooltip-text: white;
       }
 
       .userbird-modal {
@@ -1095,19 +1095,29 @@
         tooltipElement.textContent = text;
         tooltipElement.style.cssText = `
           position: absolute;
-          bottom: calc(100% + 8px);
+          top: calc(100% + 8px);
           left: 50%;
-          transform: translateX(-50%);
+          transform: translateX(-50%) scale(0.95);
           background: var(--ub-tooltip-background);
           color: var(--ub-tooltip-text);
           padding: 4px 8px;
           border-radius: 4px;
+          border: 1px solid var(--ub-border-color);
           font-size: 12px;
           white-space: nowrap;
           z-index: 10002;
           pointer-events: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          opacity: 0;
+          transition: opacity 0.15s ease-out, transform 0.15s ease-out;
         `;
         element.appendChild(tooltipElement);
+        
+        // Trigger animation on next frame
+        requestAnimationFrame(() => {
+          tooltipElement.style.opacity = '1';
+          tooltipElement.style.transform = 'translateX(-50%) scale(1)';
+        });
       }, 300);
     };
 
@@ -1117,8 +1127,16 @@
         timeoutId = null;
       }
       if (tooltipElement) {
-        tooltipElement.remove();
-        tooltipElement = null;
+        tooltipElement.style.opacity = '0';
+        tooltipElement.style.transform = 'translateX(-50%) scale(0.95)';
+        
+        // Remove element after animation completes
+        setTimeout(() => {
+          if (tooltipElement && tooltipElement.parentNode) {
+            tooltipElement.remove();
+            tooltipElement = null;
+          }
+        }, 150);
       }
     };
 
