@@ -380,6 +380,8 @@
         --ub-text: #111827;
         --ub-text-muted: #6b7280;
         --ub-hover-background: #f3f4f6;
+        --ub-tooltip-background: #374151;
+        --ub-tooltip-text: white;
         font-family: inherit;
       }
 
@@ -396,6 +398,8 @@
         --ub-text: #e5e5e5;
         --ub-text-muted: #a1a1a1;
         --ub-hover-background: #2e2e2e;
+        --ub-tooltip-background: #363636;
+        --ub-tooltip-text: #e5e5e5;
       }
 
       .userbird-modal {
@@ -722,11 +726,10 @@
             <div class="userbird-actions">
               <div class="userbird-image-upload">
                 <input type="file" accept="image/jpeg,image/png" class="userbird-file-input" />
-                <button class="userbird-image-button" title="Take screenshot">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <path d="M21 15l-5-5L5 21"></path>
+                <button class="userbird-image-button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                    <circle cx="12" cy="13" r="3"/>
                   </svg>
                 </button>
                 <div class="userbird-image-preview">
@@ -1079,11 +1082,59 @@
       });
   }
   
+  // Add tooltip functionality
+  function addTooltip(element, text) {
+    let tooltipElement = null;
+    let timeoutId = null;
+
+    const showTooltip = () => {
+      if (tooltipElement) return;
+      
+      timeoutId = setTimeout(() => {
+        tooltipElement = document.createElement('div');
+        tooltipElement.textContent = text;
+        tooltipElement.style.cssText = `
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: var(--ub-tooltip-background);
+          color: var(--ub-tooltip-text);
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          white-space: nowrap;
+          z-index: 10002;
+          pointer-events: none;
+        `;
+        element.appendChild(tooltipElement);
+      }, 300);
+    };
+
+    const hideTooltip = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (tooltipElement) {
+        tooltipElement.remove();
+        tooltipElement = null;
+      }
+    };
+
+    element.addEventListener('mouseenter', showTooltip);
+    element.addEventListener('mouseleave', hideTooltip);
+    element.addEventListener('click', hideTooltip);
+  }
+  
   function setupModal(buttonColor, supportText) {
     const fileInput = modal.modal.querySelector('.userbird-file-input');
     const imageButton = modal.modal.querySelector('.userbird-image-button');
     const imagePreview = modal.modal.querySelector('.userbird-image-preview');
     const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+    
+    // Add tooltip to the screenshot button
+    addTooltip(imageButton, 'Capture screenshot');
     
     // Initialize screenshot functionality when the widget loads
     loadScreenshotDependencies().then(result => {
