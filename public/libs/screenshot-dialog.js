@@ -388,17 +388,27 @@ class ScreenshotDialog {
           position: absolute;
           bottom: calc(100% + 8px);
           left: 50%;
-          transform: translateX(-50%);
+          transform: translateX(-50%) scale(0.95);
           background: var(--ssd-tooltip-background);
           color: var(--ssd-tooltip-text);
           padding: 4px 8px;
           border-radius: 4px;
+          border: 1px solid var(--ssd-border-color);
           font-size: 12px;
           white-space: nowrap;
           z-index: 10002;
           pointer-events: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          opacity: 0;
+          transition: opacity 0.15s ease-out, transform 0.15s ease-out;
         `;
         element.appendChild(tooltipElement);
+        
+        // Trigger animation on next frame
+        requestAnimationFrame(() => {
+          tooltipElement.style.opacity = '1';
+          tooltipElement.style.transform = 'translateX(-50%) scale(1)';
+        });
       }, 300);
     };
 
@@ -408,8 +418,16 @@ class ScreenshotDialog {
         timeoutId = null;
       }
       if (tooltipElement) {
-        tooltipElement.remove();
-        tooltipElement = null;
+        tooltipElement.style.opacity = '0';
+        tooltipElement.style.transform = 'translateX(-50%) scale(0.95)';
+        
+        // Remove element after animation completes
+        setTimeout(() => {
+          if (tooltipElement && tooltipElement.parentNode) {
+            tooltipElement.remove();
+            tooltipElement = null;
+          }
+        }, 150);
       }
     };
 
