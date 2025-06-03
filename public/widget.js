@@ -1653,6 +1653,9 @@
   window.UserBird = window.UserBird || {};
   window.UserBird.formId = window.UserBird.formId || formId;
   
+  // Expose console log functions
+  window.UserBird.getRecentLogs = getRecentLogs;
+  
   // Add animation control flags
   window.UserBird.setAnimationRunning = function(isRunning) {
     isAnimationRunning = isRunning;
