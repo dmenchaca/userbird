@@ -1693,6 +1693,10 @@
     openModal(trigger);
   };
 
+  // Initialize console capture immediately - don't wait for DOM or settings
+  // This ensures we capture early console logs from Next.js components
+  initConsoleCapture();
+
   // Initialize widget once the DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
