@@ -1,4 +1,9 @@
 // Userbird Widget
+// 
+// Console Capture Behavior:
+// - Controlled by backend 'collect_console_logs' setting (default: enabled)
+// - To completely disable: Set window.UserBird.disableConsoleCapture = true (overrides backend setting)
+//
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
   let settingsLoaded = false;
@@ -68,8 +73,13 @@
   
   // Initialize console log capture
   function initConsoleCapture() {
-    // Skip in development mode
-    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+    // Allow explicit override to disable console capture
+    if (window.UserBird?.disableConsoleCapture === true) {
+      return;
+    }
+    
+    // Check backend setting if available - if explicitly disabled, don't capture
+    if (window.UserBird?.settings?.collect_console_logs === false) {
       return;
     }
     
@@ -1038,6 +1048,7 @@
         const showGifOnSuccess = settings.show_gif_on_success;
         const gifUrls = settings.gif_urls || [];
         const removeBranding = settings.remove_branding || false;
+        const collectConsoleLogs = settings.collect_console_logs !== false; // Default to true
         
         injectStyles(buttonColor);
         modal = createModal();
@@ -1045,11 +1056,18 @@
         
         window.UserBird.shortcut = keyboardShortcut;
         window.UserBird.settings = {
-          sound_enabled: soundEnabled
+          sound_enabled: soundEnabled,
+          collect_console_logs: collectConsoleLogs
         };
         window.UserBird.showGifOnSuccess = showGifOnSuccess;
         window.UserBird.gifUrls = gifUrls;
         window.UserBird.removeBranding = removeBranding;
+        
+        // Re-initialize console capture now that we have backend settings
+        // This handles cases where console capture was initialized before settings loaded
+        if (collectConsoleLogs && !window.UserBird?.disableConsoleCapture) {
+          initConsoleCapture();
+        }
         
         // Update branding visibility based on setting
         const brandingElement = modal.modal.querySelector('.userbird-branding');
@@ -1676,6 +1694,12 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    init();
+    // For Next.js apps, also wait a bit for hydration to complete
+    if (typeof window !== 'undefined' && window.next) {
+      // Delay initialization slightly for Next.js hydration
+      setTimeout(init, 100);
+    } else {
+      init();
+    }
   }
 })();
