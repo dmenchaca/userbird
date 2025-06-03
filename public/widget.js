@@ -85,6 +85,16 @@
     
     // Only wrap if console exists
     if (typeof console !== 'undefined') {
+      // Merge any early logs that were captured before widget loaded
+      if (window.UserBird?.earlyLogs && Array.isArray(window.UserBird.earlyLogs)) {
+        logBuffer.push(...window.UserBird.earlyLogs);
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          console.info('[Userbird] Merged', window.UserBird.earlyLogs.length, 'early console logs');
+        }
+        // Clean up early logs
+        delete window.UserBird.earlyLogs;
+      }
+      
       // Store original methods
       consoleOriginals = {
         log: console.log,
