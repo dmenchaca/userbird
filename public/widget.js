@@ -85,7 +85,14 @@
     
     // Only wrap if console exists
     if (typeof console !== 'undefined') {
-      // Store original methods
+      // Merge any early logs that were captured before widget loaded
+      if (window.UserBird?.earlyLogs && Array.isArray(window.UserBird.earlyLogs)) {
+        logBuffer.push(...window.UserBird.earlyLogs);
+        // Clean up early logs
+        delete window.UserBird.earlyLogs;
+      }
+      
+      // Store original methods (or restore them if they were temporarily wrapped)
       consoleOriginals = {
         log: console.log,
         warn: console.warn,
