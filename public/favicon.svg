@@ -1,21 +1,3 @@
-<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_17079_22554)">
-<mask id="mask0_17079_22554" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="40" height="40">
-<path d="M40 0H0V40H40V0Z" fill="white"/>
-</mask>
-<g mask="url(#mask0_17079_22554)">
-<path d="M32 0H8C3.58172 0 0 3.58172 0 8V32C0 36.4183 3.58172 40 8 40H32C36.4183 40 40 36.4183 40 32V8C40 3.58172 36.4183 0 32 0Z" fill="#0070D7"/>
-<path d="M24.7998 14.001H24.8118" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M9.68 27.2009H20C22.546 27.2009 24.9879 26.1895 26.7883 24.3891C28.5885 22.5888 29.6 20.147 29.6 17.6009V14.0009C29.6028 12.9785 29.2788 11.9817 28.6755 11.1561C28.0723 10.3307 27.221 9.71926 26.246 9.41122C25.271 9.10318 24.2232 9.11458 23.255 9.44362C22.287 9.77278 21.4492 10.4024 20.864 11.2409L8 29.6009" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M29.6001 14.001L32.0001 14.601L29.6001 15.201" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M17.6001 27.2012V30.8012" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M22.3999 26.9011V30.8011" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M14 27.201C15.4797 27.201 16.9236 26.745 18.1348 25.895C19.3462 25.0452 20.2663 23.8427 20.7699 22.4513C21.2734 21.0599 21.3361 19.5472 20.9493 18.1188C20.5624 16.6906 19.7449 15.4162 18.608 14.469" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-</g>
-<defs>
-<clipPath id="clip0_17079_22554">
-<rect width="40" height="40" fill="white"/>
-</clipPath>
-</defs>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <text x="16" y="30" font-size="36" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji'">🌀</text>
 </svg>

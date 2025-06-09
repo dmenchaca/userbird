@@ -113,11 +113,6 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
             Make continuous feedback part of your product and turn silent drop-offs into actionable product decisions.
           </p>
         )}
-        <div className="flex justify-center mt-2 sm:mt-4 mb-2 sm:mb-4">
-          <div className="inline-block py-1.5 sm:py-2 px-3 sm:px-4 rounded-full bg-muted text-center text-foreground text-sm sm:text-base">
-            Beta test for free until June 1st 🚀
-          </div>
-        </div>
       </div>
       <div className="grid gap-6 animate-in fade-in-0 duration-500">
         {mode === 'login' && !showEmailForm && (
