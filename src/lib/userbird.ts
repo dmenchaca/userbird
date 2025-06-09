@@ -27,11 +27,11 @@ class WidgetManager {
     // Create new initialization promise
     this.initPromise = new Promise((resolve, reject) => {
       try {
-        window.UserBird = window.UserBird || {};
-        window.UserBird.formId = formId;
+        window.UserMonk = window.UserMonk || {};
+        window.UserMonk.formId = formId;
         
         const script = document.createElement('script');
-        script.src = 'https://userbird.netlify.app/widget.js';
+        script.src = 'https://usermonk.netlify.app/widget.js';
         
         script.onload = () => {
           this.initialized = true;
@@ -55,6 +55,6 @@ class WidgetManager {
 }
 
 // Export initialization function that uses the singleton
-export function initUserbird(formId: string): Promise<boolean> {
+export function initUsermonk(formId: string): Promise<boolean> {
   return WidgetManager.getInstance().init(formId);
 }

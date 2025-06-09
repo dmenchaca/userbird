@@ -96,7 +96,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     
     // Create cursor container element
     cursorElement = document.createElement('div');
-    cursorElement.className = 'userbird-demo-cursor';
+    cursorElement.className = 'usermonk-demo-cursor';
     cursorElement.style.cssText = `
       position: fixed;
       display: flex;
@@ -221,7 +221,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       const cursorArrow = cursorElement.querySelector('div');
       
       // Check if this is the submit button
-      const isSubmitButton = element.classList.contains('userbird-submit');
+      const isSubmitButton = element.classList.contains('usermonk-submit');
       
       setTimeout(() => {
         if (!cursorElement) return resolve();
@@ -239,7 +239,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           console.log('🔊 Audio elements on page:', audioElements.length);
           
           // Check for widget sound settings
-          const userBird = safeGetWindowProp('UserBird');
+          const userBird = safeGetWindowProp('UserMonk');
           if (userBird && userBird.settings) {
             console.log('🔊 Widget sound settings:', userBird.settings.sound_enabled);
           }
@@ -320,7 +320,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         
         // If this is the submit button, we can now allow normal widget behavior
         if (isSubmitButton) {
-          const userBird = safeGetWindowProp('UserBird');
+          const userBird = safeGetWindowProp('UserMonk');
           if (userBird && typeof userBird.setAnimationRunning === 'function') {
             // Allow widget to be closed after we've clicked the submit button
             userBird.setAnimationRunning(false);
@@ -393,7 +393,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     
     // Try to find by ID first if formId is provided
     if (formId) {
-      const buttonId = `userbird-trigger-${formId}`;
+      const buttonId = `usermonk-trigger-${formId}`;
       console.log(`🔍 Looking for button with ID: ${buttonId}`);
       const buttonById = document.getElementById(buttonId);
       if (buttonById) {
@@ -405,8 +405,8 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     
     // Fallback to generic selectors
     const selectors = [
-      '.userbird-trigger',
-      '[id^="userbird-trigger"]',
+      '.usermonk-trigger',
+      '[id^="usermonk-trigger"]',
       '.ub-button',
       '[class*="feedback-button"]',
       'button[class*="userbird"]',
@@ -441,7 +441,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     console.log('▶️ Starting animation sequence');
     
     // Set the animation flag in the widget
-    const userBird = safeGetWindowProp('UserBird');
+    const userBird = safeGetWindowProp('UserMonk');
     if (userBird && typeof userBird.setAnimationRunning === 'function') {
       userBird.setAnimationRunning(true);
     }
@@ -526,7 +526,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       // Actively wait and check for textarea to appear
       let textarea: HTMLTextAreaElement | null = null;
       while (modalWaitTime < maxWaitTime) {
-        textarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+        textarea = document.querySelector<HTMLTextAreaElement>('.usermonk-textarea');
         if (textarea) {
           console.log(`✅ Textarea found after ${modalWaitTime}ms`);
           break;
@@ -562,7 +562,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
             // Wait for widget to appear
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            const patchTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+            const patchTextarea = document.querySelector<HTMLTextAreaElement>('.usermonk-textarea');
             if (patchTextarea) {
               console.log('✅ Textarea found after patching!');
               // Continue with animation
@@ -602,7 +602,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
           await new Promise(resolve => setTimeout(resolve, 500));
           
           // Check again for textarea
-          const retryTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+          const retryTextarea = document.querySelector<HTMLTextAreaElement>('.usermonk-textarea');
           if (retryTextarea) {
             console.log('✅ Textarea found after keyboard shortcut!');
             // Continue with animation using retry textarea
@@ -616,17 +616,17 @@ export function initCursorDemo(options: AnimationOptions = {}) {
         // Finally, try to open the widget programmatically as last resort
         console.log('🔄 Trying to open widget programmatically as last resort');
         
-        // Check for UserBird global object and try to open it
-        const userBird = safeGetWindowProp('UserBird');
+        // Check for UserMonk global object and try to open it
+        const userBird = safeGetWindowProp('UserMonk');
         if (userBird && typeof userBird.open === 'function') {
-          console.log('✅ Found UserBird.open, trying to call it');
+          console.log('✅ Found UserMonk.open, trying to call it');
           try {
             userBird.open();
             // Wait for widget to appear after programmatic opening
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Check again for textarea
-            const retryTextarea = document.querySelector<HTMLTextAreaElement>('.userbird-textarea');
+            const retryTextarea = document.querySelector<HTMLTextAreaElement>('.usermonk-textarea');
             if (retryTextarea) {
               console.log('✅ Textarea found after programmatic open!');
               // Continue with animation using retry textarea
@@ -670,7 +670,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
       await new Promise(resolve => setTimeout(resolve, 700));
       
       // Find the submit button
-      const submitButton = document.querySelector<HTMLElement>('.userbird-submit');
+      const submitButton = document.querySelector<HTMLElement>('.usermonk-submit');
       if (!submitButton) {
         console.error('❌ Submit button not found');
         cleanup();
@@ -742,7 +742,7 @@ export function initCursorDemo(options: AnimationOptions = {}) {
     document.removeEventListener('click', handleUserClick);
     
     // Reset the animation flag in the widget
-    const userBird = safeGetWindowProp('UserBird');
+    const userBird = safeGetWindowProp('UserMonk');
     if (userBird && typeof userBird.setAnimationRunning === 'function') {
       userBird.setAnimationRunning(false);
     }

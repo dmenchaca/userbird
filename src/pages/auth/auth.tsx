@@ -3,7 +3,7 @@ import { CodeXml, Rocket, Slack } from 'lucide-react'
 import { AuthForm } from '@/components/auth/auth-form'
 import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 import { useEffect } from 'react'
-// import { initUserbird } from '@/lib/userbird'
+// import { initUsermonk } from '@/lib/userbird'
 import { initCursorDemo } from '@/lib/demo-animation'
 
 export function AuthPage() {
@@ -46,15 +46,15 @@ export function AuthPage() {
           
           // Look for the feedback button
           const formId = "4hNUB7DVhf";
-          const buttonId = `userbird-trigger-${formId}`;
+          const buttonId = `usermonk-trigger-${formId}`;
           const buttonById = document.getElementById(buttonId);
           
           console.log(`Button by ID ${buttonId} exists:`, !!buttonById);
           
           // Check for any widget-related elements
           const widgetSelectors = [
-            '.userbird-trigger',
-            '[id^="userbird-trigger"]',
+            '.usermonk-trigger',
+            '[id^="usermonk-trigger"]',
             '.ub-button',
             '[class*="feedback-button"]',
             '[id*="userbird"]', 
@@ -83,7 +83,7 @@ export function AuthPage() {
           console.log(`Total buttons on page: ${allButtons.length}`);
           
           // Initialize cursor demo, which will now run on every page load
-          console.log('💯 Initializing animation with button found:', !!document.getElementById(`userbird-trigger-${formId}`));
+          console.log('💯 Initializing animation with button found:', !!document.getElementById(`usermonk-trigger-${formId}`));
           const cleanup = initCursorDemo({
             formId: formId,
             // Start immediately
@@ -100,7 +100,7 @@ export function AuthPage() {
         // Start cursor demo right after widget has loaded
         // Look for the widget button as indicator that widget has fully initialized
         const checkWidgetButton = () => {
-          const widgetButton = document.getElementById(`userbird-trigger-4hNUB7DVhf`);
+          const widgetButton = document.getElementById(`usermonk-trigger-4hNUB7DVhf`);
           
           if (widgetButton) {
             console.log('🎯 Widget button detected in DOM, starting animation');

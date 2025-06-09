@@ -1,11 +1,11 @@
 // Trigger button functionality
 export function createTriggerButton(formId: string) {
-  const existingTrigger = document.getElementById(`userbird-trigger-${formId}`);
+  const existingTrigger = document.getElementById(`usermonk-trigger-${formId}`);
   if (existingTrigger) return existingTrigger;
 
   const trigger = document.createElement('button');
-  trigger.id = `userbird-trigger-${formId}`;
-  trigger.className = 'userbird-trigger';
+  trigger.id = `usermonk-trigger-${formId}`;
+  trigger.className = 'usermonk-trigger';
   trigger.textContent = 'Feedback';
   trigger.style.cssText = `
     position: fixed;

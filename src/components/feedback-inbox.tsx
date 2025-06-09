@@ -156,7 +156,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   
   // Check if callout was previously dismissed
   useEffect(() => {
-    const dismissedKey = `userbird-email-callout-dismissed-${formId}`
+    const dismissedKey = `usermonk-email-callout-dismissed-${formId}`
     const isDismissed = localStorage.getItem(dismissedKey) === 'true'
     setIsCalloutDismissed(isDismissed)
     
@@ -166,7 +166,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
   
   // Handle callout dismissal
   const handleDismissCallout = () => {
-    const dismissedKey = `userbird-email-callout-dismissed-${formId}`
+    const dismissedKey = `usermonk-email-callout-dismissed-${formId}`
     localStorage.setItem(dismissedKey, 'true')
     setIsCalloutDismissed(true)
   }
@@ -519,7 +519,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                   variant="default" 
                   size="sm"
                   onClick={() => {
-                    window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Userbird, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
+                    window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Usermonk, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
                   }}
                 >
                   Try now
@@ -789,7 +789,7 @@ export const FeedbackInbox = forwardRef<FeedbackInboxRef, FeedbackInboxProps>(({
                     variant="default" 
                     size="sm"
                     onClick={() => {
-                      window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Userbird, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
+                      window.open(`mailto:${formDefaultEmail}?subject=Feature%20Request&body=-- This is a sample email. If you send it, it will land on your workspace in Usermonk, give it a try 🙌 --%0A%0AHello%20team,%0A%0AI%20notice%20the%20search%20is%20quite%20basic%20right%20now.%20It%20would%20be%20really%20helpful%20if%20we%20could%20have%20advanced%20search%20filters%20to%20find%20messages%20by%20date%20range%20or%20specific%20content.%0A%0AThanks%20for%20considering!`);
                     }}
                   >
                     Try now

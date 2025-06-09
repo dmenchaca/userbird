@@ -226,11 +226,11 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
       
       // Save form ID in localStorage for onboarding/quick access
       if (user?.id) {
-        localStorage.setItem(`userbird-last-form-${user.id}`, newFormId)
+        localStorage.setItem(`usermonk-last-form-${user.id}`, newFormId)
       }
       
       // Set a flag in localStorage to indicate intentional navigation
-      localStorage.setItem('userbird-navigating-to-new-form', newFormId)
+      localStorage.setItem('usermonk-navigating-to-new-form', newFormId)
       
       // Blur any active element
       if (document.activeElement instanceof HTMLElement) {
@@ -248,7 +248,7 @@ export function WorkspaceCreatorDialog({ open, onClose }: WorkspaceCreatorDialog
       
       // Clear the flag after navigation
       setTimeout(() => {
-        localStorage.removeItem('userbird-navigating-to-new-form')
+        localStorage.removeItem('usermonk-navigating-to-new-form')
       }, 1000)
       
       // Track event

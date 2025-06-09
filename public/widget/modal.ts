@@ -12,9 +12,9 @@ export class Modal {
   constructor() {
     this.modal = this.createModal();
     this.backdrop = this.createBackdrop();
-    this.submitButton = this.modal.querySelector('.userbird-submit')!;
-    this.textarea = this.modal.querySelector('.userbird-textarea')!;
-    this.errorElement = this.modal.querySelector('.userbird-error')!;
+    this.submitButton = this.modal.querySelector('.usermonk-submit')!;
+    this.textarea = this.modal.querySelector('.usermonk-textarea')!;
+    this.errorElement = this.modal.querySelector('.usermonk-error')!;
   }
 
   mount() {
@@ -24,14 +24,14 @@ export class Modal {
 
   private createModal() {
     const modal = document.createElement('div');
-    modal.className = 'userbird-modal';
+    modal.className = 'usermonk-modal';
     modal.innerHTML = `
       <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Send Feedback</h3>
-      <textarea class="userbird-textarea" placeholder="What's on your mind?"></textarea>
-      <div class="userbird-error"></div>
-      <div class="userbird-buttons">
-        <button class="userbird-button userbird-close">Cancel</button>
-        <button class="userbird-button userbird-submit">Send Feedback</button>
+      <textarea class="usermonk-textarea" placeholder="What's on your mind?"></textarea>
+      <div class="usermonk-error"></div>
+      <div class="usermonk-buttons">
+        <button class="usermonk-button usermonk-close">Cancel</button>
+        <button class="usermonk-button usermonk-submit">Send Feedback</button>
       </div>
     `;
     return modal;
@@ -39,7 +39,7 @@ export class Modal {
 
   private createBackdrop() {
     const backdrop = document.createElement('div');
-    backdrop.className = 'userbird-backdrop';
+    backdrop.className = 'usermonk-backdrop';
     return backdrop;
   }
 
@@ -105,7 +105,7 @@ export class Modal {
 
   onClose(handler: () => void) {
     this.backdrop.addEventListener('click', handler);
-    this.modal.querySelector('.userbird-close')?.addEventListener('click', handler);
+    this.modal.querySelector('.usermonk-close')?.addEventListener('click', handler);
   }
 
   onSubmit(handler: () => void) {

@@ -102,7 +102,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [focusedAssigneeIndex, setFocusedAssigneeIndex] = useState(-1)
   const [isShowingDetails, setIsShowingDetails] = useState(() => {
     // Load the panel state from localStorage, default to false (closed)
-    const savedState = localStorage.getItem('userbird-details-panel-open')
+    const savedState = localStorage.getItem('usermonk-details-panel-open')
     return savedState === 'true'
   })
   
@@ -253,7 +253,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   // Save the selected form ID to localStorage whenever it changes
   useEffect(() => {
     if (selectedFormId && user?.id) {
-      localStorage.setItem(`userbird-last-form-${user.id}`, selectedFormId);
+      localStorage.setItem(`usermonk-last-form-${user.id}`, selectedFormId);
     }
   }, [selectedFormId, user?.id]);
 
@@ -281,7 +281,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     const fetchLatestForm = async () => {
       try {
         // First check if we have a saved form ID in localStorage
-        const savedFormId = localStorage.getItem(`userbird-last-form-${user.id}`);
+        const savedFormId = localStorage.getItem(`usermonk-last-form-${user.id}`);
         
         if (savedFormId) {
           // Verify user still has access to this form
@@ -298,7 +298,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             return;
           }
           // If user no longer has access, remove from localStorage and continue with default behavior
-          localStorage.removeItem(`userbird-last-form-${user.id}`);
+          localStorage.removeItem(`usermonk-last-form-${user.id}`);
         }
         
         // Default behavior - get most recent form
@@ -418,7 +418,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
     });
     
     // Check if we're currently navigating to a new form from the form creator
-    const navigatingToNewForm = localStorage.getItem('userbird-navigating-to-new-form');
+    const navigatingToNewForm = localStorage.getItem('usermonk-navigating-to-new-form');
     const currentFormId = window.location.pathname.split('/').filter(Boolean)[1];
     
     // If we're navigating to a new form and it matches the current URL, skip redirection
@@ -521,9 +521,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   };
 
   function clearOnboardingState(userId: string) {
-    localStorage.removeItem(`userbird-onboarding-step-${userId}`);
-    localStorage.removeItem(`userbird-onboarding-completed-${userId}`);
-    localStorage.removeItem(`userbird-last-form-${userId}`);
+    localStorage.removeItem(`usermonk-onboarding-step-${userId}`);
+    localStorage.removeItem(`usermonk-onboarding-completed-${userId}`);
+    localStorage.removeItem(`usermonk-last-form-${userId}`);
   }
 
   const handleDelete = useCallback(async () => {
@@ -2278,7 +2278,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                                     const newState = !isShowingDetails
                                     setIsShowingDetails(newState)
                                     // Save the panel state to localStorage
-                                    localStorage.setItem('userbird-details-panel-open', String(newState))
+                                    localStorage.setItem('usermonk-details-panel-open', String(newState))
                                   }}
                                 >
                                   <PanelRight className={cn(

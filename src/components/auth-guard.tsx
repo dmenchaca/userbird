@@ -6,7 +6,7 @@ import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
 // Simple utility function to update Userbird with user data
 function updateUserbirdUserData(user: any) {
-  if (!user || typeof window.UserBird === 'undefined') return;
+  if (!user || typeof window.UserMonk === 'undefined') return;
   
   try {
     // Get user display name from metadata
@@ -15,8 +15,8 @@ function updateUserbirdUserData(user: any) {
                 user.email;
     
     // Try the setUserInfo method first if available
-    if (typeof (window.UserBird as any).setUserInfo === 'function') {
-      (window.UserBird as any).setUserInfo({
+    if (typeof (window.UserMonk as any).setUserInfo === 'function') {
+      (window.UserMonk as any).setUserInfo({
         id: user.id,
         email: user.email,
         name: name
@@ -25,9 +25,9 @@ function updateUserbirdUserData(user: any) {
     } 
     // Fall back to directly setting the properties
     else {
-      (window.UserBird as any).email = user.email;
-      (window.UserBird as any).name = name;
-      (window.UserBird as any).userId = user.id;
+      (window.UserMonk as any).email = user.email;
+      (window.UserMonk as any).name = name;
+      (window.UserMonk as any).userId = user.id;
       // console.log('Updated Userbird widget with user data directly');
     }
   } catch (error) {
@@ -63,8 +63,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (!user || !checkCompleted) return;
 
     // New onboarding completion and step logic
-    const completedKey = `userbird-onboarding-completed-${user.id}`;
-    const stepKey = `userbird-onboarding-step-${user.id}`;
+    const completedKey = `usermonk-onboarding-completed-${user.id}`;
+    const stepKey = `usermonk-onboarding-step-${user.id}`;
     const completed = localStorage.getItem(completedKey);
     if (completed === 'true') {
       // Onboarding is completed, never show wizard
@@ -108,7 +108,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     else if (!onboardingInProgress && needsSetupWizard === false && location.pathname === '/setup-workspace') {
       console.log('User no longer needs setup wizard, redirecting to dashboard')
       // Try to retrieve the last form ID from localStorage
-      const lastFormId = user?.id ? localStorage.getItem(`userbird-last-form-${user.id}`) : null
+      const lastFormId = user?.id ? localStorage.getItem(`usermonk-last-form-${user.id}`) : null
       if (lastFormId) {
         // Redirect to the last viewed form if available
         navigate(`/forms/${lastFormId}`)

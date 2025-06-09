@@ -32,18 +32,18 @@ export function AnalyticsDashboard() {
   // Initialize the Userbird widget using plain JS
   useEffect(() => {
     // Check if the Userbird script already exists to avoid duplicates
-    if (!document.querySelector('script[src="https://userbird.netlify.app/widget.js"]')) {
+    if (!document.querySelector('script[src="https://usermonk.netlify.app/widget.js"]')) {
       // Initialize Userbird using HTML/JS approach
       const formId = "4hNUB7DVhf";
       
-      // First set up the UserBird object
-      window.UserBird = window.UserBird || {};
+      // First set up the UserMonk object
+      window.UserMonk = window.UserMonk || {};
       // Use type assertion to set properties
-      (window.UserBird as any).formId = formId;
+      (window.UserMonk as any).formId = formId;
       
       // Create and append the script
       const script = document.createElement('script');
-      script.src = 'https://userbird.netlify.app/widget.js';
+      script.src = 'https://usermonk.netlify.app/widget.js';
       script.onload = () => {
         console.log('Userbird widget loaded successfully via HTML/JS implementation');
       };
@@ -106,7 +106,7 @@ export function AnalyticsDashboard() {
           <div className="flex items-center gap-2">
             {/* HTML/JS implementation of the Feedback button */}
             <button 
-              id="userbird-trigger-4hNUB7DVhf"
+              id="usermonk-trigger-4hNUB7DVhf"
               ref={feedbackButtonRef}
               className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative z-[3] transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
             >

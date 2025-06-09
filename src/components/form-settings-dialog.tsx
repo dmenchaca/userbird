@@ -129,23 +129,23 @@ function InstallPromiseCallout({ formId }: { formId: string }) {
 function WidgetInstallSnippet({ formId }: { formId: string }) {
   const [copied, setCopied] = useState(false);
   const buttonSnippet = `<!-- Add button on your product -->
-<button id=\"userbird-trigger-${formId}\">Feedback</button>`;
+<button id=\"usermonk-trigger-${formId}\">Feedback</button>`;
 
-  const initSnippet = `<!-- Initialize Userbird - Place this before the closing </body> tag -->
+  const initSnippet = `<!-- Initialize Usermonk - Place this before the closing </body> tag -->
 <script>
   (function(w,d,s) {
-    w.UserBird = w.UserBird || {};
-    w.UserBird.formId = \"${formId}\";
+    w.UserMonk = w.UserMonk || {};
+    w.UserMonk.formId = \"${formId}\";
 
     // Optional: Add user information
-    w.UserBird.user = {
+    w.UserMonk.user = {
       id: 'user-123',                 // Your user's ID
       email: 'user@example.com',      // User's email
       name: 'John Doe'                // User's name
     };
 
     s = d.createElement('script');
-    s.src = 'https://userbird.netlify.app/widget.js';
+    s.src = 'https://usermonk.netlify.app/widget.js';
     s.async = 1;
     d.head.appendChild(s);
   })(window, document);
@@ -166,8 +166,8 @@ ${initSnippet}`;
   };
 
   const handleEmail = () => {
-    const subject = encodeURIComponent('Userbird Feedback Widget Install Instructions');
-    const body = encodeURIComponent(`Hi,\n\nHere are the install instructions for the Userbird feedback widget.\n\n${installSnippet}\n\nLet me know if you have any questions!`);
+    const subject = encodeURIComponent('Usermonk Feedback Widget Install Instructions');
+    const body = encodeURIComponent(`Hi,\n\nHere are the install instructions for the Usermonk feedback widget.\n\n${installSnippet}\n\nLet me know if you have any questions!`);
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   };
 
@@ -201,7 +201,7 @@ ${initSnippet}`;
       
       <div className="space-y-5">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Step 1: Initialize Userbird</Label>
+          <Label className="text-sm font-medium">Step 1: Initialize Usermonk</Label>
           <pre className="bg-muted rounded-md p-4 text-xs overflow-x-auto whitespace-pre-wrap border font-mono dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300">
             {initSnippet}
           </pre>
@@ -1774,7 +1774,7 @@ export function FormSettingsDialog({
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Remove "We run on Userbird" branding from the widget and outbound emails
+                          Remove "We run on Usermonk" branding from the widget and outbound emails
                         </p>
                       </div>
                     </div>

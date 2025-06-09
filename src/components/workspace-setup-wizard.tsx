@@ -104,8 +104,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   // --- Robust onboarding state: persist step and completion flag ---
   useEffect(() => {
     if (!user?.id) return;
-    const completedKey = `userbird-onboarding-completed-${user.id}`;
-    const stepKey = `userbird-onboarding-step-${user.id}`;
+    const completedKey = `usermonk-onboarding-completed-${user.id}`;
+    const stepKey = `usermonk-onboarding-step-${user.id}`;
     // On mount, check if onboarding is completed
     const completed = localStorage.getItem(completedKey);
     if (completed === 'true') {
@@ -137,7 +137,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   // Persist onboarding step and formId for any step >= 2
   useEffect(() => {
     if (!user?.id) return;
-    const stepKey = `userbird-onboarding-step-${user.id}`;
+    const stepKey = `usermonk-onboarding-step-${user.id}`;
     if (step >= 2 && createdFormId) {
       localStorage.setItem(
         stepKey,
@@ -258,7 +258,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
         }
         
         if (user?.id && resultFormId) {
-          localStorage.setItem(`userbird-last-form-${user.id}`, resultFormId);
+          localStorage.setItem(`usermonk-last-form-${user.id}`, resultFormId);
         }
       }
       return resultFormId;
@@ -299,8 +299,8 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
   // Onboarding completion: set completed flag and clear step state
   const markOnboardingComplete = () => {
     if (!user?.id) return;
-    const completedKey = `userbird-onboarding-completed-${user.id}`;
-    const stepKey = `userbird-onboarding-step-${user.id}`;
+    const completedKey = `usermonk-onboarding-completed-${user.id}`;
+    const stepKey = `usermonk-onboarding-step-${user.id}`;
     localStorage.setItem(completedKey, 'true');
     localStorage.removeItem(stepKey);
   };
@@ -348,18 +348,18 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
       
       // Save form ID in localStorage for quick access
       if (user?.id) {
-        localStorage.setItem(`userbird-last-form-${user.id}`, formId);
+        localStorage.setItem(`usermonk-last-form-${user.id}`, formId);
       }
       
       // Set a flag in localStorage to indicate intentional navigation
-      localStorage.setItem('userbird-navigating-to-new-form', formId);
+      localStorage.setItem('usermonk-navigating-to-new-form', formId);
       
       // Navigate using React Router (faster than window.location)
       navigate(`/forms/${formId}`);
       
       // Clear the navigation flag after 1 second
       setTimeout(() => {
-        localStorage.removeItem('userbird-navigating-to-new-form');
+        localStorage.removeItem('usermonk-navigating-to-new-form');
       }, 1000);
     } catch (err) {
       console.error('Error in workspace creation:', err);
@@ -471,7 +471,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               dangerouslySetInnerHTML={{
                 __html: `
                   (function(w, d, s, o) {
-                    w.UserBirdObject = o;
+                    w.UserMonkObject = o;
                     w[o] = w[o] || function() {
                       (w[o].q = w[o].q || []).push(arguments);
                     };
@@ -486,7 +486,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
               }}
             />
             <button 
-              id="userbird-trigger-4hNUB7DVhf"
+              id="usermonk-trigger-4hNUB7DVhf"
               className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:text-accent-foreground py-2 gap-2 h-9 px-3 relative transition-all duration-200 hover:bg-white/50 hover:border-border/60 hover:shadow-sm"
             >
               <span className="pointer-events-none">Feedback</span>
@@ -509,7 +509,7 @@ export function WorkspaceSetupWizard({ onComplete }: WorkspaceSetupWizardProps) 
                 }}
               >
                 <div className="space-y-2 mb-5">
-              <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Userbird 🎉</h2>
+              <h2 className="text-2xl font-semibold">Hi {firstName}, welcome to Usermonk 🎉</h2>
                 </div>
                 
                 <div className="mb-6" style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: "8px", border: "1px solid hsl(var(--muted))" }}>

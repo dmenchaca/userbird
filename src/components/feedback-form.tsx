@@ -85,7 +85,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
     }
     
     // Select a random GIF if GIFs are enabled
-    if (window.UserBird?.showGifOnSuccess) {
+    if (window.UserMonk?.showGifOnSuccess) {
       setSelectedGifUrl(selectRandomGif());
     }
     
@@ -120,7 +120,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
     if (showSuccess) {
         return (
           <div className="text-center py-6 px-4 space-y-4">
-            {!window.UserBird?.showGifOnSuccess && (
+            {!window.UserMonk?.showGifOnSuccess && (
               <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
             )}
             <div className="space-y-2">
@@ -134,7 +134,7 @@ export function FeedbackForm({ formId }: FeedbackFormProps) {
                   <span className="font-semibold">#{ticketNumber}</span>
                 </div>
               )}
-              {window.UserBird?.showGifOnSuccess && selectedGifUrl && (
+              {window.UserMonk?.showGifOnSuccess && selectedGifUrl && (
                 <img 
                   src={selectedGifUrl} 
                   alt="Success GIF" 

@@ -14,7 +14,7 @@ export function createModal() {
       ${FORM_TEMPLATE}
       ${SUCCESS_TEMPLATE}
       <div class="ub-branding">
-        <a href="" class="ub-branding-link" target="_blank">We run on Userbird</a>
+        <a href="" class="ub-branding-link" target="_blank">We run on Usermonk</a>
       </div>
     </div>
   `
@@ -101,7 +101,7 @@ export function createModal() {
       } else {
         // Add attribution URL
         const domain = window.location.hostname
-        brandingLink.href = `https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(domain)}`
+        brandingLink.href = `https://app.usermonk.com/?ref=widget&domain=${encodeURIComponent(domain)}`
       }
     }
   }

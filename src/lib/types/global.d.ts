@@ -1,5 +1,5 @@
 interface Window {
-  UserBird?: {
+  UserMonk?: {
     formId?: string;
     open?: (trigger?: HTMLElement) => void;
     user?: {

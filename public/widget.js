@@ -1,8 +1,8 @@
-// Userbird Widget
+// Usermonk Widget
 // 
 // Console Capture Behavior:
 // - Controlled by backend 'collect_console_logs' setting (default: enabled)
-// - To completely disable: Set window.UserBird.disableConsoleCapture = true (overrides backend setting)
+// - To completely disable: Set window.UserMonk.disableConsoleCapture = true (overrides backend setting)
 //
 (function() {
   const API_BASE_URL = 'https://userbird.netlify.app';
@@ -68,31 +68,31 @@
   let lastErrorTime = 0;
   
   // Store the original open method if one is defined
-  const originalOpen = window.UserBird && typeof window.UserBird.open === 'function' ? 
-                      window.UserBird.open : null;
+  const originalOpen = window.UserMonk && typeof window.UserMonk.open === 'function' ? 
+                      window.UserMonk.open : null;
   
   // Initialize console log capture
   function initConsoleCapture() {
     // Allow explicit override to disable console capture
-    if (window.UserBird?.disableConsoleCapture === true) {
+    if (window.UserMonk?.disableConsoleCapture === true) {
       return;
     }
     
     // Check backend setting if available - if explicitly disabled, don't capture
-    if (window.UserBird?.settings?.collect_console_logs === false) {
+    if (window.UserMonk?.settings?.collect_console_logs === false) {
       return;
     }
     
     // Only wrap if console exists
     if (typeof console !== 'undefined') {
       // Merge any early logs that were captured before widget loaded
-      if (window.UserBird?.earlyLogs && Array.isArray(window.UserBird.earlyLogs)) {
-        logBuffer.push(...window.UserBird.earlyLogs);
+      if (window.UserMonk?.earlyLogs && Array.isArray(window.UserMonk.earlyLogs)) {
+        logBuffer.push(...window.UserMonk.earlyLogs);
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          console.info('[Userbird] Merged', window.UserBird.earlyLogs.length, 'early console logs');
+          console.info('[Usermonk] Merged', window.UserMonk.earlyLogs.length, 'early console logs');
         }
         // Clean up early logs
-        delete window.UserBird.earlyLogs;
+        delete window.UserMonk.earlyLogs;
       }
       
       // Store original methods
@@ -119,7 +119,7 @@
       
       // Show a notification in dev environments when using localhost
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        consoleOriginals.info('[Userbird] Console logs are being captured for feedback reports.');
+        consoleOriginals.info('[Usermonk] Console logs are being captured for feedback reports.');
       }
     }
   }
@@ -294,7 +294,7 @@
   // Simplified direct approach to handle trigger button clicks
   function setupTriggerEvents() {
     // Find all existing trigger buttons and add click listeners
-    document.querySelectorAll('[id^="userbird-trigger-"]').forEach(triggerButton => {
+    document.querySelectorAll('[id^="usermonk-trigger-"]').forEach(triggerButton => {
       triggerButton.addEventListener('click', function(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -314,7 +314,7 @@
           mutation.addedNodes.forEach(node => {
             if (node.nodeType === 1) { // Element node
               // Check if the added node is a trigger button
-              if (node.id && node.id.startsWith('userbird-trigger-')) {
+              if (node.id && node.id.startsWith('usermonk-trigger-')) {
                 node.addEventListener('click', function(event) {
                   event.preventDefault();
                   event.stopPropagation();
@@ -328,7 +328,7 @@
               }
               
               // Also check for trigger buttons inside the added node
-              const triggerButtons = node.querySelectorAll('[id^="userbird-trigger-"]');
+              const triggerButtons = node.querySelectorAll('[id^="usermonk-trigger-"]');
               triggerButtons.forEach(btn => {
                 btn.addEventListener('click', function(event) {
                   event.preventDefault();
@@ -394,7 +394,7 @@
     const style = document.createElement('style');
     style.textContent = `
       /* Light mode defaults */
-      .userbird-modal {
+      .usermonk-modal {
         --ub-background: white;
         --ub-border-color: #e5e7eb;
         --ub-text: #111827;
@@ -406,13 +406,13 @@
       }
 
       /* Website dark mode settings */
-      :root[data-theme="dark"] .userbird-modal,
-      :root.dark .userbird-modal,
-      :root[data-mode="dark"] .userbird-modal,
-      :root[data-color-mode="dark"] .userbird-modal,
-      :root[data-color-scheme="dark"] .userbird-modal,
-      .dark-theme .userbird-modal,
-      html[class*="dark"] .userbird-modal {
+      :root[data-theme="dark"] .usermonk-modal,
+      :root.dark .usermonk-modal,
+      :root[data-mode="dark"] .usermonk-modal,
+      :root[data-color-mode="dark"] .usermonk-modal,
+      :root[data-color-scheme="dark"] .usermonk-modal,
+      .dark-theme .usermonk-modal,
+      html[class*="dark"] .usermonk-modal {
         --ub-background: #0D0D0D;
         --ub-border-color: #363636;
         --ub-text: #e5e5e5;
@@ -422,7 +422,7 @@
         --ub-tooltip-text: white;
       }
 
-      .userbird-modal {
+      .usermonk-modal {
         opacity: 0;
         visibility: hidden;
         position: fixed;
@@ -435,21 +435,21 @@
         border: 1px solid var(--ub-border-color);
         transition: opacity 0.05s ease-in-out, visibility 0.05s ease-in-out;
       }
-      .userbird-modal.open {
+      .usermonk-modal.open {
         opacity: 1;
         visibility: visible;
       }
-      .userbird-modal-content {
+      .usermonk-modal-content {
         position: relative;
         padding: 1rem;
       }
-      .userbird-form {
+      .usermonk-form {
         display: block;
       }
-      .userbird-form.hidden {
+      .usermonk-form.hidden {
         display: none;
       }
-      .userbird-title {
+      .usermonk-title {
         font-size: 1rem !important;
         font-weight: 600 !important;
         color: var(--ub-text) !important;
@@ -459,7 +459,7 @@
         line-height: normal;
         font-family: inherit;
       }
-      .userbird-textarea {
+      .usermonk-textarea {
         width: 100%;
         min-height: 100px;
         padding: 0.75rem; 
@@ -473,28 +473,28 @@
       }
 
       /* Update dark mode specific background for textarea */
-      :root[data-theme="dark"] .userbird-textarea,
-      :root.dark .userbird-textarea,
-      :root[data-mode="dark"] .userbird-textarea,
-      :root[data-color-mode="dark"] .userbird-textarea,
-      :root[data-color-scheme="dark"] .userbird-textarea,
-      .dark-theme .userbird-textarea,
-      html[class*="dark"] .userbird-textarea {
+      :root[data-theme="dark"] .usermonk-textarea,
+      :root.dark .usermonk-textarea,
+      :root[data-mode="dark"] .usermonk-textarea,
+      :root[data-color-mode="dark"] .usermonk-textarea,
+      :root[data-color-scheme="dark"] .usermonk-textarea,
+      .dark-theme .usermonk-textarea,
+      html[class*="dark"] .usermonk-textarea {
         background: #171717;
       }
 
-      .userbird-textarea:focus {
+      .usermonk-textarea:focus {
         outline: none;
       }
-      .userbird-image-upload {
+      .usermonk-image-upload {
         position: relative;
         display: inline-flex;
         align-items: center;
       }
-      .userbird-file-input {
+      .usermonk-file-input {
         display: none;
       }
-      .userbird-image-button {
+      .usermonk-image-button {
         padding: 0.5rem 0.75rem;
         border: 1px solid var(--ub-border-color);
         border-radius: 6px;
@@ -505,23 +505,23 @@
         align-items: center;
         background: var(--ub-background);
       }
-      .userbird-image-button:hover {
+      .usermonk-image-button:hover {
         background: var(--ub-hover-background);
       }
-      .userbird-image-preview {
+      .usermonk-image-preview {
         display: none;
         position: relative;
       }
-      .userbird-image-preview.show {
+      .usermonk-image-preview.show {
         display: block;
       }
-      .userbird-image-preview img {
+      .usermonk-image-preview img {
         width: 36px;
         height: 36px;
         object-fit: cover;
         border-radius: 6px;
       }
-      .userbird-remove-image {
+      .usermonk-remove-image {
         position: absolute;
         top: -0.5rem;
         right: -0.5rem;
@@ -538,18 +538,18 @@
         font-size: 1rem;
         line-height: 1;
       }
-      .userbird-buttons {
+      .usermonk-buttons {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-top: 1rem;
       }
-      .userbird-actions {
+      .usermonk-actions {
         display: flex;
         align-items: center;
         gap: 0.5rem;
       }
-      .userbird-button {
+      .usermonk-button {
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
         font-size: 0.875rem;
@@ -561,84 +561,84 @@
         cursor: pointer;
         transition: all 0.2s;
       }
-      .userbird-button {
+      .usermonk-button {
         background: ${buttonColor};
         color: white;
         border: none;
       }
-      .userbird-button:hover {
+      .usermonk-button:hover {
         opacity: 0.9;
       }
-      .userbird-button:disabled {
+      .usermonk-button:disabled {
         opacity: 0.7;
         cursor: not-allowed;
       }
-      .userbird-button-secondary {
+      .usermonk-button-secondary {
         background: transparent;
         color: var(--ub-text-muted);
         border: 1px solid var(--ub-border-color);
       }
-      .userbird-button-secondary:hover {
+      .usermonk-button-secondary:hover {
         background: var(--ub-hover-background);
       }
-      .userbird-spinner {
+      .usermonk-spinner {
         display: none;
         width: 16px !important;
         height: 16px !important;
-        animation: userbird-spin 1s linear infinite;
+        animation: usermonk-spin 1s linear infinite;
       }
-      @keyframes userbird-spin {
+      @keyframes usermonk-spin {
         to { transform: rotate(360deg); }
       }
-      .userbird-button-secondary:hover {
+      .usermonk-button-secondary:hover {
         background: var(--ub-hover-background);
       }
-      .userbird-success {
+      .usermonk-success {
         text-align: center;
         padding: 1rem;
         display: none;
       }
-      .userbird-success.with-gif {
+      .usermonk-success.with-gif {
         padding-top: 0.5rem;
         padding-bottom: 0.5rem;
       }
-      .userbird-success.open {
+      .usermonk-success.open {
         display: block;
       }
-      .userbird-success-icon {
+      .usermonk-success-icon {
         width: 48px;
         height: 48px;
         margin: 0 auto 1rem;
         color: #22c55e;
         opacity: 0;
         transform: scale(0.8);
-        animation: userbird-success-icon 0.4s ease-out forwards;
+        animation: usermonk-success-icon 0.4s ease-out forwards;
       }
-      .userbird-success-title {
+      .usermonk-success-title {
         font-size: 1.125rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
         color: var(--ub-text);
         opacity: 0;
         transform: translateY(10px);
-        animation: userbird-success-title 0.4s ease-out 0.2s forwards;
+        animation: usermonk-success-title 0.4s ease-out 0.2s forwards;
       }
-      .userbird-success-message {
+      .usermonk-success-message {
         color: var(--ub-text-muted);
         font-size: 0.875rem;
         opacity: 0;
         transform: translateY(10px);
-        animation: userbird-success-message 0.4s ease-out 0.4s forwards;
+        animation: usermonk-success-message 0.4s ease-out 0.4s forwards;
       }
-      .userbird-success-gif {
+      .usermonk-success-gif {
         max-width: 100%;
         margin-top: 1rem;
         border-radius: 6px;
         opacity: 0;
         transform: translateY(10px);
-        animation: userbird-success-gif 0.4s ease-out 0.6s forwards;
+        animation: usermonk-success-gif 0.4s ease-out 0.6s forwards;
       }
-      @keyframes userbird-success-icon {
+      @keyframes usermonk-success-icon {
         from {
           opacity: 0;
           transform: scale(0.8);
@@ -648,7 +648,7 @@
           transform: scale(1);
         }
       }
-      @keyframes userbird-success-title {
+      @keyframes usermonk-success-title {
         from {
           opacity: 0;
           transform: translateY(10px);
@@ -658,7 +658,7 @@
           transform: translateY(0);
         }
       }
-      @keyframes userbird-success-message {
+      @keyframes usermonk-success-message {
         from {
           opacity: 0;
           transform: translateY(10px);
@@ -668,7 +668,7 @@
           transform: translateY(0);
         }
       }
-      @keyframes userbird-success-gif {
+      @keyframes usermonk-success-gif {
         from {
           opacity: 0;
           transform: translateY(10px);
@@ -678,34 +678,34 @@
           transform: translateY(0);
         }
       }
-      .userbird-support-text {
+      .usermonk-support-text {
         font-size: 0.75rem;
         color: var(--ub-text-muted);
         text-align: left;
         margin-top: 1rem;
       }
-      .userbird-support-text a {
+      .usermonk-support-text a {
         color: ${buttonColor};
         text-decoration: none;
         font-weight: 500;
       }
-      .userbird-support-text a:hover {
+      .usermonk-support-text a:hover {
         text-decoration: underline;
       }
-      .userbird-submit[disabled] .userbird-spinner {
+      .usermonk-submit[disabled] .usermonk-spinner {
         display: block;
         color: currentColor;
       }
-      .userbird-submit[disabled] .userbird-submit-text {
+      .usermonk-submit[disabled] .usermonk-submit-text {
         opacity: 0.8;
       }
       
       /* Branding styles */
-      .userbird-branding {
+      .usermonk-branding {
         text-align: center;
         margin-top: 1rem;
       }
-      .userbird-branding-link {
+      .usermonk-branding-link {
         color: #9ca3af;
         font-size: 0.75rem;
         text-decoration: none;
@@ -716,14 +716,14 @@
         border-radius: 4px;
         transition: all 0.15s ease;
       }
-      .userbird-branding-link:hover {
+      .usermonk-branding-link:hover {
         background-color: rgba(156, 163, 175, 0.1);
       }
-      .userbird-branding-icon {
+      .usermonk-branding-icon {
         display: inline-block;
         vertical-align: middle;
       }
-      .userbird-branding-hidden {
+      .usermonk-branding-hidden {
         display: none;
       }
     `;
@@ -733,10 +733,10 @@
   function createModal() {
     const modal = document.createElement('div');
     
-    modal.className = 'userbird-modal';
+    modal.className = 'usermonk-modal';
     
     modal.innerHTML = `
-      <div class="userbird-modal-content">
+      <div class="usermonk-modal-content">
         <div class="userbird-form">
           <h3 class="userbird-title">Feedback</h3>
           <textarea class="userbird-textarea" placeholder="Help us improve this page."></textarea>
@@ -758,7 +758,7 @@
               </div>
               <button class="userbird-button userbird-submit">
                 <span class="userbird-submit-text">${MESSAGES.labels.submit}</span>
-                <svg class="userbird-spinner" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="usermonk-spinner" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
               </button>
@@ -766,26 +766,23 @@
           </div>
           <div class="userbird-support-text"></div>
         </div>
-        <div class="userbird-success">
-          <svg class="userbird-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="usermonk-success">
+          <svg class="usermonk-success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M22 4L12 14.01l-3-3" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <h3 class="userbird-success-title">${MESSAGES.success.title}</h3>
-          <p class="userbird-success-message">${MESSAGES.success.description}</p>
+          <h3 class="usermonk-success-title">${MESSAGES.success.title}</h3>
+          <p class="usermonk-success-message">${MESSAGES.success.description}</p>
           <!-- GIF will be dynamically added here if enabled -->
-          <div class="userbird-branding${window.UserBird?.removeBranding ? ' userbird-branding-hidden' : ''}">
-            <a href="https://app.userbird.co/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="userbird-branding-link" target="_blank" rel="noopener noreferrer">
+          <div class="usermonk-branding${window.UserMonk?.removeBranding ? ' usermonk-branding-hidden' : ''}">
+            <a href="https://app.usermonk.com/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="usermonk-branding-link" target="_blank" rel="noopener noreferrer">
               We run on 
-              <svg width="16" height="16" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" class="userbird-branding-icon">
-                <path d="M14.5459 6.36328H14.555" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3.09109 16.3642H10.9093C12.8381 16.3642 14.688 15.598 16.0519 14.2341C17.4158 12.8702 18.182 11.0204 18.182 9.0915V6.36423C18.184 5.5896 17.9387 4.83456 17.4816 4.20913C17.0246 3.5837 16.3798 3.12056 15.6411 2.8872C14.9025 2.65383 14.1086 2.66244 13.3752 2.91177C12.6418 3.1611 12.0072 3.63812 11.5638 4.27332L1.81836 18.1824" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18.1816 6.36328L19.9998 6.81783L18.1816 7.27237" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9.0918 16.3638V19.091" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12.7275 16.1367V19.0913" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.36426 16.3637C7.48527 16.3637 8.57905 16.0182 9.49674 15.3744C10.4144 14.7305 11.1114 13.8196 11.4929 12.7655C11.8745 11.7114 11.9219 10.5653 11.6289 9.48327C11.3358 8.40123 10.7165 7.43577 9.85517 6.71826" stroke="currentColor" stroke-width="1.81818" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg width="16" height="16" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" class="usermonk-branding-icon">
+                <circle cx="11" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M6 21v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              Userbird
+              🌀 Usermonk
             </a>
           </div>
         </div>
@@ -796,13 +793,13 @@
 
     return {
       modal,
-      form: modal.querySelector('.userbird-form'),
-      textarea: modal.querySelector('.userbird-textarea'),
-      submitButton: modal.querySelector('.userbird-submit'),
-      closeButtons: modal.querySelectorAll('.userbird-close'),
-      errorElement: modal.querySelector('.userbird-error'),
-      successElement: modal.querySelector('.userbird-success'),
-      supportTextElement: modal.querySelector('.userbird-support-text')
+      form: modal.querySelector('.usermonk-form'),
+      textarea: modal.querySelector('.usermonk-textarea'),
+      submitButton: modal.querySelector('.usermonk-submit'),
+      closeButtons: modal.querySelectorAll('.usermonk-close'),
+      errorElement: modal.querySelector('.usermonk-error'),
+      successElement: modal.querySelector('.usermonk-success'),
+      supportTextElement: modal.querySelector('.usermonk-support-text')
     };
   }
 
@@ -825,7 +822,7 @@
       const leftPosition = Math.max(8, Math.min(rect.left + scrollX, window.innerWidth + scrollX - modalWidth - 8));
       
       // Check if we're in success state with GIF
-      const isSuccessWithGif = modal.successElement.classList.contains('open') && window.UserBird?.showGifOnSuccess === true;
+      const isSuccessWithGif = modal.successElement.classList.contains('open') && window.UserMonk?.showGifOnSuccess === true;
       
       // Determine if trigger is in the upper or lower half of the screen
       const isInLowerHalf = rect.top > window.innerHeight / 2;
@@ -868,7 +865,7 @@
   }
 
   function positionModalForSuccess(trigger) {
-    if (!modal?.modal || !window.UserBird?.showGifOnSuccess) return;
+    if (!modal?.modal || !window.UserMonk?.showGifOnSuccess) return;
     
     const modalElement = modal.modal;
     const rect = trigger ? trigger.getBoundingClientRect() : null;
@@ -916,7 +913,7 @@
 
   function openModal(trigger = null) {
     const hasVisibleModal = Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [aria-modal="true"]')).some(modal => {
-      if (modal.classList.contains('userbird-modal')) return false;
+      if (modal.classList.contains('usermonk-modal')) return false;
       const styles = window.getComputedStyle(modal);
       return styles.display !== 'none' && styles.visibility !== 'hidden';
     });
@@ -927,8 +924,8 @@
 
     if (!settingsLoaded) {
       const loading = document.createElement('div');
-      loading.className = 'userbird-loading';
-      loading.innerHTML = '<div class="userbird-loading-spinner"></div>';
+      loading.className = 'usermonk-loading';
+      loading.innerHTML = '<div class="usermonk-loading-spinner"></div>';
       document.body.appendChild(loading);
       
       if (trigger) {
@@ -1011,7 +1008,7 @@
       modal.form.classList.remove('hidden');
       modal.successElement.classList.remove('open');
       modal.submitButton.disabled = false;
-      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+      modal.submitButton.querySelector('.usermonk-submit-text').textContent = MESSAGES.labels.submit;
     }, 150);
   }
 
@@ -1033,8 +1030,8 @@
       document.documentElement.classList.contains('dark-theme') ||
       document.documentElement.getAttribute('class')?.includes('dark');
 
-    formId = window.UserBird?.formId;
-    const user = window.UserBird?.user;
+    formId = window.UserMonk?.formId;
+    const user = window.UserMonk?.user;
     
     if (!formId) return;
 
@@ -1064,28 +1061,28 @@
         modal = createModal();
         setupModal(buttonColor, supportText);
         
-        window.UserBird.shortcut = keyboardShortcut;
-        window.UserBird.settings = {
+        window.UserMonk.shortcut = keyboardShortcut;
+        window.UserMonk.settings = {
           sound_enabled: soundEnabled,
           collect_console_logs: collectConsoleLogs
         };
-        window.UserBird.showGifOnSuccess = showGifOnSuccess;
-        window.UserBird.gifUrls = gifUrls;
-        window.UserBird.removeBranding = removeBranding;
+        window.UserMonk.showGifOnSuccess = showGifOnSuccess;
+        window.UserMonk.gifUrls = gifUrls;
+        window.UserMonk.removeBranding = removeBranding;
         
         // Re-initialize console capture now that we have backend settings
         // This handles cases where console capture was initialized before settings loaded
-        if (collectConsoleLogs && !window.UserBird?.disableConsoleCapture) {
+        if (collectConsoleLogs && !window.UserMonk?.disableConsoleCapture) {
           initConsoleCapture();
         }
         
         // Update branding visibility based on setting
-        const brandingElement = modal.modal.querySelector('.userbird-branding');
+        const brandingElement = modal.modal.querySelector('.usermonk-branding');
         if (brandingElement) {
           if (removeBranding) {
-            brandingElement.classList.add('userbird-branding-hidden');
+            brandingElement.classList.add('usermonk-branding-hidden');
           } else {
-            brandingElement.classList.remove('userbird-branding-hidden');
+            brandingElement.classList.remove('usermonk-branding-hidden');
           }
         }
         
@@ -1174,10 +1171,10 @@
   }
   
   function setupModal(buttonColor, supportText) {
-    const fileInput = modal.modal.querySelector('.userbird-file-input');
-    const imageButton = modal.modal.querySelector('.userbird-image-button');
-    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
-    const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+    const fileInput = modal.modal.querySelector('.usermonk-file-input');
+    const imageButton = modal.modal.querySelector('.usermonk-image-button');
+    const imagePreview = modal.modal.querySelector('.usermonk-image-preview');
+    const removeImageButton = modal.modal.querySelector('.usermonk-remove-image');
     
     // Add tooltip to the screenshot button
     addTooltip(imageButton, 'Capture screenshot');
@@ -1192,7 +1189,7 @@
     // Change image button to trigger screenshot instead of file upload
     imageButton.addEventListener('click', () => {
       // Load screenshot dependencies and initialize dialog if needed
-      UserBird.enableScreenshots().then(dialog => {
+      UserMonk.enableScreenshots().then(dialog => {
         if (dialog) {
           // Store the current trigger to reopen modal later
           const triggerToReopen = currentTrigger;
@@ -1229,9 +1226,9 @@
                       
                       // After modal is reopened, update the UI to show the screenshot
                       setTimeout(() => {
-                        const imagePreview = modal.modal.querySelector('.userbird-image-preview');
-                        const imageButton = modal.modal.querySelector('.userbird-image-button');
-                        const removeImageButton = modal.modal.querySelector('.userbird-remove-image');
+                        const imagePreview = modal.modal.querySelector('.usermonk-image-preview');
+                        const imageButton = modal.modal.querySelector('.usermonk-image-button');
+                        const removeImageButton = modal.modal.querySelector('.usermonk-remove-image');
                         
                         // Create and display the screenshot image
                         const img = document.createElement('img');
@@ -1258,7 +1255,7 @@
                                   // Reopen modal and update thumbnail
                                   openModal(currentTriggerForReEdit);
                                   setTimeout(() => {
-                                    const newImg = modal.modal.querySelector('.userbird-image-preview img');
+                                    const newImg = modal.modal.querySelector('.usermonk-image-preview img');
                                     if (newImg) {
                                       newImg.src = URL.createObjectURL(newScreenshotFile);
                                     }
@@ -1370,7 +1367,7 @@
       if (!message) return;
       
       modal.submitButton.disabled = true;
-      modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submitting;
+      modal.submitButton.querySelector('.usermonk-submit-text').textContent = MESSAGES.labels.submitting;
 
       try {
         await submitFeedback(message);
@@ -1378,12 +1375,12 @@
         modal.errorElement.textContent = 'Failed to submit feedback';
         modal.errorElement.style.display = 'block';
         modal.submitButton.disabled = false;
-        modal.submitButton.querySelector('.userbird-submit-text').textContent = MESSAGES.labels.submit;
+        modal.submitButton.querySelector('.usermonk-submit-text').textContent = MESSAGES.labels.submit;
       }
     }
 
-    window.UserBird.open = (triggerElement) => {
-      const trigger = triggerElement || document.getElementById(`userbird-trigger-${formId}`);
+    window.UserMonk.open = (triggerElement) => {
+      const trigger = triggerElement || document.getElementById(`usermonk-trigger-${formId}`);
       if (modal.modal.classList.contains('open') && currentTrigger === trigger) {
         closeModal();
       } else {
@@ -1394,7 +1391,7 @@
 
   async function submitFeedback(message) {
     const systemInfo = getSystemInfo();
-    const userInfo = window.UserBird?.user || {};
+    const userInfo = window.UserMonk?.user || {};
     let imageData = null;
     
     // Collect console logs for metadata
@@ -1415,24 +1412,24 @@
     modal.successElement.classList.add('open');
     
     // Remove any existing GIF element
-    const existingGif = modal.successElement.querySelector('.userbird-success-gif');
+    const existingGif = modal.successElement.querySelector('.usermonk-success-gif');
     if (existingGif) {
       existingGif.remove();
     }
     
     // Get the branding element so we can reposition it
-    const brandingElement = modal.successElement.querySelector('.userbird-branding');
+    const brandingElement = modal.successElement.querySelector('.usermonk-branding');
     
     // Add the GIF to the success message if enabled
-    if (window.UserBird?.showGifOnSuccess) {
+    if (window.UserMonk?.showGifOnSuccess) {
       // Add class for GIF-specific styling
       modal.successElement.classList.add('with-gif');
       
       // Function to get a random GIF URL
       function getRandomGifUrl() {
-        if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
-          const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
-          const selectedUrl = window.UserBird.gifUrls[randomIndex];
+        if (window.UserMonk?.gifUrls && window.UserMonk.gifUrls.length > 0) {
+          const randomIndex = Math.floor(Math.random() * window.UserMonk.gifUrls.length);
+          const selectedUrl = window.UserMonk.gifUrls[randomIndex];
           return selectedUrl;
         }
         return null;
@@ -1443,7 +1440,7 @@
       // Only show GIF if we have a valid URL
       if (gifUrl) {
         // Hide the SVG icon when GIF is shown
-        const successIcon = modal.successElement.querySelector('.userbird-success-icon');
+        const successIcon = modal.successElement.querySelector('.usermonk-success-icon');
         if (successIcon) {
           successIcon.style.display = 'none';
         }
@@ -1451,14 +1448,14 @@
         const successGif = document.createElement('img');
         successGif.src = gifUrl;
         successGif.alt = "Success GIF";
-        successGif.className = "userbird-success-gif";
+        successGif.className = "usermonk-success-gif";
         successGif.style.maxWidth = "100%";
         successGif.style.marginTop = "1rem";
         successGif.style.borderRadius = "6px";
         modal.successElement.appendChild(successGif);
         
         // Move branding after the GIF if branding is enabled
-        if (brandingElement && !window.UserBird?.removeBranding) {
+        if (brandingElement && !window.UserMonk?.removeBranding) {
           // Remove and re-append to move it to the end
           brandingElement.parentNode.removeChild(brandingElement);
           modal.successElement.appendChild(brandingElement);
@@ -1469,7 +1466,7 @@
       modal.successElement.classList.remove('with-gif');
     }
     
-    if (window.UserBird?.settings?.sound_enabled && successSound) {
+    if (window.UserMonk?.settings?.sound_enabled && successSound) {
       try {
         await successSound.play();
       } catch (error) {
@@ -1479,12 +1476,12 @@
 
     modal.textarea.value = '';
     selectedImage = null;
-    const imagePreview = modal.modal.querySelector('.userbird-image-preview');
-    const imageButton = modal.modal.querySelector('.userbird-image-button');
+    const imagePreview = modal.modal.querySelector('.usermonk-image-preview');
+    const imageButton = modal.modal.querySelector('.usermonk-image-button');
     imagePreview.classList.remove('show');
     imagePreview.innerHTML = '';
     imageButton.style.display = 'block';
-    modal.modal.querySelector('.userbird-file-input').value = '';
+    modal.modal.querySelector('.usermonk-file-input').value = '';
     
     try {
       const response = await fetch(`${API_BASE_URL}/.netlify/functions/feedback`, {
@@ -1579,7 +1576,7 @@
     
     pressedKeys.add(normalizedKey);
     
-    const shortcut = window.UserBird?.shortcut;
+    const shortcut = window.UserMonk?.shortcut;
     if (!shortcut) {
       return;
     }
@@ -1591,7 +1588,7 @@
       .join('+');
     
     if (currentKeys === shortcutKeys) {
-      const defaultTrigger = document.getElementById(`userbird-trigger-${formId}`);
+      const defaultTrigger = document.getElementById(`usermonk-trigger-${formId}`);
       openModal(defaultTrigger);
       pressedKeys.clear();
     }
@@ -1632,10 +1629,10 @@
   function showSuccessMessage() {
     // Function to get a random GIF URL
     function getRandomGifUrl() {
-      if (window.UserBird?.gifUrls && window.UserBird.gifUrls.length > 0) {
+      if (window.UserMonk?.gifUrls && window.UserMonk.gifUrls.length > 0) {
         // Randomly select a GIF from the array
-        const randomIndex = Math.floor(Math.random() * window.UserBird.gifUrls.length);
-        const selectedUrl = window.UserBird.gifUrls[randomIndex];
+        const randomIndex = Math.floor(Math.random() * window.UserMonk.gifUrls.length);
+        const selectedUrl = window.UserMonk.gifUrls[randomIndex];
         return selectedUrl;
       }
       // Return null if no GIFs are available
@@ -1643,7 +1640,7 @@
     }
     
     let gifHtml = '';
-    if (window.UserBird?.showGifOnSuccess) {
+    if (window.UserMonk?.showGifOnSuccess) {
       const gifUrl = getRandomGifUrl();
       if (gifUrl) {
         gifHtml = `<img src="${gifUrl}" alt="Success GIF">`;
@@ -1660,25 +1657,25 @@
   }
 
   // Initialize global API
-  window.UserBird = window.UserBird || {};
-  window.UserBird.formId = window.UserBird.formId || formId;
+  window.UserMonk = window.UserMonk || {};
+  window.UserMonk.formId = window.UserMonk.formId || formId;
   
   // Expose console log functions
-  window.UserBird.getRecentLogs = getRecentLogs;
+  window.UserMonk.getRecentLogs = getRecentLogs;
   
   // Add animation control flags
-  window.UserBird.setAnimationRunning = function(isRunning) {
+  window.UserMonk.setAnimationRunning = function(isRunning) {
     isAnimationRunning = isRunning;
   };
 
   // Add screenshot dialog state control
-  window.UserBird.setScreenshotDialogOpen = function(isOpen) {
+  window.UserMonk.setScreenshotDialogOpen = function(isOpen) {
     isScreenshotDialogOpen = isOpen;
   };
 
   // Enhanced open method - respects the original if it was defined previously
   // Enable screenshot capture and annotation functionality
-  window.UserBird.enableScreenshots = function() {
+  window.UserMonk.enableScreenshots = function() {
     return loadScreenshotDependencies()
       .then(() => {
         // Initialize screenshot dialog if needed
@@ -1693,7 +1690,7 @@
       });
   };
 
-  window.UserBird.open = function(trigger) {
+  window.UserMonk.open = function(trigger) {
     if (originalOpen) {
       // Call original method first if it was defined
       originalOpen(trigger);

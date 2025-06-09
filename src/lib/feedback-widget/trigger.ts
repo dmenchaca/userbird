@@ -1,3 +1,3 @@
 export function createTrigger(formId: string) {
-  return document.getElementById(`userbird-trigger-${formId}`);
+  return document.getElementById(`usermonk-trigger-${formId}`);
 }

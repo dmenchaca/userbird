@@ -52,22 +52,22 @@ export function InstallInstructionsModal({ formId, open, onOpenChange }: Install
 ⚠️ WARNING: Your form won't work in a local environment unless you set the URL on your form to match your local environment URL (e.g., http://localhost:3000) ⚠️
 
 ⚠️ IMPORTANT: If your site has a Content-Security-Policy, you must allow connections to:
-- https://userbird.netlify.app (for loading the widget and API calls)
+        - https://usermonk.netlify.app (for loading the widget and API calls)
 
 Add this domain to your CSP connect-src directive, for example:
-connect-src 'self' https://userbird.netlify.app
+        connect-src 'self' https://usermonk.netlify.app
 
-Userbird lets your users send feedback, report bugs, and submit feature requests directly from your app.
+        Usermonk lets your users send feedback, report bugs, and submit feature requests directly from your app.
 
 
 Step 1: Add the trigger button
 
 \`\`\`html
 <!-- Option A: Simple text button -->
-<button id="userbird-trigger-${formId}">Feedback</button>
+        <button id="usermonk-trigger-${formId}">Feedback</button>
 
-<!-- Option B: Button with icon and text -->
-<button id="userbird-trigger-${formId}" class="flex items-center gap-2">
+        <!-- Option B: Button with icon and text -->
+        <button id="usermonk-trigger-${formId}" class="flex items-center gap-2">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
   </svg>
@@ -78,15 +78,15 @@ Step 1: Add the trigger button
 
 Step 2: Initialize the widget
 \`\`\`html
-<!-- Initialize Userbird - Place this before the closing </body> tag -->
-<script>
-  (function(w,d,s) {
-    // Initialize Userbird widget
-    w.UserBird = w.UserBird || {};
-    w.UserBird.formId = "${formId}";
-    
-    // Optional: Add user information
-    w.UserBird.user = {
+        <!-- Initialize Usermonk - Place this before the closing </body> tag -->
+        <script>
+          (function(w,d,s) {
+            // Initialize Usermonk widget
+            w.UserMonk = w.UserMonk || {};
+            w.UserMonk.formId = "${formId}";
+
+            // Optional: Add user information
+            w.UserMonk.user = {
       id: 'user-123',                 // Your user's ID
       email: 'user@example.com',      // User's email
       name: 'John Doe'                // User's name
@@ -94,12 +94,12 @@ Step 2: Initialize the widget
     
     // Load the widget script
     s = d.createElement('script');
-    s.src = 'https://userbird.netlify.app/widget.js';
+    s.src = 'https://usermonk.netlify.app/widget.js';
     s.onload = function() {
-      console.log('Userbird widget loaded successfully');
+      console.log('Usermonk widget loaded successfully');
     };
     s.onerror = function(error) {
-      console.error('Failed to load Userbird widget');
+      console.error('Failed to load Usermonk widget');
     };
     d.head.appendChild(s);
   })(window, document);
@@ -111,14 +111,14 @@ Step 3: Open the widget programmatically (optional)
 You can also open the widget programmatically from anywhere in your code:
 
 \`\`\`html
-<button onclick="UserBird.open(this)">Open Feedback Form</button>
+<button onclick="UserMonk.open(this)">Open Feedback Form</button>
 \`\`\`
 
 Or using JavaScript:
 
 \`\`\`javascript
 document.getElementById('my-custom-button').addEventListener('click', function() {
-  UserBird.open(this);
+  UserMonk.open(this);
 });
 \`\`\`
 
@@ -126,22 +126,22 @@ Step 4: Verify it's working
 
 When implemented correctly:
 1. Your button should be visible on your page
-2. Clicking the button will open the Userbird feedback form as a modal dialog
+2. Clicking the button will open the Usermonk feedback form as a modal dialog
 3. The form will allow users to submit feedback directly to your dashboard
 
 Common issues:
 • URL mismatch: When testing locally, make sure your form's allowed domain matches your test URL (e.g., http://localhost:3000)
 • Script placement: Make sure the initialization script is before the closing </body> tag
-• Button ID: The ID format \`userbird-trigger-${formId}\` is required for the keyboard shortcut to work correctly
-• Order matters: Initialize the widget before using UserBird.open()
+• Button ID: The ID format \`usermonk-trigger-${formId}\` is required for the keyboard shortcut to work correctly
+• Order matters: Initialize the widget before using UserMonk.open()
 • If formId error: Verify you're using the exact formId: \`${formId}\`
-• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'userbird.netlify.app' in the connect-src directive
+• CSP error: If you see "Refused to connect" errors, check that your Content-Security-Policy includes 'usermonk.netlify.app' in the connect-src directive
 
 Key features:
-• UserBird.open() - Opens the feedback form from anywhere in your code
-• UserBird.formId - Connects feedback to your specific form
-• UserBird.user - Add user context (id, email, name) for better feedback tracking
-• Keyboard shortcut: Press 'F' to open the form when a button with id="userbird-trigger-\`${formId}\`" exists
+• UserMonk.open() - Opens the feedback form from anywhere in your code
+• UserMonk.formId - Connects feedback to your specific form
+• UserMonk.user - Add user context (id, email, name) for better feedback tracking
+• Keyboard shortcut: Press 'F' to open the form when a button with id="usermonk-trigger-\`${formId}\`" exists
 `;
 
   // Function to format content consistently using a simpler approach with divs
