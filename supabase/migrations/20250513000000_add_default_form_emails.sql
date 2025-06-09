@@ -41,6 +41,6 @@ BEGIN
   END IF;
   
   -- Fallback to system default
-  RETURN 'notifications@userbird.co';
+  RETURN 'notifications@usermonk.com';
 END;
 $$ LANGUAGE plpgsql; 

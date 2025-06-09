@@ -18,8 +18,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Default sender email to fall back to
-const DEFAULT_SENDER = 'notifications@userbird.co';
-const DEFAULT_SENDER_NAME = 'Userbird';
+const DEFAULT_SENDER = 'notifications@usermonk.com';
+const DEFAULT_SENDER_NAME = 'Usermonk';
 
 // Create local copies of the utility functions since Netlify functions can't import from src folder
 /**
@@ -286,8 +286,8 @@ export class EmailService {
         html = processMarkdownSyntax(params.text);
       }
       
-      // Skip sanitization for notifications@userbird.co emails to preserve styling
-      if (params.from !== 'notifications@userbird.co' && !params.from?.includes('notifications@userbird.co')) {
+        // Skip sanitization for notifications@usermonk.com emails to preserve styling
+  if (params.from !== 'notifications@usermonk.com' && !params.from?.includes('notifications@usermonk.com')) {
         // Sanitize HTML content to prevent security issues
         html = sanitizeHtml(html);
       }
@@ -301,7 +301,7 @@ export class EmailService {
       
       // Add branded footer to outbound emails if branding is not disabled
       // Only add to admin/agent replies from the dashboard (not for system notifications)
-      if (params.feedbackId && params.from && !params.from.includes('notifications@userbird.co')) {
+      if (params.feedbackId && params.from && !params.from.includes('notifications@usermonk.com')) {
         // Extract form_id from the feedbackId
         const { data: feedbackData } = await supabase
           .from('feedback')
@@ -531,7 +531,7 @@ We run on Userbird (https://app.userbird.co)
         hasHeaders: !!Object.keys(headers).length,
         messageId,
         inReplyTo: params.inReplyTo,
-        skipSanitization: params.from === 'notifications@userbird.co' || params.from?.includes('notifications@userbird.co')
+        skipSanitization: params.from === 'notifications@usermonk.com' || params.from?.includes('notifications@usermonk.com')
       });
 
       const result = await sgMail.send(msg);
@@ -597,7 +597,7 @@ We run on Userbird (https://app.userbird.co)
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Always use notifications@userbird.co for new feedback notifications and assignment notifications
+    // Always use notifications@usermonk.com for new feedback notifications and assignment notifications
     const from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
     const isNotificationsEmail = true;
 
@@ -804,7 +804,7 @@ ${secureImageUrl}
 
 View Online: ${primaryActionUrl}`;
 
-    // For notifications@userbird.co, send directly to avoid any potential sanitization
+    // For notifications@usermonk.com, send directly to avoid any potential sanitization
     if (isNotificationsEmail) {
       const messageId = `<feedback-notification-${feedbackId}@userbird.co>`;
       try {

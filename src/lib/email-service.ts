@@ -4,8 +4,8 @@ import sgMail from '@sendgrid/mail';
 sgMail.setApiKey(process.env.VITE_SENDGRID_API_KEY || '');
 
 // Default sender information
-const DEFAULT_SENDER = 'notifications@userbird.co';
-const DEFAULT_SENDER_NAME = 'Userbird';
+const DEFAULT_SENDER = 'notifications@usermonk.com';
+const DEFAULT_SENDER_NAME = 'Usermonk';
 
 export interface EmailParams {
   to: string;
@@ -76,7 +76,7 @@ export class EmailService {
     const showUserInfo = user_id || user_email || user_name || url_path;
     const showSystemInfo = operating_system || screen_category;
 
-    // Always use notifications@userbird.co for new feedback notifications
+    // Always use notifications@usermonk.com for new feedback notifications
     const from = `${DEFAULT_SENDER_NAME} <${DEFAULT_SENDER}>`;
 
     // Create HTML version with proper styling matching the template - don't sanitize this template
