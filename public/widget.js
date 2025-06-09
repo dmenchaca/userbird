@@ -776,13 +776,7 @@
           <!-- GIF will be dynamically added here if enabled -->
           <div class="usermonk-branding${window.UserMonk?.removeBranding ? ' usermonk-branding-hidden' : ''}">
             <a href="https://app.usermonk.com/?ref=widget&domain=${encodeURIComponent(window.location.hostname)}" class="usermonk-branding-link" target="_blank" rel="noopener noreferrer">
-              We run on 
-              <svg width="16" height="16" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" class="usermonk-branding-icon">
-                <circle cx="11" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M6 21v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-              🌀 Usermonk
+              We run on 🌀 Usermonk
             </a>
           </div>
         </div>
