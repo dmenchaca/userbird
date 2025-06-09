@@ -5,7 +5,7 @@
 // - To completely disable: Set window.UserMonk.disableConsoleCapture = true (overrides backend setting)
 //
 (function() {
-  const API_BASE_URL = 'https://userbird.netlify.app';
+  const API_BASE_URL = 'https://usermonk.netlify.app';
   let settingsLoaded = false;
   let settingsPromise = null;
   let selectedImage = null;
