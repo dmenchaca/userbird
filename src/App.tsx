@@ -8,13 +8,11 @@ import { FormView } from './pages/form-view';
 import { useWorkspaceSetupCheck } from './lib/hooks/useWorkspaceSetupCheck';
 import { WorkspaceSetupWizard } from './components/workspace-setup-wizard';
 import { RebrandAnnouncement } from './components/rebrand-announcement';
-import { useAuth } from './lib/auth';
 import { useEffect } from 'react';
 import Step5Test from './pages/test-components/step5-test';
 
 export default function App() {
   const { needsSetupWizard } = useWorkspaceSetupCheck();
-  const { user } = useAuth();
 
   // Log the workspace setup check result when it changes
   useEffect(() => {
