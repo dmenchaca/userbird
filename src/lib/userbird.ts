@@ -40,7 +40,7 @@ class WidgetManager {
         
         script.onerror = () => {
           this.initPromise = null;
-          reject(new Error('Failed to load Userbird widget'));
+          reject(new Error('Failed to load Usermonk widget'));
         };
         
         document.head.appendChild(script);

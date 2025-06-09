@@ -134,12 +134,12 @@ document.getElementById('my-feedback-button').addEventListener('click', function
     <pre><code>&lt;!-- Userbird Widget Initialization --&gt;
 &lt;script&gt;
   (function(w,d,s) {
-    // Initialize Userbird widget
-    w.UserBird = w.UserBird || {};
-    w.UserBird.formId = "YOUR_FORM_ID";
+    // Initialize Usermonk widget
+    w.UserMonk = w.UserMonk || {};
+    w.UserMonk.formId = "YOUR_FORM_ID";
     
     // Optional: Add user information
-    w.UserBird.user = {
+    w.UserMonk.user = {
       id: 'user-123',                 // Your user's ID
       email: 'user@example.com',      // User's email
       name: 'John Doe'                // User's name
@@ -149,10 +149,10 @@ document.getElementById('my-feedback-button').addEventListener('click', function
     s = d.createElement('script');
     s.src = 'https://usermonk.netlify.app/widget.js';
     s.onload = function() {
-      console.log('Userbird widget loaded successfully');
+      console.log('Usermonk widget loaded successfully');
     };
     s.onerror = function(error) {
-      console.error('Failed to load Userbird widget');
+      console.error('Failed to load Usermonk widget');
     };
     d.head.appendChild(s);
   })(window, document);
@@ -162,11 +162,11 @@ document.getElementById('my-feedback-button').addEventListener('click', function
   <!-- Userbird Widget Initialization -->
   <script>
     // This would be the actual initialization in a real implementation
-    // For demo purposes, we're just creating a mock UserBird object
-    window.UserBird = window.UserBird || {};
-    window.UserBird.formId = "4hNUB7DVhf";
-    window.UserBird.open = function(trigger) {
-      alert('Userbird widget would open here. Trigger: ' + (trigger ? trigger.tagName : 'none'));
+    // For demo purposes, we're just creating a mock UserMonk object
+    window.UserMonk = window.UserMonk || {};
+    window.UserMonk.formId = "4hNUB7DVhf";
+    window.UserMonk.open = function(trigger) {
+      alert('Usermonk widget would open here. Trigger: ' + (trigger ? trigger.tagName : 'none'));
     };
   </script>
 </body>

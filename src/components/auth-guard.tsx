@@ -4,8 +4,8 @@ import { useAuth } from '@/lib/auth'
 import { Loader } from 'lucide-react'
 import { useWorkspaceSetupCheck } from '@/lib/hooks/useWorkspaceSetupCheck'
 
-// Simple utility function to update Userbird with user data
-function updateUserbirdUserData(user: any) {
+// Simple utility function to update Usermonk with user data
+function updateUsermonkUserData(user: any) {
   if (!user || typeof window.UserMonk === 'undefined') return;
   
   try {
@@ -21,17 +21,17 @@ function updateUserbirdUserData(user: any) {
         email: user.email,
         name: name
       });
-      // console.log('Updated Userbird widget with user data using setUserInfo');
+      // console.log('Updated Usermonk widget with user data using setUserInfo');
     } 
     // Fall back to directly setting the properties
     else {
       (window.UserMonk as any).email = user.email;
       (window.UserMonk as any).name = name;
       (window.UserMonk as any).userId = user.id;
-      // console.log('Updated Userbird widget with user data directly');
+              // console.log('Updated Usermonk widget with user data directly');
     }
   } catch (error) {
-    console.error('Error updating Userbird user data:', error);
+    console.error('Error updating Usermonk user data:', error);
   }
 }
 
@@ -51,10 +51,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [user, loading, initialized, navigate])
 
-  // Update the Userbird widget with user data when available
+  // Update the Usermonk widget with user data when available
   useEffect(() => {
     if (user) {
-      updateUserbirdUserData(user);
+      updateUsermonkUserData(user);
     }
   }, [user]);
 

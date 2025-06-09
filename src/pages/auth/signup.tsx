@@ -9,7 +9,7 @@ export function SignupPage() {
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Bird className="size-4" />
           </div>
-          Userbird
+                        Usermonk
         </a>
         <AuthForm mode="signup" />
       </div>

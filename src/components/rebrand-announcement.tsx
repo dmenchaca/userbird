@@ -31,7 +31,7 @@ export function RebrandAnnouncement() {
             <Megaphone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <AlertDescription className="text-sm font-medium text-foreground m-0 flex flex-wrap items-center gap-1">
               <span>
-                <span className="text-muted-foreground">Userbird is now</span>{' '}
+                <span className="text-muted-foreground">We are now</span>{' '}
                 <span className="font-bold text-foreground bg-accent px-2 py-0.5 rounded-md">Usermonk</span>{' '}
               </span>
               <span className="text-muted-foreground">—</span>

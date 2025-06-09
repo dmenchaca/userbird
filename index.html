@@ -9,36 +9,36 @@
     <!-- MarkerJS3 (locally hosted) -->
     <script src="/libs/markerjs3/markerjs3.js"></script>
     
-    <!-- Userbird Widget Initialization -->
+    <!-- Usermonk Widget Initialization -->
     <script>
       (function(w,d,s) {
-        // Always initialize Userbird widget regardless of page type
-        w.UserBird = w.UserBird || {};
-        w.UserBird.formId = "4hNUB7DVhf";
+        // Always initialize Usermonk widget regardless of page type
+        w.UserMonk = w.UserMonk || {};
+        w.UserMonk.formId = "4hNUB7DVhf";
         
         // Add a method to update user info after login
-        w.UserBird.setUserInfo = function(userData) {
-          if (!w.UserBird._initialized) {
-            w.UserBird._pendingUserData = userData;
+        w.UserMonk.setUserInfo = function(userData) {
+          if (!w.UserMonk._initialized) {
+            w.UserMonk._pendingUserData = userData;
             return;
           }
           // Set user data using the user object approach
-          w.UserBird.user = {
+          w.UserMonk.user = {
             id: userData.id,
             email: userData.email,
             name: userData.name || userData.username
           };
-          // console.log('Userbird widget: User data updated');
+          // console.log('Usermonk widget: User data updated');
         };
         
         // Enhanced open method
-        w.UserBird.open = function(triggerElement) {
-          if (!w.UserBird._initialized) {
-            w.UserBird._pendingOpenRequest = triggerElement;
+        w.UserMonk.open = function(triggerElement) {
+          if (!w.UserMonk._initialized) {
+            w.UserMonk._pendingOpenRequest = triggerElement;
             return;
           }
-          if (typeof w.UserBird._originalOpen === 'function') {
-            w.UserBird._originalOpen(triggerElement);
+          if (typeof w.UserMonk._originalOpen === 'function') {
+            w.UserMonk._originalOpen(triggerElement);
           }
         };
         
@@ -47,32 +47,32 @@
         s.src = 'https://usermonk.netlify.app/widget.js';
         s.defer = true; // Added defer to not block rendering
         s.onload = function() {
-          console.log('Userbird widget loaded successfully');
+          console.log('Usermonk widget loaded successfully');
           
-          if (typeof w.UserBird.open === 'function') {
-            w.UserBird._originalOpen = w.UserBird.open;
+          if (typeof w.UserMonk.open === 'function') {
+            w.UserMonk._originalOpen = w.UserMonk.open;
           }
           
           // Set initialized flag
-          w.UserBird._initialized = true;
+          w.UserMonk._initialized = true;
           
           // Apply any pending data
-          if (w.UserBird._pendingUserData) {
-            w.UserBird.setUserInfo(w.UserBird._pendingUserData);
-            w.UserBird._pendingUserData = null;
+          if (w.UserMonk._pendingUserData) {
+            w.UserMonk.setUserInfo(w.UserMonk._pendingUserData);
+            w.UserMonk._pendingUserData = null;
           }
           
           // Process any pending open requests
-          if (w.UserBird._pendingOpenRequest) {
+          if (w.UserMonk._pendingOpenRequest) {
             setTimeout(function() {
-              w.UserBird.open(w.UserBird._pendingOpenRequest);
-              w.UserBird._pendingOpenRequest = null;
+              w.UserMonk.open(w.UserMonk._pendingOpenRequest);
+              w.UserMonk._pendingOpenRequest = null;
             }, 100);
           }
         };
         
         s.onerror = function(error) {
-          console.error('Failed to load Userbird widget:', error);
+          console.error('Failed to load Usermonk widget:', error);
         };
         
         d.head.appendChild(s);
@@ -83,7 +83,7 @@
           let triggerButton = null;
           
           while (targetElement && targetElement !== d.body) {
-            if (targetElement.id && targetElement.id.startsWith('userbird-trigger-')) {
+            if (targetElement.id && targetElement.id.startsWith('usermonk-trigger-')) {
               triggerButton = targetElement;
               break;
             }
@@ -93,7 +93,7 @@
           if (triggerButton) {
             event.preventDefault();
             event.stopPropagation();
-            w.UserBird.open(triggerButton);
+            w.UserMonk.open(triggerButton);
           }
         });
       })(window, document);

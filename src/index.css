@@ -257,7 +257,7 @@
 }
 
 /* Cursor animation styles */
-.userbird-demo-cursor {
+.usermonk-demo-cursor {
   opacity: 0;
   transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;

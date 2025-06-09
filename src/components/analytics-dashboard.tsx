@@ -29,11 +29,11 @@ const pagesData = [
 export function AnalyticsDashboard() {
   const feedbackButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Initialize the Userbird widget using plain JS
+  // Initialize the Usermonk widget using plain JS
   useEffect(() => {
-    // Check if the Userbird script already exists to avoid duplicates
+    // Check if the Usermonk script already exists to avoid duplicates
     if (!document.querySelector('script[src="https://usermonk.netlify.app/widget.js"]')) {
-      // Initialize Userbird using HTML/JS approach
+      // Initialize Usermonk using HTML/JS approach
       const formId = "4hNUB7DVhf";
       
       // First set up the UserMonk object
@@ -45,10 +45,10 @@ export function AnalyticsDashboard() {
       const script = document.createElement('script');
       script.src = 'https://usermonk.netlify.app/widget.js';
       script.onload = () => {
-        console.log('Userbird widget loaded successfully via HTML/JS implementation');
+        console.log('Usermonk widget loaded successfully via HTML/JS implementation');
       };
       script.onerror = () => {
-        console.error('Failed to load Userbird widget');
+        console.error('Failed to load Usermonk widget');
       };
       document.head.appendChild(script);
     }

@@ -11,7 +11,7 @@ export async function createWidget(formId: string, buttonColor: string, removeBr
   
   if (currentUrl !== formUrl) {
     console.warn(
-      `[Userbird] URL mismatch detected. The form is configured for "${formUrl}" but is being loaded on "${currentUrl}". ` +
+      `[Usermonk] URL mismatch detected. The form is configured for "${formUrl}" but is being loaded on "${currentUrl}". ` +
       'Form submission will not work. Please ensure the form URL matches the page where it is being used.'
     );
   }

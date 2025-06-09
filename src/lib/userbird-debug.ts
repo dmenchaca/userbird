@@ -1,14 +1,14 @@
 /**
- * Utility functions for debugging the Userbird widget integration
+ * Utility functions for debugging the Usermonk widget integration
  */
 
 /**
- * Checks and logs the status of the Userbird widget
+ * Checks and logs the status of the Usermonk widget
  * Use this function to debug widget initialization issues
  */
-export function checkUserbirdStatus() {
+export function checkUsermonkStatus() {
   const w = window as any;
-  console.log('Userbird status:', {
+  console.log('Usermonk status:', {
     exists: !!w.UserMonk,
     initialized: w.UserMonk?._initialized,
     formId: w.UserMonk?.formId,
@@ -24,14 +24,14 @@ export function checkUserbirdStatus() {
 }
 
 /**
- * Manually updates user data in the Userbird widget
+ * Manually updates user data in the Usermonk widget
  * @param userData Object containing user data
  */
-export function updateUserbirdUser(userData: { id?: string; email?: string; name?: string }) {
+export function updateUsermonkUser(userData: { id?: string; email?: string; name?: string }) {
   const w = window as any;
   
   if (!w.UserMonk) {
-    console.error('Userbird widget not found');
+    console.error('Usermonk widget not found');
     return;
   }
   
@@ -39,7 +39,7 @@ export function updateUserbirdUser(userData: { id?: string; email?: string; name
     // Try the setUserInfo method first if available
     if (typeof w.UserMonk.setUserInfo === 'function') {
       w.UserMonk.setUserInfo(userData);
-      // console.log('Updated Userbird widget with user data using setUserInfo');
+      // console.log('Updated Usermonk widget with user data using setUserInfo');
     } 
     // Fall back to directly setting the user object
     else {
@@ -48,33 +48,33 @@ export function updateUserbirdUser(userData: { id?: string; email?: string; name
         email: userData.email,
         name: userData.name
       };
-      // console.log('Updated Userbird widget with user data using user object');
+      // console.log('Updated Usermonk widget with user data using user object');
     }
   } catch (error) {
-    console.error('Error updating Userbird user data:', error);
+    console.error('Error updating Usermonk user data:', error);
   }
 }
 
 /**
- * Manually opens the Userbird widget
+ * Manually opens the Usermonk widget
  * Useful for testing if the widget is properly initialized
  */
-export function openUserbirdWidget() {
+export function openUsermonkWidget() {
   const w = window as any;
   
   if (!w.UserMonk) {
-    console.error('Userbird widget not found');
+    console.error('Usermonk widget not found');
     return;
   }
   
   try {
     if (typeof w.UserMonk.open === 'function') {
       w.UserMonk.open();
-      console.log('Opened Userbird widget programmatically');
+      console.log('Opened Usermonk widget programmatically');
     } else {
-      console.error('Userbird open method not available');
+      console.error('Usermonk open method not available');
     }
   } catch (error) {
-    console.error('Error opening Userbird widget:', error);
+    console.error('Error opening Usermonk widget:', error);
   }
 } 

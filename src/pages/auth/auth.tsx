@@ -21,7 +21,7 @@ export function AuthPage() {
           
           // Check localStorage to see if we've shown animation in this browser session 
           // We'll use localStorage instead of sessionStorage so it persists across refreshes
-          const hasSeenAnimation = localStorage.getItem('userbird_demo_shown');
+          const hasSeenAnimation = localStorage.getItem('usermonk_demo_shown');
           
           // Check if page was refreshed - modern approach
           const pageRefreshed = window.performance && 
@@ -39,7 +39,7 @@ export function AuthPage() {
           }
           
           // Set the flag to indicate animation has been shown
-          localStorage.setItem('userbird_demo_shown', 'true');
+          localStorage.setItem('usermonk_demo_shown', 'true');
           
           // Debug: Check if widget elements exist in DOM
           console.log('🔍 Checking DOM for widget elements...');
