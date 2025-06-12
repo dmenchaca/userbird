@@ -1053,11 +1053,15 @@ class ScreenshotDialog {
 
       // console.log('📸 Using browser Screen Capture API...');
       
-      // Request screen capture with user authorization
+      // Request screen capture with constraints that prefer current tab
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          mediaSource: 'screen'
-        }
+          mediaSource: 'browser', // Prefer browser tab over screen/window
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false, // We don't need audio for screenshots
+        preferCurrentTab: true // Chrome-specific hint to prefer current tab
       });
 
       // Create video element to capture the stream
