@@ -160,7 +160,7 @@ class ScreenshotDialog {
       box-sizing: border-box;
     `;
 
-    // Create dialog content
+    // Create dialog content (combines previous dialog + container)
     this.dialog = document.createElement('div');
     this.dialog.className = 'screenshot-dialog-content';
     this.dialog.style.cssText = `
@@ -174,14 +174,9 @@ class ScreenshotDialog {
       margin: 0 !important;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
       border: 1px solid var(--ssd-border-color) !important;
-      top: auto !important;
-      left: auto !important;
-      right: auto !important;
-      bottom: auto !important;
-      transform: none !important;
-      display: block !important;
-      float: none !important;
-      clear: both !important;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     `;
 
     // Create close button in top right corner
@@ -228,19 +223,6 @@ class ScreenshotDialog {
       this.close();
     });
 
-    // Create container for image and annotations
-    this.container = document.createElement('div');
-    this.container.className = 'screenshot-container';
-    this.container.style.cssText = `
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--ssd-border-color);
-      border-radius: 6px;
-      overflow: hidden;
-    `;
-
     // Create title element
     this.titleElement = document.createElement('div');
     this.titleElement.className = 'screenshot-dialog-title';
@@ -254,6 +236,22 @@ class ScreenshotDialog {
       border-bottom: 1px solid var(--ssd-border-color);
       text-align: left;
       border-radius: 8px 8px 0 0;
+      flex-shrink: 0;
+    `;
+
+    // Create image container (simplified)
+    this.imageContainer = document.createElement('div');
+    this.imageContainer.className = 'screenshot-image-container';
+    this.imageContainer.style.cssText = `
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--ssd-border-color);
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+      flex: 1;
+      min-height: 0;
     `;
 
     // Create image element
@@ -268,12 +266,12 @@ class ScreenshotDialog {
     // Create toolbar
     this.createToolbar();
 
-    // Assemble dialog (back to original structure)
-    this.container.appendChild(this.imageElement);
-    this.container.appendChild(this.toolbar);
+    // Assemble dialog (simplified structure)
+    this.imageContainer.appendChild(this.imageElement);
+    this.imageContainer.appendChild(this.toolbar);
     this.dialog.appendChild(this.closeButton);
     this.dialog.appendChild(this.titleElement);
-    this.dialog.appendChild(this.container);
+    this.dialog.appendChild(this.imageContainer);
     this.overlay.appendChild(this.dialog);
     document.body.appendChild(this.overlay);
   }
@@ -290,15 +288,10 @@ class ScreenshotDialog {
       user-select: none;
       transition: all 0.1s ease;
       display: none;
-    `;
-
-    this.toolbarContent = document.createElement('div');
-    this.toolbarContent.style.cssText = `
       background: var(--ssd-toolbar-background);
       border-radius: 8px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       padding: 12px;
-      display: flex;
       gap: 12px;
       align-items: center;
       border: 1px solid var(--ssd-border-color);
@@ -336,8 +329,7 @@ class ScreenshotDialog {
       this.dragHandle.style.backgroundColor = 'transparent';
     });
 
-    this.toolbarContent.appendChild(this.dragHandle);
-    this.toolbar.appendChild(this.toolbarContent);
+    this.toolbar.appendChild(this.dragHandle);
   }
 
   createButton(iconSvg, text, tooltip, onClick, variant = 'outline') {
@@ -603,7 +595,7 @@ class ScreenshotDialog {
   handleMouseMove(e) {
     if (!this.isDragging) return;
 
-    const containerRect = this.container.getBoundingClientRect();
+    const containerRect = this.imageContainer.getBoundingClientRect();
     const newLeft = e.clientX - containerRect.left - this.dragOffset.x;
     const newTop = e.clientY - containerRect.top - this.dragOffset.y;
 
@@ -821,7 +813,7 @@ class ScreenshotDialog {
   }
 
   async startAnnotation() {
-    if (!this.imageElement || !this.container) return;
+    if (!this.imageElement || !this.imageContainer) return;
 
     // console.log('🎨 Starting annotation mode');
     // console.log('🔗 Image source for annotation:', this.imageElement.src?.substring(0, 50) + '...');
@@ -834,7 +826,7 @@ class ScreenshotDialog {
       
       this.markerArea = new MarkerArea();
       this.markerArea.targetImage = this.imageElement;
-      this.container.appendChild(this.markerArea);
+      this.imageContainer.appendChild(this.markerArea);
 
       this.isAnnotationReady = true;
       // console.log('✅ Annotation mode ready - MarkerArea initialized');
@@ -961,13 +953,14 @@ class ScreenshotDialog {
     // console.log('updateToolbar called - annotatedImage exists:', !!this.annotatedImage, 'isAnnotationReady:', this.isAnnotationReady, 'markerArea exists:', !!this.markerArea);
     
     // Clear existing tools
-    const existingTools = this.toolbarContent.querySelector('.toolbar-tools');
+    const existingTools = this.toolbar.querySelector('.toolbar-tools');
     if (existingTools) {
       existingTools.remove();
     }
 
     const toolsContainer = document.createElement('div');
     toolsContainer.className = 'toolbar-tools';
+    toolsContainer.style.cssText = 'display: flex; gap: 12px; align-items: center;';
 
     // Check if toolbar was previously hidden to determine if we should animate
     const wasHidden = this.toolbar.style.display === 'none';
@@ -977,12 +970,14 @@ class ScreenshotDialog {
     if (this.isAnnotationReady && this.markerArea && !this.annotatedImage) {
       // console.log('Creating annotation tools');
       toolsContainer.appendChild(this.createAnnotationTools());
+      this.toolbar.style.display = 'flex';
       this.showToolbarWithAnimation(wasHidden);
     }
     // Show preview tools when: annotatedImage exists (regardless of mode)
     else if (this.annotatedImage) {
       // console.log('Creating preview tools');
       toolsContainer.appendChild(this.createPreviewTools());
+      this.toolbar.style.display = 'flex';
       this.showToolbarWithAnimation(wasHidden);
     }
     else {
@@ -992,7 +987,7 @@ class ScreenshotDialog {
       this.toolbar.classList.remove('magical-appear');
     }
 
-    this.toolbarContent.appendChild(toolsContainer);
+    this.toolbar.appendChild(toolsContainer);
   }
 
   showToolbarWithAnimation(wasHidden) {
