@@ -104,21 +104,15 @@ class ScreenshotDialog {
       @keyframes magicalAppear {
         0% {
           opacity: 0;
-          transform: translateX(-50%) translateY(20px) scale(0.9);
-          filter: blur(8px) brightness(1.3);
-          box-shadow: 0 0 30px rgba(255, 255, 255, 0);
+          transform: translateX(-50%) translateY(10px) scale(0.95);
+          filter: blur(2px) brightness(0.8);
+          box-shadow: 0 0 0 rgba(0, 0, 0, 0);
         }
-        30% {
-          opacity: 0.6;
-          transform: translateX(-50%) translateY(5px) scale(0.95);
-          filter: blur(4px) brightness(1.15);
-          box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
-        }
-        60% {
-          opacity: 0.9;
-          transform: translateX(-50%) translateY(-2px) scale(1.02);
-          filter: blur(1px) brightness(1.05);
-          box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        50% {
+          opacity: 0.8;
+          transform: translateX(-50%) translateY(-5px) scale(1.02);
+          filter: blur(1px) brightness(1.1);
+          box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.08);
         }
         100% {
           opacity: 1;
@@ -234,6 +228,21 @@ class ScreenshotDialog {
       overflow: hidden;
     `;
 
+    // Create title element
+    this.titleElement = document.createElement('div');
+    this.titleElement.className = 'screenshot-dialog-title';
+    this.titleElement.textContent = 'Highlight or hide info on your screenshot';
+    this.titleElement.style.cssText = `
+      padding: 16px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ssd-text);
+      background: var(--ssd-background);
+      border-bottom: 1px solid var(--ssd-border-color);
+      text-align: center;
+      border-radius: 8px 8px 0 0;
+    `;
+
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
@@ -250,6 +259,7 @@ class ScreenshotDialog {
     this.container.appendChild(this.imageElement);
     this.container.appendChild(this.toolbar);
     this.dialog.appendChild(this.closeButton);
+    this.dialog.appendChild(this.titleElement);
     this.dialog.appendChild(this.container);
     this.overlay.appendChild(this.dialog);
     document.body.appendChild(this.overlay);
@@ -261,7 +271,7 @@ class ScreenshotDialog {
     this.toolbar.style.cssText = `
       position: absolute;
       z-index: 10001;
-      top: 10px;
+      bottom: 10px;
       left: 50%;
       transform: translateX(-50%);
       user-select: none;
@@ -1004,12 +1014,15 @@ class ScreenshotDialog {
 
   isToolbarDragged() {
     // Check if toolbar has been moved from its default centered position
-    // Default position has left: 50% and transform: translateX(-50%)
+    // Default position has left: 50%, bottom: 10px, and transform: translateX(-50%)
     const currentLeft = this.toolbar.style.left;
+    const currentBottom = this.toolbar.style.bottom;
     const currentTransform = this.toolbar.style.transform;
     
-    // If left is a pixel value (not 50%) or transform is 'none', it was dragged
-    return (currentLeft && currentLeft !== '50%') || currentTransform === 'none';
+    // If left is a pixel value (not 50%), bottom is not 10px, or transform is 'none', it was dragged
+    return (currentLeft && currentLeft !== '50%') || 
+           (currentBottom && currentBottom !== '10px') || 
+           currentTransform === 'none';
   }
 
   async captureScreenshot() {
