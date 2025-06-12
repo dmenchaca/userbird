@@ -153,8 +153,8 @@ class ScreenshotDialog {
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
       outline: none;
-      display: grid;
-      place-items: center;
+      align-items: center;
+      justify-content: center;
       padding: 20px !important;
       margin: 0 !important;
       box-sizing: border-box;
@@ -234,21 +234,18 @@ class ScreenshotDialog {
     this.container.style.cssText = `
       position: relative;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: center;
       border: 1px solid var(--ssd-border-color);
       border-radius: 6px;
       overflow: hidden;
-      background: var(--ssd-background);
     `;
 
-    // Create title element (now inside container)
+    // Create title element
     this.titleElement = document.createElement('div');
     this.titleElement.className = 'screenshot-dialog-title';
     this.titleElement.textContent = 'Highlight or hide info on your screenshot';
     this.titleElement.style.cssText = `
-      width: 100%;
       padding: 16px 24px;
       font-size: 18px;
       font-weight: 600;
@@ -257,20 +254,6 @@ class ScreenshotDialog {
       border-bottom: 1px solid var(--ssd-border-color);
       text-align: left;
       border-radius: 8px 8px 0 0;
-      flex-shrink: 0;
-    `;
-
-    // Create image container
-    this.imageContainer = document.createElement('div');
-    this.imageContainer.className = 'screenshot-image-container';
-    this.imageContainer.style.cssText = `
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      width: 100%;
-      min-height: 200px;
     `;
 
     // Create image element
@@ -285,12 +268,11 @@ class ScreenshotDialog {
     // Create toolbar
     this.createToolbar();
 
-    // Assemble dialog with new structure
-    this.imageContainer.appendChild(this.imageElement);
-    this.imageContainer.appendChild(this.toolbar);
-    this.container.appendChild(this.titleElement);
-    this.container.appendChild(this.imageContainer);
+    // Assemble dialog (back to original structure)
+    this.container.appendChild(this.imageElement);
+    this.container.appendChild(this.toolbar);
     this.dialog.appendChild(this.closeButton);
+    this.dialog.appendChild(this.titleElement);
     this.dialog.appendChild(this.container);
     this.overlay.appendChild(this.dialog);
     document.body.appendChild(this.overlay);
@@ -746,8 +728,8 @@ class ScreenshotDialog {
     // Reset image to original state before opening
     this.resetImageElement();
 
-    // Show overlay with grid centering
-    this.overlay.style.display = 'grid';
+    // Show overlay with flexbox centering
+    this.overlay.style.display = 'flex';
     
     // Force recalculation and manual centering as backup
     setTimeout(() => {
