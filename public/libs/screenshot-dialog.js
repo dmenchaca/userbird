@@ -251,6 +251,8 @@ class ScreenshotDialog {
       overflow: hidden;
       flex: 1;
       min-height: 0;
+      max-height: calc(90vh - 80px);
+      max-width: 95vw;
     `;
 
     // Create image element
@@ -258,11 +260,8 @@ class ScreenshotDialog {
     this.imageElement.style.cssText = `
       max-width: 100%;
       max-height: 100%;
-      width: auto;
-      height: auto;
       object-fit: contain;
       image-rendering: auto;
-      display: block;
     `;
 
     // Create toolbar
