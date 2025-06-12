@@ -549,12 +549,8 @@ class ScreenshotDialog {
   }
 
   attachEventListeners() {
-    // Close on overlay click
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) {
-        this.close();
-      }
-    });
+    // Note: Removed click-outside-to-close behavior
+    // Dialog can only be closed via close button (X) or Done button
 
     // Toolbar dragging
     this.dragHandle.addEventListener('mousedown', this.handleMouseDown.bind(this));
@@ -608,8 +604,10 @@ class ScreenshotDialog {
     const toolbarWidth = this.toolbar.offsetWidth;
     const toolbarHeight = this.toolbar.offsetHeight;
 
-    const boundedLeft = Math.max(0, Math.min(newLeft, containerRect.width - toolbarWidth));
-    const boundedTop = Math.max(0, Math.min(newTop, containerRect.height - toolbarHeight));
+    // Add some padding to make dragging feel more natural
+    const padding = 20;
+    const boundedLeft = Math.max(-padding, Math.min(newLeft, containerRect.width - toolbarWidth + padding));
+    const boundedTop = Math.max(-padding, Math.min(newTop, containerRect.height - toolbarHeight + padding));
 
     this.toolbar.style.left = `${boundedLeft}px`;
     this.toolbar.style.top = `${boundedTop}px`;
