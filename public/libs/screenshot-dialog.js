@@ -281,7 +281,7 @@ class ScreenshotDialog {
     this.toolbar.style.cssText = `
       position: absolute;
       z-index: 10001;
-      bottom: 10px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       user-select: none;
@@ -406,7 +406,7 @@ class ScreenshotDialog {
         tooltipElement.textContent = text;
         tooltipElement.style.cssText = `
           position: absolute;
-          top: calc(100% + 8px);
+          bottom: calc(100% + 8px);
           left: 50%;
           transform: translateX(-50%) scale(0.95);
           background: var(--ssd-tooltip-background);
@@ -1008,14 +1008,14 @@ class ScreenshotDialog {
     // Only animate if toolbar was previously hidden
     if (wasHidden) {
       // Check if toolbar has been moved from its default centered position
-      // Default position has left: 50%, bottom: 10px, and transform: translateX(-50%)
+      // Default position has left: 50%, bottom: 20px, and transform: translateX(-50%)
       const currentLeft = this.toolbar.style.left;
       const currentBottom = this.toolbar.style.bottom;
       const currentTransform = this.toolbar.style.transform;
       
-      // If left is a pixel value (not 50%), bottom is not 10px, or transform is 'none', it was dragged
+      // If left is a pixel value (not 50%), bottom is not 20px, or transform is 'none', it was dragged
       if ((currentLeft && currentLeft !== '50%') || 
-          (currentBottom && currentBottom !== '10px') || 
+          (currentBottom && currentBottom !== '20px') || 
           currentTransform === 'none') {
         // If dragged, show immediately without animation to preserve position
         // console.log('Toolbar was dragged, showing without animation');
@@ -1042,14 +1042,14 @@ class ScreenshotDialog {
 
   isToolbarDragged() {
     // Check if toolbar has been moved from its default centered position
-    // Default position has left: 50%, bottom: 10px, and transform: translateX(-50%)
+    // Default position has left: 50%, bottom: 20px, and transform: translateX(-50%)
     const currentLeft = this.toolbar.style.left;
     const currentBottom = this.toolbar.style.bottom;
     const currentTransform = this.toolbar.style.transform;
     
-    // If left is a pixel value (not 50%), bottom is not 10px, or transform is 'none', it was dragged
+    // If left is a pixel value (not 50%), bottom is not 20px, or transform is 'none', it was dragged
     return (currentLeft && currentLeft !== '50%') || 
-           (currentBottom && currentBottom !== '10px') || 
+           (currentBottom && currentBottom !== '20px') || 
            currentTransform === 'none';
   }
 
