@@ -1013,8 +1013,8 @@ class ScreenshotDialog {
   }
 
   async captureScreenshot() {
-    if (this.isCapturing || typeof html2canvas === 'undefined') {
-      // console.log('Screenshot capture already in progress or html2canvas not loaded');
+    if (this.isCapturing) {
+      // console.log('Screenshot capture already in progress');
       return null;
     }
 
@@ -1026,7 +1026,95 @@ class ScreenshotDialog {
     // console.log('📸 Starting screenshot capture...');
 
     try {
-      // Using fallback sans-serif fonts for faster screenshots (no font loading delay)
+      // Check which screenshot method to use
+      const screenshotMethod = window.UserMonk?.settings?.screenshot_method || 'canvas';
+      
+      if (screenshotMethod === 'browser') {
+        // Use browser Screen Capture API
+        return await this.captureBrowserScreenshot();
+      } else {
+        // Use existing canvas method (html2canvas)
+        return await this.captureCanvasScreenshot();
+      }
+    } catch (error) {
+      console.error('❌ Screenshot capture failed:', error);
+      this.isCapturing = false;
+      return null;
+    }
+  }
+
+  async captureBrowserScreenshot() {
+    try {
+      // Check if browser supports Screen Capture API
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        console.warn('Browser Screen Capture API not supported, falling back to canvas method');
+        return await this.captureCanvasScreenshot();
+      }
+
+      // console.log('📸 Using browser Screen Capture API...');
+      
+      // Request screen capture with user authorization
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          mediaSource: 'screen'
+        }
+      });
+
+      // Create video element to capture the stream
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // Wait for video to load metadata and first frame
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          video.currentTime = 0;
+        };
+        video.onseeked = resolve;
+        video.onerror = reject;
+      });
+
+      // Create canvas to capture the video frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      // Stop all tracks to end the screen capture
+      stream.getTracks().forEach(track => track.stop());
+
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      // console.log('✅ Browser screenshot captured successfully');
+      
+      this.isCapturing = false;
+      return dataUrl;
+    } catch (error) {
+      console.error('❌ Browser screenshot capture failed:', error);
+      
+      // If user denied permission or API failed, fall back to canvas method
+      if (error.name === 'NotAllowedError' || error.name === 'NotSupportedError') {
+        console.log('🔄 Falling back to canvas screenshot method');
+        return await this.captureCanvasScreenshot();
+      }
+      
+      this.isCapturing = false;
+      return null;
+    }
+  }
+
+  async captureCanvasScreenshot() {
+    try {
+      // Check if html2canvas is available
+      if (typeof html2canvas === 'undefined') {
+        console.error('html2canvas not loaded');
+        this.isCapturing = false;
+        return null;
+      }
+
+      // console.log('📸 Using canvas screenshot method (html2canvas)...');
 
       // Only process images if we detect known problematic domains
       if (this.hasProblematicImages()) {
@@ -1067,7 +1155,7 @@ class ScreenshotDialog {
 
       // Convert to data URL immediately
       const dataUrl = canvas.toDataURL('image/png', 1.0);
-      // console.log('✅ Screenshot captured successfully');
+      // console.log('✅ Canvas screenshot captured successfully');
       
       // Add a short delay to ensure html2canvas has completely finished
       // processing all images before restoring originals
@@ -1079,7 +1167,7 @@ class ScreenshotDialog {
       this.isCapturing = false;
       return dataUrl;
     } catch (error) {
-      console.error('❌ Screenshot capture failed:', error);
+      console.error('❌ Canvas screenshot capture failed:', error);
       document.body.classList.remove('screenshot-mode');
       
       // Restore original image sources even if screenshot failed
