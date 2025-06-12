@@ -167,6 +167,7 @@ class ScreenshotDialog {
       position: relative !important;
       max-width: 95vw !important;
       width: auto !important;
+      height: 90vh !important;
       max-height: 90vh !important;
       background: var(--ssd-background) !important;
       border-radius: 8px !important;
@@ -251,15 +252,13 @@ class ScreenshotDialog {
       overflow: hidden;
       flex: 1;
       min-height: 0;
-      max-height: calc(90vh - 80px);
-      max-width: 95vw;
     `;
 
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
-      max-width: 100%;
-      max-height: 100%;
+      max-width: 95vw !important;
+      max-height: 70vh !important;
       object-fit: contain;
       image-rendering: auto;
     `;
@@ -770,8 +769,8 @@ class ScreenshotDialog {
     if (this.imageElement) {
       // Reset all possible CSS properties that might be modified by MarkerArea
       this.imageElement.style.cssText = `
-        max-width: 100%;
-        max-height: 100%;
+        max-width: 95vw;
+        max-height: 70vh;
         object-fit: contain;
         image-rendering: auto;
         width: auto;
