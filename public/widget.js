@@ -1050,6 +1050,7 @@
         const gifUrls = settings.gif_urls || [];
         const removeBranding = settings.remove_branding || false;
         const collectConsoleLogs = settings.collect_console_logs !== false; // Default to true
+        const screenshotMethod = settings.screenshot_method || 'canvas'; // Default to canvas
         
         injectStyles(buttonColor);
         modal = createModal();
@@ -1058,7 +1059,8 @@
         window.UserMonk.shortcut = keyboardShortcut;
         window.UserMonk.settings = {
           sound_enabled: soundEnabled,
-          collect_console_logs: collectConsoleLogs
+          collect_console_logs: collectConsoleLogs,
+          screenshot_method: screenshotMethod
         };
         window.UserMonk.showGifOnSuccess = showGifOnSuccess;
         window.UserMonk.gifUrls = gifUrls;
