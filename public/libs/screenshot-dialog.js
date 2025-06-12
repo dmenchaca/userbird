@@ -581,6 +581,9 @@ class ScreenshotDialog {
   handleMouseDown(e) {
     if (!this.dragHandle.contains(e.target)) return;
 
+    // Prevent any default behavior
+    e.preventDefault();
+
     const rect = this.toolbar.getBoundingClientRect();
     this.dragOffset = {
       x: e.clientX - rect.left,
@@ -590,25 +593,33 @@ class ScreenshotDialog {
     this.isDragging = true;
     this.dragHandle.style.cursor = 'grabbing';
 
-    document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    // Use passive: false to ensure preventDefault works
+    document.addEventListener('mousemove', this.handleMouseMove.bind(this), { passive: false });
     document.addEventListener('mouseup', this.handleMouseUp.bind(this));
   }
 
   handleMouseMove(e) {
     if (!this.isDragging) return;
 
+    // Prevent any default behavior that might interfere with dragging
+    e.preventDefault();
+
     const containerRect = this.imageContainer.getBoundingClientRect();
+    
+    // Calculate position relative to container, using mouse position directly
     const newLeft = e.clientX - containerRect.left - this.dragOffset.x;
     const newTop = e.clientY - containerRect.top - this.dragOffset.y;
 
+    // Use generous bounds to allow free movement in all directions
     const toolbarWidth = this.toolbar.offsetWidth;
     const toolbarHeight = this.toolbar.offsetHeight;
+    const padding = 50; // More generous padding for smoother movement
 
-    // Add some padding to make dragging feel more natural
-    const padding = 20;
+    // Apply bounds with equal constraints in all directions
     const boundedLeft = Math.max(-padding, Math.min(newLeft, containerRect.width - toolbarWidth + padding));
     const boundedTop = Math.max(-padding, Math.min(newTop, containerRect.height - toolbarHeight + padding));
 
+    // Apply the new position directly
     this.toolbar.style.left = `${boundedLeft}px`;
     this.toolbar.style.top = `${boundedTop}px`;
     this.toolbar.style.transform = 'none';
