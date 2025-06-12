@@ -165,9 +165,9 @@ class ScreenshotDialog {
     this.dialog.className = 'screenshot-dialog-content';
     this.dialog.style.cssText = `
       position: relative !important;
-      max-width: 95vw !important;
+      max-width: 98vw !important;
       width: auto !important;
-      max-height: 90vh !important;
+      max-height: 95vh !important;
       background: var(--ssd-background) !important;
       border-radius: 8px !important;
       padding: 0 !important;
@@ -256,8 +256,8 @@ class ScreenshotDialog {
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
-      max-width: 95vw !important;
-      max-height: 70vh !important;
+      max-width: 98vw !important;
+      max-height: 80vh !important;
       object-fit: contain;
       image-rendering: auto;
     `;
@@ -768,8 +768,8 @@ class ScreenshotDialog {
     if (this.imageElement) {
       // Reset all possible CSS properties that might be modified by MarkerArea
       this.imageElement.style.cssText = `
-        max-width: 95vw;
-        max-height: 70vh;
+        max-width: 98vw;
+        max-height: 80vh;
         object-fit: contain;
         image-rendering: auto;
         width: auto;
