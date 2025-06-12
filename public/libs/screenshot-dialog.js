@@ -1061,51 +1061,76 @@ class ScreenshotDialog {
           height: { ideal: 1080 }
         },
         audio: false, // We don't need audio for screenshots
-        preferCurrentTab: true // Chrome-specific hint to prefer current tab
+        preferCurrentTab: true // Hint to prefer current tab (Chrome-specific)
       });
 
-      // Create video element to capture the stream
+      // Create video element to capture frame from stream
       const video = document.createElement('video');
       video.srcObject = stream;
-      video.play();
-
-      // Wait for video to load metadata and first frame
-      await new Promise((resolve, reject) => {
+      video.autoplay = true;
+      video.muted = true;
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
         video.onloadedmetadata = () => {
-          video.currentTime = 0;
+          video.play();
+          resolve();
         };
-        video.onseeked = resolve;
-        video.onerror = reject;
       });
 
-      // Create canvas to capture the video frame
+      // Wait a bit for the video to start playing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Create canvas and capture the frame
       const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      const ctx = canvas.getContext('2d');
+      // Draw the video frame to canvas
       ctx.drawImage(video, 0, 0);
+      
+      // Convert to blob
+      const blob = await new Promise(resolve => {
+        canvas.toBlob(resolve, 'image/png');
+      });
 
-      // Stop all tracks to end the screen capture
-      stream.getTracks().forEach(track => track.stop());
+      // IMPORTANT: Stop all tracks immediately to remove "Stop sharing" dialog
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
 
-      // Convert to data URL
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      // Clean up video element
+      video.srcObject = null;
+
+      if (!blob) {
+        throw new Error('Failed to capture screenshot from browser stream');
+      }
+
+      // Convert blob to data URL for annotation
+      const reader = new FileReader();
+      const dataUrl = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
       // console.log('✅ Browser screenshot captured successfully');
-      
-      this.isCapturing = false;
       return dataUrl;
+
     } catch (error) {
-      console.error('❌ Browser screenshot capture failed:', error);
+      // console.error('❌ Browser screenshot failed:', error);
       
-      // If user denied permission or API failed, fall back to canvas method
-      if (error.name === 'NotAllowedError' || error.name === 'NotSupportedError') {
-        console.log('🔄 Falling back to canvas screenshot method');
+      // Handle user cancellation gracefully
+      if (error.name === 'NotAllowedError' || error.name === 'AbortError') {
+        // console.log('User cancelled screen capture, falling back to canvas method');
         return await this.captureCanvasScreenshot();
       }
       
-      this.isCapturing = false;
-      return null;
+      // For other errors, also fallback to canvas
+      console.warn('Browser screenshot failed, falling back to canvas method:', error.message);
+      return await this.captureCanvasScreenshot();
     }
   }
 
