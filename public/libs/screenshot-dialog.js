@@ -167,7 +167,7 @@ class ScreenshotDialog {
       position: relative !important;
       max-width: 95vw !important;
       width: auto !important;
-      max-height: 90vh !important;
+      max-height: 80vh !important;
       background: var(--ssd-background) !important;
       border-radius: 8px !important;
       padding: 0 !important;
@@ -259,8 +259,8 @@ class ScreenshotDialog {
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
-      max-width: 95vw;
-      max-height: 85vh;
+      max-width: 95vw !important;
+      max-height: 75vh !important;
       object-fit: contain;
       image-rendering: auto;
     `;
@@ -707,16 +707,6 @@ class ScreenshotDialog {
   }
 
   open(screenshotSrc, onSaveAnnotation = null, buttonColor = null) {
-    console.log('🔍 DIALOG OPEN DEBUG: Starting dialog open process');
-    console.log('🔍 Initial viewport:', {
-      innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
-      outerWidth: window.outerWidth,
-      outerHeight: window.outerHeight,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height
-    });
-    
     // Update button color if provided
     if (buttonColor) {
       this.buttonColor = buttonColor;
@@ -738,34 +728,12 @@ class ScreenshotDialog {
     // Reset image to original state before opening
     this.resetImageElement();
 
-    console.log('🔍 Before showing overlay - overlay styles:', {
-      position: this.overlay.style.position,
-      top: this.overlay.style.top,
-      left: this.overlay.style.left,
-      width: this.overlay.style.width,
-      height: this.overlay.style.height,
-      display: this.overlay.style.display
-    });
-
     // Show overlay with flexbox centering
     this.overlay.style.display = 'flex';
     
-    console.log('🔍 After setting display flex - overlay computed styles:', {
-      display: getComputedStyle(this.overlay).display,
-      alignItems: getComputedStyle(this.overlay).alignItems,
-      justifyContent: getComputedStyle(this.overlay).justifyContent,
-      position: getComputedStyle(this.overlay).position,
-      top: getComputedStyle(this.overlay).top,
-      left: getComputedStyle(this.overlay).left,
-      width: getComputedStyle(this.overlay).width,
-      height: getComputedStyle(this.overlay).height
-    });
-    
     // Force recalculation and manual centering as backup
     setTimeout(() => {
-      console.log('🔍 In setTimeout before opacity change');
       this.overlay.style.opacity = '1';
-      this.centerDialog();
     }, 10);
 
     // Handle dialog open events - mirrors React useEffect logic
@@ -1930,99 +1898,6 @@ class ScreenshotDialog {
     
     // Add a small additional delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  centerDialog() {
-    console.log('🔍 CENTER DIALOG DEBUG: Starting manual centering');
-    
-    // Manual centering calculation as backup to flexbox
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    console.log('🔍 Viewport dimensions:', { viewportWidth, viewportHeight });
-    
-    // Check overlay dimensions and position
-    const overlayRect = this.overlay.getBoundingClientRect();
-    console.log('🔍 Overlay rect:', {
-      top: overlayRect.top,
-      left: overlayRect.left,
-      width: overlayRect.width,
-      height: overlayRect.height,
-      bottom: overlayRect.bottom,
-      right: overlayRect.right
-    });
-    
-    // Get dialog dimensions
-    const dialogRect = this.dialog.getBoundingClientRect();
-    console.log('🔍 Dialog rect BEFORE manual positioning:', {
-      top: dialogRect.top,
-      left: dialogRect.left,
-      width: dialogRect.width,
-      height: dialogRect.height,
-      bottom: dialogRect.bottom,
-      right: dialogRect.right
-    });
-    
-    // Calculate center position
-    const centerX = (viewportWidth - dialogRect.width) / 2;
-    const centerY = (viewportHeight - dialogRect.height) / 2;
-    
-    console.log('🔍 Calculated center positions:', { centerX, centerY });
-    
-    // Check current dialog styles before manual positioning
-    console.log('🔍 Dialog styles BEFORE manual positioning:', {
-      position: this.dialog.style.position,
-      left: this.dialog.style.left,
-      top: this.dialog.style.top,
-      transform: this.dialog.style.transform,
-      display: this.dialog.style.display
-    });
-    
-    // Apply manual positioning if flexbox isn't working
-    this.dialog.style.position = 'fixed';
-    this.dialog.style.left = `${centerX}px`;
-    this.dialog.style.top = `${centerY}px`;
-    this.dialog.style.transform = 'none';
-    
-    console.log('🔍 Dialog styles AFTER manual positioning:', {
-      position: this.dialog.style.position,
-      left: this.dialog.style.left,
-      top: this.dialog.style.top,
-      transform: this.dialog.style.transform
-    });
-    
-    // Check final position
-    setTimeout(() => {
-      const finalRect = this.dialog.getBoundingClientRect();
-      console.log('🔍 Dialog rect AFTER manual positioning (100ms later):', {
-        top: finalRect.top,
-        left: finalRect.left,
-        width: finalRect.width,
-        height: finalRect.height,
-        bottom: finalRect.bottom,
-        right: finalRect.right
-      });
-      
-      // Calculate if it's actually centered
-      const actualCenterX = finalRect.left + (finalRect.width / 2);
-      const actualCenterY = finalRect.top + (finalRect.height / 2);
-      const expectedCenterX = viewportWidth / 2;
-      const expectedCenterY = viewportHeight / 2;
-      
-      console.log('🔍 Centering verification:', {
-        actualCenterX,
-        actualCenterY,
-        expectedCenterX,
-        expectedCenterY,
-        offsetX: actualCenterX - expectedCenterX,
-        offsetY: actualCenterY - expectedCenterY,
-        isCenteredX: Math.abs(actualCenterX - expectedCenterX) < 5,
-        isCenteredY: Math.abs(actualCenterY - expectedCenterY) < 5
-      });
-    }, 100);
-    
-    // Debug logging
-    console.log('🔍 Dialog centering debug complete');
   }
 }
 
