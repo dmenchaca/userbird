@@ -167,7 +167,6 @@ class ScreenshotDialog {
       position: relative !important;
       max-width: 95vw !important;
       width: auto !important;
-      height: 90vh !important;
       max-height: 90vh !important;
       background: var(--ssd-background) !important;
       border-radius: 8px !important;
