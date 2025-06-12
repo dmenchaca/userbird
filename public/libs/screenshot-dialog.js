@@ -153,9 +153,9 @@ class ScreenshotDialog {
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
       outline: none;
-      align-items: center;
-      justify-content: center;
-      padding: 0 !important;
+      display: grid;
+      place-items: center;
+      padding: 20px !important;
       margin: 0 !important;
       box-sizing: border-box;
     `;
@@ -167,7 +167,7 @@ class ScreenshotDialog {
       position: relative !important;
       max-width: 95vw !important;
       width: auto !important;
-      max-height: 80vh !important;
+      max-height: 90vh !important;
       background: var(--ssd-background) !important;
       border-radius: 8px !important;
       padding: 0 !important;
@@ -260,7 +260,7 @@ class ScreenshotDialog {
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
       max-width: 95vw !important;
-      max-height: 75vh !important;
+      max-height: 85vh !important;
       object-fit: contain;
       image-rendering: auto;
     `;
@@ -728,8 +728,8 @@ class ScreenshotDialog {
     // Reset image to original state before opening
     this.resetImageElement();
 
-    // Show overlay with flexbox centering
-    this.overlay.style.display = 'flex';
+    // Show overlay with grid centering
+    this.overlay.style.display = 'grid';
     
     // Force recalculation and manual centering as backup
     setTimeout(() => {
