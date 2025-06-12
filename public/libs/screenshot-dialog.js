@@ -163,13 +163,12 @@ class ScreenshotDialog {
       transform: translate(-50%, -50%);
       max-width: 95vw;
       width: auto;
-      max-height: 85vh;
+      max-height: 90vh;
       background: var(--ssd-background);
       border-radius: 8px;
       padding: 0;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       border: 1px solid var(--ssd-border-color);
-      margin: 5vh 0;
     `;
 
     // Create close button in top right corner
@@ -248,7 +247,7 @@ class ScreenshotDialog {
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
       max-width: 95vw;
-      max-height: 75vh;
+      max-height: 85vh;
       object-fit: contain;
       image-rendering: auto;
     `;
@@ -1117,6 +1116,9 @@ class ScreenshotDialog {
 
       // Clean up video element
       video.srcObject = null;
+
+      // Wait a moment for browser to remove the "Stop sharing" notification bar
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       if (!blob) {
         throw new Error('Failed to capture screenshot from browser stream');
