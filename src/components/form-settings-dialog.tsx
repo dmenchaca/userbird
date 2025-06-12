@@ -44,6 +44,7 @@ interface FormSettingsDialogProps {
   showGifOnSuccess: boolean
   removeBranding: boolean
   collectConsoleLogs: boolean
+  screenshotMethod: string
   initialGifUrls?: string[]
   initialTab?: SettingsTab
   open: boolean
@@ -234,6 +235,7 @@ export function FormSettingsDialog({
   showGifOnSuccess: initialShowGifOnSuccess,
   removeBranding: initialRemoveBranding,
   collectConsoleLogs: initialCollectConsoleLogs,
+  screenshotMethod,
   initialGifUrls = [],
   initialTab,
   open, 
@@ -255,6 +257,7 @@ export function FormSettingsDialog({
       showGifOnSuccess: false,
       removeBranding: false,
       collectConsoleLogs: true,
+      screenshotMethod: 'canvas',
       gifUrls: [] as string[]
     },
     notifications: {
@@ -290,6 +293,7 @@ export function FormSettingsDialog({
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(initialShowGifOnSuccess)
   const [removeBranding, setRemoveBranding] = useState(initialRemoveBranding)
   const [collectConsoleLogs, setCollectConsoleLogs] = useState(initialCollectConsoleLogs)
+  const [currentScreenshotMethod, setCurrentScreenshotMethod] = useState(screenshotMethod)
   const [gifUrls, setGifUrls] = useState<string[]>(initialGifUrls)
   const [gifUrlsText, setGifUrlsText] = useState(initialGifUrls.join('\n'))
   const [latestScrapingProcess, setLatestScrapingProcess] = useState<ScrapingProcess | null>(null)
@@ -351,6 +355,7 @@ export function FormSettingsDialog({
           showGifOnSuccess: initialShowGifOnSuccess,
           removeBranding: initialRemoveBranding,
           collectConsoleLogs: initialCollectConsoleLogs,
+          screenshotMethod: screenshotMethod,
           gifUrls: initialGifUrls || []
         }
       }));
@@ -367,6 +372,7 @@ export function FormSettingsDialog({
     initialShowGifOnSuccess,
     initialRemoveBranding,
     initialCollectConsoleLogs,
+    screenshotMethod,
     initialGifUrls
   ]);
 
@@ -888,6 +894,7 @@ export function FormSettingsDialog({
     setShowGifOnSuccess(initialShowGifOnSuccess);
     setRemoveBranding(initialRemoveBranding);
     setCollectConsoleLogs(initialCollectConsoleLogs);
+    setCurrentScreenshotMethod(screenshotMethod);
     setGifUrls(initialGifUrls);
     setGifUrlsText(initialGifUrls.join('\n'));
   };
@@ -903,13 +910,14 @@ export function FormSettingsDialog({
     setShowGifOnSuccess(initialShowGifOnSuccess);
     setRemoveBranding(initialRemoveBranding);
     setCollectConsoleLogs(initialCollectConsoleLogs);
+    setCurrentScreenshotMethod(screenshotMethod);
     
     // Debug log to verify productName is being received correctly
     console.log('[FormSettingsDialog] Updated product name from props:', {
       receivedProductName: productName,
       setProductValue: productName || ''
     });
-  }, [buttonColor, supportText, formUrl, productName, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding, initialCollectConsoleLogs]);
+  }, [buttonColor, supportText, formUrl, productName, keyboardShortcut, initialSoundEnabled, initialShowGifOnSuccess, initialRemoveBranding, initialCollectConsoleLogs, screenshotMethod]);
 
   // Auto-save sound enabled state
   /*
@@ -1375,6 +1383,40 @@ export function FormSettingsDialog({
       console.error('Error updating console logs collection setting:', error);
       setCollectConsoleLogs(originalValues.styling.collectConsoleLogs);
       toast.error(`Failed to ${checked ? 'enable' : 'disable'} console logs collection`);
+    }
+  };
+
+  // Handle screenshot method change to save changes
+  const handleScreenshotMethodChange = async (method: string) => {
+    if (method === originalValues.styling.screenshotMethod) {
+      return;
+    }
+
+    setCurrentScreenshotMethod(method);
+    
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .update({ screenshot_method: method })
+        .eq('id', formId);
+
+      if (error) throw error;
+
+      setOriginalValues(current => ({
+        ...current,
+        styling: {
+          ...current.styling,
+          screenshotMethod: method
+        }
+      }));
+
+      onSettingsSaved();
+
+      toast.success(`Screenshot method changed to ${method === 'canvas' ? 'native canvas' : 'browser API'} successfully`);
+    } catch (error) {
+      console.error('Error updating screenshot method:', error);
+      setCurrentScreenshotMethod(originalValues.styling.screenshotMethod);
+      toast.error(`Failed to update screenshot method`);
     }
   };
 
@@ -1955,6 +1997,29 @@ export function FormSettingsDialog({
                         <p className="text-xs text-muted-foreground">
                           Automatically collect console logs to help with debugging
                         </p>
+                      </div>
+
+                      <div className="space-y-3 mt-6 pt-6 border-t mb-8">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="screenshotMethod">Screenshot Method</Label>
+                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                              NEW
+                            </span>
+                          </div>
+                          <select
+                            id="screenshotMethod"
+                            value={currentScreenshotMethod}
+                            onChange={(e) => handleScreenshotMethodChange(e.target.value)}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="canvas">Native Canvas Capture</option>
+                            <option value="browser">Browser API (with user authorization)</option>
+                          </select>
+                          <p className="text-xs text-muted-foreground">
+                            Choose how screenshots are captured. Native canvas works automatically, while browser API shows an authorization dialog for higher quality captures.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

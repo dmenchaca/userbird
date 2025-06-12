@@ -47,6 +47,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
   const [showGifOnSuccess, setShowGifOnSuccess] = useState(false)
   const [removeBranding, setRemoveBranding] = useState(false)
   const [collectConsoleLogs, setCollectConsoleLogs] = useState(false)
+  const [screenshotMethod, setScreenshotMethod] = useState('canvas')
   const [gifUrls, setGifUrls] = useState<string[]>([])
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showNewFormDialog, setShowNewFormDialog] = useState(false)
@@ -359,9 +360,9 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
         // First try to fetch as owner
         let { data, error } = await supabase
           .from('forms')
-          .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
+          .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs, screenshot_method')
           .eq('id', selectedFormId)
-          .eq('owner_id', user.id)
+          .eq('owner_id', user.id || '')
           .single();
 
         // If no data found or error occurred, the user might be a collaborator
@@ -370,14 +371,14 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           const { data: hasAccess } = await supabase
             .rpc('user_has_form_access', {
               form_id_param: selectedFormId,
-              user_id_param: user.id
+              user_id_param: user?.id || ''
             });
 
           if (hasAccess) {
             // User has collaborative access, fetch form details
             const { data: formData, error: formError } = await supabase
               .from('forms')
-              .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
+              .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs, screenshot_method')
               .eq('id', selectedFormId)
               .single();
 
@@ -398,6 +399,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
           setGifUrls(data.gif_urls || []);
           setRemoveBranding(data.remove_branding);
           setCollectConsoleLogs(data.collect_console_logs ?? false);
+          setScreenshotMethod(data.screenshot_method || 'canvas');
         }
       };
 
@@ -2422,6 +2424,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
             showGifOnSuccess={showGifOnSuccess}
             removeBranding={removeBranding}
             collectConsoleLogs={collectConsoleLogs}
+            screenshotMethod={screenshotMethod}
             initialGifUrls={gifUrls}
             initialTab={settingsActiveTab}
             open={showSettingsDialog}
@@ -2433,7 +2436,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                 // First try to fetch as owner
                 let { data, error } = await supabase
                   .from('forms')
-                  .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
+                  .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs, screenshot_method')
                   .eq('id', selectedFormId)
                   .eq('owner_id', user?.id || '')
                   .single();
@@ -2451,7 +2454,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                     // User has collaborative access, fetch form details
                     const { data: formData, error: formError } = await supabase
                       .from('forms')
-                      .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs')
+                      .select('url, product_name, button_color, support_text, keyboard_shortcut, sound_enabled, show_gif_on_success, gif_urls, remove_branding, collect_console_logs, screenshot_method')
                       .eq('id', selectedFormId)
                       .single();
 
@@ -2472,6 +2475,7 @@ export function Dashboard({ initialFormId, initialTicketNumber }: DashboardProps
                   setGifUrls(data.gif_urls || []);
                   setRemoveBranding(data.remove_branding);
                   setCollectConsoleLogs(data.collect_console_logs ?? false);
+                  setScreenshotMethod(data.screenshot_method || 'canvas');
                 }
               };
 
