@@ -288,10 +288,15 @@ class ScreenshotDialog {
       user-select: none;
       transition: all 0.1s ease;
       display: none;
+    `;
+
+    this.toolbarContent = document.createElement('div');
+    this.toolbarContent.style.cssText = `
       background: var(--ssd-toolbar-background);
       border-radius: 8px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       padding: 12px;
+      display: flex;
       gap: 12px;
       align-items: center;
       border: 1px solid var(--ssd-border-color);
@@ -329,7 +334,8 @@ class ScreenshotDialog {
       this.dragHandle.style.backgroundColor = 'transparent';
     });
 
-    this.toolbar.appendChild(this.dragHandle);
+    this.toolbarContent.appendChild(this.dragHandle);
+    this.toolbar.appendChild(this.toolbarContent);
   }
 
   createButton(iconSvg, text, tooltip, onClick, variant = 'outline') {
@@ -953,7 +959,7 @@ class ScreenshotDialog {
     // console.log('updateToolbar called - annotatedImage exists:', !!this.annotatedImage, 'isAnnotationReady:', this.isAnnotationReady, 'markerArea exists:', !!this.markerArea);
     
     // Clear existing tools
-    const existingTools = this.toolbar.querySelector('.toolbar-tools');
+    const existingTools = this.toolbarContent.querySelector('.toolbar-tools');
     if (existingTools) {
       existingTools.remove();
     }
@@ -970,14 +976,12 @@ class ScreenshotDialog {
     if (this.isAnnotationReady && this.markerArea && !this.annotatedImage) {
       // console.log('Creating annotation tools');
       toolsContainer.appendChild(this.createAnnotationTools());
-      this.toolbar.style.display = 'flex';
       this.showToolbarWithAnimation(wasHidden);
     }
     // Show preview tools when: annotatedImage exists (regardless of mode)
     else if (this.annotatedImage) {
       // console.log('Creating preview tools');
       toolsContainer.appendChild(this.createPreviewTools());
-      this.toolbar.style.display = 'flex';
       this.showToolbarWithAnimation(wasHidden);
     }
     else {
@@ -987,7 +991,7 @@ class ScreenshotDialog {
       this.toolbar.classList.remove('magical-appear');
     }
 
-    this.toolbar.appendChild(toolsContainer);
+    this.toolbarContent.appendChild(toolsContainer);
   }
 
   showToolbarWithAnimation(wasHidden) {
