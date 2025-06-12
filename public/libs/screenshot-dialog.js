@@ -151,16 +151,17 @@ class ScreenshotDialog {
       opacity: 0;
       transition: opacity 0.2s ease-in-out;
       outline: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
     `;
 
     // Create dialog content
     this.dialog = document.createElement('div');
     this.dialog.className = 'screenshot-dialog-content';
     this.dialog.style.cssText = `
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      position: relative;
       max-width: 95vw;
       width: auto;
       max-height: 90vh;
@@ -715,8 +716,8 @@ class ScreenshotDialog {
     // Reset image to original state before opening
     this.resetImageElement();
 
-    // Show overlay
-    this.overlay.style.display = 'block';
+    // Show overlay with flexbox centering
+    this.overlay.style.display = 'flex';
     setTimeout(() => {
       this.overlay.style.opacity = '1';
     }, 10);
