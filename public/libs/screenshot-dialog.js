@@ -163,12 +163,13 @@ class ScreenshotDialog {
       transform: translate(-50%, -50%);
       max-width: 95vw;
       width: auto;
-      max-height: 95vh;
+      max-height: 85vh;
       background: var(--ssd-background);
       border-radius: 8px;
       padding: 0;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       border: 1px solid var(--ssd-border-color);
+      margin: 5vh 0;
     `;
 
     // Create close button in top right corner
@@ -239,7 +240,7 @@ class ScreenshotDialog {
       color: var(--ssd-text);
       background: var(--ssd-background);
       border-bottom: 1px solid var(--ssd-border-color);
-      text-align: center;
+      text-align: left;
       border-radius: 8px 8px 0 0;
     `;
 
@@ -247,7 +248,7 @@ class ScreenshotDialog {
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
       max-width: 95vw;
-      max-height: 90vh;
+      max-height: 75vh;
       object-fit: contain;
       image-rendering: auto;
     `;
