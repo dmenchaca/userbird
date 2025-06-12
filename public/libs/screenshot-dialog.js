@@ -247,7 +247,6 @@ class ScreenshotDialog {
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid var(--ssd-border-color);
       border-radius: 0 0 6px 6px;
       overflow: hidden;
       flex: 1;
@@ -257,10 +256,13 @@ class ScreenshotDialog {
     // Create image element
     this.imageElement = document.createElement('img');
     this.imageElement.style.cssText = `
-      max-width: 95vw !important;
-      max-height: 85vh !important;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
       image-rendering: auto;
+      display: block;
     `;
 
     // Create toolbar
@@ -769,8 +771,8 @@ class ScreenshotDialog {
     if (this.imageElement) {
       // Reset all possible CSS properties that might be modified by MarkerArea
       this.imageElement.style.cssText = `
-        max-width: 95vw;
-        max-height: 90vh;
+        max-width: 100%;
+        max-height: 100%;
         object-fit: contain;
         image-rendering: auto;
         width: auto;
