@@ -234,18 +234,21 @@ class ScreenshotDialog {
     this.container.style.cssText = `
       position: relative;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       border: 1px solid var(--ssd-border-color);
       border-radius: 6px;
       overflow: hidden;
+      background: var(--ssd-background);
     `;
 
-    // Create title element
+    // Create title element (now inside container)
     this.titleElement = document.createElement('div');
     this.titleElement.className = 'screenshot-dialog-title';
     this.titleElement.textContent = 'Highlight or hide info on your screenshot';
     this.titleElement.style.cssText = `
+      width: 100%;
       padding: 16px 24px;
       font-size: 18px;
       font-weight: 600;
@@ -254,6 +257,20 @@ class ScreenshotDialog {
       border-bottom: 1px solid var(--ssd-border-color);
       text-align: left;
       border-radius: 8px 8px 0 0;
+      flex-shrink: 0;
+    `;
+
+    // Create image container
+    this.imageContainer = document.createElement('div');
+    this.imageContainer.className = 'screenshot-image-container';
+    this.imageContainer.style.cssText = `
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      width: 100%;
+      min-height: 200px;
     `;
 
     // Create image element
@@ -268,11 +285,12 @@ class ScreenshotDialog {
     // Create toolbar
     this.createToolbar();
 
-    // Assemble dialog
-    this.container.appendChild(this.imageElement);
-    this.container.appendChild(this.toolbar);
+    // Assemble dialog with new structure
+    this.imageContainer.appendChild(this.imageElement);
+    this.imageContainer.appendChild(this.toolbar);
+    this.container.appendChild(this.titleElement);
+    this.container.appendChild(this.imageContainer);
     this.dialog.appendChild(this.closeButton);
-    this.dialog.appendChild(this.titleElement);
     this.dialog.appendChild(this.container);
     this.overlay.appendChild(this.dialog);
     document.body.appendChild(this.overlay);
