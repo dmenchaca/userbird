@@ -140,11 +140,13 @@ class ScreenshotDialog {
     this.overlay.className = 'screenshot-dialog-overlay';
     this.overlay.tabIndex = -1; // Make focusable for focus management
     this.overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
       background-color: rgba(0, 0, 0, 0.8);
       display: none;
       z-index: 10000;
@@ -153,7 +155,8 @@ class ScreenshotDialog {
       outline: none;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 0 !important;
+      margin: 0 !important;
       box-sizing: border-box;
     `;
 
@@ -161,15 +164,24 @@ class ScreenshotDialog {
     this.dialog = document.createElement('div');
     this.dialog.className = 'screenshot-dialog-content';
     this.dialog.style.cssText = `
-      position: relative;
-      max-width: 95vw;
-      width: auto;
-      max-height: 90vh;
-      background: var(--ssd-background);
-      border-radius: 8px;
-      padding: 0;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      border: 1px solid var(--ssd-border-color);
+      position: relative !important;
+      max-width: 95vw !important;
+      width: auto !important;
+      max-height: 90vh !important;
+      background: var(--ssd-background) !important;
+      border-radius: 8px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid var(--ssd-border-color) !important;
+      top: auto !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: none !important;
+      display: block !important;
+      float: none !important;
+      clear: both !important;
     `;
 
     // Create close button in top right corner
@@ -718,8 +730,11 @@ class ScreenshotDialog {
 
     // Show overlay with flexbox centering
     this.overlay.style.display = 'flex';
+    
+    // Force recalculation and manual centering as backup
     setTimeout(() => {
       this.overlay.style.opacity = '1';
+      this.centerDialog();
     }, 10);
 
     // Handle dialog open events - mirrors React useEffect logic
@@ -1878,6 +1893,35 @@ class ScreenshotDialog {
     
     // Add a small additional delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  centerDialog() {
+    // Manual centering calculation as backup to flexbox
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Get dialog dimensions
+    const dialogRect = this.dialog.getBoundingClientRect();
+    
+    // Calculate center position
+    const centerX = (viewportWidth - dialogRect.width) / 2;
+    const centerY = (viewportHeight - dialogRect.height) / 2;
+    
+    // Apply manual positioning if flexbox isn't working
+    this.dialog.style.position = 'fixed';
+    this.dialog.style.left = `${centerX}px`;
+    this.dialog.style.top = `${centerY}px`;
+    this.dialog.style.transform = 'none';
+    
+    // Debug logging
+    console.log('Dialog centering debug:', {
+      viewportWidth,
+      viewportHeight,
+      dialogWidth: dialogRect.width,
+      dialogHeight: dialogRect.height,
+      centerX,
+      centerY
+    });
   }
 }
 
